@@ -3,7 +3,7 @@ import "package:hearts/cards/card.dart";
 import "package:hearts/cards/trick.dart";
 import "package:hearts/hearts/hearts.dart";
 
-List<PlayingCard> c(String s) => PlayingCard.cardsFromString(s);
+const c = PlayingCard.cardsFromString;
 
 void main() {
   test("Leads", () {
@@ -24,12 +24,10 @@ void main() {
     // Need a previous trick to not trigger the "no points on first trick" rule.
     final prevTricks = [Trick(0, c("2C JC QC KC"), 3)];
 
-    final spadeLead = TrickInProgress(0);
-    spadeLead.cards.addAll(c("3S KH"));
+    final spadeLead = TrickInProgress(0, c("3S KH"));
     expect(legalPlays(hand, spadeLead, prevTricks, rules), c("AS 2S"));
 
-    final diamondLead = TrickInProgress(0);
-    diamondLead.cards.addAll(c("3D KH"));
+    final diamondLead = TrickInProgress(0, c("3D KH"));
     expect(legalPlays(hand, diamondLead, prevTricks, rules), c("AS 2S QH 4C"));
   });
 
@@ -43,16 +41,14 @@ void main() {
   test("First trick follow", () {
     final rules = HeartsRuleSet();
     final hand = c("AS 2S AC QH 3C");
-    final firstTrick = TrickInProgress(0);
-    firstTrick.cards.addAll(c("2C JC"));
+    final firstTrick = TrickInProgress(0, c("2C JC"));
     expect(legalPlays(hand, firstTrick, [], rules), c("AC 3C"));
   });
 
   test("First trick no points", () {
     final rules = HeartsRuleSet();
     final hand = c("AS QS 7S 7H 7D");
-    final firstTrick = TrickInProgress(0);
-    firstTrick.cards.addAll(c("2C JC"));
+    final firstTrick = TrickInProgress(0, c("2C JC"));
     expect(legalPlays(hand, firstTrick, [], rules), c("AS 7S 7D"));
 
     rules.pointsOnFirstTrick = true;
@@ -62,8 +58,7 @@ void main() {
   test("First trick hand has only points", () {
     final rules = HeartsRuleSet();
     final hand = c("AH TH QS 7H");
-    final firstTrick = TrickInProgress(0);
-    firstTrick.cards.addAll(c("2C JC"));
+    final firstTrick = TrickInProgress(0, c("2C JC"));
     expect(legalPlays(hand, firstTrick, [], rules), c("AH TH QS 7H"));
   });
 

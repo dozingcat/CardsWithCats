@@ -36,17 +36,22 @@ class Trick {
   final int winner;
 
   Trick(this.leader, this.cards, this.winner);
+
+  Trick copy() => Trick(leader, List.of(cards), winner);
 }
 
 class TrickInProgress {
   final int leader;
-  final List<PlayingCard> cards = [];
+  final List<PlayingCard> cards;
 
-  TrickInProgress(this.leader);
+  TrickInProgress(this.leader, [List<PlayingCard>? _cards]) :
+        cards=_cards ?? [];
+
+  TrickInProgress copy() => TrickInProgress(leader, List.of(cards));
 
   Trick finish({Suit? trump}) {
-    int winnerRelIndex = trickWinnerIndex(this.cards, trump: trump);
-    int winner = (this.leader + winnerRelIndex) % this.cards.length;
-    return Trick(this.leader, this.cards, winner);
+    int winnerRelIndex = trickWinnerIndex(cards, trump: trump);
+    int winner = (leader + winnerRelIndex) % cards.length;
+    return Trick(leader, cards, winner);
   }
 }

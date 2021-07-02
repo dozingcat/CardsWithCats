@@ -22,6 +22,20 @@ class HeartsRuleSet {
   bool queenBreaksHearts = false;
   bool jdMinus10 = false;
   MoonShooting moonShooting = MoonShooting.opponentsPlus26;
+
+  HeartsRuleSet();
+
+  HeartsRuleSet copy() => HeartsRuleSet.from(this);
+
+  HeartsRuleSet.from(HeartsRuleSet src) :
+      numPlayers = src.numPlayers,
+      numPassedCards = src.numPassedCards,
+      removedCards = List.from(src.removedCards),
+      pointLimit = src.pointLimit,
+      pointsOnFirstTrick = src.pointsOnFirstTrick,
+      queenBreaksHearts = src.queenBreaksHearts,
+      jdMinus10 = src.jdMinus10,
+      moonShooting = src.moonShooting;
 }
 
 int pointsForCard(PlayingCard card, HeartsRuleSet ruleSet) {
@@ -147,7 +161,7 @@ List<PlayingCard> legalPlays(
   }
 }
 
-int findCard(List<HeartsPlayer> players, PlayingCard card) {
+int indexOfPlayerWithCard(List<HeartsPlayer> players, PlayingCard card) {
   return players.indexWhere((p) => p.hand.contains(card));
 }
 
@@ -161,6 +175,13 @@ class HeartsPlayer {
         hand = List.from(_hand),
         passedCards = [],
         receivedCards = [];
+
+  HeartsPlayer.from(HeartsPlayer src) :
+      hand = List.from(src.hand),
+      passedCards = List.from(src.passedCards),
+      receivedCards = List.from(src.receivedCards);
+
+  HeartsPlayer copy() => HeartsPlayer.from(this);
 }
 
 enum HeartsRoundStatus {
@@ -187,7 +208,7 @@ class HeartsRound {
       final playerCards = cards.sublist(i * numCardsPerPlayer, (i + 1) * numCardsPerPlayer);
       players.add(HeartsPlayer(playerCards));
     }
-    int startingPlayer = findCard(players, twoOfClubs);
+    int startingPlayer = indexOfPlayerWithCard(players, twoOfClubs);
 
     final round = HeartsRound();
     round.rules = rules;
@@ -197,6 +218,17 @@ class HeartsRound {
     round.passDirection = passDirection;
     round.currentTrick = TrickInProgress(startingPlayer);
 
+    return round;
+  }
+
+  HeartsRound copy() {
+    final round = HeartsRound();
+    round.status = status;
+    round.players = players.map((p) => p.copy()).toList();
+    round.initialScores = List.of(initialScores);
+    round.passDirection = passDirection;
+    round.currentTrick = currentTrick.copy();
+    round.previousTricks = previousTricks.map((t) => t.copy()).toList();
     return round;
   }
 
@@ -263,7 +295,7 @@ class HeartsRound {
     if (players.any((p) => p.hand.length != players[0].hand.length)) {
       throw Exception("Mismatched hand lengths");
     }
-    currentTrick = TrickInProgress(findCard(players, twoOfClubs));
+    currentTrick = TrickInProgress(indexOfPlayerWithCard(players, twoOfClubs));
   }
 
   void playCard(PlayingCard card) {
