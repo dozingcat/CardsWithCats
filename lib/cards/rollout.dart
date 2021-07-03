@@ -13,29 +13,33 @@ class CardDistributionConstraint {
        fixedCards = fixedCards ?? [];
 }
 
+class CardDistributionRequest {
+  final List<PlayingCard> cardsToAssign;
+  final List<CardDistributionConstraint> constraints;
+
+  CardDistributionRequest({required this.cardsToAssign, required this.constraints});
+}
+
 class CardDistributionException implements Exception {
   String msg;
   CardDistributionException(this.msg);
 }
 
-List<List<PlayingCard>>? _possibleCardDistribution(
-    List<PlayingCard> cards,
-    List<CardDistributionConstraint> constraints,
-    Random rng) {
-  final numPlayers = constraints.length;
+List<List<PlayingCard>>? _possibleCardDistribution(CardDistributionRequest req, Random rng) {
+  final numPlayers = req.constraints.length;
   List<List<PlayingCard>> result = List.generate(numPlayers, (index) => []);
   List<List<PlayingCard>> legalCards = List.generate(numPlayers, (index) => []);
   for (int i = 0; i < numPlayers; i++) {
-    final cs = constraints[i];
+    final cs = req.constraints[i];
     // Add cards in suits that the player isn't known to be out of.
-    for (final c in cards) {
+    for (final c in req.cardsToAssign) {
       if (!cs.voidedSuits.contains(c.suit)) {
         legalCards[i].add(c);
       }
     }
     // Assign fixed cards.
     for (var fc in cs.fixedCards) {
-      if (cards.contains(fc)) {
+      if (req.cardsToAssign.contains(fc)) {
         result[i].add(fc);
         legalCards[i].remove(fc);
       }
@@ -43,7 +47,7 @@ List<List<PlayingCard>>? _possibleCardDistribution(
     // Remove cards that are fixed to other players.
     for (int j = 0; j < numPlayers; j++) {
       if (i != j) {
-        legalCards[i].removeWhere((card) => constraints[j].fixedCards.contains(card));
+        legalCards[i].removeWhere((card) => req.constraints[j].fixedCards.contains(card));
       }
     }
   }
@@ -52,7 +56,7 @@ List<List<PlayingCard>>? _possibleCardDistribution(
     bool tookAll = false;
     // If any player's remaining cards are forced, take them all.
     for (int i = 0; i < numPlayers; i++) {
-      final numToFill = constraints[i].numCards - result[i].length;
+      final numToFill = req.constraints[i].numCards - result[i].length;
       if (numToFill > 0) {
         final numLegal = legalCards[i].length;
         if (numToFill > numLegal) {
@@ -78,7 +82,7 @@ List<List<PlayingCard>>? _possibleCardDistribution(
     // Nobody had a forced pick, choose one card for one player.
     bool choseCard = false;
     for (int i = 0; i < numPlayers; i++) {
-      final numToFill = constraints[i].numCards - result[i].length;
+      final numToFill = req.constraints[i].numCards - result[i].length;
       if (numToFill > 0) {
         // print("Choosing card for player $i from ${legalCards[i]}");
         final cardIndex = rng.nextInt(legalCards[i].length);
@@ -99,15 +103,12 @@ List<List<PlayingCard>>? _possibleCardDistribution(
   return result;
 }
 
-List<List<PlayingCard>> possibleCardDistribution(
-    List<PlayingCard> cards,
-    List<CardDistributionConstraint> constraints,
-    Random rng) {
+List<List<PlayingCard>>? possibleCardDistribution(CardDistributionRequest req, Random rng) {
   for (int i = 0; i < 1000; i++) {
-    final result = _possibleCardDistribution(cards, constraints, rng);
+    final result = _possibleCardDistribution(req, rng);
     if (result != null) {
       return result;
     }
   }
-  throw CardDistributionException("Can't satisfy constraints");
+  return null;
 }

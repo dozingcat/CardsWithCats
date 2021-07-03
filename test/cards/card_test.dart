@@ -22,4 +22,12 @@ void main() {
     expect(PlayingCard.cardFromString("10H"), PlayingCard(Rank.ten, Suit.hearts));
     expect(PlayingCard.cardFromString("3♣"), PlayingCard(Rank.three, Suit.clubs));
   });
+
+  test("ranks for suit", () {
+    final cards = PlayingCard.cardsFromString("4S 7H JS 2D 2S AS KD");
+    expect(ranksForSuit(cards, Suit.spades), [Rank.ace, Rank.jack, Rank.four, Rank.two]);
+    expect(ranksForSuit(cards, Suit.hearts), [Rank.seven]);
+    expect(ranksForSuit(cards, Suit.diamonds), [Rank.king, Rank.two]);
+    expect(ranksForSuit(cards, Suit.clubs), []);
+  });
 }

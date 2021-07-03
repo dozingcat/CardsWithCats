@@ -36,6 +36,9 @@ class HeartsRuleSet {
       queenBreaksHearts = src.queenBreaksHearts,
       jdMinus10 = src.jdMinus10,
       moonShooting = src.moonShooting;
+
+  int get numberOfUsedCards => (52 - removedCards.length);
+  int get numberOfCardsPerPlayer => numberOfUsedCards ~/ numPlayers;
 }
 
 int pointsForCard(PlayingCard card, HeartsRuleSet ruleSet) {
@@ -222,14 +225,13 @@ class HeartsRound {
   }
 
   HeartsRound copy() {
-    final round = HeartsRound();
-    round.status = status;
-    round.players = players.map((p) => p.copy()).toList();
-    round.initialScores = List.of(initialScores);
-    round.passDirection = passDirection;
-    round.currentTrick = currentTrick.copy();
-    round.previousTricks = previousTricks.map((t) => t.copy()).toList();
-    return round;
+    return HeartsRound()
+      ..status = status
+      ..players = players.map((p) => p.copy()).toList()
+      ..initialScores = List.of(initialScores)
+      ..passDirection = passDirection
+      ..currentTrick = currentTrick.copy()
+      ..previousTricks = previousTricks.map((t) => t.copy()).toList();
   }
 
   bool isOver() {

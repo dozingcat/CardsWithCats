@@ -30,6 +30,10 @@ int trickWinnerIndex(final List<PlayingCard> cards, {Suit? trump}) {
   return topIndex;
 }
 
+PlayingCard highestCardInTrick(List<PlayingCard> cards, {Suit? trump}) {
+  return cards[trickWinnerIndex(cards, trump: trump)];
+}
+
 class Trick {
   final int leader;
   final List<PlayingCard> cards;
@@ -38,6 +42,7 @@ class Trick {
   Trick(this.leader, this.cards, this.winner);
 
   Trick copy() => Trick(leader, List.of(cards), winner);
+  static List<Trick> copyAll(Iterable<Trick> tricks) => tricks.map((t) => t.copy()).toList();
 }
 
 class TrickInProgress {

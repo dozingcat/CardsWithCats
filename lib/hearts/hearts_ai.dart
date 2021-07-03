@@ -1,8 +1,10 @@
 import 'dart:math';
 
 import 'package:hearts/cards/card.dart';
+import 'package:hearts/cards/rollout.dart';
 import 'package:hearts/cards/trick.dart';
 import 'package:hearts/hearts/hearts.dart';
+import 'package:hearts/hearts/hearts.dart' as hearts;
 
 class CardsToPassRequest {
   final HeartsRuleSet rules;
@@ -24,23 +26,48 @@ class CardToPlayRequest {
   final HeartsRuleSet rules;
   final List<int> scoresBeforeRound;
   final List<PlayingCard> hand;
+  final List<Trick> previousTricks;
+  final TrickInProgress currentTrick;
   final int passDirection;
   final List<PlayingCard> passedCards;
   final List<PlayingCard> receivedCards;
 
   CardToPlayRequest({
-    required HeartsRuleSet rules_,
-    required List<int> scoresBeforeRound_,
-    required List<PlayingCard> hand_,
+    required this.rules,
+    required this.scoresBeforeRound,
+    required this.hand,
+    required this.previousTricks,
+    required this.currentTrick,
     required this.passDirection,
-    required List<PlayingCard> passedCards_,
-    required List<PlayingCard> receivedCards_,
-  }) :
-      rules = rules_.copy(),
-      scoresBeforeRound = List.from(scoresBeforeRound_),
-      hand = List.from(hand_),
-      passedCards = List.from(passedCards_),
-      receivedCards = List.from(receivedCards_);
+    required this.passedCards,
+    required this.receivedCards,
+  });
+
+  static CardToPlayRequest fromRound(final HeartsRound round) =>
+      CardToPlayRequest(
+        rules: round.rules.copy(),
+        scoresBeforeRound: List.from(round.initialScores),
+        hand: List.from(round
+            .currentPlayer()
+            .hand),
+        previousTricks: round.previousTricks.map((t) => t.copy()).toList(),
+        currentTrick: round.currentTrick.copy(),
+        passDirection: round.passDirection,
+        passedCards: List.from(round
+            .currentPlayer()
+            .passedCards),
+        receivedCards: List.from(round
+            .currentPlayer()
+            .receivedCards),
+      );
+
+  int currentPlayerIndex() {
+    return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
+  }
+
+  List<PlayingCard> legalPlays() {
+    return hearts.legalPlays(hand, currentTrick, previousTricks, rules);
+  }
 }
 
 // Returns the estimated probability of the player at `player_index` eventually
@@ -125,4 +152,170 @@ List<PlayingCard> chooseCardsToPass(CardsToPassRequest req) {
   final sortedHand = List.of(req.hand);
   sortedHand.sort((c1, c2) => cardDanger[c2]! - cardDanger[c1]!);
   return sortedHand.sublist(0, req.numCards);
+}
+
+PlayingCard playCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
+  final legalPlays = req.legalPlays();
+  assert(legalPlays.isNotEmpty);
+  if (legalPlays.length == 1) {
+    return legalPlays[0];
+  }
+  // Sort by descending rank independent of suit, which is useful in several cases below.
+  legalPlays.sort((c1, c2) => c2.rank.index - c1.rank.index);
+  final legalSuits = legalPlays.map((c) => c.suit).toSet();
+  // If leading, play the lowest card in a random suit.
+  // If last in a trick and following suit, play high if there are no points.
+  // Otherwise play low if following suit, discard highest otherwise (favoring QS).
+  // TODO: Favor leading spades if QS hasn't been played and it's safe?
+  final trick = req.currentTrick;
+  if (trick.cards.isEmpty) {
+    // Pick a suit and lead the lowest card, but not QS.
+    final suit = legalSuits.toList()[rng.nextInt(legalSuits.length)];
+    return legalPlays.reversed.firstWhere(
+        (c) => c.suit == suit && c != queenOfSpades,
+        orElse: () => legalPlays.reversed.firstWhere((c) => c != queenOfSpades)
+    );
+  }
+  final trickSuit = trick.cards[0].suit;
+  final isFollowingSuit = legalSuits.contains(trickSuit);
+  final hasQS = legalPlays.contains(queenOfSpades);
+  final hasJD = req.rules.jdMinus10 && legalPlays.contains(jackOfDiamonds);
+  if (isFollowingSuit) {
+    assert(legalSuits.length == 1);
+    // Play high on first trick if no points allowed.
+    if (req.previousTricks.isEmpty && !req.rules.pointsOnFirstTrick) {
+      return legalPlays[0];
+    }
+    final highCard = highestCardInTrick(trick.cards);
+    // Dump QS if possible.
+    if (hasQS && highCard.rank.index > Rank.queen.index) {
+      return queenOfSpades;
+    }
+    final isLastPlay = trick.cards.length == req.rules.numPlayers - 1;
+    if (isLastPlay) {
+      final trickPoints = pointsForCards(trick.cards, req.rules);
+      // Win with JD if possible (and no QS).
+      if (hasJD && trickPoints < 10 && highCard.rank.index < Rank.jack.index) {
+        return jackOfDiamonds;
+      }
+      // Win without taking points if possible.
+      if (trickPoints <= 0) {
+        return _firstInSuitNotQS(legalPlays, trickSuit);
+      }
+      // Avoid taking the trick if we can; if we can't play highest.
+      // If playing with JD rule, don't play it under a higher diamond.
+      // TODO: Win with AS or KS if it helps to avoid the queen.
+      return legalPlays
+          .where((c) => !(hasJD && c == jackOfDiamonds))
+          .firstWhere((c) => c.rank.index < highCard.rank.index,
+              orElse: () => _firstInSuitNotQS(legalPlays, trickSuit));
+    }
+    else {
+      // Play just under the winner if possible (but not JD if it's -10 points).
+      // If we can't, play the lowest (other than QS).
+      return legalPlays
+          .where((c) => !(hasJD && c == jackOfDiamonds))
+          .firstWhere((c) => c.rank.index < highCard.rank.index,
+          orElse: () => _firstInSuitNotQS(legalPlays.reversed, trickSuit));
+    }
+  }
+  else {
+    // Ditch QS if possible, otherwise highest heart, otherwise highest other card.
+    if (hasQS) {
+      return queenOfSpades;
+    }
+    if (legalSuits.contains(Suit.hearts)) {
+      return legalPlays.firstWhere((c) => c.suit == Suit.hearts);
+    }
+    return legalPlays.firstWhere((c) => !(hasJD && c == jackOfDiamonds));
+  }
+}
+
+PlayingCard _firstInSuitNotQS(final Iterable<PlayingCard> cards, Suit suit) {
+  return cards.firstWhere((c) => c.suit == suit && c != queenOfSpades);
+}
+
+PlayingCard _lowestInSuitNotQS(final List<PlayingCard> cards, Suit suit) {
+  for (final c in cards.reversed) {
+    if (c.suit == suit && c != queenOfSpades) {
+      return c;
+    }
+  }
+  throw Exception("Failed to find non-QS card");
+}
+
+CardDistributionRequest makeCardDistributionConstraints(final CardToPlayRequest req) {
+  final numPlayers = req.rules.numPlayers;
+  final seenCards = Set.from(req.hand);
+  final voidedSuits = List.generate(numPlayers, (_n) => Set<Suit>());
+
+  var heartsBroken = false;
+  final processTrick = (List<PlayingCard> cards, int leader) {
+    final trickSuit = cards[0].suit;
+    if (!heartsBroken && trickSuit == Suit.hearts) {
+      // Led hearts when they weren't broken, so must have had no other choice.
+      heartsBroken = true;
+      voidedSuits[leader].addAll([Suit.spades, Suit.diamonds, Suit.clubs]);
+    }
+    seenCards.add(cards[0]);
+    for (int i = 1; i < cards.length; i++) {
+      final c = cards[i];
+      seenCards.add(c);
+      if (c.suit != trickSuit) {
+        voidedSuits[(leader + i) % numPlayers].add(trickSuit);
+      }
+      if (c.suit == Suit.hearts || (req.rules.queenBreaksHearts && c == queenOfSpades)) {
+        heartsBroken = true;
+      }
+    }
+  };
+
+  for (final t in req.previousTricks) {
+    processTrick(t.cards, t.leader);
+  }
+  if (req.currentTrick.cards.isNotEmpty) {
+    processTrick(req.currentTrick.cards, req.currentTrick.leader);
+  }
+
+  final baseNumCards = req.rules.numberOfCardsPerPlayer - req.previousTricks.length;
+  final cardCounts = List.generate(numPlayers, (_n) => baseNumCards);
+  for (int i = 0; i < req.currentTrick.cards.length; i++) {
+    final pi = (req.currentTrick.leader + i) % numPlayers;
+    cardCounts[pi] -= 1;
+  }
+  cardCounts[req.currentPlayerIndex()] = 0;
+
+  final constraints = List.generate(numPlayers, (pnum) => CardDistributionConstraint(
+    numCards: cardCounts[pnum],
+    voidedSuits: voidedSuits[pnum].toList(),
+    fixedCards: [],
+  ));
+  if (req.rules.numPassedCards > 0) {
+    final passedTo = (req.currentPlayerIndex() + req.passDirection) % numPlayers;
+    constraints[passedTo].fixedCards.addAll(req.passedCards);
+  }
+
+  final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
+  cardsToAssign.removeAll(seenCards);
+  cardsToAssign.removeAll(req.rules.removedCards);
+  return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
+}
+
+HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng) {
+  final dist = possibleCardDistribution(distReq, rng);
+  if (dist == null) {
+    return null;
+  }
+  final currentPlayer = cardReq.currentPlayerIndex();
+  final resultPlayers = List.generate(cardReq.rules.numPlayers,
+      (i) => HeartsPlayer(i == currentPlayer ? cardReq.hand : dist[i]));
+  return HeartsRound()
+      ..rules = cardReq.rules.copy()
+      ..players = resultPlayers
+      ..initialScores = List.of(cardReq.scoresBeforeRound)
+      ..currentTrick = cardReq.currentTrick.copy()
+      ..previousTricks = Trick.copyAll(cardReq.previousTricks)
+      ..status = HeartsRoundStatus.playing
+      // Ignore passed cards.
+      ..passDirection = 0;
 }
