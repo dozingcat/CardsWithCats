@@ -1,5 +1,9 @@
+import 'dart:math';
+
 import "package:flutter_test/flutter_test.dart";
 import "package:hearts/cards/card.dart";
+import 'package:hearts/cards/rollout.dart';
+import 'package:hearts/cards/trick.dart';
 import "package:hearts/hearts/hearts.dart";
 import "package:hearts/hearts/hearts_ai.dart";
 
@@ -74,6 +78,7 @@ void main() {
     );
     expect(chooseCardsToPass(req), c("QS AH 8H"));
   });
+
   test("Pass high spades right without queen", () {
     final req = CardsToPassRequest(
       rules: HeartsRuleSet(),
@@ -84,4 +89,170 @@ void main() {
     );
     expect(chooseCardsToPass(req), c("AS KS AH"));
   });
+
+  test("Dump queen", () {
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("KS QS JS TS AH 9H 6H 3H AD KD QD JD"),
+        previousTricks: [Trick(0, c("2C QC KC AC"), 3)],
+        currentTrick: TrickInProgress(3, c("4C")),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+
+    final avoidPointsCard = chooseCardAvoidingPoints(req, rng);
+    expect(avoidPointsCard, c("QS")[0]);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(20, 50), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("QS")));
+  });
+
+  test("Dump high spade", () {
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("KS JS AH 9H 6H 5H 4H 3H AD KD QD 2D"),
+        previousTricks: [Trick(0, c("2C QC KC AC"), 3)],
+        currentTrick: TrickInProgress(3, c("4C")),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+
+    // final avoidPointsCard = chooseCardAvoidingPoints(req, rng);
+    // expect(avoidPointsCard, c("KS")[0]);
+    expect(req.currentPlayerIndex(), 0);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("KS")));
+  });
+
+  test("Avoid queen", () {
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("KS 9S 2S KH 3H 2H 9D 8D 7D 9C 8C 3C"),
+        previousTricks: [Trick(0, c("2C AC KC QC"), 1)],
+        currentTrick: TrickInProgress(1, c("4S")),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+    expect(req.currentPlayerIndex(), 2);
+
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("9S 2S")));
+  });
+
+  test("Play high spade if queen was passed right", () {
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("KS 9S 2S KH 3H 2H 9D 8D 7D 9C 8C 3C"),
+        previousTricks: [Trick(0, c("2C AC KC QC"), 1)],
+        currentTrick: TrickInProgress(1, c("4S 8S")),
+        passDirection: 3,
+        passedCards: c("AS QS QD"),
+        receivedCards: c("KH 9C 8C"));
+
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("KS")));
+  });
+
+  test("Take queen to avoid losing", () {
+    // Player 0 has to take the queen, otherwise player 3 will go over the
+    // point limit and player 1 will win.
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [20, 0, 40, 90],
+        hand: c("AS 9S 2S KH 3H 2H 9D 8D 7D 9C 8C 3C"),
+        previousTricks: [Trick(0, c("2C AC KC QC"), 1)],
+        currentTrick: TrickInProgress(1, c("4S 8S QS")),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("AS")));
+  });
+
+  test("Take jack of diamonds if minus 10", () {
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("AS JS 6S AH JH 6H AD JD 3D 2D 4C 3C"),
+        previousTricks: [Trick(0, c("2C QC KC AC"), 3)],
+        currentTrick: TrickInProgress(3, c("4D 8D KH")),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+
+    final mcCardNoJD =
+        chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCardNoJD, isIn(c("AD")));
+
+    req.rules.jdMinus10 = true;
+    final mcCardWithJD =
+        chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCardWithJD, isIn(c("JD")));
+  });
+
+  test("Don't expect opponent to drop jack of diamonds", () {
+    final rng = Random(17);
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("AD TD 9D 8D JS TS 9S 8S KH 4H JC TC"),
+        previousTricks: [Trick(0, c("2C QC KC AC"), 3)],
+        currentTrick: TrickInProgress(3, []),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+
+    // Make sure that we don't model opponents as wanting to play JD
+    // if we lead a higher diamond. A spade is the only reasonable lead.
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("JS TS 9S 8S")));
+  });
+
+  test("Block shoot", () {
+    final rng = Random(17);
+    // Basic shooting defense. Contrived hand:
+    // P0: ♠ ♥AQT954 ♦ ♣8765432
+    // P1: ♠87532 ♥K73 ♦76542 ♣
+    // P2 (shooter): ♠AKQJT ♥ ♦AKQJT ♣AJT
+    // P3 (defender): ♠964 ♥J862 ♦983 ♣KQ9
+    // P2 gets down to the AJ of clubs and P3 has Q9. When P2 plays the ace,
+    // P3 must play the 9 so that the Q will take a heart on the last trick.
+    final req = CardToPlayRequest(
+        rules: HeartsRuleSet(),
+        scoresBeforeRound: [0, 0, 0, 0],
+        hand: c("QC 9C"),
+        previousTricks: [
+          Trick(0, c("2C 7D TC KC"), 3),
+          Trick(3, c("9S 4H 8S AS"), 2),
+          Trick(2, c("AD 3D AH 5D"), 2),
+          Trick(2, c("KD 8D QH 6D"), 2),
+          Trick(2, c("QD 9D TH 4D"), 2),
+          Trick(2, c("JD JH 9H 2D"), 2),
+          Trick(2, c("TD 8H 5H KH"), 2),
+          Trick(2, c("KS 6S 8C 7S"), 2),
+          Trick(2, c("QS 4S 7C 5S"), 2),
+          Trick(2, c("JS 6H 6C 3S"), 2),
+          Trick(2, c("TS 2H 5C 2S"), 2),
+        ],
+        currentTrick: TrickInProgress(2, c("AC")),
+        passDirection: 0,
+        passedCards: [],
+        receivedCards: []);
+
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    expect(mcCard, isIn(c("9C")));
+  });
 }
+
+MonteCarloParams makeMCParams(int hands, int rollouts) =>
+    MonteCarloParams(numHands: hands, rolloutsPerHand: rollouts);

@@ -7,11 +7,11 @@ import "package:hearts/cards/rollout.dart";
 void main() {
   test("Distribution with no constraints", () {
     final rng = Random(23);
-    final constraints = List.generate(4, (i) => CardDistributionConstraint(numCards: 13));
+    final cs = List.generate(4, (i) => CardDistributionConstraint(numCards: 13));
     final dist = possibleCardDistribution(
-        CardDistributionRequest(cardsToAssign: standardDeckCards(), constraints: constraints), rng);
+        CardDistributionRequest(cardsToAssign: standardDeckCards(), constraints: cs), rng)!;
 
-    expect(dist!.length, 4);
+    expect(dist.length, 4);
     Set<PlayingCard> allCards = {};
     for (int i = 0; i < 4; i++) {
       expect(dist[i].length, 13);
@@ -27,9 +27,9 @@ void main() {
     constraints[0].voidedSuits.add(Suit.spades);
     constraints[2].voidedSuits.addAll([Suit.spades, Suit.hearts, Suit.diamonds]);
     final dist = possibleCardDistribution(
-        CardDistributionRequest(cardsToAssign: cards, constraints: constraints), rng);
+        CardDistributionRequest(cardsToAssign: cards, constraints: constraints), rng)!;
 
-    expect(dist!.length, 4);
+    expect(dist.length, 4);
     expect(dist[0].where((c) => c.suit == Suit.spades).toList(), []);
     expect(dist[2].where((c) => c.suit == Suit.clubs).toList().length, 3);
     Set<PlayingCard> allCards = {};
@@ -47,9 +47,9 @@ void main() {
     constraints[1].fixedCards.add(PlayingCard.cardFromString("2H"));
     constraints[3].fixedCards.addAll(PlayingCard.cardsFromString("3D 4D AD"));
     final dist = possibleCardDistribution(
-        CardDistributionRequest(cardsToAssign: cards, constraints: constraints), rng);
+        CardDistributionRequest(cardsToAssign: cards, constraints: constraints), rng)!;
 
-    expect(dist![1].contains(PlayingCard.cardFromString("2H")), true);
+    expect(dist[1].contains(PlayingCard.cardFromString("2H")), true);
     expect(dist[3].contains(PlayingCard.cardFromString("3D")), true);
     expect(dist[3].contains(PlayingCard.cardFromString("4D")), true);
     expect(dist[3].contains(PlayingCard.cardFromString("AD")), false);
@@ -68,10 +68,10 @@ void main() {
     constraints[1].voidedSuits.add(Suit.hearts);
     constraints[2].voidedSuits.add(Suit.hearts);
     final dist = possibleCardDistribution(
-        CardDistributionRequest(cardsToAssign: cards, constraints: constraints), rng);
+        CardDistributionRequest(cardsToAssign: cards, constraints: constraints), rng)!;
 
     // Players 1 and 2 have no hearts, so player 0 must have them all.
-    expect(dist![0].contains(PlayingCard.cardFromString("AH")), true);
+    expect(dist[0].contains(PlayingCard.cardFromString("AH")), true);
     expect(dist[0].contains(PlayingCard.cardFromString("KH")), true);
     expect(dist[0].contains(PlayingCard.cardFromString("QH")), true);
   });

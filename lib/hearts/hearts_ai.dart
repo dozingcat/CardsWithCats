@@ -47,18 +47,12 @@ class CardToPlayRequest {
       CardToPlayRequest(
         rules: round.rules.copy(),
         scoresBeforeRound: List.from(round.initialScores),
-        hand: List.from(round
-            .currentPlayer()
-            .hand),
+        hand: List.from(round.currentPlayer().hand),
         previousTricks: round.previousTricks.map((t) => t.copy()).toList(),
         currentTrick: round.currentTrick.copy(),
         passDirection: round.passDirection,
-        passedCards: List.from(round
-            .currentPlayer()
-            .passedCards),
-        receivedCards: List.from(round
-            .currentPlayer()
-            .receivedCards),
+        passedCards: List.from(round.currentPlayer().passedCards),
+        receivedCards: List.from(round.currentPlayer().receivedCards),
       );
 
   int currentPlayerIndex() {
@@ -154,7 +148,13 @@ List<PlayingCard> chooseCardsToPass(CardsToPassRequest req) {
   return sortedHand.sublist(0, req.numCards);
 }
 
-PlayingCard playCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
+PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
+  final legalPlays = req.legalPlays();
+  assert(legalPlays.isNotEmpty);
+  return legalPlays[rng.nextInt(legalPlays.length)];
+}
+
+PlayingCard chooseCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
@@ -235,16 +235,16 @@ PlayingCard _firstInSuitNotQS(final Iterable<PlayingCard> cards, Suit suit) {
   return cards.firstWhere((c) => c.suit == suit && c != queenOfSpades);
 }
 
-PlayingCard _lowestInSuitNotQS(final List<PlayingCard> cards, Suit suit) {
-  for (final c in cards.reversed) {
-    if (c.suit == suit && c != queenOfSpades) {
-      return c;
-    }
-  }
-  throw Exception("Failed to find non-QS card");
+typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
+
+ChooseCardFn makeChooseCardFunctionRandomOrAvoidPoints(double randomProb) {
+  return (CardToPlayRequest req, Random rng) {
+    final chooseFn = rng.nextDouble() < randomProb ? chooseCardRandom : chooseCardAvoidingPoints;
+    return chooseFn(req, rng);
+  };
 }
 
-CardDistributionRequest makeCardDistributionConstraints(final CardToPlayRequest req) {
+CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
   final seenCards = Set.from(req.hand);
   final voidedSuits = List.generate(numPlayers, (_n) => Set<Suit>());
@@ -316,6 +316,65 @@ HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
       ..currentTrick = cardReq.currentTrick.copy()
       ..previousTricks = Trick.copyAll(cardReq.previousTricks)
       ..status = HeartsRoundStatus.playing
-      // Ignore passed cards.
+      // Ignore passed cards. TODO: Incorporate the fact that we know what cards were passed
+      // to the current player.
       ..passDirection = 0;
+}
+
+PlayingCard chooseCardMonteCarlo(
+    CardToPlayRequest cardReq,
+    MonteCarloParams mcParams,
+    ChooseCardFn rolloutChooseFn,
+    Random rng) {
+  final legalPlays = cardReq.legalPlays();
+  assert(legalPlays.isNotEmpty);
+  if (legalPlays.length == 1) {
+    return legalPlays[0];
+  }
+  final pnum = cardReq.currentPlayerIndex();
+  final playEquities = List.generate(legalPlays.length, (_) => 0.0);
+  final distReq = makeCardDistributionRequest(cardReq);
+  for (int i = 0; i < mcParams.numHands; i++) {
+    final hypoRound = possibleRound(cardReq, distReq, rng);
+    if (hypoRound == null) {
+      print("MC failed to generate round, falling back to avoiding points");
+      return chooseCardAvoidingPoints(cardReq, rng);
+    }
+    for (int ci = 0; ci < legalPlays.length; ci++) {
+      for (int r = 0; r < mcParams.rolloutsPerHand; r++) {
+        final rolloutRound = hypoRound.copy();
+        rolloutRound.playCard(legalPlays[ci]);
+        doRollout(rolloutRound, rolloutChooseFn, rng);
+        final pointsForRound = rolloutRound.pointsTaken();
+        final scoresAfterRound = List.generate(pointsForRound.length,
+            (p) => pointsForRound[p] + cardReq.scoresBeforeRound[p]);
+        playEquities[ci] += matchEquityForScores(
+            scoresAfterRound, cardReq.rules.pointLimit, pnum);
+      }
+    }
+  }
+  int bestIndex = 0;
+  // print("First card: " + legalPlays[0].toString() + " " + playEquities[0].toString());
+  for (int i = 1; i < legalPlays.length; i++) {
+    if (playEquities[i] > playEquities[bestIndex]) {
+      bestIndex = i;
+      // print("Better: " + legalPlays[i].toString() + " " + playEquities[i].toString());
+    }
+    else {
+      // print("Worse: " + legalPlays[i].toString() + " " + playEquities[i].toString());
+    }
+  }
+  return legalPlays[bestIndex];
+}
+
+void doRollout(HeartsRound round, ChooseCardFn chooseFn, Random rng) {
+  while (!round.isOver()) {
+    final legalPlays = round.legalPlaysForCurrentPlayer();
+    if (legalPlays.isEmpty) {
+      final msg = "No legal plays for ${round.currentPlayerIndex()}";
+      throw Exception(msg);
+    }
+    final cardToPlay = chooseFn(CardToPlayRequest.fromRound(round), rng);
+    round.playCard(cardToPlay);
+  }
 }

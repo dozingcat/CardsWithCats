@@ -185,6 +185,7 @@ class HeartsPlayer {
       receivedCards = List.from(src.receivedCards);
 
   HeartsPlayer copy() => HeartsPlayer.from(this);
+  static List<HeartsPlayer> copyAll(Iterable<HeartsPlayer> ps) => ps.map((p) => p.copy()).toList();
 }
 
 enum HeartsRoundStatus {
@@ -226,12 +227,13 @@ class HeartsRound {
 
   HeartsRound copy() {
     return HeartsRound()
+      ..rules = rules.copy()
       ..status = status
-      ..players = players.map((p) => p.copy()).toList()
+      ..players = HeartsPlayer.copyAll(players)
       ..initialScores = List.of(initialScores)
       ..passDirection = passDirection
       ..currentTrick = currentTrick.copy()
-      ..previousTricks = previousTricks.map((t) => t.copy()).toList();
+      ..previousTricks = Trick.copyAll(previousTricks);
   }
 
   bool isOver() {
@@ -306,9 +308,9 @@ class HeartsRound {
     p.hand.removeAt(cardIndex);
     currentTrick.cards.add(card);
     if (currentTrick.cards.length == rules.numPlayers) {
-      final winner = trickWinnerIndex(currentTrick.cards);
-      previousTricks.add(Trick(currentTrick.leader, currentTrick.cards, winner));
-      currentTrick = TrickInProgress(winner);
+      final lastTrick = currentTrick.finish();
+      previousTricks.add(lastTrick);
+      currentTrick = TrickInProgress(lastTrick.winner);
     }
   }
 }

@@ -20,9 +20,11 @@ class CardDistributionRequest {
   CardDistributionRequest({required this.cardsToAssign, required this.constraints});
 }
 
-class CardDistributionException implements Exception {
-  String msg;
-  CardDistributionException(this.msg);
+class MonteCarloParams {
+  int numHands;
+  int rolloutsPerHand;
+
+  MonteCarloParams({required this.numHands, required this.rolloutsPerHand});
 }
 
 List<List<PlayingCard>>? _possibleCardDistribution(CardDistributionRequest req, Random rng) {
