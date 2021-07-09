@@ -102,6 +102,10 @@ class PlayingCard {
     return this.rank.asciiChar + this.suit.asciiChar;
   }
 
+  String symbolString() {
+    return this.rank.asciiChar + this.suit.symbolChar;
+  }
+
   static PlayingCard cardFromString(String s) {
     final suitChar = s[s.length - 1];
     final rankChar = s.substring(0, s.length - 1);
@@ -126,4 +130,16 @@ List<Rank> ranksForSuit(Iterable<PlayingCard> cards, Suit suit) {
   List<Rank> ranks = cards.where((c) => c.suit == suit).map((c) => c.rank).toList();
   ranks.sort((r1, r2) => r2.index - r1.index);
   return ranks;
+}
+
+String descriptionWithSuitGroups(List<PlayingCard> cards) {
+  String stringForRanksInSuit(Suit suit) =>
+      suit.symbolChar +
+      ranksForSuit(cards, suit).map((r) => r.asciiChar).join("");
+  return [
+    stringForRanksInSuit(Suit.spades),
+    stringForRanksInSuit(Suit.hearts),
+    stringForRanksInSuit(Suit.diamonds),
+    stringForRanksInSuit(Suit.clubs),
+  ].join(" ");
 }

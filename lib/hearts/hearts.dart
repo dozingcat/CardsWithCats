@@ -287,7 +287,7 @@ class HeartsRound {
     if (!readyToPassCards()) {
       throw Exception("Not able to pass cards");
     }
-    int np = rules.numPassedCards;
+    int np = rules.numPlayers;
     for (int i = 0; i < np; i++) {
       final destPlayer = players[(i + passDirection) % np];
       destPlayer.receivedCards = players[i].passedCards;
