@@ -42,7 +42,8 @@ class Trick {
   Trick(this.leader, this.cards, this.winner);
 
   Trick copy() => Trick(leader, List.of(cards), winner);
-  static List<Trick> copyAll(Iterable<Trick> tricks) => tricks.map((t) => t.copy()).toList();
+  static List<Trick> copyAll(List<Trick> tricks) =>
+      List.generate(tricks.length, (i) => tricks[i].copy());
 }
 
 class TrickInProgress {

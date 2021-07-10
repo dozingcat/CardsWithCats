@@ -48,7 +48,7 @@ class CardToPlayRequest {
         rules: round.rules.copy(),
         scoresBeforeRound: List.from(round.initialScores),
         hand: List.from(round.currentPlayer().hand),
-        previousTricks: round.previousTricks.map((t) => t.copy()).toList(),
+        previousTricks: Trick.copyAll(round.previousTricks),
         currentTrick: round.currentTrick.copy(),
         passDirection: round.passDirection,
         passedCards: List.from(round.currentPlayer().passedCards),
@@ -237,7 +237,7 @@ PlayingCard _firstInSuitNotQS(final Iterable<PlayingCard> cards, Suit suit) {
 
 typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
 
-ChooseCardFn makeChooseCardFunctionRandomOrAvoidPoints(double randomProb) {
+ChooseCardFn makeMixedRandomOrAvoidPoints(double randomProb) {
   return (CardToPlayRequest req, Random rng) {
     final chooseFn = rng.nextDouble() < randomProb ? chooseCardRandom : chooseCardAvoidingPoints;
     return chooseFn(req, rng);
@@ -374,7 +374,21 @@ void doRollout(HeartsRound round, ChooseCardFn chooseFn, Random rng) {
       final msg = "No legal plays for ${round.currentPlayerIndex()}";
       throw Exception(msg);
     }
-    final cardToPlay = chooseFn(CardToPlayRequest.fromRound(round), rng);
+    // CardToPlayRequest.fromRound makes deep copies of HeartsRound fields,
+    // which is safe but expensive. Here we can just copy the references,
+    // because we know the round won't be modified during the lifetime of `req`.
+    // This is around a 2x speedup.
+    final req = CardToPlayRequest(
+      rules: round.rules,
+      scoresBeforeRound: round.initialScores,
+      hand: round.currentPlayer().hand,
+      previousTricks: round.previousTricks,
+      currentTrick: round.currentTrick,
+      passDirection: round.passDirection,
+      passedCards: round.currentPlayer().passedCards,
+      receivedCards: round.currentPlayer().receivedCards,
+    );
+    final cardToPlay = chooseFn(req, rng);
     round.playCard(cardToPlay);
   }
 }

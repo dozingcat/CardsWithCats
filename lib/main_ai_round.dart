@@ -11,6 +11,7 @@ void main() {
   final rules = HeartsRuleSet();
   final victoryPoints = List.filled(rules.numPlayers, 0);
   final rng = Random();
+  int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= 10; matchNum++) {
     print("Match #$matchNum");
@@ -18,8 +19,9 @@ void main() {
     int roundNum = 0;
     while (matchPoints.every((p) => p < rules.pointLimit)) {
       roundNum += 1;
+      totalRounds += 1;
       final passDir = roundNum % 4;
-      print("Round $roundNum");
+      print("Round $roundNum (total $totalRounds)");
       final round = HeartsRound.deal(rules, matchPoints, passDir, rng);
       for (int i = 0; i < rules.numPlayers; i++) {
         print("P$i: ${descriptionWithSuitGroups(round.players[i].hand)}");
@@ -74,14 +76,16 @@ void main() {
 }
 
 final mcParams = MonteCarloParams(numHands: 50, rolloutsPerHand: 20);
+final mixedStrategy20PercentRandom = makeMixedRandomOrAvoidPoints(0.2);
 
 PlayingCard computeCardToPlay(final HeartsRound round, Random rng) {
   final cardReq = CardToPlayRequest.fromRound(round);
   switch (round.currentPlayerIndex()) {
     case 0:
-    case 2:
       return chooseCardAvoidingPoints(cardReq, rng);
     case 1:
+      return chooseCardMonteCarlo(cardReq, mcParams, mixedStrategy20PercentRandom, rng);
+    case 2:
       return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
     case 3:
       return chooseCardMonteCarlo(cardReq, mcParams, chooseCardAvoidingPoints, rng);
