@@ -137,7 +137,7 @@ int dangerForCard(PlayingCard card, List<Rank> suitRanks, CardsToPassRequest req
 List<PlayingCard> chooseCardsToPass(CardsToPassRequest req) {
   Map<Suit, List<Rank>> ranksBySuit = {};
   for (Suit suit in Suit.values) {
-    ranksBySuit[suit] = ranksForSuit(req.hand, suit);
+    ranksBySuit[suit] = sortedRanksInSuit(req.hand, suit);
   }
   Map<PlayingCard, int> cardDanger = {};
   for (PlayingCard c in req.hand) {

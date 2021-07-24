@@ -92,29 +92,38 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Do this in a separate thread/isolate.
-    /*
-    final card = chooseCardMonteCarlo(
-        CardToPlayRequest.fromRound(round),
-        MonteCarloParams(numHands: 20, rolloutsPerHand: 50),
-        chooseCardAvoidingPoints,
-        rng);
-     */
     final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
     setState(() {
       round.playCard(card);
     });
-    Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
+    if (round.currentPlayerIndex() != 0) {
+      Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
+    }
+  }
+  
+  void handleHandCardClicked(final PlayingCard card) {
+    print("Clicked ${card.toString()}");
+    if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
+      if (round.legalPlaysForCurrentPlayer().contains(card)) {
+        setState(() {
+          round.playCard(card);
+        });
+        if (round.currentPlayerIndex() != 0) {
+          Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
+        }
+      }
+    }
   }
 
   Widget _positionedCard(final Rect rect, final PlayingCard card) {
     final cardImagePath = "assets/cards/${card.toString()}.webp";
-    // TODO: Click handler.
     return Positioned(
         left: rect.left,
         top: rect.top,
         width: rect.width,
         height: rect.height,
-        child: Container(
+        child: GestureDetector(
+            onTapDown: (tap) => handleHandCardClicked(card),
             child: Image(
               image: AssetImage(cardImagePath),
               fit: BoxFit.contain,
@@ -135,31 +144,37 @@ class _MyHomePageState extends State<MyHomePage> {
     final lowerRowHeightFracStart = 0.75;
     final List<Widget> cardImages = [];
 
-    if (cards.length > 7) {
-      final numUpperCards = (cards.length + 1) ~/ 2;
-      final numLowerCards = cards.length - numUpperCards;
+    List sortedCards = [
+      ...sortedCardsInSuit(cards, Suit.hearts),
+      ...sortedCardsInSuit(cards, Suit.spades),
+      ...sortedCardsInSuit(cards, Suit.diamonds),
+      ...sortedCardsInSuit(cards, Suit.clubs),
+    ];
+    if (sortedCards.length > 7) {
+      final numUpperCards = (sortedCards.length + 1) ~/ 2;
+      final numLowerCards = sortedCards.length - numUpperCards;
       final upperWidthFrac = totalWidthFrac(numUpperCards);
       final upperStartX = 0.5 - upperWidthFrac / 2;
       for (int i = 0; i < numUpperCards; i++) {
-        final left = (upperStartX + (cardOverlapWidthFrac * (i - 1))) * layout.displaySize.width;
+        final left = (upperStartX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
         final top = upperRowHeightFracStart * layout.displaySize.height;
         Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(_positionedCard(cardRect, cards[i]));
+        cardImages.add(_positionedCard(cardRect, sortedCards[i]));
       }
       for (int i = 0; i < numLowerCards; i++) {
-        final left = (upperStartX + (cardOverlapWidthFrac * (i - 1 + 0.5))) * layout.displaySize.width;
+        final left = (upperStartX + (cardOverlapWidthFrac * (i + 0.5))) * layout.displaySize.width;
         final top = lowerRowHeightFracStart * layout.displaySize.height;
         Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(_positionedCard(cardRect, cards[numUpperCards + i]));
+        cardImages.add(_positionedCard(cardRect, sortedCards[numUpperCards + i]));
       }
     }
     else {
-      final startX = 0.5 - totalWidthFrac(cards.length) / 2;
-      for (int i = 0; i < cards.length; i++) {
-        final left = (startX + (cardOverlapWidthFrac * (i - 1 + 0.5))) * layout.displaySize.width;
+      final startX = 0.5 - totalWidthFrac(sortedCards.length) / 2;
+      for (int i = 0; i < sortedCards.length; i++) {
+        final left = (startX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
         final top = lowerRowHeightFracStart * layout.displaySize.height;
         Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(_positionedCard(cardRect, cards[i]));
+        cardImages.add(_positionedCard(cardRect, sortedCards[i]));
       }
     }
     return Stack(children: cardImages);

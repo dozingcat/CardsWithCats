@@ -125,17 +125,21 @@ List<PlayingCard> standardDeckCards() => [
   for (var r in Rank.values) PlayingCard(r, Suit.spades),
 ];
 
+List<PlayingCard> sortedCardsInSuit(Iterable<PlayingCard> cards, Suit suit) {
+  List<PlayingCard> matching = cards.where((c) => c.suit == suit).toList();
+  matching.sort((c1, c2) => c2.rank.index - c1.rank.index);
+  return matching;
+}
+
 // Returns the ranks of cards in the specified suit, sorted descending from ace to two.
-List<Rank> ranksForSuit(Iterable<PlayingCard> cards, Suit suit) {
-  List<Rank> ranks = cards.where((c) => c.suit == suit).map((c) => c.rank).toList();
-  ranks.sort((r1, r2) => r2.index - r1.index);
-  return ranks;
+List<Rank> sortedRanksInSuit(Iterable<PlayingCard> cards, Suit suit) {
+  return sortedCardsInSuit(cards, suit).map((c) => c.rank).toList();
 }
 
 String descriptionWithSuitGroups(List<PlayingCard> cards) {
   String stringForRanksInSuit(Suit suit) =>
       suit.symbolChar +
-      ranksForSuit(cards, suit).map((r) => r.asciiChar).join("");
+      sortedRanksInSuit(cards, suit).map((r) => r.asciiChar).join("");
   return [
     stringForRanksInSuit(Suit.spades),
     stringForRanksInSuit(Suit.hearts),

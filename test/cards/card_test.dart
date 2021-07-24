@@ -25,9 +25,9 @@ void main() {
 
   test("ranks for suit", () {
     final cards = PlayingCard.cardsFromString("4S 7H JS 2D 2S AS KD");
-    expect(ranksForSuit(cards, Suit.spades), [Rank.ace, Rank.jack, Rank.four, Rank.two]);
-    expect(ranksForSuit(cards, Suit.hearts), [Rank.seven]);
-    expect(ranksForSuit(cards, Suit.diamonds), [Rank.king, Rank.two]);
-    expect(ranksForSuit(cards, Suit.clubs), []);
+    expect(sortedRanksInSuit(cards, Suit.spades), [Rank.ace, Rank.jack, Rank.four, Rank.two]);
+    expect(sortedRanksInSuit(cards, Suit.hearts), [Rank.seven]);
+    expect(sortedRanksInSuit(cards, Suit.diamonds), [Rank.king, Rank.two]);
+    expect(sortedRanksInSuit(cards, Suit.clubs), []);
   });
 }
