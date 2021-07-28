@@ -38,7 +38,8 @@ class MyHomePage extends StatefulWidget {
 
 enum AnimationMode {
   none,
-  playing_trick_card,
+  moving_passed_cards,
+  moving_trick_card,
   moving_trick_to_winner,
 }
 
@@ -50,10 +51,14 @@ class Layout {
     return Rect.fromLTRB(edgePx, edgePx, displaySize.width - edgePx, displaySize.height - edgePx);
   }
 
-  Rect areaForTrickCard(int playerIndex) {
+  Size baseCardSize() {
     final ca = cardArea();
-    final cardHeight = ca.height * 0.4;
-    final cardWidth = ca.width * 0.4;
+    return Size(ca.width * 0.4, ca.height * 0.4);
+  }
+
+  Rect trickCardAreaForPlayer(int playerIndex) {
+    final ca = cardArea();
+    final cs = baseCardSize();
     final centerXFrac = (playerIndex == 1) ?
         0.25 :
         (playerIndex == 3) ? 0.75 : 0.5;
@@ -62,7 +67,31 @@ class Layout {
         (playerIndex == 2) ? 0.25 : 0.5;
     final centerX = ca.left + ca.width * centerXFrac;
     final centerY = ca.top + ca.height * centerYFrac;
-    return Rect.fromLTWH(centerX - cardWidth / 2, centerY - cardHeight / 2, cardWidth, cardHeight);
+    return Rect.fromLTWH(centerX - cs.width / 2, centerY - cs.height / 2, cs.width, cs.height);
+  }
+
+  Rect cardOriginAreaForPlayer(int playerIndex) {
+    final w = displaySize.width;
+    final h = displaySize.height;
+    final ca = cardArea();
+    final cardHeight = ca.height * 0.4;
+    final cardWidth = ca.width * 0.4;
+    switch (playerIndex) {
+      case 0:
+        return Rect.fromCenter(
+            center: Offset(w / 2, h + cardHeight / 2), width: cardWidth, height: cardHeight);
+      case 1:
+        return Rect.fromCenter(
+            center: Offset(-cardWidth / 2, h / 2), width: cardWidth, height: cardHeight);
+      case 2:
+        return Rect.fromCenter(
+            center: Offset(w / 2, -cardHeight / 2), width: cardWidth, height: cardHeight);
+      case 3:
+        return Rect.fromCenter(
+            center: Offset(w  + cardWidth / 2, h / 2), width: cardWidth, height: cardHeight);
+      default:
+        throw Exception("Bad player index: $playerIndex");
+    }
   }
 }
 
@@ -86,37 +115,47 @@ class _MyHomePageState extends State<MyHomePage> {
     Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
   }
 
-  void _playNextCard() async {
+  void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
-      round = HeartsRound.deal(rules, List.filled(4, 0), 0, rng);
+      setState(() {
+        round = HeartsRound.deal(rules, List.filled(4, 0), 0, rng);
+      });
     }
-
-    // Do this in a separate thread/isolate.
-    final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
-    setState(() {
-      round.playCard(card);
-    });
     if (round.currentPlayerIndex() != 0) {
       Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
     }
+  }
+
+  void _playCard(final PlayingCard card) {
+    setState(() {
+      round.playCard(card);
+      animationMode = AnimationMode.moving_trick_card;
+    });
+  }
+
+  void _trickCardAnimationFinished() {
+    setState(() {animationMode = AnimationMode.none;});
+    _scheduleNextPlayIfNeeded();
+  }
+
+  void _playNextCard() async {
+    // Do this in a separate thread/isolate.
+    final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
+    _playCard(card);
   }
   
   void handleHandCardClicked(final PlayingCard card) {
     print("Clicked ${card.toString()}");
     if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
-        setState(() {
-          round.playCard(card);
-        });
-        if (round.currentPlayerIndex() != 0) {
-          Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
-        }
+        _playCard(card);
       }
     }
   }
 
-  Widget _positionedCard(final Rect rect, final PlayingCard card) {
+  Widget _positionedCard(final Rect rect, final PlayingCard card, {double opacity = 1.0}) {
     final cardImagePath = "assets/cards/${card.toString()}.webp";
+    final backgroundImagePath = "assets/cards/black.webp";
     return Positioned(
         left: rect.left,
         top: rect.top,
@@ -124,11 +163,20 @@ class _MyHomePageState extends State<MyHomePage> {
         height: rect.height,
         child: GestureDetector(
             onTapDown: (tap) => handleHandCardClicked(card),
-            child: Image(
-              image: AssetImage(cardImagePath),
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
-            )));
+            child: Stack(children: [
+              if (opacity < 1) Image(
+                image: AssetImage(backgroundImagePath),
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+              ),
+              Image(
+                color: Color.fromRGBO(255, 255, 255, opacity),
+                colorBlendMode: BlendMode.modulate,
+                image: AssetImage(cardImagePath),
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+              ),
+            ])));
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
@@ -150,6 +198,11 @@ class _MyHomePageState extends State<MyHomePage> {
       ...sortedCardsInSuit(cards, Suit.diamonds),
       ...sortedCardsInSuit(cards, Suit.clubs),
     ];
+    bool isHumanTurn = round.currentPlayerIndex() == 0;
+    final playableCards = isHumanTurn ? round.legalPlaysForCurrentPlayer() : [];
+    final makeCardWidget = (Rect rect, PlayingCard card) =>
+        _positionedCard(rect, card, opacity: playableCards.contains(card) ? 1.0 : 0.5);
+
     if (sortedCards.length > 7) {
       final numUpperCards = (sortedCards.length + 1) ~/ 2;
       final numLowerCards = sortedCards.length - numUpperCards;
@@ -159,13 +212,13 @@ class _MyHomePageState extends State<MyHomePage> {
         final left = (upperStartX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
         final top = upperRowHeightFracStart * layout.displaySize.height;
         Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(_positionedCard(cardRect, sortedCards[i]));
+        cardImages.add(makeCardWidget(cardRect, sortedCards[i]));
       }
       for (int i = 0; i < numLowerCards; i++) {
         final left = (upperStartX + (cardOverlapWidthFrac * (i + 0.5))) * layout.displaySize.width;
         final top = lowerRowHeightFracStart * layout.displaySize.height;
         Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(_positionedCard(cardRect, sortedCards[numUpperCards + i]));
+        cardImages.add(makeCardWidget(cardRect, sortedCards[numUpperCards + i]));
       }
     }
     else {
@@ -174,30 +227,69 @@ class _MyHomePageState extends State<MyHomePage> {
         final left = (startX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
         final top = lowerRowHeightFracStart * layout.displaySize.height;
         Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(_positionedCard(cardRect, sortedCards[i]));
+        cardImages.add(makeCardWidget(cardRect, sortedCards[i]));
       }
     }
     return Stack(children: cardImages);
   }
 
   Widget _trickCardForPlayer(final Layout layout, final PlayingCard card, int playerIndex) {
-    final cardRect = layout.areaForTrickCard(playerIndex);
+    final cardRect = layout.trickCardAreaForPlayer(playerIndex);
     return _positionedCard(cardRect, card);
+  }
+
+  List<Widget> _staticTrickCards(
+      final Layout layout, int leader, int numPlayers, List<PlayingCard> cards) {
+    List<Widget> cardWidgets = [];
+    for (int i = 0; i < cards.length; i++) {
+      int p = (leader + i) % numPlayers;
+      cardWidgets.add(_trickCardForPlayer(layout, cards[i], p));
+    }
+    return cardWidgets;
+  }
+
+  List<Widget> _trickCardsWithLastAnimating(
+      final Layout layout, int leader, int numPlayers, List<PlayingCard> cards) {
+    final cardsWithoutLast = cards.sublist(0, cards.length - 1);
+    List<Widget> cardWidgets =
+        List.of(_staticTrickCards(layout, leader, numPlayers, cardsWithoutLast));
+    final animPlayer = (leader + cards.length - 1) % numPlayers;
+    cardWidgets.add(TweenAnimationBuilder(
+        tween: Tween(
+            begin: layout.cardOriginAreaForPlayer(animPlayer).center,
+            end: layout.trickCardAreaForPlayer(animPlayer).center),
+        duration: const Duration(milliseconds: 200),
+        onEnd: _trickCardAnimationFinished,
+        builder: (BuildContext context, Offset center, Widget? child) {
+          final cardSize = layout.baseCardSize();
+          final animRect = Rect.fromCenter(center: center, width: cardSize.width, height: cardSize.height);
+          return _positionedCard(animRect, cards.last);
+        }));
+
+    return cardWidgets;
   }
 
   Widget _trickCards(final Layout layout) {
     List<Widget> cardWidgets = [];
     if (round.currentTrick.cards.isNotEmpty) {
-      for (int i = 0; i < round.currentTrick.cards.length; i++) {
-        int p = (round.currentTrick.leader + i) % round.rules.numPlayers;
-        cardWidgets.add(_trickCardForPlayer(layout, round.currentTrick.cards[i], p));
+      if (animationMode == AnimationMode.moving_trick_card) {
+        cardWidgets.addAll(_trickCardsWithLastAnimating(
+            layout, round.currentTrick.leader, round.rules.numPlayers, round.currentTrick.cards));
+      }
+      else {
+        cardWidgets.addAll(_staticTrickCards(
+            layout, round.currentTrick.leader, round.rules.numPlayers, round.currentTrick.cards));
       }
     }
     else if (round.previousTricks.isNotEmpty) {
       final trick = round.previousTricks.last;
-      for (int i = 0; i < trick.cards.length; i++) {
-        int p = (trick.leader + i) % round.rules.numPlayers;
-        cardWidgets.add(_trickCardForPlayer(layout, trick.cards[i], p));
+      if (animationMode == AnimationMode.moving_trick_card) {
+        cardWidgets.addAll(_trickCardsWithLastAnimating(
+            layout, trick.leader, round.rules.numPlayers, trick.cards));
+      }
+      else {
+        cardWidgets.addAll(_staticTrickCards(
+            layout, trick.leader, round.rules.numPlayers, trick.cards));
       }
     }
     return Stack(children: cardWidgets);
