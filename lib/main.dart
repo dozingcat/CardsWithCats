@@ -7,6 +7,7 @@ import 'package:hearts/hearts/hearts.dart';
 import 'package:hearts/hearts/hearts_ai.dart';
 
 import 'cards/card.dart';
+import 'cards/trick.dart';
 
 void main() {
   runApp(const MyApp());
@@ -134,6 +135,16 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _trickCardAnimationFinished() {
+    if (!round.isOver() && round.currentTrick.cards.isNotEmpty) {
+      setState(() {animationMode = AnimationMode.none;});
+      _scheduleNextPlayIfNeeded();
+    }
+    else {
+      setState(() {animationMode = AnimationMode.moving_trick_to_winner;});
+    }
+  }
+
+  void _trickToWinnerAnimationFinished() {
     setState(() {animationMode = AnimationMode.none;});
     _scheduleNextPlayIfNeeded();
   }
@@ -269,7 +280,33 @@ class _MyHomePageState extends State<MyHomePage> {
     return cardWidgets;
   }
 
+  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick trick) {
+    // Negative animatin value means not moving. It might be better to have
+    // a separate state for "waiting to move trick", but that would make state
+    // transition logic more complex.
+    return TweenAnimationBuilder(
+        tween: Tween(begin: -3.0, end: 1.0),
+        duration: const Duration(milliseconds: 1000),
+        onEnd: _trickToWinnerAnimationFinished,
+        builder: (BuildContext context, double t, Widget? child) {
+          final List<Widget> cardWidgets = [];
+          final endRect = layout.cardOriginAreaForPlayer(trick.winner);
+          for (int i = 0; i < trick.cards.length; i++) {
+            int p = (trick.leader + i) % trick.cards.length;
+            final startRect = layout.trickCardAreaForPlayer(p);
+            final center = startRect.center + (endRect.center - startRect.center) * max(0, t);
+            Rect animRect = Rect.fromCenter(
+                center: center, width: endRect.width, height: endRect.height);
+            cardWidgets.add(_positionedCard(animRect, trick.cards[i]));
+          }
+          return Stack(children: cardWidgets);
+        });
+  }
+
   Widget _trickCards(final Layout layout) {
+    if (animationMode == AnimationMode.moving_trick_to_winner) {
+      return _trickCardsAnimatingToWinner(layout, round.previousTricks.last);
+    }
     List<Widget> cardWidgets = [];
     if (round.currentTrick.cards.isNotEmpty) {
       if (animationMode == AnimationMode.moving_trick_card) {
@@ -288,8 +325,7 @@ class _MyHomePageState extends State<MyHomePage> {
             layout, trick.leader, round.rules.numPlayers, trick.cards));
       }
       else {
-        cardWidgets.addAll(_staticTrickCards(
-            layout, trick.leader, round.rules.numPlayers, trick.cards));
+        // Finished animating trick to winner, don't show any cards.
       }
     }
     return Stack(children: cardWidgets);
