@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -42,6 +43,11 @@ enum AnimationMode {
   moving_passed_cards,
   moving_trick_card,
   moving_trick_to_winner,
+}
+
+enum AiMode {
+  all_ai,
+  human_player_0,
 }
 
 class Layout {
@@ -108,6 +114,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final rng = Random();
   final rules = HeartsRuleSet();
   var animationMode = AnimationMode.none;
+  var aiMode = AiMode.human_player_0;
   late HeartsRound round;
 
   @override void initState() {
@@ -175,22 +182,21 @@ class _MyHomePageState extends State<MyHomePage> {
         child: GestureDetector(
             onTapDown: (tap) => handleHandCardClicked(card),
             child: Stack(children: [
-              if (opacity < 1) Image(
+              if (opacity < 1) Center(child: Image(
                 image: AssetImage(backgroundImagePath),
                 fit: BoxFit.contain,
                 alignment: Alignment.center,
-              ),
-              Image(
+              )),
+              Center(child: Image(
                 color: Color.fromRGBO(255, 255, 255, opacity),
                 colorBlendMode: BlendMode.modulate,
                 image: AssetImage(cardImagePath),
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-              ),
+              )),
             ])));
   }
 
-  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
+  LinkedHashMap<PlayingCard, Rect> _playerHandCardRects(Layout layout, List<PlayingCard> cards) {
+    final rects = LinkedHashMap<PlayingCard, Rect>();
     final cardWidthFrac = 0.15;
     final cardOverlapWidthFrac = 0.1;
     final totalWidthFrac = (int n) => cardWidthFrac + (n - 1) * cardOverlapWidthFrac;
@@ -199,8 +205,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final cardHeightFrac = 0.2;
     final cardHeight = cardHeightFrac * layout.displaySize.height;
 
-    final upperRowHeightFracStart = 0.65;
-    final lowerRowHeightFracStart = 0.75;
+    final upperRowHeightFracStart = 0.68;
+    final lowerRowHeightFracStart = 0.78;
     final List<Widget> cardImages = [];
 
     List sortedCards = [
@@ -209,10 +215,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ...sortedCardsInSuit(cards, Suit.diamonds),
       ...sortedCardsInSuit(cards, Suit.clubs),
     ];
-    bool isHumanTurn = round.currentPlayerIndex() == 0;
-    final playableCards = isHumanTurn ? round.legalPlaysForCurrentPlayer() : [];
-    final makeCardWidget = (Rect rect, PlayingCard card) =>
-        _positionedCard(rect, card, opacity: playableCards.contains(card) ? 1.0 : 0.5);
 
     if (sortedCards.length > 7) {
       final numUpperCards = (sortedCards.length + 1) ~/ 2;
@@ -222,14 +224,12 @@ class _MyHomePageState extends State<MyHomePage> {
       for (int i = 0; i < numUpperCards; i++) {
         final left = (upperStartX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
         final top = upperRowHeightFracStart * layout.displaySize.height;
-        Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(makeCardWidget(cardRect, sortedCards[i]));
+        rects[sortedCards[i]] = Rect.fromLTWH(left, top, cardWidth, cardHeight);
       }
       for (int i = 0; i < numLowerCards; i++) {
         final left = (upperStartX + (cardOverlapWidthFrac * (i + 0.5))) * layout.displaySize.width;
         final top = lowerRowHeightFracStart * layout.displaySize.height;
-        Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(makeCardWidget(cardRect, sortedCards[numUpperCards + i]));
+        rects[sortedCards[numUpperCards + i]] = Rect.fromLTWH(left, top, cardWidth, cardHeight);
       }
     }
     else {
@@ -237,9 +237,23 @@ class _MyHomePageState extends State<MyHomePage> {
       for (int i = 0; i < sortedCards.length; i++) {
         final left = (startX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
         final top = lowerRowHeightFracStart * layout.displaySize.height;
-        Rect cardRect = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-        cardImages.add(makeCardWidget(cardRect, sortedCards[i]));
+        rects[sortedCards[i]] = Rect.fromLTWH(left, top, cardWidth, cardHeight);
       }
+    }
+    return rects;
+  }
+
+  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
+    final rects = _playerHandCardRects(layout, cards);
+
+    bool isHumanTurn = round.currentPlayerIndex() == 0;
+    final playableCards = isHumanTurn ? round.legalPlaysForCurrentPlayer() : [];
+    final makeCardWidget = (Rect rect, PlayingCard card) =>
+        _positionedCard(rect, card, opacity: playableCards.contains(card) ? 1.0 : 0.5);
+
+    final List<Widget> cardImages = [];
+    for (final entry in rects.entries) {
+      cardImages.add(makeCardWidget(entry.value, entry.key));
     }
     return Stack(children: cardImages);
   }
@@ -265,15 +279,21 @@ class _MyHomePageState extends State<MyHomePage> {
     List<Widget> cardWidgets =
         List.of(_staticTrickCards(layout, leader, numPlayers, cardsWithoutLast));
     final animPlayer = (leader + cards.length - 1) % numPlayers;
+    final endRect = layout.trickCardAreaForPlayer(animPlayer);
+    var startRect = layout.cardOriginAreaForPlayer(animPlayer);
+    if (animPlayer == 0 && aiMode == AiMode.human_player_0) {
+      // We want to know where the card was drawn in the player's hand. It's not
+      // there now, so we have to compute the card rects as if it were.
+      final previousHandCards = [...round.players[0].hand, cards.last];
+      startRect = _playerHandCardRects(layout, previousHandCards)[cards.last]!;
+    }
+
     cardWidgets.add(TweenAnimationBuilder(
-        tween: Tween(
-            begin: layout.cardOriginAreaForPlayer(animPlayer).center,
-            end: layout.trickCardAreaForPlayer(animPlayer).center),
+        tween: Tween(begin: 0.0, end: 1.0),
         duration: const Duration(milliseconds: 200),
         onEnd: _trickCardAnimationFinished,
-        builder: (BuildContext context, Offset center, Widget? child) {
-          final cardSize = layout.baseCardSize();
-          final animRect = Rect.fromCenter(center: center, width: cardSize.width, height: cardSize.height);
+        builder: (BuildContext context, double frac, Widget? child) {
+          final animRect = Rect.lerp(startRect, endRect, frac)!;
           return _positionedCard(animRect, cards.last);
         }));
 
@@ -398,8 +418,8 @@ class _MyHomePageState extends State<MyHomePage> {
               color: Colors.green,
             ),
             ...[0, 1, 2, 3].map((i) => _aiPlayerWidget(layout, i)),
-            _trickCards(layout),
             _handCards(layout, round.players[0].hand),
+            _trickCards(layout),
           ],
         ),
     );
