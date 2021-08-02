@@ -215,7 +215,7 @@ class HeartsRound {
     int startingPlayer = indexOfPlayerWithCard(players, twoOfClubs);
 
     final round = HeartsRound();
-    round.rules = rules;
+    round.rules = rules.copy();
     round.status = (passDirection == 0) ? HeartsRoundStatus.playing : HeartsRoundStatus.passing;
     round.initialScores = List.from(scores);
     round.players = players;
@@ -300,6 +300,7 @@ class HeartsRound {
       throw Exception("Mismatched hand lengths");
     }
     currentTrick = TrickInProgress(indexOfPlayerWithCard(players, twoOfClubs));
+    status = HeartsRoundStatus.playing;
   }
 
   void playCard(PlayingCard card) {
@@ -312,5 +313,60 @@ class HeartsRound {
       previousTricks.add(lastTrick);
       currentTrick = TrickInProgress(lastTrick.winner);
     }
+  }
+}
+
+class HeartsMatch {
+  Random rng;
+  HeartsRuleSet rules;
+  List<int> scores;
+  int passDirection = 0;
+  List<HeartsRound> previousRounds = [];
+  late HeartsRound currentRound;
+
+  HeartsMatch(HeartsRuleSet _rules, this.rng) :
+      rules = _rules.copy(),
+      scores = List.filled(_rules.numPlayers, 0)
+  {
+    _addNewRound();
+  }
+
+  void _addNewRound() {
+    passDirection = (passDirection + 1) % rules.numPlayers;
+    currentRound = HeartsRound.deal(rules, scores, passDirection, rng);
+  }
+
+  void finishRound() {
+    if (!currentRound.isOver()) {
+      throw Exception("Current round is not over");
+    }
+    final roundScores = currentRound.pointsTaken();
+    for (int i = 0; i < rules.numPlayers; i++) {
+      scores[i] += roundScores[i];
+    }
+    previousRounds.add(currentRound);
+    if (!isMatchOver()) {
+      _addNewRound();
+    }
+  }
+
+  bool isMatchOver() {
+    return scores.any((s) => s >= rules.pointLimit);
+  }
+
+  List<int> winningPlayers() {
+    if (!isMatchOver()) {
+      return [];
+    }
+    final sorted = List.of(scores);
+    sorted.sort();
+    int minScore = sorted[0];
+    List<int> winners = [];
+    for (int i = 0; i < rules.numPlayers; i++) {
+      if (scores[i] == minScore) {
+        winners.add(i);
+      }
+    }
+    return winners;
   }
 }

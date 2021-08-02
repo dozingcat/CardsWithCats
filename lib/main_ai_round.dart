@@ -15,14 +15,14 @@ void main() {
 
   for (int matchNum = 1; matchNum <= 10; matchNum++) {
     print("Match #$matchNum");
-    final matchPoints = List.filled(rules.numPlayers, 0);
+    HeartsMatch match = HeartsMatch(rules, rng);
     int roundNum = 0;
-    while (matchPoints.every((p) => p < rules.pointLimit)) {
+    while (!match.isMatchOver()) {
       roundNum += 1;
       totalRounds += 1;
-      final passDir = roundNum % 4;
+      final passDir = match.passDirection;
       print("Round $roundNum (total $totalRounds)");
-      final round = HeartsRound.deal(rules, matchPoints, passDir, rng);
+      final round = match.currentRound;
       for (int i = 0; i < rules.numPlayers; i++) {
         print("P$i: ${descriptionWithSuitGroups(round.players[i].hand)}");
       }
@@ -31,7 +31,7 @@ void main() {
         for (int i = 0; i < rules.numPlayers; i++) {
           final passReq = CardsToPassRequest(
               rules: rules,
-              scoresBeforeRound: List.of(matchPoints),
+              scoresBeforeRound: List.of(round.initialScores),
               hand: round.players[i].hand,
               direction: passDir,
               numCards: rules.numPassedCards,
@@ -57,15 +57,12 @@ void main() {
           print("P${round.previousTricks.last.winner} takes the trick");
         }
       }
-      final roundPoints = round.pointsTaken();
-      print("Scores for round $roundNum: $roundPoints");
-      for (int i = 0; i < rules.numPlayers; i++) {
-        matchPoints[i] += roundPoints[i];
-      }
-      print("Scores for match: $matchPoints");
+      print("Scores for round $roundNum: ${round.pointsTaken()}");
+      match.finishRound();
+      print("Scores for match: ${match.scores}");
     }
     print("Match over");
-    final vp = getVictoryPoints(matchPoints);
+    final vp = getVictoryPoints(match);
     print("Victory points for match: $vp");
     for (int i = 0; i < rules.numPlayers; i++) {
       victoryPoints[i] += vp[i];
@@ -94,11 +91,8 @@ PlayingCard computeCardToPlay(final HeartsRound round, Random rng) {
   }
 }
 
-List<int> getVictoryPoints(List<int> matchPoints) {
-  int lowest = matchPoints[0];
-  for (int i = 1; i < matchPoints.length; i++) {
-    lowest = min(lowest, matchPoints[i]);
-  }
-  int numWinners = matchPoints.where((p) => p == lowest).length;
-  return List.generate(matchPoints.length, (i) => matchPoints[i] == lowest ? 12 ~/ numWinners : 0);
+List<int> getVictoryPoints(HeartsMatch match) {
+  final winners = match.winningPlayers();
+  return List.generate(match.rules.numPlayers,
+          (i) => winners.contains(i) ? 12 ~/ winners.length : 0);
 }

@@ -115,18 +115,33 @@ class _MyHomePageState extends State<MyHomePage> {
   final rules = HeartsRuleSet();
   var animationMode = AnimationMode.none;
   var aiMode = AiMode.human_player_0;
-  late HeartsRound round;
+  late HeartsMatch match;
+  List<PlayingCard> selectedCardsToPass = [];
+
+  HeartsRound get round => match.currentRound;
 
   @override void initState() {
     super.initState();
-    round = HeartsRound.deal(rules, List.filled(4, 0), 0, rng);
+    _startMatch();
     Future.delayed(Duration(milliseconds: 500), () => _playNextCard());
+  }
+
+  void _startMatch() {
+    match = HeartsMatch(rules, rng);
+    _startRound();
+  }
+
+  void _startRound() {
+    if (round.isOver()) {
+      match.finishRound();
+    }
+    selectedCardsToPass = [];
   }
 
   void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
       setState(() {
-        round = HeartsRound.deal(rules, List.filled(4, 0), 0, rng);
+        _startRound();
       });
     }
     if (round.currentPlayerIndex() != 0) {
@@ -135,10 +150,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _playCard(final PlayingCard card) {
-    setState(() {
-      round.playCard(card);
-      animationMode = AnimationMode.moving_trick_card;
-    });
+    if (round.status == HeartsRoundStatus.playing) {
+      setState(() {
+        round.playCard(card);
+        animationMode = AnimationMode.moving_trick_card;
+      });
+    }
   }
 
   void _trickCardAnimationFinished() {
@@ -161,13 +178,44 @@ class _MyHomePageState extends State<MyHomePage> {
     final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
     _playCard(card);
   }
+
+  void _passCards() {
+    for (int i = 0; i < round.rules.numPlayers; i++) {
+      round.setPassedCardsForPlayer(0, selectedCardsToPass);
+      final passReq = CardsToPassRequest(
+          rules: round.rules,
+          scoresBeforeRound: round.initialScores,
+          hand: round.players[i].hand,
+          direction: round.passDirection,
+          numCards: round.rules.numPassedCards,
+      );
+      final cards = chooseCardsToPass(passReq);
+      round.setPassedCardsForPlayer(i, cards);
+    }
+    round.passCards();
+    _scheduleNextPlayIfNeeded();
+  }
   
   void handleHandCardClicked(final PlayingCard card) {
-    print("Clicked ${card.toString()}");
+    print("Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
+        print("Playing");
         _playCard(card);
       }
+    }
+    else if (round.status == HeartsRoundStatus.passing) {
+      setState(() {
+        if (selectedCardsToPass.contains(card)) {
+          selectedCardsToPass.remove(card);
+        }
+        else if (selectedCardsToPass.length < round.rules.numPassedCards) {
+          selectedCardsToPass.add(card);
+          if (selectedCardsToPass.length == round.rules.numPassedCards) {
+            _passCards();
+          }
+        }
+      });
     }
   }
 
@@ -246,10 +294,17 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
     final rects = _playerHandCardRects(layout, cards);
 
-    bool isHumanTurn = round.currentPlayerIndex() == 0;
-    final playableCards = isHumanTurn ? round.legalPlaysForCurrentPlayer() : [];
+    bool isHumanTurn = round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0;
+    List<PlayingCard> highlightedCards = [];
+    if (isHumanTurn) {
+      highlightedCards = round.legalPlaysForCurrentPlayer();
+    }
+    else if (round.status == HeartsRoundStatus.passing) {
+      highlightedCards = cards.where((c) => !selectedCardsToPass.contains(c)).toList();
+    }
+
     final makeCardWidget = (Rect rect, PlayingCard card) =>
-        _positionedCard(rect, card, opacity: playableCards.contains(card) ? 1.0 : 0.5);
+        _positionedCard(rect, card, opacity: highlightedCards.contains(card) ? 1.0 : 0.5);
 
     final List<Widget> cardImages = [];
     for (final entry in rects.entries) {
