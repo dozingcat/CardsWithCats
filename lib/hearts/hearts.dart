@@ -332,7 +332,25 @@ class HeartsMatch {
   }
 
   void _addNewRound() {
-    passDirection = (passDirection + 1) % rules.numPlayers;
+    int np = rules.numPlayers;
+    if (np <= 3) {
+      passDirection = (passDirection + 1) % np;
+    }
+    else {
+      // Order is left, right, "middle" (from left to right if >1), none.
+      if (passDirection == 1) {
+        passDirection = np - 1;
+      }
+      else if (passDirection == np - 2) {
+        passDirection = 0;
+      }
+      else if (passDirection == np - 1) {
+        passDirection = 2;
+      }
+      else {
+        passDirection += 1;
+      }
+    }
     currentRound = HeartsRound.deal(rules, scores, passDirection, rng);
   }
 
