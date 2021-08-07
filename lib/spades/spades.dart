@@ -80,8 +80,58 @@ class SpadesPlayer {
   static List<SpadesPlayer> copyAll(Iterable<SpadesPlayer> ps) => [...ps.map((p) => p.copy())];
 }
 
+List<int> pointsForTrickWinners(List<int> trickWinners, List<int> bids, SpadesRuleSet rules) {
+  List<int> points = List.filled(rules.numTeams, 0);
+  List<int> winnerCounts = List.filled(rules.numPlayers, 0);
+  List<int> teamWinnerCounts = List.filled(rules.numTeams, 0);
+  for (int tw in trickWinners) {
+    winnerCounts[tw] += 1;
+    teamWinnerCounts[tw % rules.numTeams] += 1;
+  }
+  List<int> teamBids = List.filled(rules.numTeams, 0);
+  List<int> nilBidders = [];
+  for (int bi = 0; bi < bids.length; bi++) {
+    teamBids[bi % rules.numTeams] += bids[bi];
+    if (bids[bi] == 0) {
+      nilBidders.add(bi);
+    }
+  }
+  // +100 or -100 for making or failing nil bid.
+  for (int nb in nilBidders) {
+    int nilPoints = winnerCounts[nb] == 0 ? 100 : -100;
+    points[nb % rules.numTeams] += nilPoints;
+  }
+  // 10 points per made bid, 1 point for each overtrick. -10*bid if failed.
+  for (int ti = 0; ti < rules.numTeams; ti++) {
+    if (teamBids[ti] > 0) {
+      if (teamWinnerCounts[ti] >= teamBids[ti]) {
+        int bags = rules.penalizeBags ? teamWinnerCounts[ti] - teamBids[ti] : 0;
+        points[ti] += 10 * teamBids[ti] + bags;
+      }
+      else {
+        points[ti] -= 10 * teamBids[ti];
+      }
+    }
+  }
+  return points;
+}
+
 List<int> pointsForTricks(List<Trick> tricks, List<int> bids, SpadesRuleSet rules) {
-  return [];
+  return pointsForTrickWinners([...tricks.map((t) => t.winner)], bids, rules);
+}
+
+List<int> combinePoints(List<int> p1, List<int> p2, SpadesRuleSet rules) {
+  if (p1.length != p2.length) {
+    throw Exception("Mismatched lengths: {$p1.length}, {$p2.length}");
+  }
+  // If 10 or more overtricks, remove 10 overtricks and apply 100 penalty.
+  List<int> combined = List.generate(p1.length, (i) => p1[i] + p2[i]);
+  for (int i = 0; i < p1.length; i++) {
+    if ((p1[i] % 10) + (p2[i] % 10) >= 10) {
+      combined[i] -= 110;
+    }
+  }
+  return combined;
 }
 
 enum SpadesRoundStatus {
@@ -166,5 +216,55 @@ class SpadesRound {
       previousTricks.add(lastTrick);
       currentTrick = TrickInProgress(lastTrick.winner);
     }
+  }
+}
+
+class SpadesMatch {
+  Random rng;
+  SpadesRuleSet rules;
+  List<int> scores;
+  int dealer = -1;
+  List<SpadesRound> previousRounds = [];
+  late SpadesRound currentRound;
+
+  SpadesMatch(SpadesRuleSet _rules, this.rng) :
+        rules = _rules.copy(),
+        scores = List.filled(_rules.numPlayers, 0)
+  {
+    _addNewRound();
+  }
+
+  void _addNewRound() {
+    int np = rules.numPlayers;
+    dealer = (dealer == -1) ? rng.nextInt(np) : (dealer + 1) % np;
+    currentRound = SpadesRound.deal(rules, scores, dealer, rng);
+  }
+
+  void finishRound() {
+    if (!currentRound.isOver()) {
+      throw Exception("Current round is not over");
+    }
+    final roundScores = currentRound.pointsTaken();
+    scores = combinePoints(scores, roundScores, rules);
+    previousRounds.add(currentRound);
+    if (!isMatchOver()) {
+      _addNewRound();
+    }
+  }
+
+  bool isMatchOver() {
+    int high = scores.reduce(max);
+    if (high < rules.pointLimit) {
+      return false;
+    }
+    return scores.where((s) => s ~/ 10 == high ~/ 10).length == 1;
+  }
+
+  int? winningTeam() {
+    if (!isMatchOver()) {
+      return null;
+    }
+    int high = scores.reduce(max);
+    return scores.indexWhere((s) => s ~/ 10 == high ~/ 10);
   }
 }

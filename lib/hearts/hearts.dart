@@ -376,9 +376,7 @@ class HeartsMatch {
     if (!isMatchOver()) {
       return [];
     }
-    final sorted = List.of(scores);
-    sorted.sort();
-    int minScore = sorted[0];
+    final minScore = scores.reduce(min);
     List<int> winners = [];
     for (int i = 0; i < rules.numPlayers; i++) {
       if (scores[i] == minScore) {
