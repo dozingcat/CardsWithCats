@@ -36,6 +36,9 @@ class SpadesRuleSet {
     spadeLeading: src.spadeLeading,
     penalizeBags: src.penalizeBags,
   );
+
+  int get numberOfUsedCards => (52 - removedCards.length);
+  int get numberOfCardsPerPlayer => numberOfUsedCards ~/ numPlayers;
 }
 
 bool _canLeadSpade(List<Trick> prevTricks, SpadesRuleSet rules) {
@@ -68,8 +71,7 @@ class SpadesPlayer {
   List<PlayingCard> hand;
   int? bid;
 
-  SpadesPlayer(
-      List<PlayingCard> _hand) :
+  SpadesPlayer(List<PlayingCard> _hand) :
         hand = List.from(_hand);
 
   SpadesPlayer.from(SpadesPlayer src) :
@@ -229,7 +231,7 @@ class SpadesMatch {
 
   SpadesMatch(SpadesRuleSet _rules, this.rng) :
         rules = _rules.copy(),
-        scores = List.filled(_rules.numPlayers, 0)
+        scores = List.filled(_rules.numTeams, 0)
   {
     _addNewRound();
   }

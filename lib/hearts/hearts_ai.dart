@@ -250,7 +250,8 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   final voidedSuits = List.generate(numPlayers, (_n) => Set<Suit>());
 
   var heartsBroken = false;
-  final processTrick = (List<PlayingCard> cards, int leader) {
+
+  void processTrick(List<PlayingCard> cards, int leader) {
     final trickSuit = cards[0].suit;
     if (!heartsBroken && trickSuit == Suit.hearts) {
       // Led hearts when they weren't broken, so must have had no other choice.
@@ -268,7 +269,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
         heartsBroken = true;
       }
     }
-  };
+  }
 
   for (final t in req.previousTricks) {
     processTrick(t.cards, t.leader);
