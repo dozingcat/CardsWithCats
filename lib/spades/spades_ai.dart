@@ -373,8 +373,8 @@ PlayingCard _maximizeTricks(CardToPlayRequest req, List<PlayingCard> legalPlays,
       // TODO
       return chooseCardRandom(req, rng);
     case 1:
-      // TODO
-      return chooseCardRandom(req, rng);
+      // Play over leader if possible, but as low as possible?
+      return _lowestWinnerOrLowest(req, legalPlays, tc[0], rng);
     case 2:
       return _maximizeTricksCard3(req, legalPlays, rng);
     case 3:
@@ -390,6 +390,7 @@ PlayingCard chooseCardToMakeBids(final CardToPlayRequest req, Random rng) {
   if (legalPlays.length == 1) {
     return legalPlays[0];
   }
+  // HERE: Check for making nil bid, covering partner's nil, or avoiding overtricks.
   return _maximizeTricks(req, legalPlays, rng);
 }
 
