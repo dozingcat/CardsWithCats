@@ -59,9 +59,8 @@ extension RankExtension on Rank {
     }
   }
 
-  bool isHigherThan(Rank other) {
-    return this.index > other.index;
-  }
+  bool isHigherThan(Rank other) => this.index > other.index;
+  bool isLowerThan(Rank other) => this.index < other.index;
 }
 
 Rank rankFromChar(String ch) {
@@ -134,6 +133,26 @@ List<PlayingCard> sortedCardsInSuit(Iterable<PlayingCard> cards, Suit suit) {
 // Returns the ranks of cards in the specified suit, sorted descending from ace to two.
 List<Rank> sortedRanksInSuit(Iterable<PlayingCard> cards, Suit suit) {
   return sortedCardsInSuit(cards, suit).map((c) => c.rank).toList();
+}
+
+PlayingCard minCardByRank(List<PlayingCard> cards) {
+  var minCard = cards[0];
+  for (final c in cards) {
+    if (c.rank.isLowerThan(minCard.rank)) {
+      minCard = c;
+    }
+  }
+  return minCard;
+}
+
+PlayingCard maxCardByRank(List<PlayingCard> cards) {
+  var minCard = cards[0];
+  for (final c in cards) {
+    if (c.rank.isHigherThan(minCard.rank)) {
+      minCard = c;
+    }
+  }
+  return minCard;
 }
 
 String descriptionWithSuitGroups(List<PlayingCard> cards) {

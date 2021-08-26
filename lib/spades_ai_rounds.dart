@@ -11,9 +11,10 @@ void main() {
   final rules = SpadesRuleSet();
   final teamMatchWins = List.filled(rules.numTeams, 0);
   final rng = Random();
+  final numMatchesToPlay = 1000;
   int totalRounds = 0;
 
-  for (int matchNum = 1; matchNum <= 10; matchNum++) {
+  for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
     print("Match #$matchNum");
     SpadesMatch match = SpadesMatch(rules, rng);
     int roundNum = 0;
@@ -64,9 +65,13 @@ PlayingCard computeCardToPlay(final SpadesRound round, Random rng) {
     case 0:
     case 2:
       return chooseCardRandom(cardReq, rng);
+      // return chooseCardMonteCarlo(cardReq, mcParams, chooseCardToMakeBids, rng);
+      // return chooseCardToMakeBids(cardReq, rng);
     case 1:
     case 3:
-      return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
+      // return chooseCardRandom(cardReq, rng);
+      // return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
+      return chooseCardToMakeBids(cardReq, rng);
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
   }
