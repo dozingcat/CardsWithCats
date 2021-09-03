@@ -146,13 +146,13 @@ PlayingCard minCardByRank(List<PlayingCard> cards) {
 }
 
 PlayingCard maxCardByRank(List<PlayingCard> cards) {
-  var minCard = cards[0];
+  var maxCard = cards[0];
   for (final c in cards) {
-    if (c.rank.isHigherThan(minCard.rank)) {
-      minCard = c;
+    if (c.rank.isHigherThan(maxCard.rank)) {
+      maxCard = c;
     }
   }
-  return minCard;
+  return maxCard;
 }
 
 String descriptionWithSuitGroups(List<PlayingCard> cards) {

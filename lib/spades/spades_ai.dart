@@ -180,36 +180,86 @@ PlayingCard _lowDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Ran
     }
   }
   if (allSpades || !anySpades) {
-    return _lowestRank(legalPlays);
+    return minCardByRank(legalPlays);
   }
   else {
-    return _lowestRank([...legalPlays.where((c) => c.suit != Suit.spades)]);
+    return minCardByRank([...legalPlays.where((c) => c.suit != Suit.spades)]);
   }
 }
 
 PlayingCard _highDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
-  // TODO
-  return chooseCardRandom(req, rng);
-}
-
-PlayingCard _highestOrLow(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
-  // TODO
-  return chooseCardRandom(req, rng);
-}
-
-PlayingCard _minHighestOrLow(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
-  // TODO
-  return chooseCardRandom(req, rng);
+  bool anySpades = false;
+  bool allSpades = true;
+  for (int i = 0; i < legalPlays.length; i++) {
+    if (legalPlays[i].suit == Suit.spades) {
+      anySpades = true;
+    }
+    else {
+      allSpades = false;
+    }
+  }
+  if (allSpades || !anySpades) {
+    return maxCardByRank(legalPlays);
+  }
+  else {
+    return maxCardByRank([...legalPlays.where((c) => c.suit != Suit.spades)]);
+  }
 }
 
 PlayingCard _avoidTakingTrick(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
-  // TODO
-  return chooseCardRandom(req, rng);
+  final ct = req.currentTrick;
+  if (ct.cards.isEmpty) {
+    return chooseCardRandom(req, rng);
+  }
+  final highCard = ct.cards[trickWinnerIndex(ct.cards)];
+  if (legalPlays.every((c) => c.suit == highCard.suit)) {
+    PlayingCard? lowestAbove;
+    PlayingCard? highestBelow;
+    for (final c in legalPlays) {
+      if (c.rank.isHigherThan(highCard.rank)) {
+        if (lowestAbove == null || c.rank.isLowerThan(lowestAbove.rank)) {
+          lowestAbove = c;
+        }
+      }
+      else {
+        if (highestBelow == null || c.rank.isHigherThan(highestBelow.rank)) {
+          highestBelow = c;
+        }
+      }
+    }
+    return highestBelow ?? lowestAbove!;
+  }
+  else if (highCard.suit == Suit.spades) {
+    PlayingCard? bestLowerSpade;
+    for (final c in legalPlays) {
+      if (c.suit == Suit.spades && c.rank.isLowerThan(highCard.rank)) {
+        if (bestLowerSpade == null || bestLowerSpade.rank.isLowerThan(c.rank)) {
+          bestLowerSpade = c;
+        }
+      }
+    }
+    return bestLowerSpade ?? _highDiscard(req, legalPlays, rng);
+  }
+  else {
+    return _highDiscard(req, legalPlays, rng);
+  }
 }
 
 PlayingCard _coverPartnerNil(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
-  // TODO
-  return chooseCardRandom(req, rng);
+  final ct = req.currentTrick;
+  if (ct.cards.isEmpty) {
+    // TODO
+    return chooseCardRandom(req, rng);
+  }
+  final highCard = ct.cards[trickWinnerIndex(ct.cards)];
+  if (ct.cards.length == 1) {
+    if (legalPlays[0].suit == highCard.suit) {
+      // Following suit, go as high as possible so partner can play under.
+      final maxCard = maxCardByRank(legalPlays);
+      return maxCard.rank.isHigherThan(highCard.rank) ? maxCard : minCardByRank(legalPlays);
+    }
+  }
+  return _lowestWinnerOrLowest(req, legalPlays, highCard, rng);
 }
 
 PlayingCard _highestIfCanWinOrLowest(List<PlayingCard> legalPlays, PlayingCard currentHigh) {
@@ -222,7 +272,7 @@ PlayingCard _lowestWinnerOrLowest(CardToPlayRequest req, List<PlayingCard> legal
     final higherSpades = legalPlays.where(
             (c) => c.suit == Suit.spades && c.rank.isHigherThan(highCard.rank));
     if (higherSpades.isNotEmpty) {
-      return _lowestRank([...higherSpades]);
+      return minCardByRank([...higherSpades]);
     }
   }
   else {
@@ -230,13 +280,13 @@ PlayingCard _lowestWinnerOrLowest(CardToPlayRequest req, List<PlayingCard> legal
       // legalPlays should all be same suit.
       final higherInSuit = legalPlays.where((c) => c.rank.isHigherThan(highCard.rank));
       if (higherInSuit.isNotEmpty) {
-        return _lowestRank([...higherInSuit]);
+        return minCardByRank([...higherInSuit]);
       }
     }
     else {
       final spades = legalPlays.where((c) => c.suit == Suit.spades);
       if (spades.isNotEmpty) {
-        return _lowestRank([...spades]);
+        return minCardByRank([...spades]);
       }
     }
   }
@@ -279,16 +329,6 @@ PlayingCard _trumpOverPartnerIfUseful(
   return _lowDiscard(req, legalPlays, rng);
 }
 
-PlayingCard _lowestRank(List<PlayingCard> legalPlays) {
-  var minCard = legalPlays[0];
-  for (final c in legalPlays) {
-    if (c.rank.index < minCard.rank.index) {
-      minCard = c;
-    }
-  }
-  return minCard;
-}
-
 PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
   // Beat the opponent's card if higher.
   // This assumes partners.
@@ -308,7 +348,7 @@ PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalP
       if (legalPlays[0].suit == tc[0].suit) {
         // We have to follow suit. If opponent trumped then go low.
         if (tc[1].suit == Suit.spades) {
-          return _lowestRank(legalPlays);
+          return minCardByRank(legalPlays);
         }
         else {
           return _highestIfCanWinOrLowest(legalPlays, tc[1]);
@@ -384,13 +424,66 @@ PlayingCard _maximizeTricks(CardToPlayRequest req, List<PlayingCard> legalPlays,
   return chooseCardRandom(req, rng);
 }
 
+int numTopSpadesInHand(final CardToPlayRequest req) {
+  int numTop = 0;
+  var spade = PlayingCard(Rank.ace, Suit.spades);
+  while (true) {
+    if (req.hand.contains(spade)) {
+      numTop += 1;
+    }
+    if (!req.hasCardBeenPlayed(spade) || spade.rank.index == 0) {
+      break;
+    }
+    spade = PlayingCard(Rank.values[spade.rank.index - 1], Suit.spades);
+  }
+  return numTop;
+}
+
+bool _shouldAvoidOvertricks(final CardToPlayRequest req) {
+  int pIndex = req.currentPlayerIndex();
+  // Assumes 2v2.
+  int partnerIndex = (pIndex + 2) % 4;
+  int teamTricks = 0;
+  for (final t in req.previousTricks) {
+    if (t.winner == pIndex || t.winner == partnerIndex) {
+      teamTricks += 1;
+    }
+  }
+  teamTricks += numTopSpadesInHand(req);
+  int teamBid = req.bids[pIndex] + req.bids[partnerIndex];
+  if (teamTricks < teamBid) {
+    return false;
+  }
+  int oppTricks = req.previousTricks.length - teamTricks;
+  int oppBid = req.bids[(pIndex + 1) % 4] + req.bids[(pIndex + 3) % 4];
+  if (oppTricks >= oppBid) {
+    return true;
+  }
+  int neededToSet = 13 - oppBid + 1;
+  if (teamTricks >= neededToSet) {
+    return true;
+  }
+  return false;
+}
+
 PlayingCard chooseCardToMakeBids(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
     return legalPlays[0];
   }
-  // HERE: Check for making nil bid, covering partner's nil, or avoiding overtricks.
+  int pIndex = req.currentPlayerIndex();
+  if (req.bids[pIndex] == 0) {
+    return _avoidTakingTrick(req, legalPlays, rng);
+  }
+  // Assumes 2v2.
+  int partnerIndex = (pIndex + 2) % 4;
+  if (req.bids[partnerIndex] == 0) {
+    return _coverPartnerNil(req, legalPlays, rng);
+  }
+  if (_shouldAvoidOvertricks(req)) {
+    return _avoidTakingTrick(req, legalPlays, rng);
+  }
   return _maximizeTricks(req, legalPlays, rng);
 }
 
