@@ -9,9 +9,10 @@ import 'package:hearts/spades/spades.dart' as spades;
 class BidRequest {
   final SpadesRuleSet rules;
   final List<int> scoresBeforeRound;
+  final List<int> otherBids;
   final List<PlayingCard> hand;
 
-  BidRequest({required this.rules, required this.scoresBeforeRound, required this.hand});
+  BidRequest({required this.rules, required this.scoresBeforeRound, required this.otherBids, required this.hand});
 }
 
 class CardToPlayRequest {
@@ -137,7 +138,19 @@ int chooseBid(BidRequest req) {
       _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.hearts)) +
       _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.diamonds)) +
       _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.clubs));
-  return estimatedTricks.round();
+  int bid = estimatedTricks.round();
+  if (bid == 0) {
+    return 0;
+  }
+  // If this is the last bid and sum of bids is low, increase bid by up to 2.
+  if (req.otherBids.length == req.rules.numPlayers - 1) {
+    final sumOfBids = bid + req.otherBids.reduce((a, b) => a + b);
+    int diff = req.rules.numberOfCardsPerPlayer - sumOfBids;
+    if (diff > 2) {
+      bid += (diff == 3) ? 1 : 2;
+    }
+  }
+  return bid;
 }
 
 // Returns the estimated probability of the player at `player_index` eventually
@@ -459,7 +472,7 @@ bool _shouldAvoidOvertricks(final CardToPlayRequest req) {
   if (oppTricks >= oppBid) {
     return true;
   }
-  int neededToSet = 13 - oppBid + 1;
+  int neededToSet = req.rules.numberOfCardsPerPlayer - oppBid + 1;
   if (teamTricks >= neededToSet) {
     return true;
   }
