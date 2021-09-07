@@ -38,7 +38,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   @override void initState() {
     super.initState();
     _startMatch();
-    Future.delayed(const Duration(milliseconds: 500), _playNextCard);
   }
 
   void _startMatch() {
@@ -46,24 +45,43 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     _startRound();
   }
 
+  void _makeBidForAiPlayer(int playerIndex) {
+    int bid = chooseBid(BidRequest(
+      scoresBeforeRound: round.initialScores,
+      rules: round.rules,
+      otherBids: [],
+      hand: round.players[playerIndex].hand,
+    ));
+    print("P$playerIndex bids $bid");
+    round.setBidForPlayer(bid: bid, playerIndex: playerIndex);
+  }
+
   void _startRound() {
     if (round.isOver()) {
       match.finishRound();
     }
     // TODO: bidding UI.
-    for (int i = 0; i < round.rules.numPlayers; i++) {
-      round.setBidForPlayer(bid: 3, playerIndex: i);
+    int bidder = (round.dealer + 1) % round.rules.numPlayers;
+    while (true) {
+      if (round.status == SpadesRoundStatus.playing || (aiMode == AiMode.human_player_0 && bidder == 0)) {
+        break;
+      }
+      _makeBidForAiPlayer(bidder);
+      bidder = (bidder + 1) % round.rules.numPlayers;
     }
-    _scheduleNextPlayIfNeeded();
+    if (round.status == SpadesRoundStatus.playing) {
+      _scheduleNextPlayIfNeeded();
+    }
   }
 
   void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
+      print("Round done, scores: ${round.pointsTaken()}");
       setState(() {
         _startRound();
       });
     }
-    if (round.currentPlayerIndex() != 0) {
+    if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
       Future.delayed(const Duration(milliseconds: 500), _playNextCard);
     }
   }
@@ -145,6 +163,26 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     );
   }
 
+  bool _shouldShowBidDialog() {
+    return (
+        round.status == SpadesRoundStatus.bidding &&
+        aiMode == AiMode.human_player_0 &&
+        round.players[0].bid == null &&
+            (round.dealer == round.rules.numPlayers - 1 || round.players.last.bid != null)
+    );
+  }
+
+  void makeBidForHuman(int bid) {
+    print("Human bids $bid");
+    round.setBidForPlayer(bid: bid, playerIndex: 0);
+    int bidder = 1;
+    while (round.status == SpadesRoundStatus.bidding) {
+      _makeBidForAiPlayer(bidder);
+      bidder += 1;
+    }
+    _scheduleNextPlayIfNeeded();
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -159,7 +197,66 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        if (_shouldShowBidDialog()) BidDialog(layout: layout, onBid: makeBidForHuman),
+        Text("${round.dealer.toString()} ${round.status}"),
       ],
     );
   }
+}
+
+final dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
+
+Widget _paddingAll(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
+}
+
+TableRow _makeButtonRow(String title, void Function() onPressed) {
+  return TableRow(children: [
+    Padding(
+      padding: EdgeInsets.all(8),
+      child: ElevatedButton(
+        // style: raisedButtonStyle,
+        onPressed: onPressed,
+        child: Text(title),
+      ),
+    ),
+  ]);
+}
+
+class BidDialog extends StatelessWidget {
+  final Layout layout;
+  final void Function(int) onBid;
+
+  const BidDialog({Key? key, required this.layout, required this.onBid}): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final maxTricks = 13;
+
+    return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Center(
+            child: Dialog(
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Choose your bid"),
+                    _paddingAll(10, Table(
+                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                      defaultColumnWidth: const IntrinsicColumnWidth(),
+                      children: [
+                        _makeButtonRow("Nil", () => onBid(0)),
+                        ...List.generate(maxTricks, (i) => i + 1).map(
+                            (i) => _makeButtonRow(i.toString(), () => onBid(i))),
+                      ],
+                    )),
+                  ],
+                )
+            )
+        )
+    );
+  }
+
 }
