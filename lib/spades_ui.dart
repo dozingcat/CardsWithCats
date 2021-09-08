@@ -201,7 +201,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        if (_shouldShowBidDialog()) BidDialog(layout: layout, onBid: makeBidForHuman),
+        if (_shouldShowBidDialog()) BidDialog2(layout: layout, onBid: makeBidForHuman),
         Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()}"),
       ],
     );
@@ -214,24 +214,11 @@ Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
 }
 
-Widget _makeBidButton(int bid, void Function(int) onBid, {String? label}) {
-  return _paddingAll(10, ElevatedButton(
+Widget _makeBidButton(Layout layout, int bid, void Function(int) onBid, {String? label}) {
+  return _paddingAll(layout.dialogBaseFontSize() * 0.5, ElevatedButton(
     onPressed: () => onBid(bid),
-    child: Text(label ?? bid.toString()),
+    child: Text(label ?? bid.toString(), style: TextStyle(fontSize: layout.dialogBaseFontSize())),
   ));
-}
-
-TableRow _makeButtonRow(String title, void Function() onPressed) {
-  return TableRow(children: [
-    Padding(
-      padding: EdgeInsets.all(8),
-      child: ElevatedButton(
-        // style: raisedButtonStyle,
-        onPressed: onPressed,
-        child: Text(title),
-      ),
-    ),
-  ]);
 }
 
 class BidDialog extends StatelessWidget {
@@ -245,7 +232,7 @@ class BidDialog extends StatelessWidget {
     final maxTricks = 13;
 
     final bidButtonRows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]].map((rowBids) => TableRow(
-        children: rowBids.map((bid) => _makeBidButton(bid, onBid)).toList(),
+        children: rowBids.map((bid) => _makeBidButton(layout, bid, onBid)).toList(),
     )).toList();
 
     return Container(
@@ -257,8 +244,8 @@ class BidDialog extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _paddingAll(15, Text("Choose your bid")),
-                    _makeBidButton(0, onBid, label: "Nil"),
+                    _paddingAll(15, Text("Choose your bid", style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+                    _makeBidButton(layout, 0, onBid, label: "Nil"),
                     _paddingAll(10, Table(
                       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                       defaultColumnWidth: const IntrinsicColumnWidth(),
@@ -270,5 +257,78 @@ class BidDialog extends StatelessWidget {
         )
     );
   }
+}
 
+class BidDialog2 extends StatefulWidget {
+  final Layout layout;
+  final void Function(int) onBid;
+
+  const BidDialog2({Key? key, required this.layout, required this.onBid}) : super(key: key);
+
+  @override
+  _BidDialog2State createState() => _BidDialog2State();
+}
+
+class _BidDialog2State extends State<BidDialog2> {
+  int bidAmount = 1;
+
+  bool canIncrementBid() => (bidAmount < 13);
+
+  void incrementBid() {
+    setState(() {bidAmount = min(bidAmount + 1, 13);});
+  }
+
+  bool canDecrementBid() => (bidAmount > 0);
+
+  void decrementBid() {
+    setState(() {bidAmount = max(bidAmount - 1, 0);});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final adjustBidTextStyle = TextStyle(fontSize: widget.layout.dialogHeaderFontSize());
+    final rowPadding = widget.layout.dialogBaseFontSize();
+
+    return Container(
+        // width: double.infinity,
+        // height: double.infinity,
+        child: Center(
+            child: Dialog(
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paddingAll(15,
+                        Text("Choose your bid",
+                            style: TextStyle(fontSize: widget.layout.dialogHeaderFontSize()))),
+                    Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            child: Text("-", style: adjustBidTextStyle),
+                            onPressed: canDecrementBid() ? decrementBid : null,
+                          ),
+                          _paddingAll(rowPadding, Text(bidAmount.toString(), style: adjustBidTextStyle)),
+                          ElevatedButton(
+                            child: Text("+", style: adjustBidTextStyle),
+                            onPressed: canIncrementBid() ? incrementBid : null,
+                          ),
+                        ]),
+                    _paddingAll(rowPadding,
+                        Row(mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton(
+                                child: Text("Bid ${bidAmount == 0 ? "Nil" : bidAmount.toString()}",
+                                    style: TextStyle(fontSize: widget.layout.dialogBaseFontSize())),
+                                onPressed: () => widget.onBid(bidAmount),
+                              ),
+                        ])),
+                  ],
+                )
+            )
+        )
+    );
+  }
 }

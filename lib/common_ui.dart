@@ -70,6 +70,14 @@ class Layout {
         throw Exception("Bad player index: $playerIndex");
     }
   }
+
+  double dialogBaseFontSize() {
+    return max(16, displaySize.shortestSide / 30);
+  }
+
+  double dialogHeaderFontSize() {
+    return max(26, displaySize.shortestSide / 20);
+  }
 }
 
 class PositionedCard extends StatelessWidget {
