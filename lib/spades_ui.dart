@@ -135,13 +135,15 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
+    bool isBidding = round.status == SpadesRoundStatus.bidding;
+
     final List<Widget> cardImages = [];
     for (final entry in rects.entries) {
       final card = entry.key;
       cardImages.add(PositionedCard(
         rect: entry.value,
         card: card,
-        opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
+        opacity: isBidding || highlightedCards.contains(card) ? 1.0 : 0.5,
         onCardClicked: (card) => handleHandCardClicked(card),
       ));
     }
@@ -174,12 +176,14 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void makeBidForHuman(int bid) {
     print("Human bids $bid");
-    round.setBidForPlayer(bid: bid, playerIndex: 0);
-    int bidder = 1;
-    while (round.status == SpadesRoundStatus.bidding) {
-      _makeBidForAiPlayer(bidder);
-      bidder += 1;
-    }
+    setState(() {
+      round.setBidForPlayer(bid: bid, playerIndex: 0);
+      int bidder = 1;
+      while (round.status == SpadesRoundStatus.bidding) {
+        _makeBidForAiPlayer(bidder);
+        bidder += 1;
+      }
+    });
     _scheduleNextPlayIfNeeded();
   }
 
@@ -198,16 +202,23 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
         if (_shouldShowBidDialog()) BidDialog(layout: layout, onBid: makeBidForHuman),
-        Text("${round.dealer.toString()} ${round.status}"),
+        Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()}"),
       ],
     );
   }
 }
 
-final dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
+final dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
+}
+
+Widget _makeBidButton(int bid, void Function(int) onBid, {String? label}) {
+  return _paddingAll(10, ElevatedButton(
+    onPressed: () => onBid(bid),
+    child: Text(label ?? bid.toString()),
+  ));
 }
 
 TableRow _makeButtonRow(String title, void Function() onPressed) {
@@ -233,6 +244,10 @@ class BidDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final maxTricks = 13;
 
+    final bidButtonRows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]].map((rowBids) => TableRow(
+        children: rowBids.map((bid) => _makeBidButton(bid, onBid)).toList(),
+    )).toList();
+
     return Container(
         width: double.infinity,
         height: double.infinity,
@@ -242,15 +257,12 @@ class BidDialog extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("Choose your bid"),
+                    _paddingAll(15, Text("Choose your bid")),
+                    _makeBidButton(0, onBid, label: "Nil"),
                     _paddingAll(10, Table(
                       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                       defaultColumnWidth: const IntrinsicColumnWidth(),
-                      children: [
-                        _makeButtonRow("Nil", () => onBid(0)),
-                        ...List.generate(maxTricks, (i) => i + 1).map(
-                            (i) => _makeButtonRow(i.toString(), () => onBid(i))),
-                      ],
+                      children: bidButtonRows,
                     )),
                   ],
                 )

@@ -295,16 +295,16 @@ class TrickCards extends StatelessWidget {
 
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<PlayingCard> cards) {
   final rects = LinkedHashMap<PlayingCard, Rect>();
-  final cardWidthFrac = 0.15;
-  final cardOverlapWidthFrac = 0.1;
+  final cardWidthFrac = 0.1875;
+  final cardOverlapWidthFrac = 0.125;
   final totalWidthFrac = (int n) => cardWidthFrac + (n - 1) * cardOverlapWidthFrac;
   final cardWidth = cardWidthFrac * layout.displaySize.width;
 
   final cardHeightFrac = 0.2;
   final cardHeight = cardHeightFrac * layout.displaySize.height;
 
-  final upperRowHeightFracStart = 0.68;
-  final lowerRowHeightFracStart = 0.78;
+  final upperRowHeightFracStart = 0.69;
+  final lowerRowHeightFracStart = 0.79;
 
   List sortedCards = [
     ...sortedCardsInSuit(cards, Suit.hearts),
