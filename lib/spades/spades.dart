@@ -82,8 +82,27 @@ class SpadesPlayer {
   static List<SpadesPlayer> copyAll(Iterable<SpadesPlayer> ps) => [...ps.map((p) => p.copy())];
 }
 
-List<int> pointsForTrickWinners(List<int> trickWinners, List<int> bids, SpadesRuleSet rules) {
-  List<int> points = List.filled(rules.numTeams, 0);
+class RoundScoreResult {
+  int successfulBidPoints = 0;
+  int failedBidPoints = 0;
+  int overtricks = 0;
+  int overtrickPenalty = 0;
+  int successfulNilPoints = 0;
+  int failedNilPoints = 0;
+
+  int get totalRoundPoints =>
+      successfulBidPoints + failedBidPoints + overtricks + overtrickPenalty +
+          successfulNilPoints + failedNilPoints;
+
+  int endingMatchPoints = 0;
+}
+
+List<RoundScoreResult> pointsForTrickWinners(
+    List<int> trickWinners,
+    List<int> bids,
+    List<int> previousPoints,
+    SpadesRuleSet rules) {
+  List<RoundScoreResult> results = List.generate(rules.numTeams, (_) => RoundScoreResult());
   List<int> winnerCounts = List.filled(rules.numPlayers, 0);
   List<int> teamWinnerCounts = List.filled(rules.numTeams, 0);
   for (int tw in trickWinners) {
@@ -100,40 +119,41 @@ List<int> pointsForTrickWinners(List<int> trickWinners, List<int> bids, SpadesRu
   }
   // +100 or -100 for making or failing nil bid.
   for (int nb in nilBidders) {
-    int nilPoints = winnerCounts[nb] == 0 ? 100 : -100;
-    points[nb % rules.numTeams] += nilPoints;
+    if (winnerCounts[nb] == 0) {
+      results[nb % rules.numTeams].successfulNilPoints += 100;
+    }
+    else {
+      results[nb % rules.numTeams].failedNilPoints -= 100;
+    }
   }
   // 10 points per made bid, 1 point for each overtrick. -10*bid if failed.
   for (int ti = 0; ti < rules.numTeams; ti++) {
     if (teamBids[ti] > 0) {
       if (teamWinnerCounts[ti] >= teamBids[ti]) {
         int bags = rules.penalizeBags ? teamWinnerCounts[ti] - teamBids[ti] : 0;
-        points[ti] += 10 * teamBids[ti] + bags;
+        results[ti].successfulBidPoints += 10 * teamBids[ti];
+        if (rules.penalizeBags) {
+          results[ti].overtricks = bags;
+          if ((previousPoints[ti] % 10) + (bags % 10) >= 10) {
+            results[ti].overtrickPenalty = -110;
+          }
+        }
       }
       else {
-        points[ti] -= 10 * teamBids[ti];
+        results[ti].failedBidPoints -= 10 * teamBids[ti];
       }
     }
+    results[ti].endingMatchPoints = previousPoints[ti] + results[ti].totalRoundPoints;
   }
-  return points;
+  return results;
 }
 
-List<int> pointsForTricks(List<Trick> tricks, List<int> bids, SpadesRuleSet rules) {
-  return pointsForTrickWinners([...tricks.map((t) => t.winner)], bids, rules);
-}
-
-List<int> combinePoints(List<int> p1, List<int> p2, SpadesRuleSet rules) {
-  if (p1.length != p2.length) {
-    throw Exception("Mismatched lengths: {$p1.length}, {$p2.length}");
-  }
-  // If 10 or more overtricks, remove 10 overtricks and apply 100 penalty.
-  List<int> combined = List.generate(p1.length, (i) => p1[i] + p2[i]);
-  for (int i = 0; i < p1.length; i++) {
-    if ((p1[i] % 10) + (p2[i] % 10) >= 10) {
-      combined[i] -= 110;
-    }
-  }
-  return combined;
+List<RoundScoreResult> pointsForTricks(
+    List<Trick> tricks,
+    List<int> bids,
+    List<int> previousPoints,
+    SpadesRuleSet rules) {
+  return pointsForTrickWinners([...tricks.map((t) => t.winner)], bids, previousPoints, rules);
 }
 
 enum SpadesRoundStatus {
@@ -187,8 +207,8 @@ class SpadesRound {
     return players.every((p) => p.hand.isEmpty);
   }
 
-  List<int> pointsTaken() {
-    return pointsForTricks(previousTricks, [...players.map((p) => p.bid!)], rules);
+  List<RoundScoreResult> pointsTaken() {
+    return pointsForTricks(previousTricks, [...players.map((p) => p.bid!)], initialScores, rules);
   }
 
   int currentPlayerIndex() {
@@ -247,7 +267,7 @@ class SpadesMatch {
       throw Exception("Current round is not over");
     }
     final roundScores = currentRound.pointsTaken();
-    scores = combinePoints(scores, roundScores, rules);
+    scores = roundScores.map((s) => s.endingMatchPoints).toList();
     previousRounds.add(currentRound);
     if (!isMatchOver()) {
       _addNewRound();

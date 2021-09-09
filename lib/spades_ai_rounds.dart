@@ -21,7 +21,7 @@ void main() {
   final rules = SpadesRuleSet();
   final teamMatchWins = List.filled(rules.numTeams, 0);
   final rng = Random();
-  final numMatchesToPlay = 1000;
+  final numMatchesToPlay = 10;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -58,7 +58,7 @@ void main() {
           print("P${round.previousTricks.last.winner} takes the trick");
         }
       }
-      print("Scores for round $roundNum: ${round.pointsTaken()}");
+      print("Scores for round $roundNum: ${round.pointsTaken().map((s) => s.totalRoundPoints)}");
       match.finishRound();
       print("Scores for match: ${match.scores}");
     }

@@ -601,8 +601,7 @@ PlayingCard chooseCardMonteCarlo(
         rolloutRound.playCard(legalPlays[ci]);
         doRollout(rolloutRound, rolloutChooseFn, rng);
         final pointsForRound = rolloutRound.pointsTaken();
-        final scoresAfterRound = combinePoints(
-            cardReq.scoresBeforeRound, pointsForRound, cardReq.rules);
+        final scoresAfterRound = pointsForRound.map((p) => p.endingMatchPoints).toList();
         playEquities[ci] += matchEquityForScores(
             scoresAfterRound, pnum % cardReq.rules.numTeams, cardReq.rules);
       }

@@ -76,7 +76,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
-      print("Round done, scores: ${round.pointsTaken()}");
+      print("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
       setState(() {
         _startRound();
       });
@@ -187,6 +187,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     _scheduleNextPlayIfNeeded();
   }
 
+  int maxPlayerBid() {
+    final numTricks = round.rules.numberOfCardsPerPlayer;
+    return numTricks - (round.players[2].bid ?? 0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -201,7 +206,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        if (_shouldShowBidDialog()) BidDialog2(layout: layout, onBid: makeBidForHuman),
+        if (_shouldShowBidDialog()) BidDialog2(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()}"),
       ],
     );
@@ -261,9 +266,15 @@ class BidDialog extends StatelessWidget {
 
 class BidDialog2 extends StatefulWidget {
   final Layout layout;
+  final int maxBid;
   final void Function(int) onBid;
 
-  const BidDialog2({Key? key, required this.layout, required this.onBid}) : super(key: key);
+  const BidDialog2({
+    Key? key,
+    required this.layout,
+    required this.maxBid,
+    required this.onBid,
+  }) : super(key: key);
 
   @override
   _BidDialog2State createState() => _BidDialog2State();
@@ -272,10 +283,10 @@ class BidDialog2 extends StatefulWidget {
 class _BidDialog2State extends State<BidDialog2> {
   int bidAmount = 1;
 
-  bool canIncrementBid() => (bidAmount < 13);
+  bool canIncrementBid() => (bidAmount < widget.maxBid);
 
   void incrementBid() {
-    setState(() {bidAmount = min(bidAmount + 1, 13);});
+    setState(() {bidAmount = min(bidAmount + 1, widget.maxBid);});
   }
 
   bool canDecrementBid() => (bidAmount > 0);
