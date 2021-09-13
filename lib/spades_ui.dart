@@ -77,9 +77,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
       print("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
-      setState(() {
-        _startRound();
-      });
     }
     if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
       Future.delayed(const Duration(milliseconds: 500), _playNextCard);
@@ -189,7 +186,15 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   int maxPlayerBid() {
     final numTricks = round.rules.numberOfCardsPerPlayer;
-    return numTricks - (round.players[2].bid ?? 0);
+    return max(1, numTricks - (round.players[2].bid ?? 0));
+  }
+
+  bool _shouldShowEndOfRoundDialog() {
+    return round.isOver() && !match.isMatchOver();
+  }
+
+  bool _shouldShowEndOfMatchDialog() {
+    return !match.isMatchOver();
   }
 
   @override
@@ -206,7 +211,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        if (_shouldShowBidDialog()) BidDialog2(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
+        if (_shouldShowBidDialog()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
+        if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
+          round: round,
+          onContinue: () => setState(_startRound),
+        ),
         Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()}"),
       ],
     );
@@ -219,57 +228,12 @@ Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
 }
 
-Widget _makeBidButton(Layout layout, int bid, void Function(int) onBid, {String? label}) {
-  return _paddingAll(layout.dialogBaseFontSize() * 0.5, ElevatedButton(
-    onPressed: () => onBid(bid),
-    child: Text(label ?? bid.toString(), style: TextStyle(fontSize: layout.dialogBaseFontSize())),
-  ));
-}
-
-class BidDialog extends StatelessWidget {
-  final Layout layout;
-  final void Function(int) onBid;
-
-  const BidDialog({Key? key, required this.layout, required this.onBid}): super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final maxTricks = 13;
-
-    final bidButtonRows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]].map((rowBids) => TableRow(
-        children: rowBids.map((bid) => _makeBidButton(layout, bid, onBid)).toList(),
-    )).toList();
-
-    return Container(
-        width: double.infinity,
-        height: double.infinity,
-        child: Center(
-            child: Dialog(
-                backgroundColor: dialogBackgroundColor,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _paddingAll(15, Text("Choose your bid", style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
-                    _makeBidButton(layout, 0, onBid, label: "Nil"),
-                    _paddingAll(10, Table(
-                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                      defaultColumnWidth: const IntrinsicColumnWidth(),
-                      children: bidButtonRows,
-                    )),
-                  ],
-                )
-            )
-        )
-    );
-  }
-}
-
-class BidDialog2 extends StatefulWidget {
+class BidDialog extends StatefulWidget {
   final Layout layout;
   final int maxBid;
   final void Function(int) onBid;
 
-  const BidDialog2({
+  const BidDialog({
     Key? key,
     required this.layout,
     required this.maxBid,
@@ -277,10 +241,10 @@ class BidDialog2 extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _BidDialog2State createState() => _BidDialog2State();
+  _BidDialogState createState() => _BidDialogState();
 }
 
-class _BidDialog2State extends State<BidDialog2> {
+class _BidDialogState extends State<BidDialog> {
   int bidAmount = 1;
 
   bool canIncrementBid() => (bidAmount < widget.maxBid);
@@ -300,17 +264,14 @@ class _BidDialog2State extends State<BidDialog2> {
     final adjustBidTextStyle = TextStyle(fontSize: widget.layout.dialogHeaderFontSize());
     final rowPadding = widget.layout.dialogBaseFontSize();
 
-    return Container(
-        // width: double.infinity,
-        // height: double.infinity,
-        child: Center(
+    return Center(
             child: Dialog(
                 backgroundColor: dialogBackgroundColor,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(15,
-                        Text("Choose your bid",
+                        Text("Choose your bid!",
                             style: TextStyle(fontSize: widget.layout.dialogHeaderFontSize()))),
                     Row(
                         mainAxisSize: MainAxisSize.min,
@@ -339,7 +300,56 @@ class _BidDialog2State extends State<BidDialog2> {
                   ],
                 )
             )
-        )
-    );
+        );
+
+  }
+}
+
+class EndOfRoundDialog extends StatelessWidget {
+  final SpadesRound round;
+  final Function() onContinue;
+
+  const EndOfRoundDialog({Key? key, required this.round, required this.onContinue}): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final scores = round.pointsTaken();
+
+    return Center(
+      child: Dialog(
+      backgroundColor: dialogBackgroundColor,
+      child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Table(
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          defaultColumnWidth: const IntrinsicColumnWidth(),
+          children: [
+            TableRow(children: [
+              _paddingAll(10, Text("")),
+              Text("You"),
+              Text("Opponents"),
+            ]),
+            TableRow(children: [
+              _paddingAll(10, Text("Round score")),
+              Text(scores[0].totalRoundPoints.toString()),
+              Text(scores[1].totalRoundPoints.toString()),
+            ]),
+            TableRow(children: [
+              _paddingAll(10, Text("Match score")),
+              Text(scores[0].endingMatchPoints.toString()),
+              Text(scores[1].endingMatchPoints.toString()),
+            ]),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [_paddingAll(15, ElevatedButton(
+            child: Text("Continue"),
+            onPressed: onContinue,
+          ))],
+        ),
+      ])));
   }
 }
