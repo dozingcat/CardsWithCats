@@ -31,6 +31,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rules = SpadesRuleSet();
   var animationMode = AnimationMode.none;
   var aiMode = AiMode.human_player_0;
+  var currentBidder = 0;
   late SpadesMatch match;
 
   SpadesRound get round => match.currentRound;
@@ -45,6 +46,16 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     _startRound();
   }
 
+  void _scheduleNextActionIfNeeded() {
+    _scheduleNextAiBidIfNeeded();
+    _scheduleNextPlayIfNeeded();
+  }
+
+  void _setBidForPlayer({required int bid, required int playerIndex}) {
+    round.setBidForPlayer(bid: bid, playerIndex: playerIndex);
+    _scheduleNextActionIfNeeded();
+  }
+
   void _makeBidForAiPlayer(int playerIndex) {
     int bid = chooseBid(BidRequest(
       scoresBeforeRound: round.initialScores,
@@ -53,32 +64,31 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       hand: round.players[playerIndex].hand,
     ));
     print("P$playerIndex bids $bid");
-    round.setBidForPlayer(bid: bid, playerIndex: playerIndex);
+    setState(() {
+      _setBidForPlayer(bid: bid, playerIndex: playerIndex);
+    });
+  }
+
+  void _scheduleNextAiBidIfNeeded() {
+    if (round.status == SpadesRoundStatus.bidding && !_isWaitingForHumanBid()) {
+      Future.delayed(const Duration(milliseconds: 1000), () {
+          _makeBidForAiPlayer(round.currentBidder());
+      });
+    }
   }
 
   void _startRound() {
     if (round.isOver()) {
       match.finishRound();
     }
-    // TODO: bidding UI.
-    int bidder = (round.dealer + 1) % round.rules.numPlayers;
-    while (true) {
-      if (round.status == SpadesRoundStatus.playing || (aiMode == AiMode.human_player_0 && bidder == 0)) {
-        break;
-      }
-      _makeBidForAiPlayer(bidder);
-      bidder = (bidder + 1) % round.rules.numPlayers;
-    }
-    if (round.status == SpadesRoundStatus.playing) {
-      _scheduleNextPlayIfNeeded();
-    }
+    _scheduleNextActionIfNeeded();
   }
 
   void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
       print("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
     }
-    if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
+    else if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
       Future.delayed(const Duration(milliseconds: 500), _playNextCard);
     }
   }
@@ -95,7 +105,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   void _trickCardAnimationFinished() {
     if (!round.isOver() && round.currentTrick.cards.isNotEmpty) {
       setState(() {animationMode = AnimationMode.none;});
-      _scheduleNextPlayIfNeeded();
+      _scheduleNextActionIfNeeded();
     }
     else {
       setState(() {animationMode = AnimationMode.moving_trick_to_winner;});
@@ -104,7 +114,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _trickToWinnerAnimationFinished() {
     setState(() {animationMode = AnimationMode.none;});
-    _scheduleNextPlayIfNeeded();
+    _scheduleNextActionIfNeeded();
   }
 
   void _playNextCard() async {
@@ -162,26 +172,16 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     );
   }
 
-  bool _shouldShowBidDialog() {
+  bool _isWaitingForHumanBid() {
     return (
         round.status == SpadesRoundStatus.bidding &&
-        aiMode == AiMode.human_player_0 &&
-        round.players[0].bid == null &&
-            (round.dealer == round.rules.numPlayers - 1 || round.players.last.bid != null)
+        aiMode == AiMode.human_player_0 && round.currentBidder() == 0
     );
   }
 
   void makeBidForHuman(int bid) {
     print("Human bids $bid");
-    setState(() {
-      round.setBidForPlayer(bid: bid, playerIndex: 0);
-      int bidder = 1;
-      while (round.status == SpadesRoundStatus.bidding) {
-        _makeBidForAiPlayer(bidder);
-        bidder += 1;
-      }
-    });
-    _scheduleNextPlayIfNeeded();
+    _setBidForPlayer(bid: bid, playerIndex: 0);
   }
 
   int maxPlayerBid() {
@@ -195,6 +195,18 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   bool _shouldShowEndOfMatchDialog() {
     return !match.isMatchOver();
+  }
+
+  List<Widget> bidSpeechBubbles(final Layout layout) {
+    if (round.status != SpadesRoundStatus.bidding) return [];
+    final bubbles = <Widget>[];
+    for (int i = 0; i < round.rules.numPlayers; i++) {
+      final bid = round.players[i].bid;
+      if (bid != null) {
+        bubbles.add(SpeechBubble(layout: layout, playerIndex: i, message: bid.toString()));
+      }
+    }
+    return bubbles;
   }
 
   @override
@@ -211,12 +223,13 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        if (_shouldShowBidDialog()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
+        if (_isWaitingForHumanBid()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
           round: round,
           onContinue: () => setState(_startRound),
         ),
-        Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()}"),
+        Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()} ${_isWaitingForHumanBid()}"),
+        ...bidSpeechBubbles(layout),
       ],
     );
   }
@@ -314,6 +327,7 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = round.pointsTaken();
+    const cellPad = 10.0;
 
     return Center(
       child: Dialog(
@@ -326,19 +340,19 @@ class EndOfRoundDialog extends StatelessWidget {
           defaultColumnWidth: const IntrinsicColumnWidth(),
           children: [
             TableRow(children: [
-              _paddingAll(10, Text("")),
-              Text("You"),
-              Text("Opponents"),
+              _paddingAll(cellPad, Text("")),
+              _paddingAll(cellPad, Text("You")),
+              _paddingAll(cellPad, Text("Them")),
             ]),
             TableRow(children: [
-              _paddingAll(10, Text("Round score")),
-              Text(scores[0].totalRoundPoints.toString()),
-              Text(scores[1].totalRoundPoints.toString()),
+              _paddingAll(cellPad, Text("Round score")),
+              _paddingAll(cellPad, Text(scores[0].totalRoundPoints.toString())),
+              _paddingAll(cellPad, Text(scores[1].totalRoundPoints.toString())),
             ]),
             TableRow(children: [
-              _paddingAll(10, Text("Match score")),
-              Text(scores[0].endingMatchPoints.toString()),
-              Text(scores[1].endingMatchPoints.toString()),
+              _paddingAll(cellPad, Text("Match score")),
+              _paddingAll(cellPad, Text(scores[0].endingMatchPoints.toString())),
+              _paddingAll(cellPad, Text(scores[1].endingMatchPoints.toString())),
             ]),
           ],
         ),
