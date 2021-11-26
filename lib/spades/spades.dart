@@ -217,6 +217,24 @@ class SpadesRound {
 
   SpadesPlayer currentPlayer() => players[currentPlayerIndex()];
 
+  int firstBidder() {
+    return (dealer + 1) % rules.numPlayers;
+  }
+
+  int currentBidder() {
+    var fb = firstBidder();
+    var p = fb;
+    while (true) {
+      if (players[p].bid == null) {
+        return p;
+      }
+      p = (p + 1) % rules.numPlayers;
+      if (p == fb) {
+        throw Exception("All players have bid");
+      }
+    }
+  }
+
   List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }

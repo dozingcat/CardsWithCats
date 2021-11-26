@@ -174,6 +174,79 @@ class AiPlayerImage extends StatelessWidget {
   }
 }
 
+class SpeechBubble extends StatelessWidget {
+  final Layout layout;
+  final int playerIndex;
+  final String message;
+  final double widthFraction;
+  static const imageAspectRatio = 640.0 / 574;
+  static const imagePath = "assets/misc/speech_bubble.png";
+
+  const SpeechBubble({
+    Key? key,
+    required this.layout,
+    required this.playerIndex,
+    required this.message,
+    this.widthFraction = 0.2,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    var transform = Matrix4.identity();
+    final dh = layout.displaySize.height;
+    final dw = layout.displaySize.width;
+    final playerHeight = layout.edgePx;
+    final imageWidth = min(playerHeight * 1.5, widthFraction * dw);
+    final imageHeight = imageWidth / imageAspectRatio;
+    final fontSize = imageHeight / 2;
+    var top = 0.0;
+    var left = 0.0;
+    switch (playerIndex) {
+      case 1:
+        left = playerHeight / 2;
+        top = dh / 2 - playerHeight * 1.6 / 2 - imageHeight;
+        break;
+      case 2:
+        transform = Matrix4.rotationX(pi);
+        left = dw / 2;
+        top = playerHeight * 1.1;
+        break;
+      case 3:
+        transform = Matrix4.rotationY(pi);
+        left = dw - playerHeight / 2 - imageWidth;
+        top = dh / 2 - playerHeight * 1.6 / 2 - imageHeight;
+        break;
+      case 0:
+        left = dw / 2 - playerHeight / 2;
+        top = dh - playerHeight - imageHeight;
+        break;
+    }
+
+    return Positioned(
+      top: top,
+      left: left,
+      width: imageWidth,
+      height: imageHeight,
+
+      child: Stack(children: [
+        SizedBox(
+          width: imageWidth,
+          height: imageHeight,
+          child: Transform(alignment: Alignment.center, transform: transform, child: const Image(
+            image: AssetImage(imagePath),
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+          )),
+        ),
+        Center(child: Column(children: [
+          SizedBox(height: imageHeight * (playerIndex == 2 ? 0.33: 0.06)),
+          Text(message, style: TextStyle(fontSize: fontSize)),
+        ])),
+      ],
+    ));
+  }
+}
+
 class TrickCards extends StatelessWidget {
   final Layout layout;
   final TrickInProgress currentTrick;
@@ -254,14 +327,6 @@ class TrickCards extends StatelessWidget {
       final previousHandCards = [...humanPlayerHand!, cards.last];
       startRect = playerHandCardRects(layout, previousHandCards)[cards.last]!;
     }
-    /*
-    if (animPlayer == 0 && aiMode == AiMode.human_player_0) {
-      // We want to know where the card was drawn in the player's hand. It's not
-      // there now, so we have to compute the card rects as if it were.
-      final previousHandCards = [...round.players[0].hand, cards.last];
-      startRect = _playerHandCardRects(layout, previousHandCards)[cards.last]!;
-    }
-     */
 
     cardWidgets.add(TweenAnimationBuilder(
         tween: Tween(begin: 0.0, end: 1.0),
