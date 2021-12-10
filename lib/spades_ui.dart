@@ -18,7 +18,6 @@ PlayingCard computeCard(final CardToPlayRequest req) {
       Random());
 }
 
-
 class SpadesMatchDisplay extends StatefulWidget {
   const SpadesMatchDisplay({Key? key}) : super(key: key);
 
@@ -30,6 +29,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
   final rules = SpadesRuleSet();
   var animationMode = AnimationMode.none;
+  var showPostBidDialog = false;
   var aiMode = AiMode.human_player_0;
   var currentBidder = 0;
   late SpadesMatch match;
@@ -51,9 +51,34 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     _scheduleNextPlayIfNeeded();
   }
 
+  bool hasHumanPlayer() {
+    return aiMode == AiMode.human_player_0;
+  }
+
+  void _handleBiddingDone() {
+    if (hasHumanPlayer()) {
+      setState(() {showPostBidDialog = true;});
+    }
+    else {
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        _scheduleNextActionIfNeeded();
+      });
+    }
+  }
+
+  void _handlePostBidDialogConfirm() {
+    setState(() {showPostBidDialog = false;});
+    _scheduleNextActionIfNeeded();
+  }
+
   void _setBidForPlayer({required int bid, required int playerIndex}) {
     round.setBidForPlayer(bid: bid, playerIndex: playerIndex);
-    _scheduleNextActionIfNeeded();
+    if (round.status == SpadesRoundStatus.playing) {
+      _handleBiddingDone();
+    }
+    else {
+      _scheduleNextActionIfNeeded();
+    }
   }
 
   void _makeBidForAiPlayer(int playerIndex) {
@@ -181,7 +206,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void makeBidForHuman(int bid) {
     print("Human bids $bid");
-    _setBidForPlayer(bid: bid, playerIndex: 0);
+    setState(() {_setBidForPlayer(bid: bid, playerIndex: 0);});
   }
 
   int maxPlayerBid() {
@@ -198,7 +223,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   List<Widget> bidSpeechBubbles(final Layout layout) {
-    if (round.status != SpadesRoundStatus.bidding) return [];
+    if (round.status != SpadesRoundStatus.bidding && !showPostBidDialog) return [];
     final bubbles = <Widget>[];
     for (int i = 0; i < round.rules.numPlayers; i++) {
       final bid = round.players[i].bid;
@@ -224,6 +249,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
         if (_isWaitingForHumanBid()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
+        if (showPostBidDialog) PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
         if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
           round: round,
           onContinue: () => setState(_startRound),
@@ -235,7 +261,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 }
 
-final dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
@@ -284,7 +310,7 @@ class _BidDialogState extends State<BidDialog> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(15,
-                        Text("Choose your bid!",
+                        Text("Choose your bid",
                             style: TextStyle(fontSize: widget.layout.dialogHeaderFontSize()))),
                     Row(
                         mainAxisSize: MainAxisSize.min,
@@ -314,7 +340,30 @@ class _BidDialogState extends State<BidDialog> {
                 )
             )
         );
+  }
+}
 
+class PostBidDialog extends StatelessWidget {
+  final Layout layout;
+  final SpadesRound round;
+  final Function() onConfirm;
+
+  const PostBidDialog({Key? key, required this.layout, required this.round, required this.onConfirm}): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Dialog(
+        backgroundColor: dialogBackgroundColor,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [_paddingAll(15, ElevatedButton(
+            child: Text("Start round"),
+            onPressed: onConfirm,
+          ))]
+        )
+      )
+    );
   }
 }
 
