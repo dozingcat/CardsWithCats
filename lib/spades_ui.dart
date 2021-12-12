@@ -251,6 +251,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         if (_isWaitingForHumanBid()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         if (showPostBidDialog) PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
         if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
+          layout: layout,
           round: round,
           onContinue: () => setState(_startRound),
         ),
@@ -317,7 +318,7 @@ class _BidDialogState extends State<BidDialog> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ElevatedButton(
-                            child: Text("-", style: adjustBidTextStyle),
+                            child: Text("–", style: adjustBidTextStyle),
                             onPressed: canDecrementBid() ? decrementBid : null,
                           ),
                           _paddingAll(rowPadding, Text(bidAmount.toString(), style: adjustBidTextStyle)),
@@ -331,9 +332,10 @@ class _BidDialogState extends State<BidDialog> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               ElevatedButton(
-                                child: Text("Bid ${bidAmount == 0 ? "Nil" : bidAmount.toString()}",
-                                    style: TextStyle(fontSize: widget.layout.dialogBaseFontSize())),
-                                onPressed: () => widget.onBid(bidAmount),
+                                child: _paddingAll(widget.layout.dialogBaseFontSize() * 0.3,
+                                    Text("Bid ${bidAmount == 0 ? "Nil" : bidAmount.toString()}",
+                                        style: TextStyle(fontSize: widget.layout.dialogBaseFontSize()))),
+                                    onPressed: () => widget.onBid(bidAmount),
                               ),
                         ])),
                   ],
@@ -368,15 +370,29 @@ class PostBidDialog extends StatelessWidget {
 }
 
 class EndOfRoundDialog extends StatelessWidget {
+  final Layout layout;
   final SpadesRound round;
   final Function() onContinue;
 
-  const EndOfRoundDialog({Key? key, required this.round, required this.onContinue}): super(key: key);
+  const EndOfRoundDialog({Key? key, required this.layout, required this.round, required this.onContinue}): super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final scores = round.pointsTaken();
-    const cellPad = 10.0;
+    final tableFontSize = layout.dialogBaseFontSize();
+    const cellPad = 4.0;
+
+    Widget pointsCell(num p) => _paddingAll(
+        cellPad,
+        Text(p.toString(),
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: tableFontSize)));
+
+    Widget headerCell(String msg) => _paddingAll(
+      cellPad,
+        Text(msg,
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: tableFontSize*0.9, fontWeight: FontWeight.bold)));
 
     return Center(
       child: Dialog(
@@ -384,27 +400,27 @@ class EndOfRoundDialog extends StatelessWidget {
       child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Table(
+        _paddingAll(10, Table(
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
           defaultColumnWidth: const IntrinsicColumnWidth(),
           children: [
             TableRow(children: [
-              _paddingAll(cellPad, Text("")),
-              _paddingAll(cellPad, Text("You")),
-              _paddingAll(cellPad, Text("Them")),
+              _paddingAll(cellPad, headerCell("")),
+              _paddingAll(cellPad, headerCell("You")),
+              _paddingAll(cellPad, headerCell("Them")),
             ]),
             TableRow(children: [
-              _paddingAll(cellPad, Text("Round score")),
-              _paddingAll(cellPad, Text(scores[0].totalRoundPoints.toString())),
-              _paddingAll(cellPad, Text(scores[1].totalRoundPoints.toString())),
+              _paddingAll(cellPad, headerCell("Round score")),
+              _paddingAll(cellPad, pointsCell(scores[0].totalRoundPoints)),
+              _paddingAll(cellPad, pointsCell(scores[1].totalRoundPoints)),
             ]),
             TableRow(children: [
-              _paddingAll(cellPad, Text("Match score")),
-              _paddingAll(cellPad, Text(scores[0].endingMatchPoints.toString())),
-              _paddingAll(cellPad, Text(scores[1].endingMatchPoints.toString())),
+              _paddingAll(cellPad, headerCell("Match score")),
+              _paddingAll(cellPad, pointsCell(scores[0].endingMatchPoints)),
+              _paddingAll(cellPad, pointsCell(scores[1].endingMatchPoints)),
             ]),
           ],
-        ),
+        )),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
