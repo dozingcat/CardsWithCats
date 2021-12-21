@@ -247,6 +247,110 @@ class SpeechBubble extends StatelessWidget {
   }
 }
 
+enum Mood {happy, veryHappy, mad}
+
+class MoodBubble extends StatelessWidget {
+  final Layout layout;
+  final int playerIndex;
+  final Mood mood;
+  final double widthFraction;
+  static const bubbleImageAspectRatio = 619.0 / 640;
+  static const moodImageHeightFraction = 0.42;
+  static const bubbleImagePath = "assets/misc/thought_bubble.png";
+  static const moodImagePathPrefix = "assets/cats/";
+
+  const MoodBubble({
+    Key? key,
+    required this.layout,
+    required this.playerIndex,
+    required this.mood,
+    this.widthFraction = 0.2,
+  }) : super(key: key);
+
+  String _moodImagePath() {
+    switch (mood) {
+      case Mood.happy:
+        return moodImagePathPrefix + "emoji_happy_u1f63a.png";
+      case Mood.veryHappy:
+        return moodImagePathPrefix + "emoji_grin_u1f638.png";
+      case Mood.mad:
+        return moodImagePathPrefix + "emoji_mad_u1f63e.png";
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var transform = Matrix4.identity();
+    final dh = layout.displaySize.height;
+    final dw = layout.displaySize.width;
+    final playerHeight = layout.edgePx;
+    final imageWidth = min(playerHeight * 1.5, widthFraction * dw);
+    final imageHeight = imageWidth / bubbleImageAspectRatio;
+    var top = 0.0;
+    var left = 0.0;
+    var moodXFrac = 0.0;
+    var moodYFrac = 0.0;
+    final moodSize = imageHeight * moodImageHeightFraction;
+    switch (playerIndex) {
+      case 1:
+        left = playerHeight / 2;
+        top = dh / 2 - playerHeight * 1.6 / 2 - imageHeight;
+        moodXFrac = 0.30;
+        moodYFrac = 0.15;
+        break;
+      case 2:
+        transform = Matrix4.rotationX(pi);
+        left = dw / 2;
+        top = playerHeight * 1.1;
+        moodXFrac = 0.33;
+        moodYFrac = 0.48;
+        break;
+      case 3:
+        transform = Matrix4.rotationY(pi);
+        left = dw - playerHeight / 2 - imageWidth;
+        top = dh / 2 - playerHeight * 1.6 / 2 - imageHeight;
+        moodXFrac = 0.30;
+        moodYFrac = 0.15;
+        break;
+      case 0:
+        left = dw / 2 - playerHeight / 2;
+        top = dh - playerHeight - imageHeight;
+        moodXFrac = 0.33;
+        moodYFrac = 0.12;
+        break;
+    }
+
+    return Positioned(
+        top: top,
+        left: left,
+        width: imageWidth,
+        height: imageHeight,
+
+        child: Stack(children: [
+          SizedBox(
+            width: imageWidth,
+            height: imageHeight,
+            child: Transform(alignment: Alignment.center, transform: transform, child: const Image(
+              image: AssetImage(bubbleImagePath),
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+            )),
+          ),
+          Positioned(
+            top: moodYFrac * imageHeight,
+            left: moodXFrac * imageWidth,
+            width: moodSize,
+            height: moodSize,
+            child: Image(
+              image: AssetImage(_moodImagePath()),
+              fit: BoxFit.contain,
+            ),
+          ),
+        ],
+        ));
+  }
+}
+
 class TrickCards extends StatelessWidget {
   final Layout layout;
   final TrickInProgress currentTrick;

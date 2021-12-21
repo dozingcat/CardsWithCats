@@ -32,6 +32,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   var showPostBidDialog = false;
   var aiMode = AiMode.human_player_0;
   var currentBidder = 0;
+  Map<int, Mood> playerMoods = {};
   late SpadesMatch match;
 
   SpadesRound get round => match.currentRound;
@@ -127,13 +128,25 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  void _updateMoodsAfterTrick() {
+    playerMoods.clear();
+    final lastTrick = round.previousTricks.last;
+    playerMoods[lastTrick.winner] = Mood.happy;
+    if (match.isMatchOver()) {
+      var winner = match.winningTeam();
+    }
+  }
+
   void _trickCardAnimationFinished() {
     if (!round.isOver() && round.currentTrick.cards.isNotEmpty) {
       setState(() {animationMode = AnimationMode.none;});
       _scheduleNextActionIfNeeded();
     }
     else {
-      setState(() {animationMode = AnimationMode.moving_trick_to_winner;});
+      setState(() {
+        animationMode = AnimationMode.moving_trick_to_winner;
+        _updateMoodsAfterTrick();
+      });
     }
   }
 
@@ -234,6 +247,17 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return bubbles;
   }
 
+  List<Widget> moodBubbles(final Layout layout) {
+    final bubbles = <Widget>[];
+    for (int i = 0; i < round.rules.numPlayers; i++) {
+      if (playerMoods.containsKey(i)) {
+        // Animate opacity?
+        bubbles.add(MoodBubble(layout: layout, playerIndex: i, mood: playerMoods[i]!));
+      }
+    }
+    return bubbles;
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -252,11 +276,12 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         if (showPostBidDialog) PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
         if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
           layout: layout,
-          round: round,
+          match: match,
           onContinue: () => setState(_startRound),
         ),
         Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()} ${_isWaitingForHumanBid()}"),
         ...bidSpeechBubbles(layout),
+        ...moodBubbles(layout),
       ],
     );
   }
@@ -371,14 +396,14 @@ class PostBidDialog extends StatelessWidget {
 
 class EndOfRoundDialog extends StatelessWidget {
   final Layout layout;
-  final SpadesRound round;
+  final SpadesMatch match;
   final Function() onContinue;
 
-  const EndOfRoundDialog({Key? key, required this.layout, required this.round, required this.onContinue}): super(key: key);
+  const EndOfRoundDialog({Key? key, required this.layout, required this.match, required this.onContinue}): super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final scores = round.pointsTaken();
+    final scores = match.currentRound.pointsTaken();
     final tableFontSize = layout.dialogBaseFontSize();
     const cellPad = 4.0;
 
@@ -394,12 +419,22 @@ class EndOfRoundDialog extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(fontSize: tableFontSize*0.9, fontWeight: FontWeight.bold)));
 
+    String matchOverMessage() =>
+        match.winningTeam() == 0 ? "You win!" : "You lose :(";
+
     return Center(
       child: Dialog(
       backgroundColor: dialogBackgroundColor,
       child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (match.isMatchOver()) Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _paddingAll(10, Text(matchOverMessage(), style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+          ],
+        ),
         _paddingAll(10, Table(
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
           defaultColumnWidth: const IntrinsicColumnWidth(),
