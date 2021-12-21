@@ -120,6 +120,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void _playCard(final PlayingCard card) {
+    _clearMoods();
     if (round.status == SpadesRoundStatus.playing) {
       setState(() {
         round.playCard(card);
@@ -128,12 +129,44 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  void _clearMoods() {
+    playerMoods.clear();
+  }
+
   void _updateMoodsAfterTrick() {
     playerMoods.clear();
     final lastTrick = round.previousTricks.last;
-    playerMoods[lastTrick.winner] = Mood.happy;
+    // playerMoods[lastTrick.winner] = Mood.happy;
     if (match.isMatchOver()) {
+      // Winners happy, losers sad.
       var winner = match.winningTeam();
+      if (winner != null) {
+        playerMoods[1] = playerMoods[3] = (winner == 1) ? Mood.veryHappy : Mood.mad;
+        playerMoods[0] = playerMoods[2] = (winner == 1) ? Mood.mad : Mood.veryHappy;
+      }
+    }
+    else if (round.isOver()) {
+      // Happy if >=100 points, sad if <0.
+      final scores = round.pointsTaken();
+      if (scores[0].totalRoundPoints >= 100) {
+        playerMoods[0] = playerMoods[2] = Mood.happy;
+      }
+      if (scores[0].totalRoundPoints < 0) {
+        playerMoods[0] = playerMoods[2] = Mood.mad;
+      }
+      if (scores[1].totalRoundPoints >= 100) {
+        playerMoods[1] = playerMoods[3] = Mood.happy;
+      }
+      if (scores[1].totalRoundPoints < 0) {
+        playerMoods[1] = playerMoods[3] = Mood.happy;
+      }
+    }
+    else {
+      // Sad if took a trick after bidding nil.
+      final tw = round.previousTricks.last.winner;
+      if (round.players[tw].bid == 0 && round.previousTricks.where((t) => t.winner == tw).toList().length == 1) {
+        playerMoods[tw] = Mood.mad;
+      }
     }
   }
 
