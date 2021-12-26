@@ -351,6 +351,31 @@ class MoodBubble extends StatelessWidget {
   }
 }
 
+class PlayerMoods extends StatelessWidget {
+  final Layout layout;
+  final Map<int, Mood> moods;
+
+  const PlayerMoods({Key? key, required this.layout, required this.moods}): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (moods.isEmpty) return Container();
+    final moodWidgets = Stack(children: [...moods.entries.map((elem) => MoodBubble(
+      layout: layout,
+      playerIndex: elem.key,
+      mood: elem.value,
+    ))]);
+
+    return TweenAnimationBuilder(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 1000),
+      child: moodWidgets,
+      builder: (context, double val, child) => Opacity(opacity: val, child: child),
+    );
+    return moodWidgets;
+  }
+}
+
 class TrickCards extends StatelessWidget {
   final Layout layout;
   final TrickInProgress currentTrick;

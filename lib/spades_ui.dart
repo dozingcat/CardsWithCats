@@ -104,6 +104,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void _startRound() {
+    _clearMoods();
     if (round.isOver()) {
       match.finishRound();
     }
@@ -158,7 +159,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         playerMoods[1] = playerMoods[3] = Mood.happy;
       }
       if (scores[1].totalRoundPoints < 0) {
-        playerMoods[1] = playerMoods[3] = Mood.happy;
+        playerMoods[1] = playerMoods[3] = Mood.mad;
       }
     }
     else {
@@ -314,7 +315,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ),
         Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()} ${_isWaitingForHumanBid()}"),
         ...bidSpeechBubbles(layout),
-        ...moodBubbles(layout),
+        PlayerMoods(layout: layout, moods: playerMoods),
       ],
     );
   }
@@ -440,7 +441,7 @@ class EndOfRoundDialog extends StatelessWidget {
     final tableFontSize = layout.dialogBaseFontSize();
     const cellPad = 4.0;
 
-    Widget pointsCell(num p) => _paddingAll(
+    Widget pointsCell(Object p) => _paddingAll(
         cellPad,
         Text(p.toString(),
             textAlign: TextAlign.right,
@@ -452,8 +453,15 @@ class EndOfRoundDialog extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(fontSize: tableFontSize*0.9, fontWeight: FontWeight.bold)));
 
+    TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
+      _paddingAll(cellPad, headerCell(title)),
+      ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
+    ]);
+
     String matchOverMessage() =>
         match.winningTeam() == 0 ? "You win!" : "You lose :(";
+
+    bool anyNonzero(Iterable<int> xs) => xs.any((x) => x != 0);
 
     return Center(
       child: Dialog(
@@ -477,16 +485,15 @@ class EndOfRoundDialog extends StatelessWidget {
               _paddingAll(cellPad, headerCell("You")),
               _paddingAll(cellPad, headerCell("Them")),
             ]),
-            TableRow(children: [
-              _paddingAll(cellPad, headerCell("Round score")),
-              _paddingAll(cellPad, pointsCell(scores[0].totalRoundPoints)),
-              _paddingAll(cellPad, pointsCell(scores[1].totalRoundPoints)),
-            ]),
-            TableRow(children: [
-              _paddingAll(cellPad, headerCell("Match score")),
-              _paddingAll(cellPad, pointsCell(scores[0].endingMatchPoints)),
-              _paddingAll(cellPad, pointsCell(scores[1].endingMatchPoints)),
-            ]),
+            pointsRow("Previous score", match.currentRound.initialScores),
+            pointsRow("Points from tricks", [...scores.map((s) => s.successfulBidPoints + s.failedBidPoints)]),
+            if (match.rules.penalizeBags)
+              pointsRow("Bags", [...scores.map((s) => s.overtricks)]),
+            if (anyNonzero(scores.map((s) => s.overtrickPenalty)))
+              pointsRow("Bag penalty", [...scores.map((s) => s.overtrickPenalty)]),
+            if (anyNonzero(scores.map((s) => s.successfulNilPoints + s.failedNilPoints)))
+              pointsRow("Points from nil bids", [...scores.map((s) => s.successfulNilPoints + s.failedNilPoints)]),
+            pointsRow("Total score", [...scores.map((s) => s.endingMatchPoints)]),
           ],
         )),
         Row(
