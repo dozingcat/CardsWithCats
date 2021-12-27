@@ -44,6 +44,21 @@ class Trick {
   Trick copy() => Trick(leader, List.of(cards), winner);
   static List<Trick> copyAll(List<Trick> tricks) =>
       List.generate(tricks.length, (i) => tricks[i].copy());
+
+  Map<String, Object> toJson() {
+    return {
+      "leader": leader,
+      "cards": PlayingCard.stringFromCards(cards),
+      "winner": winner,
+    };
+  }
+
+  static Trick fromJson(final Map<String, Object> json) {
+    return Trick(
+        json["leader"] as int,
+        PlayingCard.cardsFromString(json["cards"] as String),
+        json["winner"] as int);
+  }
 }
 
 class TrickInProgress {
@@ -54,6 +69,18 @@ class TrickInProgress {
         cards=_cards ?? [];
 
   TrickInProgress copy() => TrickInProgress(leader, List.of(cards));
+
+  Map<String, Object> toJson() {
+    return {
+      "leader": leader,
+      "cards": PlayingCard.stringFromCards(cards),
+    };
+  }
+
+  static TrickInProgress fromJson(final Map<String, Object> json) {
+    return TrickInProgress(
+        json["leader"] as int, PlayingCard.cardsFromString(json["cards"] as String));
+  }
 
   Trick finish({Suit? trump}) {
     int winnerRelIndex = trickWinnerIndex(cards, trump: trump);

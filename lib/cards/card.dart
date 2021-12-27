@@ -112,8 +112,13 @@ class PlayingCard {
   }
 
   static List<PlayingCard> cardsFromString(String s) {
+    if (s.isEmpty) return [];
     final pieces = s.split(" ");
     return pieces.map((s) => PlayingCard.cardFromString(s)).toList();
+  }
+
+  static String stringFromCards(Iterable<PlayingCard> cards) {
+    return cards.map((c) => c.toString()).toList().join(" ");
   }
 }
 

@@ -24,7 +24,7 @@ void main() {
   });
 
   test('Trump winner', () {
-    final trickCards = PlayingCard.cardsFromString("2C QH KD TC");
+    final trickCards = PlayingCard.cardsFromString("4C 2H KC TC");
     expect(trickWinnerIndex(trickCards, trump: Suit.hearts), 1);
 
     final tip = TrickInProgress(2);

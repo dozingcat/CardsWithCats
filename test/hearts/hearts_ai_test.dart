@@ -203,7 +203,8 @@ void main() {
   test("Don't expect opponent to drop jack of diamonds", () {
     final rng = Random(17);
     final req = CardToPlayRequest(
-        rules: HeartsRuleSet(),
+        rules: HeartsRuleSet()
+          ..jdMinus10 = true,
         scoresBeforeRound: [0, 0, 0, 0],
         hand: c("AD TD 9D 8D JS TS 9S 8S KH 4H JC TC"),
         previousTricks: [Trick(0, c("2C QC KC AC"), 3)],

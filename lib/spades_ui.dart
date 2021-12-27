@@ -135,6 +135,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void _updateMoodsAfterTrick() {
+    print(round.toJson());
     playerMoods.clear();
     final lastTrick = round.previousTricks.last;
     // playerMoods[lastTrick.winner] = Mood.happy;
@@ -463,7 +464,7 @@ class EndOfRoundDialog extends StatelessWidget {
 
     bool anyNonzero(Iterable<int> xs) => xs.any((x) => x != 0);
 
-    return Center(
+    final dialog = Center(
       child: Dialog(
       backgroundColor: dialogBackgroundColor,
       child: Column(
@@ -505,5 +506,13 @@ class EndOfRoundDialog extends StatelessWidget {
           ))],
         ),
       ])));
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 1000),
+      child: dialog,
+      builder: (context, val, child) => Opacity(opacity: val, child: child),
+    );
+    return dialog;
   }
 }

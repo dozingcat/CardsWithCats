@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:hearts/cards/card.dart';
@@ -37,6 +38,28 @@ class SpadesRuleSet {
     penalizeBags: src.penalizeBags,
   );
 
+  Map<String, Object> toJson() {
+    return {
+      "numPlayers": numPlayers,
+      "numTeams": numTeams,
+      "removedCards": removedCards.map((c) => c.toString()),
+      "pointLimit": pointLimit,
+      "spadeLeading": spadeLeading.name,
+      "penalizeBags": penalizeBags,
+    };
+  }
+
+  static SpadesRuleSet fromJson(Map<String, Object> json) {
+    return SpadesRuleSet(
+      numPlayers: json["numPlayers"] as int,
+      numTeams: json["numTeams"] as int,
+      removedCards: PlayingCard.cardsFromString(json["removedCards"] as String),
+      pointLimit: json["pointLimit"] as int,
+      spadeLeading: SpadeLeading.values.firstWhere((v) => v.name == json["spadeLeading"]),
+      penalizeBags: json["penalizeBags"] as bool,
+    );
+  }
+
   int get numberOfUsedCards => (52 - removedCards.length);
   int get numberOfCardsPerPlayer => numberOfUsedCards ~/ numPlayers;
 }
@@ -71,7 +94,7 @@ class SpadesPlayer {
   List<PlayingCard> hand;
   int? bid;
 
-  SpadesPlayer(List<PlayingCard> _hand) :
+  SpadesPlayer(List<PlayingCard> _hand, {this.bid}) :
         hand = List.from(_hand);
 
   SpadesPlayer.from(SpadesPlayer src) :
@@ -80,6 +103,19 @@ class SpadesPlayer {
 
   SpadesPlayer copy() => SpadesPlayer.from(this);
   static List<SpadesPlayer> copyAll(Iterable<SpadesPlayer> ps) => [...ps.map((p) => p.copy())];
+
+  Map<String, Object?> toJson() {
+    return {
+      "hand": PlayingCard.stringFromCards(hand),
+      "bid": bid,
+    };
+  }
+
+  static SpadesPlayer fromJson(Map<String, Object?> json) {
+    return SpadesPlayer(
+        PlayingCard.cardsFromString(json["hand"] as String),
+        bid: json["bid"] as int?);
+  }
 }
 
 class RoundScoreResult {
@@ -256,6 +292,30 @@ class SpadesRound {
       previousTricks.add(lastTrick);
       currentTrick = TrickInProgress(lastTrick.winner);
     }
+  }
+
+  Map<String, Object> toJson() {
+    return {
+      "rules": rules.toJson(),
+      "status": status.name,
+      "players": [...players.map((p) => p.toJson())],
+      "initialScores": initialScores,
+      "dealer": dealer,
+      "currentTrick": currentTrick.toJson(),
+      "previousTricks": [...previousTricks.map((t) => t.toJson())],
+    };
+  }
+
+  static SpadesRound fromJson(final Map<String, Object> json) {
+    return SpadesRound()
+        ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, Object>)
+        ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
+        ..players = [...(json["players"] as List<Map<String, Object>>).map(SpadesPlayer.fromJson)]
+        ..initialScores = json["initialScores"] as List<int>
+        ..dealer = json["dealer"] as int
+        ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, Object>)
+        ..previousTricks = [...(json["previousTricks"] as List<Map<String, Object>>).map(Trick.fromJson)]
+        ;
   }
 }
 
