@@ -66,6 +66,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void _playCard(final PlayingCard card) {
+    print(round.toJson());
     if (round.status == HeartsRoundStatus.playing) {
       setState(() {
         round.playCard(card);

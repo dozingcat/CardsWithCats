@@ -334,6 +334,27 @@ class SpadesMatch {
     _addNewRound();
   }
 
+  Map<String, Object> toJson() {
+    return {
+      "rules": rules.toJson(),
+      "scores": scores,
+      "dealer": dealer,
+      "previousRounds": [...previousRounds.map((r) => r.toJson())],
+      "currentRound": currentRound.toJson(),
+    };
+  }
+
+  static SpadesMatch fromJson(final Map<String, Object> json, Random rng) {
+    final rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, Object>);
+    return SpadesMatch(rules, rng)
+        ..scores = json["scores"] as List<int>
+        ..dealer = json["dealer"] as int
+        ..previousRounds =
+            [...(json["previousRules"] as List<Map<String, Object>>).map(SpadesRound.fromJson)]
+        ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, Object>)
+        ;
+  }
+
   void _addNewRound() {
     int np = rules.numPlayers;
     dealer = (dealer == -1) ? rng.nextInt(np) : (dealer + 1) % np;

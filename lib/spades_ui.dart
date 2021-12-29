@@ -501,17 +501,17 @@ class EndOfRoundDialog extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [_paddingAll(15, ElevatedButton(
-            child: Text("Continue"),
+            child: const Text("Continue"),
             onPressed: onContinue,
           ))],
         ),
       ])));
 
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 1000),
+      tween: Tween(begin: 0.0, end: 1.5),
+      duration: const Duration(milliseconds: 1500),
       child: dialog,
-      builder: (context, val, child) => Opacity(opacity: val, child: child),
+      builder: (context, val, child) => Opacity(opacity: (val - 1).clamp(0.0, 1.0), child: child),
     );
     return dialog;
   }
