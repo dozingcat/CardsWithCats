@@ -40,7 +40,7 @@ class MyHomePage extends StatefulWidget {
 enum MatchType {hearts, spades}
 
 class _MyHomePageState extends State<MyHomePage> {
-  var matchType = MatchType.spades;
+  var matchType = MatchType.hearts;
 
   @override void initState() {
     super.initState();

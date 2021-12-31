@@ -48,17 +48,17 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void _startRound() {
-    if (round.isOver()) {
-      match.finishRound();
-    }
-    selectedCardsToPass = [];
+    setState(() {
+      if (round.isOver()) {
+        match.finishRound();
+      }
+      selectedCardsToPass = [];
+    });
   }
 
   void _scheduleNextPlayIfNeeded() {
     if (round.isOver()) {
-      setState(() {
-        _startRound();
-      });
+      return;
     }
     if (round.currentPlayerIndex() != 0) {
       Future.delayed(const Duration(milliseconds: 500), _playNextCard);
@@ -128,9 +128,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         }
         else if (selectedCardsToPass.length < round.rules.numPassedCards) {
           selectedCardsToPass.add(card);
-          if (selectedCardsToPass.length == round.rules.numPassedCards) {
-            _passCards();
-          }
         }
       });
     }
@@ -190,7 +187,160 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        if (round.status == HeartsRoundStatus.passing) PassCardsDialog(
+            layout: layout,
+            round: round,
+            selectedCards: selectedCardsToPass,
+            onConfirm: _passCards,
+        ),
+        if (round.isOver()) EndOfRoundDialog(
+            layout: layout,
+            match: match, onContinue: _startRound,
+        ),
       ],
     );
+  }
+}
+
+const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+
+Widget _paddingAll(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
+}
+
+class PassCardsDialog extends StatelessWidget {
+  final Layout layout;
+  final HeartsRound round;
+  final List<PlayingCard> selectedCards;
+  final Function() onConfirm;
+
+  const PassCardsDialog({Key? key, required this.layout, required this.round, required this.selectedCards, required this.onConfirm}): super(key: key);
+
+  String passMessage() {
+    switch (round.passDirection) {
+      case 0: return "No passing this round";
+      case 1: return "Choose ${round.rules.numPassedCards} cards to pass left";
+      case 2: return "Choose ${round.rules.numPassedCards} cards to pass across";
+      case 3: return "Choose ${round.rules.numPassedCards} cards to pass right";
+      default: throw AssertionError("Bad pass direction: ${round.passDirection}");
+    }
+  }
+
+  bool isButtonEnabled() {
+    return round.passDirection == 0 || selectedCards.length == round.rules.numPassedCards;
+  }
+
+  String buttonLabel() {
+    if (round.passDirection == 0) {
+      return "Start round";
+    }
+    final remaining = round.rules.numPassedCards - selectedCards.length;
+    return remaining == 0 ? "Pass cards" : "Select $remaining more";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+        child: Dialog(
+            backgroundColor: dialogBackgroundColor,
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _paddingAll(15, Text(passMessage())),
+                  _paddingAll(15, ElevatedButton(
+                    child: Text(buttonLabel()),
+                    onPressed: isButtonEnabled() ? onConfirm : null,
+                  )),
+                ],
+            ),
+        ),
+    );
+  }
+}
+
+class EndOfRoundDialog extends StatelessWidget {
+  final Layout layout;
+  final HeartsMatch match;
+  final Function() onContinue;
+
+  const EndOfRoundDialog({Key? key, required this.layout, required this.match, required this.onContinue}): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final scores = match.currentRound.pointsTaken();
+    final tableFontSize = layout.dialogBaseFontSize();
+    const cellPad = 4.0;
+
+    Widget pointsCell(Object p) => _paddingAll(
+        cellPad,
+        Text(p.toString(),
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: tableFontSize)));
+
+    Widget headerCell(String msg) => _paddingAll(
+        cellPad,
+        Text(msg,
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: tableFontSize*0.9, fontWeight: FontWeight.bold)));
+
+    TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
+      _paddingAll(cellPad, headerCell(title)),
+      ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
+    ]);
+
+    String matchOverMessage() {
+      final p = match.winningPlayers();
+      if (p.contains(0)) {
+        return (p.length == 1) ? "You win!" : "You tied for the win!";
+      }
+      return "You lose :(";
+    }
+
+    final dialog = Center(
+        child: Dialog(
+            backgroundColor: dialogBackgroundColor,
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (match.isMatchOver()) Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _paddingAll(10, Text(matchOverMessage(), style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+                    ],
+                  ),
+                  _paddingAll(10, Table(
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    defaultColumnWidth: const IntrinsicColumnWidth(),
+                    children: [
+                      TableRow(children: [
+                        _paddingAll(cellPad, headerCell("")),
+                        _paddingAll(cellPad, headerCell("You")),
+                        _paddingAll(cellPad, headerCell("West")),
+                        _paddingAll(cellPad, headerCell("North")),
+                        _paddingAll(cellPad, headerCell("East")),
+                      ]),
+                      pointsRow("Previous points", match.currentRound.initialScores),
+                      pointsRow("Round points", scores),
+                      pointsRow("Total points", List.generate(scores.length, (i) => match.currentRound.initialScores[i] + scores[i])),
+                    ],
+                  )),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [_paddingAll(15, ElevatedButton(
+                      child: const Text("Continue"),
+                      onPressed: onContinue,
+                    ))],
+                  ),
+                ])));
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.5),
+      duration: const Duration(milliseconds: 1500),
+      child: dialog,
+      builder: (context, val, child) => Opacity(opacity: (val - 0.5).clamp(0.0, 1.0), child: child),
+    );
+    return dialog;
   }
 }
