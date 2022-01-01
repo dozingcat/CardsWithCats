@@ -263,11 +263,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return round.isOver() && !match.isMatchOver();
-  }
-
-  bool _shouldShowEndOfMatchDialog() {
-    return !match.isMatchOver();
+    return round.isOver();
   }
 
   List<Widget> bidSpeechBubbles(final Layout layout) {
@@ -314,9 +310,9 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
           match: match,
           onContinue: () => setState(_startRound),
         ),
-        Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()} ${_isWaitingForHumanBid()}"),
         ...bidSpeechBubbles(layout),
         PlayerMoods(layout: layout, moods: playerMoods),
+        Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()} ${_isWaitingForHumanBid()} ${match.scores}"),
       ],
     );
   }
@@ -510,7 +506,6 @@ class EndOfRoundDialog extends StatelessWidget {
       child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // FIXME: isMatchOver doesn't work because the round isn't actually ended yet.
         if (match.isMatchOver()) Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,

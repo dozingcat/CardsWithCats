@@ -322,22 +322,19 @@ class SpadesRound {
 class SpadesMatch {
   Random rng;
   SpadesRuleSet rules;
-  List<int> scores;
   int dealer = -1;
   List<SpadesRound> previousRounds = [];
   late SpadesRound currentRound;
 
-  SpadesMatch(SpadesRuleSet _rules, this.rng) :
-        rules = _rules.copy(),
-        scores = List.filled(_rules.numTeams, 0)
+  SpadesMatch(SpadesRuleSet _rules, this.rng) : rules = _rules.copy()
   {
-    _addNewRound();
+    dealer = rng.nextInt(rules.numPlayers);
+    currentRound = SpadesRound.deal(rules, List.filled(rules.numTeams, 0), dealer, rng);
   }
 
   Map<String, Object> toJson() {
     return {
       "rules": rules.toJson(),
-      "scores": scores,
       "dealer": dealer,
       "previousRounds": [...previousRounds.map((r) => r.toJson())],
       "currentRound": currentRound.toJson(),
@@ -347,7 +344,6 @@ class SpadesMatch {
   static SpadesMatch fromJson(final Map<String, Object> json, Random rng) {
     final rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, Object>);
     return SpadesMatch(rules, rng)
-        ..scores = json["scores"] as List<int>
         ..dealer = json["dealer"] as int
         ..previousRounds =
             [...(json["previousRounds"] as List<Map<String, Object>>).map(SpadesRound.fromJson)]
@@ -361,8 +357,7 @@ class SpadesMatch {
   }
 
   void _addNewRound() {
-    int np = rules.numPlayers;
-    dealer = (dealer == -1) ? rng.nextInt(np) : (dealer + 1) % np;
+    dealer = (dealer + 1) % rules.numPlayers;
     currentRound = SpadesRound.deal(rules, scores, dealer, rng);
   }
 
@@ -370,12 +365,20 @@ class SpadesMatch {
     if (!currentRound.isOver()) {
       throw Exception("Current round is not over");
     }
-    final roundScores = currentRound.pointsTaken();
-    scores = roundScores.map((s) => s.endingMatchPoints).toList();
     previousRounds.add(currentRound);
     if (!isMatchOver()) {
       _addNewRound();
     }
+  }
+
+  List<int> get scores {
+    if (currentRound.isOver()) {
+      return [...currentRound.pointsTaken().map((p) => p.endingMatchPoints)];
+    }
+    else if (previousRounds.isNotEmpty) {
+      return [...previousRounds.last.pointsTaken().map((p) => p.endingMatchPoints)];
+    }
+    return List.filled(rules.numTeams, 0);
   }
 
   bool isMatchOver() {
