@@ -21,7 +21,7 @@ class SpadesRuleSet {
   SpadesRuleSet({
     this.numPlayers = 4,
     this.numTeams = 2,
-    this.pointLimit = 500,
+    this.pointLimit = 100,
     this.penalizeBags = true,
     this.removedCards = const [],
     this.spadeLeading = SpadeLeading.always,
@@ -42,7 +42,7 @@ class SpadesRuleSet {
     return {
       "numPlayers": numPlayers,
       "numTeams": numTeams,
-      "removedCards": removedCards.map((c) => c.toString()),
+      "removedCards": PlayingCard.stringFromCards(removedCards),
       "pointLimit": pointLimit,
       "spadeLeading": spadeLeading.name,
       "penalizeBags": penalizeBags,
@@ -310,7 +310,7 @@ class SpadesRound {
     return SpadesRound()
         ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, Object>)
         ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
-        ..players = [...(json["players"] as List<Map<String, Object>>).map(SpadesPlayer.fromJson)]
+        ..players = [...(json["players"] as List<Map<String, Object?>>).map(SpadesPlayer.fromJson)]
         ..initialScores = json["initialScores"] as List<int>
         ..dealer = json["dealer"] as int
         ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, Object>)
@@ -350,9 +350,14 @@ class SpadesMatch {
         ..scores = json["scores"] as List<int>
         ..dealer = json["dealer"] as int
         ..previousRounds =
-            [...(json["previousRules"] as List<Map<String, Object>>).map(SpadesRound.fromJson)]
+            [...(json["previousRounds"] as List<Map<String, Object>>).map(SpadesRound.fromJson)]
         ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, Object>)
         ;
+  }
+
+  SpadesMatch copy() {
+    // Cheesy, but convenient.
+    return SpadesMatch.fromJson(toJson(), rng);
   }
 
   void _addNewRound() {

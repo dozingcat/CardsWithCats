@@ -2,6 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:hearts/spades/spades.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
@@ -34,21 +37,36 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-
-
-
 enum MatchType {hearts, spades}
 
 class _MyHomePageState extends State<MyHomePage> {
-  var matchType = MatchType.hearts;
+  var matchType = MatchType.spades;
+  late final SharedPreferences preferences;
+  late final SpadesMatch initialSpadesMatch;
 
   @override void initState() {
     super.initState();
+    initialSpadesMatch = _createSpadesMatch();
+    _readPreferences();
+  }
+
+  void _readPreferences() async {
+    preferences = await SharedPreferences.getInstance();
+  }
+
+  SpadesMatch _createSpadesMatch() {
+    final rules = SpadesRuleSet();
+    return SpadesMatch(rules, Random());
   }
 
   @override
   Widget build(BuildContext context) {
-    final content = matchType == MatchType.hearts ? HeartsMatchDisplay() : SpadesMatchDisplay();
+    final content = matchType == MatchType.hearts ?
+        HeartsMatchDisplay() :
+        SpadesMatchDisplay(
+          initialMatch: initialSpadesMatch,
+          createMatchFn: _createSpadesMatch,
+        );
     return Scaffold(
       body: content,
     );

@@ -19,7 +19,9 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 }
 
 class SpadesMatchDisplay extends StatefulWidget {
-  const SpadesMatchDisplay({Key? key}) : super(key: key);
+  final SpadesMatch initialMatch;
+  final SpadesMatch Function() createMatchFn;
+  const SpadesMatchDisplay({Key? key, required this.initialMatch, required this.createMatchFn}) : super(key: key);
 
   @override
   _SpadesMatchState createState() => _SpadesMatchState();
@@ -27,7 +29,6 @@ class SpadesMatchDisplay extends StatefulWidget {
 
 class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
-  final rules = SpadesRuleSet();
   var animationMode = AnimationMode.none;
   var showPostBidDialog = false;
   var aiMode = AiMode.human_player_0;
@@ -39,12 +40,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   @override void initState() {
     super.initState();
-    _startMatch();
-  }
-
-  void _startMatch() {
-    match = SpadesMatch(rules, rng);
-    _startRound();
+    match = widget.initialMatch.copy();
+    _scheduleNextActionIfNeeded();
   }
 
   void _scheduleNextActionIfNeeded() {
@@ -107,6 +104,9 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     _clearMoods();
     if (round.isOver()) {
       match.finishRound();
+    }
+    if (match.isMatchOver()) {
+      match = widget.createMatchFn();
     }
     _scheduleNextActionIfNeeded();
   }
@@ -412,6 +412,42 @@ class PostBidDialog extends StatelessWidget {
 
   const PostBidDialog({Key? key, required this.layout, required this.round, required this.onConfirm}): super(key: key);
 
+  String playerBidMessage() {
+    final playerBid = round.players[0].bid!;
+    final partnerBid = round.players[2].bid!;
+    final totalBid = playerBid + partnerBid;
+    if (totalBid == 0) {
+      return "You and your partner have both bid nil.";
+    }
+    else if (playerBid == 0) {
+      return "Your team has bid $totalBid. You bid nil.";
+    }
+    else if (partnerBid == 0) {
+      return "Your team has bid $totalBid. Your partner bid nil.";
+    }
+    else {
+      return "Your team has bid $totalBid.";
+    }
+  }
+
+  String opponentBidMessage() {
+    final westBid = round.players[1].bid!;
+    final eastBid = round.players[3].bid!;
+    final totalBid = westBid + eastBid;
+    if (totalBid == 0) {
+      return "Your opponents have both bid nil.";
+    }
+    else if (westBid == 0) {
+      return "Your opponents have bid $totalBid. The left opponent bid nil.";
+    }
+    else if (eastBid == 0) {
+      return "Your opponents have bid $totalBid. The right opponent bid nil.";
+    }
+    else {
+      return "Your opponents have bid $totalBid.";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -419,10 +455,14 @@ class PostBidDialog extends StatelessWidget {
         backgroundColor: dialogBackgroundColor,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [_paddingAll(15, ElevatedButton(
-            child: Text("Start round"),
-            onPressed: onConfirm,
-          ))]
+          children: [
+            _paddingAll(15, Text(playerBidMessage())),
+            _paddingAll(15, Text(opponentBidMessage())),
+            _paddingAll(15, ElevatedButton(
+              child: Text("Start round"),
+              onPressed: onConfirm,
+            )),
+          ],
         )
       )
     );
@@ -470,6 +510,7 @@ class EndOfRoundDialog extends StatelessWidget {
       child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // FIXME: isMatchOver doesn't work because the round isn't actually ended yet.
         if (match.isMatchOver()) Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -511,7 +552,7 @@ class EndOfRoundDialog extends StatelessWidget {
       tween: Tween(begin: 0.0, end: 1.5),
       duration: const Duration(milliseconds: 1500),
       child: dialog,
-      builder: (context, val, child) => Opacity(opacity: (val - 1).clamp(0.0, 1.0), child: child),
+      builder: (context, val, child) => Opacity(opacity: (val - 0.5).clamp(0.0, 1.0), child: child),
     );
     return dialog;
   }
