@@ -21,7 +21,7 @@ class SpadesRuleSet {
   SpadesRuleSet({
     this.numPlayers = 4,
     this.numTeams = 2,
-    this.pointLimit = 100,
+    this.pointLimit = 500,
     this.penalizeBags = true,
     this.removedCards = const [],
     this.spadeLeading = SpadeLeading.always,
@@ -375,10 +375,9 @@ class SpadesMatch {
     if (currentRound.isOver()) {
       return [...currentRound.pointsTaken().map((p) => p.endingMatchPoints)];
     }
-    else if (previousRounds.isNotEmpty) {
-      return [...previousRounds.last.pointsTaken().map((p) => p.endingMatchPoints)];
+    else {
+      return currentRound.initialScores;
     }
-    return List.filled(rules.numTeams, 0);
   }
 
   bool isMatchOver() {

@@ -6,6 +6,7 @@ import 'package:hearts/spades/spades.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'hearts/hearts.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
@@ -40,18 +41,27 @@ class MyHomePage extends StatefulWidget {
 enum MatchType {hearts, spades}
 
 class _MyHomePageState extends State<MyHomePage> {
-  var matchType = MatchType.spades;
+  var loaded = false;
+  var matchType = MatchType.hearts;
   late final SharedPreferences preferences;
+  late final HeartsMatch initialHeartsMatch;
   late final SpadesMatch initialSpadesMatch;
 
   @override void initState() {
     super.initState();
     initialSpadesMatch = _createSpadesMatch();
+    initialHeartsMatch = _createHeartsMatch();
     _readPreferences();
   }
 
   void _readPreferences() async {
     preferences = await SharedPreferences.getInstance();
+    loaded = true;
+  }
+
+  HeartsMatch _createHeartsMatch() {
+    final rules = HeartsRuleSet();
+    return HeartsMatch(rules, Random());
   }
 
   SpadesMatch _createSpadesMatch() {
@@ -61,8 +71,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!loaded) {
+      return Scaffold(body: Container());
+    }
     final content = matchType == MatchType.hearts ?
-        HeartsMatchDisplay() :
+        HeartsMatchDisplay(
+          initialMatch: initialHeartsMatch,
+          createMatchFn: _createHeartsMatch,
+        ) :
         SpadesMatchDisplay(
           initialMatch: initialSpadesMatch,
           createMatchFn: _createSpadesMatch,

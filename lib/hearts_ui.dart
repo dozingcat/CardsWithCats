@@ -20,7 +20,10 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 
 
 class HeartsMatchDisplay extends StatefulWidget {
-  const HeartsMatchDisplay({Key? key}) : super(key: key);
+  final HeartsMatch initialMatch;
+  final HeartsMatch Function() createMatchFn;
+
+  const HeartsMatchDisplay({Key? key, required this.initialMatch, required this.createMatchFn}) : super(key: key);
 
   @override
   _HeartsMatchState createState() => _HeartsMatchState();
@@ -28,7 +31,6 @@ class HeartsMatchDisplay extends StatefulWidget {
 
 class _HeartsMatchState extends State<HeartsMatchDisplay> {
   final rng = Random();
-  final rules = HeartsRuleSet();
   var animationMode = AnimationMode.none;
   var aiMode = AiMode.human_player_0;
   late HeartsMatch match;
@@ -38,19 +40,17 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   @override void initState() {
     super.initState();
-    _startMatch();
+    match = widget.initialMatch.copy();
     Future.delayed(const Duration(milliseconds: 500), _playNextCard);
-  }
-
-  void _startMatch() {
-    match = HeartsMatch(rules, rng);
-    _startRound();
   }
 
   void _startRound() {
     setState(() {
       if (round.isOver()) {
         match.finishRound();
+      }
+      if (match.isMatchOver()) {
+        match = widget.createMatchFn();
       }
       selectedCardsToPass = [];
     });
@@ -97,19 +97,21 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void _passCards() {
-    for (int i = 0; i < round.rules.numPlayers; i++) {
-      round.setPassedCardsForPlayer(0, selectedCardsToPass);
-      final passReq = CardsToPassRequest(
-        rules: round.rules,
-        scoresBeforeRound: round.initialScores,
-        hand: round.players[i].hand,
-        direction: round.passDirection,
-        numCards: round.rules.numPassedCards,
-      );
-      final cards = chooseCardsToPass(passReq);
-      round.setPassedCardsForPlayer(i, cards);
-    }
-    round.passCards();
+    setState(() {
+      for (int i = 0; i < round.rules.numPlayers; i++) {
+        round.setPassedCardsForPlayer(0, selectedCardsToPass);
+        final passReq = CardsToPassRequest(
+          rules: round.rules,
+          scoresBeforeRound: round.initialScores,
+          hand: round.players[i].hand,
+          direction: round.passDirection,
+          numCards: round.rules.numPassedCards,
+        );
+        final cards = chooseCardsToPass(passReq);
+        round.setPassedCardsForPlayer(i, cards);
+      }
+      round.passCards();
+    });
     _scheduleNextPlayIfNeeded();
   }
 
@@ -322,9 +324,10 @@ class EndOfRoundDialog extends StatelessWidget {
                       ]),
                       pointsRow("Previous points", match.currentRound.initialScores),
                       pointsRow("Round points", scores),
-                      pointsRow("Total points", List.generate(scores.length, (i) => match.currentRound.initialScores[i] + scores[i])),
+                      pointsRow("Total points", match.scores),
                     ],
                   )),
+                  // HERE: When match is over, have "New match" and "Main menu" buttons.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,

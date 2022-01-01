@@ -281,11 +281,11 @@ class HeartsRound {
     return {
       "rules": rules.toJson(),
       "status": status.name,
-      "players": players.map((p) => p.toJson()),
+      "players": [...players.map((p) => p.toJson())],
       "initialScores": initialScores,
       "passDirection": passDirection,
       "currentTrick": currentTrick.toJson(),
-      "previousTricks": previousTricks.map((t) => t.toJson()),
+      "previousTricks": [...previousTricks.map((t) => t.toJson())],
     };
   }
 
@@ -384,14 +384,11 @@ class HeartsRound {
 class HeartsMatch {
   Random rng;
   HeartsRuleSet rules;
-  List<int> scores;
   int passDirection = 0;
   List<HeartsRound> previousRounds = [];
   late HeartsRound currentRound;
 
-  HeartsMatch(HeartsRuleSet _rules, this.rng) :
-      rules = _rules.copy(),
-      scores = List.filled(_rules.numPlayers, 0)
+  HeartsMatch(HeartsRuleSet _rules, this.rng) : rules = _rules.copy()
   {
     _addNewRound();
   }
@@ -399,21 +396,34 @@ class HeartsMatch {
   Map<String, Object> toJson() {
     return {
       "rules": rules.toJson(),
-      "scores": scores,
       "passDirection": passDirection,
-      "previousRounds": previousRounds.map((r) => r.toJson()),
+      "previousRounds": [...previousRounds.map((r) => r.toJson())],
       "currentRound": currentRound.toJson(),
     };
   }
 
   static HeartsMatch fromJson(final Map<String, Object> json, Random rng) {
     return HeartsMatch(HeartsRuleSet.fromJson(json["rules"] as Map<String, Object>), rng)
-      ..scores = json["scores"] as List<int>
       ..passDirection = json["passDirection"] as int
       ..previousRounds =
-          [...(json["previousRules"] as List<Map<String, Object>>).map(HeartsRound.fromJson)]
+          [...(json["previousRounds"] as List<Map<String, Object>>).map(HeartsRound.fromJson)]
       ..currentRound = HeartsRound.fromJson(json["currentRound"] as Map<String, Object>)
       ;
+  }
+
+  HeartsMatch copy() {
+    // Cheesy, but convenient.
+    return HeartsMatch.fromJson(toJson(), rng);
+  }
+
+  List<int> get scores {
+    if (currentRound.isOver()) {
+      final roundPoints = currentRound.pointsTaken();
+      return List.generate(rules.numPlayers, (p) => currentRound.initialScores[p] + roundPoints[p]);
+    }
+    else {
+      return currentRound.initialScores;
+    }
   }
 
   void _addNewRound() {
