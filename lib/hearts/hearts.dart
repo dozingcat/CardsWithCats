@@ -384,13 +384,13 @@ class HeartsRound {
 class HeartsMatch {
   Random rng;
   HeartsRuleSet rules;
-  int passDirection = 0;
+  int passDirection = 1;
   List<HeartsRound> previousRounds = [];
   late HeartsRound currentRound;
 
   HeartsMatch(HeartsRuleSet _rules, this.rng) : rules = _rules.copy()
   {
-    _addNewRound();
+    currentRound = HeartsRound.deal(rules, List.filled(rules.numPlayers, 0), passDirection, rng);
   }
 
   Map<String, Object> toJson() {

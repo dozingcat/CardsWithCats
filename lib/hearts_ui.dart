@@ -189,6 +189,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        // HERE: Doesn't work for hands with no passing.
         if (round.status == HeartsRoundStatus.passing) PassCardsDialog(
             layout: layout,
             round: round,
@@ -199,6 +200,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             layout: layout,
             match: match, onContinue: _startRound,
         ),
+        Text("${match.scores} ${round.status}"),
       ],
     );
   }
@@ -328,7 +330,21 @@ class EndOfRoundDialog extends StatelessWidget {
                     ],
                   )),
                   // HERE: When match is over, have "New match" and "Main menu" buttons.
-                  Row(
+                  if (match.isMatchOver()) Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _paddingAll(15, ElevatedButton(
+                        child: const Text("New Game"),
+                        onPressed: onContinue,
+                      )),
+                      _paddingAll(15, ElevatedButton(
+                        child: const Text("Main Menu"),
+                        onPressed: onContinue,
+                      )),
+                    ],
+                  ),
+                  if (!match.isMatchOver()) Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [_paddingAll(15, ElevatedButton(
