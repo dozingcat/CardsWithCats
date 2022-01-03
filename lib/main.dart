@@ -43,31 +43,17 @@ enum MatchType {hearts, spades}
 
 class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
-  var matchType = MatchType.hearts;
+  var matchType = MatchType.spades;
   late final SharedPreferences preferences;
-  late HeartsMatch initialHeartsMatch;
-  late SpadesMatch initialSpadesMatch;
 
   @override void initState() {
     super.initState();
-    initialSpadesMatch = _createSpadesMatch();
-    initialHeartsMatch = _createHeartsMatch();
     _readPreferences();
   }
 
   void _readPreferences() async {
     preferences = await SharedPreferences.getInstance();
     setState(() {
-      switch (preferences.getString("matchType")) {
-        case "hearts":
-          String? heartsJson = preferences.getString("heartsMatch");
-          if (heartsJson != null) {
-            initialHeartsMatch = HeartsMatch.fromJson(jsonDecode(heartsJson), Random());
-          }
-          break;
-        case "spades":
-          break;
-      }
       loaded = true;
     });
   }
@@ -79,6 +65,31 @@ class _MyHomePageState extends State<MyHomePage> {
   void _saveHeartsMatch(final HeartsMatch match) {
     preferences.setString("matchType", "hearts");
     preferences.setString("heartsMatch", jsonEncode(match.toJson()));
+  }
+
+  void _saveSpadesMatch(final SpadesMatch match) {
+    preferences.setString("matchType", "spades");
+    preferences.setString("spadesMatch", jsonEncode(match.toJson()));
+  }
+
+  HeartsMatch _initialHeartsMatch() {
+    if (preferences.getString("matchType") == "hearts") {
+      String? json = preferences.getString("heartsMatch");
+      if (json != null) {
+        return HeartsMatch.fromJson(jsonDecode(json), Random());
+      }
+    }
+    return _createHeartsMatch();
+  }
+
+  SpadesMatch _initialSpadesMatch() {
+    if (preferences.getString("matchType") == "spades") {
+      String? json = preferences.getString("spadesMatch");
+      if (json != null) {
+        return SpadesMatch.fromJson(jsonDecode(json), Random());
+      }
+    }
+    return _createSpadesMatch();
   }
 
   HeartsMatch _createHeartsMatch() {
@@ -98,14 +109,16 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     final content = matchType == MatchType.hearts ?
         HeartsMatchDisplay(
-          initialMatch: initialHeartsMatch,
+          initialMatch: _initialHeartsMatch(),
           createMatchFn: _createHeartsMatch,
-          mainMenuFn: _showMainMenu,
           saveMatchFn: _saveHeartsMatch,
+          mainMenuFn: _showMainMenu,
         ) :
         SpadesMatchDisplay(
-          initialMatch: initialSpadesMatch,
+          initialMatch: _initialSpadesMatch(),
           createMatchFn: _createSpadesMatch,
+          saveMatchFn: _saveSpadesMatch,
+          mainMenuFn: _showMainMenu,
         );
     return Scaffold(
       body: content,

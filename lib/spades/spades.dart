@@ -310,11 +310,11 @@ class SpadesRound {
     return SpadesRound()
         ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
         ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
-        ..players = [...(json["players"] as List<Map<String, dynamic?>>).map(SpadesPlayer.fromJson)]
-        ..initialScores = json["initialScores"] as List<int>
+        ..players = [...json["players"].map((p) => SpadesPlayer.fromJson(p as Map<String, dynamic>))]
+        ..initialScores = List<int>.from(json["initialScores"])
         ..dealer = json["dealer"] as int
         ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
-        ..previousTricks = [...(json["previousTricks"] as List<Map<String, dynamic>>).map(Trick.fromJson)]
+        ..previousTricks = [...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))]
         ;
   }
 }
@@ -346,7 +346,7 @@ class SpadesMatch {
     return SpadesMatch(rules, rng)
         ..dealer = json["dealer"] as int
         ..previousRounds =
-            [...(json["previousRounds"] as List<Map<String, dynamic>>).map(SpadesRound.fromJson)]
+            [...json["previousRounds"].map((r) => SpadesRound.fromJson(r as Map<String, dynamic>))]
         ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, dynamic>)
         ;
   }

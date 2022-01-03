@@ -22,15 +22,15 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 class HeartsMatchDisplay extends StatefulWidget {
   final HeartsMatch initialMatch;
   final HeartsMatch Function() createMatchFn;
-  final void Function() mainMenuFn;
   final void Function(HeartsMatch) saveMatchFn;
+  final void Function() mainMenuFn;
 
   const HeartsMatchDisplay({
     Key? key,
     required this.initialMatch,
     required this.createMatchFn,
-    required this.mainMenuFn,
     required this.saveMatchFn,
+    required this.mainMenuFn,
   }) : super(key: key);
 
   @override

@@ -21,7 +21,16 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 class SpadesMatchDisplay extends StatefulWidget {
   final SpadesMatch initialMatch;
   final SpadesMatch Function() createMatchFn;
-  const SpadesMatchDisplay({Key? key, required this.initialMatch, required this.createMatchFn}) : super(key: key);
+  final void Function(SpadesMatch) saveMatchFn;
+  final void Function() mainMenuFn;
+
+  const SpadesMatchDisplay({
+    Key? key,
+    required this.initialMatch,
+    required this.createMatchFn,
+    required this.saveMatchFn,
+    required this.mainMenuFn,
+  }) : super(key: key);
 
   @override
   _SpadesMatchState createState() => _SpadesMatchState();
@@ -77,6 +86,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     else {
       _scheduleNextActionIfNeeded();
     }
+    widget.saveMatchFn(match);
   }
 
   void _makeBidForAiPlayer(int playerIndex) {
@@ -108,6 +118,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     if (match.isMatchOver()) {
       match = widget.createMatchFn();
     }
+    widget.saveMatchFn(match);
     _scheduleNextActionIfNeeded();
   }
 
@@ -128,6 +139,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         animationMode = AnimationMode.moving_trick_card;
       });
     }
+    widget.saveMatchFn(match);
   }
 
   void _clearMoods() {
