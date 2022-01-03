@@ -37,7 +37,7 @@ class HeartsRuleSet {
       jdMinus10 = src.jdMinus10,
       moonShooting = src.moonShooting;
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "numPlayers": numPlayers,
       "numPassedCards": numPassedCards,
@@ -50,7 +50,7 @@ class HeartsRuleSet {
     };
   }
 
-  static HeartsRuleSet fromJson(Map<String, Object> json) {
+  static HeartsRuleSet fromJson(Map<String, dynamic> json) {
     return HeartsRuleSet()
       ..numPlayers = json["numPlayers"] as int
       ..numPassedCards = json["numPassedCards"] as int
@@ -213,7 +213,7 @@ class HeartsPlayer {
   HeartsPlayer copy() => HeartsPlayer.from(this);
   static List<HeartsPlayer> copyAll(Iterable<HeartsPlayer> ps) => ps.map((p) => p.copy()).toList();
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "hand": PlayingCard.stringFromCards(hand),
       "passedCards": PlayingCard.stringFromCards(passedCards),
@@ -221,7 +221,7 @@ class HeartsPlayer {
     };
   }
 
-  static HeartsPlayer fromJson(final Map<String, Object> json) {
+  static HeartsPlayer fromJson(final Map<String, dynamic> json) {
     return HeartsPlayer(PlayingCard.cardsFromString(json["hand"] as String))
       ..passedCards = PlayingCard.cardsFromString(json["passedCards"] as String)
       ..receivedCards = PlayingCard.cardsFromString(json["receivedCards"] as String)
@@ -277,7 +277,7 @@ class HeartsRound {
       ..previousTricks = Trick.copyAll(previousTricks);
   }
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "rules": rules.toJson(),
       "status": status.name,
@@ -289,15 +289,15 @@ class HeartsRound {
     };
   }
 
-  static HeartsRound fromJson(final Map<String, Object> json) {
+  static HeartsRound fromJson(final Map<String, dynamic> json) {
     return HeartsRound()
-      ..rules = HeartsRuleSet.fromJson(json["rules"] as Map<String, Object>)
+      ..rules = HeartsRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
       ..status = HeartsRoundStatus.values.firstWhere((v) => v.name == json["status"])
-      ..players = [...(json["players"] as List<Map<String, Object>>).map(HeartsPlayer.fromJson)]
-      ..initialScores = json["initialScores"] as List<int>
+      ..players = [...json["players"].map((p) => HeartsPlayer.fromJson(p as Map<String, dynamic>))]
+      ..initialScores = List<int>.from(json["initialScores"])
       ..passDirection = json["passDirection"] as int
-      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, Object>)
-      ..previousTricks = [...(json["previousTricks"] as List<Map<String, Object>>).map(Trick.fromJson)]
+      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+      ..previousTricks = [...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))]
       ;
   }
 
@@ -393,7 +393,7 @@ class HeartsMatch {
     currentRound = HeartsRound.deal(rules, List.filled(rules.numPlayers, 0), passDirection, rng);
   }
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "rules": rules.toJson(),
       "passDirection": passDirection,
@@ -402,12 +402,12 @@ class HeartsMatch {
     };
   }
 
-  static HeartsMatch fromJson(final Map<String, Object> json, Random rng) {
-    return HeartsMatch(HeartsRuleSet.fromJson(json["rules"] as Map<String, Object>), rng)
+  static HeartsMatch fromJson(final Map<String, dynamic> json, Random rng) {
+    return HeartsMatch(HeartsRuleSet.fromJson(json["rules"] as Map<String, dynamic>), rng)
       ..passDirection = json["passDirection"] as int
       ..previousRounds =
-          [...(json["previousRounds"] as List<Map<String, Object>>).map(HeartsRound.fromJson)]
-      ..currentRound = HeartsRound.fromJson(json["currentRound"] as Map<String, Object>)
+          [...json["previousRounds"].map((x) => HeartsRound.fromJson(x as Map<String, dynamic>))]
+      ..currentRound = HeartsRound.fromJson(json["currentRound"] as Map<String, dynamic>)
       ;
   }
 

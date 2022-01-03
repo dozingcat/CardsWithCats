@@ -22,8 +22,16 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 class HeartsMatchDisplay extends StatefulWidget {
   final HeartsMatch initialMatch;
   final HeartsMatch Function() createMatchFn;
+  final void Function() mainMenuFn;
+  final void Function(HeartsMatch) saveMatchFn;
 
-  const HeartsMatchDisplay({Key? key, required this.initialMatch, required this.createMatchFn}) : super(key: key);
+  const HeartsMatchDisplay({
+    Key? key,
+    required this.initialMatch,
+    required this.createMatchFn,
+    required this.mainMenuFn,
+    required this.saveMatchFn,
+  }) : super(key: key);
 
   @override
   _HeartsMatchState createState() => _HeartsMatchState();
@@ -41,7 +49,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   @override void initState() {
     super.initState();
     match = widget.initialMatch.copy();
-    Future.delayed(const Duration(milliseconds: 500), _playNextCard);
+    _scheduleNextPlayIfNeeded();
   }
 
   void _startRound() {
@@ -54,6 +62,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       }
       selectedCardsToPass = [];
     });
+    widget.saveMatchFn(match);
   }
 
   void _scheduleNextPlayIfNeeded() {
@@ -67,6 +76,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   void _playCard(final PlayingCard card) {
     print(round.toJson());
+    widget.saveMatchFn(match);
     if (round.status == HeartsRoundStatus.playing) {
       setState(() {
         round.playCard(card);
@@ -97,21 +107,23 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void _passCards() {
-    setState(() {
-      for (int i = 0; i < round.rules.numPlayers; i++) {
-        round.setPassedCardsForPlayer(0, selectedCardsToPass);
-        final passReq = CardsToPassRequest(
-          rules: round.rules,
-          scoresBeforeRound: round.initialScores,
-          hand: round.players[i].hand,
-          direction: round.passDirection,
-          numCards: round.rules.numPassedCards,
-        );
-        final cards = chooseCardsToPass(passReq);
-        round.setPassedCardsForPlayer(i, cards);
-      }
-      round.passCards();
-    });
+    if (round.passDirection != 0) {
+      setState(() {
+        for (int i = 0; i < round.rules.numPlayers; i++) {
+          round.setPassedCardsForPlayer(0, selectedCardsToPass);
+          final passReq = CardsToPassRequest(
+            rules: round.rules,
+            scoresBeforeRound: round.initialScores,
+            hand: round.players[i].hand,
+            direction: round.passDirection,
+            numCards: round.rules.numPassedCards,
+          );
+          final cards = chooseCardsToPass(passReq);
+          round.setPassedCardsForPlayer(i, cards);
+        }
+        round.passCards();
+      });
+    }
     _scheduleNextPlayIfNeeded();
   }
 
@@ -175,6 +187,15 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     );
   }
 
+  bool _shouldShowNoPassingMessage() {
+    return round.passDirection == 0 &&
+        round.previousTricks.isEmpty && round.currentTrick.cards.isEmpty;
+  }
+
+  bool _shouldShowPassDialog() {
+    return round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage();
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -189,8 +210,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        // HERE: Doesn't work for hands with no passing.
-        if (round.status == HeartsRoundStatus.passing) PassCardsDialog(
+        if (_shouldShowPassDialog()) PassCardsDialog(
             layout: layout,
             round: round,
             selectedCards: selectedCardsToPass,
@@ -198,9 +218,11 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         ),
         if (round.isOver()) EndOfRoundDialog(
             layout: layout,
-            match: match, onContinue: _startRound,
+            match: match,
+            onContinue: _startRound,
+            onMainMenu: widget.mainMenuFn,
         ),
-        Text("${match.scores} ${round.status}"),
+        Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );
   }
@@ -266,8 +288,15 @@ class EndOfRoundDialog extends StatelessWidget {
   final Layout layout;
   final HeartsMatch match;
   final Function() onContinue;
+  final Function() onMainMenu;
 
-  const EndOfRoundDialog({Key? key, required this.layout, required this.match, required this.onContinue}): super(key: key);
+  const EndOfRoundDialog({
+    Key? key,
+    required this.layout,
+    required this.match,
+    required this.onContinue,
+    required this.onMainMenu,
+  }): super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +358,6 @@ class EndOfRoundDialog extends StatelessWidget {
                       pointsRow("Total points", match.scores),
                     ],
                   )),
-                  // HERE: When match is over, have "New match" and "Main menu" buttons.
                   if (match.isMatchOver()) Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
@@ -340,7 +368,7 @@ class EndOfRoundDialog extends StatelessWidget {
                       )),
                       _paddingAll(15, ElevatedButton(
                         child: const Text("Main Menu"),
-                        onPressed: onContinue,
+                        onPressed: onMainMenu,
                       )),
                     ],
                   ),

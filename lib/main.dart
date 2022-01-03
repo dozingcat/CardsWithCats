@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -44,8 +45,8 @@ class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
   var matchType = MatchType.hearts;
   late final SharedPreferences preferences;
-  late final HeartsMatch initialHeartsMatch;
-  late final SpadesMatch initialSpadesMatch;
+  late HeartsMatch initialHeartsMatch;
+  late SpadesMatch initialSpadesMatch;
 
   @override void initState() {
     super.initState();
@@ -56,7 +57,28 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _readPreferences() async {
     preferences = await SharedPreferences.getInstance();
-    loaded = true;
+    setState(() {
+      switch (preferences.getString("matchType")) {
+        case "hearts":
+          String? heartsJson = preferences.getString("heartsMatch");
+          if (heartsJson != null) {
+            initialHeartsMatch = HeartsMatch.fromJson(jsonDecode(heartsJson), Random());
+          }
+          break;
+        case "spades":
+          break;
+      }
+      loaded = true;
+    });
+  }
+
+  void _showMainMenu() {
+    // TODO
+  }
+
+  void _saveHeartsMatch(final HeartsMatch match) {
+    preferences.setString("matchType", "hearts");
+    preferences.setString("heartsMatch", jsonEncode(match.toJson()));
   }
 
   HeartsMatch _createHeartsMatch() {
@@ -78,6 +100,8 @@ class _MyHomePageState extends State<MyHomePage> {
         HeartsMatchDisplay(
           initialMatch: initialHeartsMatch,
           createMatchFn: _createHeartsMatch,
+          mainMenuFn: _showMainMenu,
+          saveMatchFn: _saveHeartsMatch,
         ) :
         SpadesMatchDisplay(
           initialMatch: initialSpadesMatch,

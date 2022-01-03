@@ -45,7 +45,7 @@ class Trick {
   static List<Trick> copyAll(List<Trick> tricks) =>
       List.generate(tricks.length, (i) => tricks[i].copy());
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "leader": leader,
       "cards": PlayingCard.stringFromCards(cards),
@@ -53,7 +53,7 @@ class Trick {
     };
   }
 
-  static Trick fromJson(final Map<String, Object> json) {
+  static Trick fromJson(final Map<String, dynamic> json) {
     return Trick(
         json["leader"] as int,
         PlayingCard.cardsFromString(json["cards"] as String),
@@ -70,14 +70,14 @@ class TrickInProgress {
 
   TrickInProgress copy() => TrickInProgress(leader, List.of(cards));
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "leader": leader,
       "cards": PlayingCard.stringFromCards(cards),
     };
   }
 
-  static TrickInProgress fromJson(final Map<String, Object> json) {
+  static TrickInProgress fromJson(final Map<String, dynamic> json) {
     return TrickInProgress(
         json["leader"] as int, PlayingCard.cardsFromString(json["cards"] as String));
   }

@@ -38,7 +38,7 @@ class SpadesRuleSet {
     penalizeBags: src.penalizeBags,
   );
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "numPlayers": numPlayers,
       "numTeams": numTeams,
@@ -49,7 +49,7 @@ class SpadesRuleSet {
     };
   }
 
-  static SpadesRuleSet fromJson(Map<String, Object> json) {
+  static SpadesRuleSet fromJson(Map<String, dynamic> json) {
     return SpadesRuleSet(
       numPlayers: json["numPlayers"] as int,
       numTeams: json["numTeams"] as int,
@@ -104,14 +104,14 @@ class SpadesPlayer {
   SpadesPlayer copy() => SpadesPlayer.from(this);
   static List<SpadesPlayer> copyAll(Iterable<SpadesPlayer> ps) => [...ps.map((p) => p.copy())];
 
-  Map<String, Object?> toJson() {
+  Map<String, dynamic?> toJson() {
     return {
       "hand": PlayingCard.stringFromCards(hand),
       "bid": bid,
     };
   }
 
-  static SpadesPlayer fromJson(Map<String, Object?> json) {
+  static SpadesPlayer fromJson(Map<String, dynamic?> json) {
     return SpadesPlayer(
         PlayingCard.cardsFromString(json["hand"] as String),
         bid: json["bid"] as int?);
@@ -294,7 +294,7 @@ class SpadesRound {
     }
   }
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "rules": rules.toJson(),
       "status": status.name,
@@ -306,15 +306,15 @@ class SpadesRound {
     };
   }
 
-  static SpadesRound fromJson(final Map<String, Object> json) {
+  static SpadesRound fromJson(final Map<String, dynamic> json) {
     return SpadesRound()
-        ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, Object>)
+        ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
         ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
-        ..players = [...(json["players"] as List<Map<String, Object?>>).map(SpadesPlayer.fromJson)]
+        ..players = [...(json["players"] as List<Map<String, dynamic?>>).map(SpadesPlayer.fromJson)]
         ..initialScores = json["initialScores"] as List<int>
         ..dealer = json["dealer"] as int
-        ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, Object>)
-        ..previousTricks = [...(json["previousTricks"] as List<Map<String, Object>>).map(Trick.fromJson)]
+        ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+        ..previousTricks = [...(json["previousTricks"] as List<Map<String, dynamic>>).map(Trick.fromJson)]
         ;
   }
 }
@@ -332,7 +332,7 @@ class SpadesMatch {
     currentRound = SpadesRound.deal(rules, List.filled(rules.numTeams, 0), dealer, rng);
   }
 
-  Map<String, Object> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "rules": rules.toJson(),
       "dealer": dealer,
@@ -341,13 +341,13 @@ class SpadesMatch {
     };
   }
 
-  static SpadesMatch fromJson(final Map<String, Object> json, Random rng) {
-    final rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, Object>);
+  static SpadesMatch fromJson(final Map<String, dynamic> json, Random rng) {
+    final rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>);
     return SpadesMatch(rules, rng)
         ..dealer = json["dealer"] as int
         ..previousRounds =
-            [...(json["previousRounds"] as List<Map<String, Object>>).map(SpadesRound.fromJson)]
-        ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, Object>)
+            [...(json["previousRounds"] as List<Map<String, dynamic>>).map(SpadesRound.fromJson)]
+        ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, dynamic>)
         ;
   }
 
