@@ -30,6 +30,12 @@ class MyApp extends StatelessWidget {
   }
 }
 
+const dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
+
+Widget _paddingAll(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
+}
+
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title}) : super(key: key);
 
@@ -39,12 +45,13 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-enum MatchType {hearts, spades}
+enum MatchType {none, hearts, spades}
 
 class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
-  var matchType = MatchType.spades;
+  var matchType = MatchType.none;
   late final SharedPreferences preferences;
+  bool showingMenu = false;
 
   @override void initState() {
     super.initState();
@@ -53,23 +60,50 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _readPreferences() async {
     preferences = await SharedPreferences.getInstance();
+    // preferences.remove("matchType");
     setState(() {
       loaded = true;
+      String? savedMatchType = preferences.getString("matchType") ?? "";
+      if (savedMatchType == "hearts") {
+        matchType = MatchType.hearts;
+      }
+      else if (savedMatchType == "spades") {
+        matchType = MatchType.spades;
+      }
+      else {
+        showingMenu = true;
+      }
     });
   }
 
   void _showMainMenu() {
-    // TODO
+    setState(() {showingMenu = true;});
   }
 
-  void _saveHeartsMatch(final HeartsMatch match) {
-    preferences.setString("matchType", "hearts");
-    preferences.setString("heartsMatch", jsonEncode(match.toJson()));
+  void _saveHeartsMatch(final HeartsMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "hearts");
+      preferences.setString("heartsMatch", jsonEncode(match.toJson()));
+    }
+    else {
+      preferences.remove("matchType");
+      preferences.remove("heartsMatch");
+      matchType = MatchType.none;
+      showingMenu = true;
+    }
   }
 
-  void _saveSpadesMatch(final SpadesMatch match) {
-    preferences.setString("matchType", "spades");
-    preferences.setString("spadesMatch", jsonEncode(match.toJson()));
+  void _saveSpadesMatch(final SpadesMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "spades");
+      preferences.setString("spadesMatch", jsonEncode(match.toJson()));
+    }
+    else {
+      preferences.remove("matchType");
+      preferences.remove("spadesMatch");
+      matchType = MatchType.none;
+      showingMenu = true;
+    }
   }
 
   HeartsMatch _initialHeartsMatch() {
@@ -102,6 +136,68 @@ class _MyHomePageState extends State<MyHomePage> {
     return SpadesMatch(rules, Random());
   }
 
+  void _continueGame() {
+    setState(() {showingMenu = false;});
+  }
+
+  void _startHeartsGame() {
+    preferences.remove("heartsMatch");
+    setState(() {
+      showingMenu = false;
+      matchType = MatchType.hearts;
+    });
+  }
+
+  void _startSpadesGame() {
+    preferences.remove("spadesMatch");
+    setState(() {
+      showingMenu = false;
+      matchType = MatchType.spades;
+    });
+  }
+
+  TableRow _makeButtonRow(String title, void Function() onPressed) {
+    return TableRow(children: [
+      Padding(
+        padding: EdgeInsets.all(8),
+        child: ElevatedButton(onPressed: onPressed, child: Text(title)),
+      ),
+    ]);
+  }
+
+  Widget _mainMenuDialog(final BuildContext context, final Size displaySize) {
+    final minDim = min(displaySize.width, displaySize.height);
+    return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Center(
+        child: Dialog(
+        backgroundColor: dialogBackgroundColor,
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _paddingAll(10, Text(
+            "CardCats",
+            style: TextStyle(
+              fontSize: min(minDim / 18, 40),
+            )
+          )),
+          Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            defaultColumnWidth: const IntrinsicColumnWidth(),
+            children: [
+              if (matchType != MatchType.none) _makeButtonRow("Continue game", _continueGame),
+              _makeButtonRow("New hearts game", _startHeartsGame),
+              _makeButtonRow("New spades game", _startSpadesGame),
+              // _makeButtonRow('Preferences...', _showPreferences),
+              // _makeButtonRow('About...', () => _showAboutDialog(context)),
+            ],
+          ),
+        ],
+    )
+    )));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!loaded) {
@@ -121,7 +217,30 @@ class _MyHomePageState extends State<MyHomePage> {
           mainMenuFn: _showMainMenu,
         );
     return Scaffold(
-      body: content,
+      body: Stack(children: [
+        if (showingMenu) _mainMenuDialog(context, MediaQuery.of(context).size),
+        if (matchType == MatchType.hearts) HeartsMatchDisplay(
+          initialMatch: _initialHeartsMatch(),
+          createMatchFn: _createHeartsMatch,
+          saveMatchFn: _saveHeartsMatch,
+          mainMenuFn: _showMainMenu,
+        ),
+        if (matchType == MatchType.spades) SpadesMatchDisplay(
+          initialMatch: _initialSpadesMatch(),
+          createMatchFn: _createSpadesMatch,
+          saveMatchFn: _saveSpadesMatch,
+          mainMenuFn: _showMainMenu,
+        ),
+      ]),
     );
   }
+}
+
+class MainMenu extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    throw UnimplementedError();
+  }
+  
 }
