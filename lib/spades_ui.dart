@@ -21,7 +21,7 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 class SpadesMatchDisplay extends StatefulWidget {
   final SpadesMatch initialMatch;
   final SpadesMatch Function() createMatchFn;
-  final void Function(SpadesMatch) saveMatchFn;
+  final void Function(SpadesMatch?) saveMatchFn;
   final void Function() mainMenuFn;
 
   const SpadesMatchDisplay({
@@ -301,6 +301,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return bubbles;
   }
 
+  void _showMainMenuAfterMatch() {
+    widget.saveMatchFn(null);
+    widget.mainMenuFn();
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -321,6 +326,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
           layout: layout,
           match: match,
           onContinue: () => setState(_startRound),
+          onMainMenu: _showMainMenuAfterMatch,
         ),
         ...bidSpeechBubbles(layout),
         PlayerMoods(layout: layout, moods: playerMoods),
@@ -481,8 +487,15 @@ class EndOfRoundDialog extends StatelessWidget {
   final Layout layout;
   final SpadesMatch match;
   final Function() onContinue;
+  final Function() onMainMenu;
 
-  const EndOfRoundDialog({Key? key, required this.layout, required this.match, required this.onContinue}): super(key: key);
+  const EndOfRoundDialog({
+    Key? key,
+    required this.layout,
+    required this.match,
+    required this.onContinue,
+    required this.onMainMenu,
+  }): super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -545,7 +558,21 @@ class EndOfRoundDialog extends StatelessWidget {
             pointsRow("Total score", [...scores.map((s) => s.endingMatchPoints)]),
           ],
         )),
-        Row(
+        if (match.isMatchOver()) Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _paddingAll(15, ElevatedButton(
+              child: const Text("New Game"),
+              onPressed: onContinue,
+            )),
+            _paddingAll(15, ElevatedButton(
+              child: const Text("Main Menu"),
+              onPressed: onMainMenu,
+            )),
+          ],
+        ),
+        if (!match.isMatchOver()) Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [_paddingAll(15, ElevatedButton(

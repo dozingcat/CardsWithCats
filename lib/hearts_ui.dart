@@ -22,7 +22,7 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 class HeartsMatchDisplay extends StatefulWidget {
   final HeartsMatch initialMatch;
   final HeartsMatch Function() createMatchFn;
-  final void Function(HeartsMatch) saveMatchFn;
+  final void Function(HeartsMatch?) saveMatchFn;
   final void Function() mainMenuFn;
 
   const HeartsMatchDisplay({
@@ -196,6 +196,11 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage();
   }
 
+  void _showMainMenuAfterMatch() {
+    widget.saveMatchFn(null);
+    widget.mainMenuFn();
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -220,7 +225,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             layout: layout,
             match: match,
             onContinue: _startRound,
-            onMainMenu: widget.mainMenuFn,
+            onMainMenu: _showMainMenuAfterMatch,
         ),
         Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
