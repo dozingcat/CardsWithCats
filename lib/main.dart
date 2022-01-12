@@ -3,11 +3,13 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:hearts/spades/spades.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'hearts/hearts.dart';
+import 'spades/spades.dart';
+
+import 'common_ui.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
@@ -156,6 +158,17 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  static const gameBackgroundColor = Color.fromRGBO(32, 160, 32, 0.3);
+  static const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
+
+  Widget _gameTable(final Layout layout) {
+    final rect = Rect.fromLTWH(0, 0, layout.displaySize.width, layout.displaySize.height);
+    return Stack(children: [
+      Positioned.fromRect(rect: rect, child: Container(color: gameBackgroundColor)),
+      Positioned.fromRect(rect: layout.cardArea(), child: Container(color: gameTableColor)),
+    ]);
+  }
+
   TableRow _makeButtonRow(String title, void Function() onPressed) {
     return TableRow(children: [
       Padding(
@@ -200,25 +213,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = computeLayout(context);
     if (!loaded) {
       return Scaffold(body: Container());
     }
-    final content = matchType == MatchType.hearts ?
-        HeartsMatchDisplay(
-          initialMatch: _initialHeartsMatch(),
-          createMatchFn: _createHeartsMatch,
-          saveMatchFn: _saveHeartsMatch,
-          mainMenuFn: _showMainMenu,
-        ) :
-        SpadesMatchDisplay(
-          initialMatch: _initialSpadesMatch(),
-          createMatchFn: _createSpadesMatch,
-          saveMatchFn: _saveSpadesMatch,
-          mainMenuFn: _showMainMenu,
-        );
     return Scaffold(
       body: Stack(children: [
-        if (showingMenu) _mainMenuDialog(context, MediaQuery.of(context).size),
+        _gameTable(layout),
+        ...[1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         if (matchType == MatchType.hearts) HeartsMatchDisplay(
           initialMatch: _initialHeartsMatch(),
           createMatchFn: _createHeartsMatch,
@@ -231,6 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
           saveMatchFn: _saveSpadesMatch,
           mainMenuFn: _showMainMenu,
         ),
+        if (showingMenu) _mainMenuDialog(context, MediaQuery.of(context).size),
       ]),
     );
   }

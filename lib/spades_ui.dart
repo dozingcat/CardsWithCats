@@ -312,12 +312,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
     return Stack(
       children: <Widget>[
-        Container(
-          width: double.infinity,
-          height: double.infinity,
-          color: Colors.green,
-        ),
-        ...[0, 1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
         if (_isWaitingForHumanBid()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
@@ -583,10 +577,10 @@ class EndOfRoundDialog extends StatelessWidget {
       ])));
 
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.5),
-      duration: const Duration(milliseconds: 1500),
+      tween: Tween(begin: -1.0, end: 1.0),
+      duration: const Duration(milliseconds: 1000),
       child: dialog,
-      builder: (context, val, child) => Opacity(opacity: (val - 0.5).clamp(0.0, 1.0), child: child),
+      builder: (context, val, child) => Opacity(opacity: val.clamp(0.0, 1.0), child: child),
     );
     return dialog;
   }

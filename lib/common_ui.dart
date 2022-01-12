@@ -98,11 +98,8 @@ class PositionedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cardImagePath = "assets/cards/${card.toString()}.webp";
     const backgroundImagePath = "assets/cards/black.webp";
-    return Positioned(
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
+    return Positioned.fromRect(
+        rect: rect,
         child: GestureDetector(
             onTapDown: (tap) => onCardClicked(card),
             child: Stack(children: [
@@ -150,14 +147,10 @@ class AiPlayerImage extends StatelessWidget {
     final angle = (playerIndex - 2) * pi / 2;
     final scale = (playerIndex == 1 || playerIndex == 3) ? imageAspectRatio : 1.0;
 
-    return Positioned(
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height,
-
+    return Positioned.fromRect(
+      rect: rect,
       child: Container(
-        color: Colors.white70,
+        color: Colors.transparent,
         width: rect.width,
         height: rect.height,
         // The image won't naturally take up the full width If rotated 90 degrees,
