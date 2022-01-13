@@ -49,11 +49,13 @@ class MyHomePage extends StatefulWidget {
 
 enum MatchType {none, hearts, spades}
 
+enum DialogMode {none, mainMenu, preferences}
+
 class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
   var matchType = MatchType.none;
   late final SharedPreferences preferences;
-  bool showingMenu = false;
+  DialogMode dialogMode = DialogMode.none;
 
   @override void initState() {
     super.initState();
@@ -73,13 +75,13 @@ class _MyHomePageState extends State<MyHomePage> {
         matchType = MatchType.spades;
       }
       else {
-        showingMenu = true;
+        dialogMode = DialogMode.mainMenu;
       }
     });
   }
 
   void _showMainMenu() {
-    setState(() {showingMenu = true;});
+    setState(() {dialogMode = DialogMode.mainMenu;});
   }
 
   void _saveHeartsMatch(final HeartsMatch? match) {
@@ -91,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
       preferences.remove("matchType");
       preferences.remove("heartsMatch");
       matchType = MatchType.none;
-      showingMenu = true;
+      dialogMode = DialogMode.mainMenu;
     }
   }
 
@@ -104,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
       preferences.remove("matchType");
       preferences.remove("spadesMatch");
       matchType = MatchType.none;
-      showingMenu = true;
+      dialogMode = DialogMode.mainMenu;
     }
   }
 
@@ -139,13 +141,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _continueGame() {
-    setState(() {showingMenu = false;});
+    setState(() {dialogMode = DialogMode.none;});
   }
 
   void _startHeartsGame() {
     preferences.remove("heartsMatch");
     setState(() {
-      showingMenu = false;
+      dialogMode = DialogMode.none;
       matchType = MatchType.hearts;
     });
   }
@@ -153,7 +155,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _startSpadesGame() {
     preferences.remove("spadesMatch");
     setState(() {
-      showingMenu = false;
+      dialogMode = DialogMode.none;
       matchType = MatchType.spades;
     });
   }
@@ -211,6 +213,16 @@ class _MyHomePageState extends State<MyHomePage> {
     )));
   }
 
+  Widget _menuIcon() {
+    return Padding(
+      padding: EdgeInsets.all(10),
+      child: FloatingActionButton(
+        onPressed: _showMainMenu,
+        child: Icon(Icons.menu),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -233,7 +245,8 @@ class _MyHomePageState extends State<MyHomePage> {
           saveMatchFn: _saveSpadesMatch,
           mainMenuFn: _showMainMenu,
         ),
-        if (showingMenu) _mainMenuDialog(context, MediaQuery.of(context).size),
+        if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, MediaQuery.of(context).size),
+        if (dialogMode == DialogMode.none) _menuIcon(),
       ]),
     );
   }
