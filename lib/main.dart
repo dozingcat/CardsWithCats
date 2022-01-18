@@ -84,6 +84,10 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {dialogMode = DialogMode.mainMenu;});
   }
 
+  void _showPreferences() {
+    setState(() {dialogMode = DialogMode.preferences;});
+  }
+
   void _saveHeartsMatch(final HeartsMatch? match) {
     if (match != null) {
       preferences.setString("matchType", "hearts");
@@ -180,8 +184,8 @@ class _MyHomePageState extends State<MyHomePage> {
     ]);
   }
 
-  Widget _mainMenuDialog(final BuildContext context, final Size displaySize) {
-    final minDim = min(displaySize.width, displaySize.height);
+  Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
+    final minDim = layout.displaySize.shortestSide;
     return Container(
         width: double.infinity,
         height: double.infinity,
@@ -204,13 +208,34 @@ class _MyHomePageState extends State<MyHomePage> {
               if (matchType != MatchType.none) _makeButtonRow("Continue game", _continueGame),
               _makeButtonRow("New hearts game", _startHeartsGame),
               _makeButtonRow("New spades game", _startSpadesGame),
-              // _makeButtonRow('Preferences...', _showPreferences),
+              _makeButtonRow('Preferences...', _showPreferences),
               // _makeButtonRow('About...', () => _showAboutDialog(context)),
             ],
           ),
         ],
     )
     )));
+  }
+
+  Widget _preferencesDialog(final BuildContext context, final Layout layout) {
+    final minDim = layout.displaySize.shortestSide;
+    return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Center(
+          child: Dialog(
+          backgroundColor: dialogBackgroundColor,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _paddingAll(10, Text(
+                "Preferences",
+                style: TextStyle(fontSize: min(minDim / 18, 40)),
+               )),
+              ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))
+            ],
+          )
+        )));
   }
 
   Widget _menuIcon() {
@@ -238,14 +263,17 @@ class _MyHomePageState extends State<MyHomePage> {
           createMatchFn: _createHeartsMatch,
           saveMatchFn: _saveHeartsMatch,
           mainMenuFn: _showMainMenu,
+          dialogVisible: dialogMode != DialogMode.none,
         ),
         if (matchType == MatchType.spades) SpadesMatchDisplay(
           initialMatch: _initialSpadesMatch(),
           createMatchFn: _createSpadesMatch,
           saveMatchFn: _saveSpadesMatch,
           mainMenuFn: _showMainMenu,
+          dialogVisible: dialogMode != DialogMode.none,
         ),
-        if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, MediaQuery.of(context).size),
+        if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
+        if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
         if (dialogMode == DialogMode.none) _menuIcon(),
       ]),
     );

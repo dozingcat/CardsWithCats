@@ -23,6 +23,7 @@ class SpadesMatchDisplay extends StatefulWidget {
   final SpadesMatch Function() createMatchFn;
   final void Function(SpadesMatch?) saveMatchFn;
   final void Function() mainMenuFn;
+  final bool dialogVisible;
 
   const SpadesMatchDisplay({
     Key? key,
@@ -30,6 +31,7 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.createMatchFn,
     required this.saveMatchFn,
     required this.mainMenuFn,
+    required this.dialogVisible,
   }) : super(key: key);
 
   @override
@@ -264,6 +266,14 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     );
   }
 
+  bool _shouldShowHumanBidDialog() {
+    return !widget.dialogVisible && _isWaitingForHumanBid();
+  }
+
+  bool _shouldShowPostBidDialog() {
+    return !widget.dialogVisible && showPostBidDialog;
+  }
+
   void makeBidForHuman(int bid) {
     print("Human bids $bid");
     setState(() {_setBidForPlayer(bid: bid, playerIndex: 0);});
@@ -275,7 +285,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return round.isOver();
+    return !widget.dialogVisible && round.isOver();
   }
 
   List<Widget> bidSpeechBubbles(final Layout layout) {
@@ -314,8 +324,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       children: <Widget>[
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        if (_isWaitingForHumanBid()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
-        if (showPostBidDialog) PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
+        if (_shouldShowHumanBidDialog()) BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
+        if (_shouldShowPostBidDialog()) PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
         if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
           layout: layout,
           match: match,

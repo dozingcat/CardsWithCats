@@ -24,6 +24,7 @@ class HeartsMatchDisplay extends StatefulWidget {
   final HeartsMatch Function() createMatchFn;
   final void Function(HeartsMatch?) saveMatchFn;
   final void Function() mainMenuFn;
+  final bool dialogVisible;
 
   const HeartsMatchDisplay({
     Key? key,
@@ -31,6 +32,7 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.createMatchFn,
     required this.saveMatchFn,
     required this.mainMenuFn,
+    required this.dialogVisible,
   }) : super(key: key);
 
   @override
@@ -193,7 +195,12 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   bool _shouldShowPassDialog() {
-    return round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage();
+    return !widget.dialogVisible && (
+        round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage());
+  }
+
+  bool _shouldShowEndOfRoundDialog() {
+    return !widget.dialogVisible && round.isOver();
   }
 
   void _showMainMenuAfterMatch() {
@@ -215,7 +222,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             selectedCards: selectedCardsToPass,
             onConfirm: _passCards,
         ),
-        if (round.isOver()) EndOfRoundDialog(
+        if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
             layout: layout,
             match: match,
             onContinue: _startRound,
