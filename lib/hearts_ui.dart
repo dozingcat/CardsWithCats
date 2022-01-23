@@ -45,6 +45,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   var aiMode = AiMode.human_player_0;
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
+  Map<int, Mood> playerMoods = {};
 
   HeartsRound get round => match.currentRound;
 
@@ -87,6 +88,35 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
+  void _clearMoods() {
+    playerMoods.clear();
+  }
+
+  void _updateMoodsAfterTrick() {
+    print(round.toJson());
+    playerMoods.clear();
+    if (match.isMatchOver()) {
+      final winners = match.winningPlayers();
+      for (int i = 1; i < match.rules.numPlayers; i++) {
+        playerMoods[i] = (winners.contains(i)) ? Mood.veryHappy : Mood.mad;
+      }
+    }
+    else if (round.isOver()) {
+      final points = round.pointsTaken();
+      for (int i = 1; i < match.rules.numPlayers; i++) {
+        if (points[i] <= 0) {
+          playerMoods[i] = Mood.happy;
+        }
+        else if (points[i] >= 13) {
+          playerMoods[i] = Mood.mad;
+        }
+      }
+    }
+    else {
+      // Mad when taking queen, happy when taking JD?
+    }
+  }
+
   void _trickCardAnimationFinished() {
     if (!round.isOver() && round.currentTrick.cards.isNotEmpty) {
       setState(() {animationMode = AnimationMode.none;});
@@ -94,6 +124,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
     else {
       setState(() {animationMode = AnimationMode.moving_trick_to_winner;});
+      _updateMoodsAfterTrick();
     }
   }
 
@@ -228,6 +259,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             onContinue: _startRound,
             onMainMenu: _showMainMenuAfterMatch,
         ),
+        PlayerMoods(layout: layout, moods: playerMoods),
         Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );

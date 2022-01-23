@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -47,15 +48,18 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-enum MatchType {none, hearts, spades}
+enum GameType {none, hearts, spades}
 
 enum DialogMode {none, mainMenu, preferences}
 
 class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
-  var matchType = MatchType.none;
+  var matchType = GameType.none;
   late final SharedPreferences preferences;
   DialogMode dialogMode = DialogMode.none;
+  var prefsGameType = GameType.hearts;
+  late HeartsRuleSet heartsRulesFromPrefs;
+  late SpadesRuleSet spadesRulesFromPrefs;
 
   @override void initState() {
     super.initState();
@@ -67,17 +71,45 @@ class _MyHomePageState extends State<MyHomePage> {
     // preferences.remove("matchType");
     setState(() {
       loaded = true;
+      heartsRulesFromPrefs = _readHeartsRulesFromPrefs();
+      spadesRulesFromPrefs = _readSpadesRulesFromPrefs();
       String? savedMatchType = preferences.getString("matchType") ?? "";
       if (savedMatchType == "hearts") {
-        matchType = MatchType.hearts;
+        matchType = GameType.hearts;
       }
       else if (savedMatchType == "spades") {
-        matchType = MatchType.spades;
+        matchType = GameType.spades;
       }
       else {
         dialogMode = DialogMode.mainMenu;
       }
     });
+  }
+
+  HeartsRuleSet _readHeartsRulesFromPrefs() {
+    String? json = preferences.getString("heartsRules");
+    if (json != null) {
+      try {
+        return HeartsRuleSet.fromJson(jsonDecode(json));
+      }
+      catch (ex) {
+        print("Failed to read hearts rules from JSON: $ex");
+      }
+    }
+    return HeartsRuleSet();
+  }
+
+  SpadesRuleSet _readSpadesRulesFromPrefs() {
+    String? json = preferences.getString("spadesRules");
+    if (json != null) {
+      try {
+        return SpadesRuleSet.fromJson(jsonDecode(json));
+      }
+      catch (ex) {
+        print("Failed to read spades rules from JSON: $ex");
+      }
+    }
+    return SpadesRuleSet();
   }
 
   void _showMainMenu() {
@@ -96,7 +128,7 @@ class _MyHomePageState extends State<MyHomePage> {
     else {
       preferences.remove("matchType");
       preferences.remove("heartsMatch");
-      matchType = MatchType.none;
+      matchType = GameType.none;
       dialogMode = DialogMode.mainMenu;
     }
   }
@@ -109,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
     else {
       preferences.remove("matchType");
       preferences.remove("spadesMatch");
-      matchType = MatchType.none;
+      matchType = GameType.none;
       dialogMode = DialogMode.mainMenu;
     }
   }
@@ -152,7 +184,7 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("heartsMatch");
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = MatchType.hearts;
+      matchType = GameType.hearts;
     });
   }
 
@@ -160,7 +192,7 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("spadesMatch");
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = MatchType.spades;
+      matchType = GameType.spades;
     });
   }
 
@@ -205,7 +237,7 @@ class _MyHomePageState extends State<MyHomePage> {
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             defaultColumnWidth: const IntrinsicColumnWidth(),
             children: [
-              if (matchType != MatchType.none) _makeButtonRow("Continue game", _continueGame),
+              if (matchType != GameType.none) _makeButtonRow("Continue game", _continueGame),
               _makeButtonRow("New hearts game", _startHeartsGame),
               _makeButtonRow("New spades game", _startSpadesGame),
               _makeButtonRow('Preferences...', _showPreferences),
@@ -219,7 +251,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
-    return Container(
+    return SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: Center(
@@ -231,8 +263,24 @@ class _MyHomePageState extends State<MyHomePage> {
               _paddingAll(10, Text(
                 "Preferences",
                 style: TextStyle(fontSize: min(minDim / 18, 40)),
-               )),
-              ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))
+              )),
+              Wrap(children: [
+                GestureDetector(
+                  onTapDown: (tap) {setState(() {prefsGameType = GameType.hearts;});},
+                  child: Text("Hearts"),
+                ),
+                GestureDetector(
+                  onTapDown: (tap) {setState(() {prefsGameType = GameType.spades;});},
+                  child: Text("Spades"),
+                ),
+              ]),
+              if (prefsGameType == GameType.hearts) ...[
+                Text("Hearts settings"),
+              ],
+              if (prefsGameType == GameType.spades) ...[
+                Text("Spades settings"),
+              ],
+              _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))),
             ],
           )
         )));
@@ -258,14 +306,14 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Stack(children: [
         _gameTable(layout),
         ...[1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
-        if (matchType == MatchType.hearts) HeartsMatchDisplay(
+        if (matchType == GameType.hearts) HeartsMatchDisplay(
           initialMatch: _initialHeartsMatch(),
           createMatchFn: _createHeartsMatch,
           saveMatchFn: _saveHeartsMatch,
           mainMenuFn: _showMainMenu,
           dialogVisible: dialogMode != DialogMode.none,
         ),
-        if (matchType == MatchType.spades) SpadesMatchDisplay(
+        if (matchType == GameType.spades) SpadesMatchDisplay(
           initialMatch: _initialSpadesMatch(),
           createMatchFn: _createSpadesMatch,
           saveMatchFn: _saveSpadesMatch,
