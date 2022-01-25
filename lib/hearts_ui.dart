@@ -57,6 +57,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   void _startRound() {
     setState(() {
+      _clearMoods();
       if (round.isOver()) {
         match.finishRound();
       }
@@ -113,7 +114,27 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       }
     }
     else {
-      // Mad when taking queen, happy when taking JD?
+      // Mad when taking QS, happy when taking JD.
+      final trick = round.previousTricks.last;
+      final hasQS = trick.cards.contains(queenOfSpades);
+      final hasJD = round.rules.jdMinus10 && trick.cards.contains(jackOfDiamonds);
+      if (hasQS && !hasJD) {
+        // Only mad if another player has taken a heart, otherwise might be trying to shoot.
+        bool otherPlayerHasHeart = false;
+        for (int i = 0; i < round.previousTricks.length - 1; i++) {
+          final pt = round.previousTricks[i];
+          if (pt.winner != trick.winner && pt.cards.any((c) => c.suit == Suit.hearts)) {
+            otherPlayerHasHeart = true;
+            break;
+          }
+        }
+        if (otherPlayerHasHeart) {
+          playerMoods[trick.winner] = Mood.mad;
+        }
+      }
+      else if (hasJD && !hasQS) {
+        playerMoods[trick.winner] = Mood.happy;
+      }
     }
   }
 

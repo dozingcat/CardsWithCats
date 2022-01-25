@@ -99,6 +99,13 @@ class _MyHomePageState extends State<MyHomePage> {
     return HeartsRuleSet();
   }
 
+  void updateHeartsRules(Function(HeartsRuleSet) updateRulesFn) {
+    setState(() {
+      updateRulesFn(heartsRulesFromPrefs);
+    });
+    preferences.setString("heartsRules", jsonEncode(heartsRulesFromPrefs.toJson()));
+  }
+
   SpadesRuleSet _readSpadesRulesFromPrefs() {
     String? json = preferences.getString("spadesRules");
     if (json != null) {
@@ -110,6 +117,13 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     return SpadesRuleSet();
+  }
+
+  void updateSpadesRules(Function(SpadesRuleSet) updateRulesFn) {
+    setState(() {
+      updateRulesFn(spadesRulesFromPrefs);
+    });
+    preferences.setString("spadesRules", jsonEncode(spadesRulesFromPrefs.toJson()));
   }
 
   void _showMainMenu() {
@@ -167,13 +181,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   HeartsMatch _createHeartsMatch() {
-    final rules = HeartsRuleSet();
-    return HeartsMatch(rules, Random());
+    return HeartsMatch(heartsRulesFromPrefs, Random());
   }
 
   SpadesMatch _createSpadesMatch() {
-    final rules = SpadesRuleSet();
-    return SpadesMatch(rules, Random());
+    return SpadesMatch(spadesRulesFromPrefs, Random());
   }
 
   void _continueGame() {
@@ -251,6 +263,32 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
+    final baseFontSize = 18.0;
+
+    Widget makeHeartsRuleCheckboxRow(String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
+      return CheckboxListTile(
+        dense: true,
+        title: Text(title, style: TextStyle(fontSize: baseFontSize)),
+        isThreeLine: false,
+        onChanged: (bool? checked) {
+          updateHeartsRules((rules) => updateRulesFn(rules, checked == true));
+        },
+        value: isChecked,
+      );
+    }
+
+    Widget makeSpadesRuleCheckboxRow(String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
+      return CheckboxListTile(
+        dense: true,
+        title: Text(title, style: TextStyle(fontSize: baseFontSize)),
+        isThreeLine: false,
+        onChanged: (bool? checked) {
+          updateSpadesRules((rules) => updateRulesFn(rules, checked == true));
+        },
+        value: isChecked,
+      );
+    }
+
     return SizedBox(
         width: double.infinity,
         height: double.infinity,
@@ -276,9 +314,36 @@ class _MyHomePageState extends State<MyHomePage> {
               ]),
               if (prefsGameType == GameType.hearts) ...[
                 Text("Hearts settings"),
+                makeHeartsRuleCheckboxRow(
+                    "Jack of diamonds is -10 points",
+                    heartsRulesFromPrefs.jdMinus10,
+                    (rules, checked) {rules.jdMinus10 = checked;},
+                ),
+                makeHeartsRuleCheckboxRow(
+                  "Allow points on first trick",
+                  heartsRulesFromPrefs.pointsOnFirstTrick,
+                  (rules, checked) {rules.pointsOnFirstTrick = checked;},
+                ),
+                makeHeartsRuleCheckboxRow(
+                  "Queen of spades breaks hearts",
+                  heartsRulesFromPrefs.queenBreaksHearts,
+                  (rules, checked) {rules.queenBreaksHearts = checked;},
+                ),
               ],
               if (prefsGameType == GameType.spades) ...[
                 Text("Spades settings"),
+                makeSpadesRuleCheckboxRow(
+                  "Penalize sandbags",
+                  spadesRulesFromPrefs.penalizeBags,
+                  (rules, checked) {rules.penalizeBags = checked;},
+                ),
+                makeSpadesRuleCheckboxRow(
+                  "No leading spades until broken",
+                  spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
+                  (rules, checked) {
+                    rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
+                  },
+                ),
               ],
               _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))),
             ],

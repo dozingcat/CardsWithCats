@@ -81,8 +81,13 @@ List<PlayingCard> legalPlays(
     List<Trick> prevTricks,
     SpadesRuleSet rules) {
   if (currentTrick.cards.isEmpty) {
-    return _canLeadSpade(prevTricks, rules) ?
-        hand : [...hand.where((c) => c.suit != Suit.spades)];
+    if (!_canLeadSpade(prevTricks, rules)) {
+      final nonSpades = [...hand.where((c) => c.suit != Suit.spades)];
+      if (nonSpades.isNotEmpty) {
+        return nonSpades;
+      }
+    }
+    return hand;
   }
   // Follow suit if possible.
   final lead = currentTrick.cards[0].suit;
