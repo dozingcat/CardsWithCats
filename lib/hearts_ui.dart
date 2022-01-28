@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -20,19 +21,21 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 
 
 class HeartsMatchDisplay extends StatefulWidget {
-  final HeartsMatch initialMatch;
+  final HeartsMatch Function() initialMatchFn;
   final HeartsMatch Function() createMatchFn;
   final void Function(HeartsMatch?) saveMatchFn;
   final void Function() mainMenuFn;
+  final Stream matchUpdateStream;
   final bool dialogVisible;
 
   const HeartsMatchDisplay({
     Key? key,
-    required this.initialMatch,
+    required this.initialMatchFn,
     required this.createMatchFn,
     required this.saveMatchFn,
     required this.mainMenuFn,
     required this.dialogVisible,
+    required this.matchUpdateStream,
   }) : super(key: key);
 
   @override
@@ -46,13 +49,31 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
   Map<int, Mood> playerMoods = {};
+  late StreamSubscription matchUpdateSubscription;
 
   HeartsRound get round => match.currentRound;
 
   @override void initState() {
     super.initState();
-    match = widget.initialMatch.copy();
+    match = widget.initialMatchFn();
+    matchUpdateSubscription = widget.matchUpdateStream.listen((event) {
+      if (event is HeartsMatch) {
+        _updateMatch(event);
+      }
+    });
     _scheduleNextPlayIfNeeded();
+  }
+
+  @override void deactivate() {
+    super.deactivate();
+    matchUpdateSubscription.cancel();
+  }
+
+  void _updateMatch(HeartsMatch newMatch) {
+    setState(() {
+      match = newMatch;
+      _startRound();
+    });
   }
 
   void _startRound() {

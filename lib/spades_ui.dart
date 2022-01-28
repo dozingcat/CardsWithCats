@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -19,18 +20,20 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 }
 
 class SpadesMatchDisplay extends StatefulWidget {
-  final SpadesMatch initialMatch;
+  final SpadesMatch Function() initialMatchFn;
   final SpadesMatch Function() createMatchFn;
   final void Function(SpadesMatch?) saveMatchFn;
   final void Function() mainMenuFn;
+  final Stream matchUpdateStream;
   final bool dialogVisible;
 
   const SpadesMatchDisplay({
     Key? key,
-    required this.initialMatch,
+    required this.initialMatchFn,
     required this.createMatchFn,
     required this.saveMatchFn,
     required this.mainMenuFn,
+    required this.matchUpdateStream,
     required this.dialogVisible,
   }) : super(key: key);
 
@@ -46,13 +49,32 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   var currentBidder = 0;
   Map<int, Mood> playerMoods = {};
   late SpadesMatch match;
+  late StreamSubscription matchUpdateSubscription;
 
   SpadesRound get round => match.currentRound;
 
   @override void initState() {
     super.initState();
-    match = widget.initialMatch.copy();
+    match = widget.initialMatchFn();
+    matchUpdateSubscription = widget.matchUpdateStream.listen((event) {
+      if (event is SpadesMatch) {
+        _updateMatch(event);
+      }
+    });
     _scheduleNextActionIfNeeded();
+  }
+
+  @override void deactivate() {
+    super.deactivate();
+    matchUpdateSubscription.cancel();
+  }
+
+  void _updateMatch(SpadesMatch newMatch) {
+    setState(() {
+      match = newMatch;
+      showPostBidDialog = false;
+      _startRound();
+    });
   }
 
   void _scheduleNextActionIfNeeded() {

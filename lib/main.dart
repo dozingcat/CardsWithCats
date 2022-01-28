@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:math';
@@ -60,6 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var prefsGameType = GameType.hearts;
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
+  final matchUpdateNotifier = StreamController.broadcast();
 
   @override void initState() {
     super.initState();
@@ -194,6 +196,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _startHeartsGame() {
     preferences.remove("heartsMatch");
+    final newMatch = _createHeartsMatch();
+    matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.hearts;
@@ -202,6 +206,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _startSpadesGame() {
     preferences.remove("spadesMatch");
+    final newMatch = _createSpadesMatch();
+    matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.spades;
@@ -372,17 +378,19 @@ class _MyHomePageState extends State<MyHomePage> {
         _gameTable(layout),
         ...[1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
         if (matchType == GameType.hearts) HeartsMatchDisplay(
-          initialMatch: _initialHeartsMatch(),
+          initialMatchFn: _initialHeartsMatch,
           createMatchFn: _createHeartsMatch,
           saveMatchFn: _saveHeartsMatch,
           mainMenuFn: _showMainMenu,
+          matchUpdateStream: matchUpdateNotifier.stream,
           dialogVisible: dialogMode != DialogMode.none,
         ),
         if (matchType == GameType.spades) SpadesMatchDisplay(
-          initialMatch: _initialSpadesMatch(),
+          initialMatchFn: _initialSpadesMatch,
           createMatchFn: _createSpadesMatch,
           saveMatchFn: _saveSpadesMatch,
           mainMenuFn: _showMainMenu,
+          matchUpdateStream: matchUpdateNotifier.stream,
           dialogVisible: dialogMode != DialogMode.none,
         ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
