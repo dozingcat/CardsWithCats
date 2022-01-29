@@ -70,6 +70,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _readPreferences() async {
     preferences = await SharedPreferences.getInstance();
+    // preferences.clear();
     // preferences.remove("matchType");
     setState(() {
       loaded = true;
@@ -194,7 +195,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {dialogMode = DialogMode.none;});
   }
 
-  void _startHeartsGame() {
+  bool isMatchInProgress() {
+    if (matchType == GameType.hearts) {
+      return preferences.getString("heartsMatch") != null;
+    }
+    if (matchType == GameType.spades) {
+      return preferences.getString("spadesMatch") != null;
+    }
+    return false;
+  }
+
+  void startNewHeartsMatch() {
     preferences.remove("heartsMatch");
     final newMatch = _createHeartsMatch();
     matchUpdateNotifier.sink.add(newMatch);
@@ -204,7 +215,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _startSpadesGame() {
+  void startNewSpadesMatch() {
     preferences.remove("spadesMatch");
     final newMatch = _createSpadesMatch();
     matchUpdateNotifier.sink.add(newMatch);
@@ -212,6 +223,52 @@ class _MyHomePageState extends State<MyHomePage> {
       dialogMode = DialogMode.none;
       matchType = GameType.spades;
     });
+  }
+
+  void showNewMatchConfirmationDialog(Function() doNewMatch) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("New match"),
+          content: const Text("Are you sure you want to end the current match and start a new one?"),
+          actions: [
+            TextButton(
+              child: const Text("Don't end match"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              }
+            ),
+            TextButton(
+                child: const Text("End match"),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  doNewMatch();
+                }
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  void handleNewHeartsMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewHeartsMatch);
+    }
+    else {
+      startNewHeartsMatch();
+    }
+  }
+
+  void handleNewSpadesMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewSpadesMatch);
+    }
+    else {
+      startNewHeartsMatch();
+    }
   }
 
   static const gameBackgroundColor = Color.fromRGBO(32, 160, 32, 0.3);
@@ -256,8 +313,8 @@ class _MyHomePageState extends State<MyHomePage> {
             defaultColumnWidth: const IntrinsicColumnWidth(),
             children: [
               if (matchType != GameType.none) _makeButtonRow("Continue game", _continueGame),
-              _makeButtonRow("New hearts game", _startHeartsGame),
-              _makeButtonRow("New spades game", _startSpadesGame),
+              _makeButtonRow("New hearts game", handleNewHeartsMatchClicked),
+              _makeButtonRow("New spades game", handleNewSpadesMatchClicked),
               _makeButtonRow('Preferences...', _showPreferences),
               // _makeButtonRow('About...', () => _showAboutDialog(context)),
             ],
