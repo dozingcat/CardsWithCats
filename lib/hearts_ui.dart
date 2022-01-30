@@ -49,6 +49,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
   Map<int, Mood> playerMoods = {};
+  bool showScoreOverlay = true;
   late StreamSubscription matchUpdateSubscription;
 
   HeartsRound get round => match.currentRound;
@@ -262,6 +263,40 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     );
   }
 
+  List<String> _currentRoundScoreMessages() {
+    if (round.status == HeartsRoundStatus.passing) {
+      return List.generate(round.rules.numPlayers, (i) => "Score: ${round.initialScores[i]}");
+    }
+    final messages = <String>[];
+    for (int i = 0; i < round.rules.numPlayers; i++) {
+      bool hasQS = false;
+      bool hasJD = false;
+      int numHearts = 0;
+      for (final t in round.previousTricks) {
+        if (t.winner == i) {
+          if (t.cards.contains(queenOfSpades)) {
+            hasQS = true;
+          }
+          if (round.rules.jdMinus10 && t.cards.contains(jackOfDiamonds)) {
+            hasJD = true;
+          }
+          numHearts += t.cards.where((c) => c.suit == Suit.hearts).length;
+        }
+      }
+      String taken = [
+        if (hasQS) "Q♠",
+        if (hasJD) "J♦",
+        "$numHearts♥"
+      ].join(", ");
+      messages.add("Score: ${round.initialScores[i]}\nTaken: $taken");
+    }
+    return messages;
+  }
+
+  bool shouldShowScoreOverlay() {
+    return showScoreOverlay && !widget.dialogVisible && !round.isOver();
+  }
+
   bool _shouldShowNoPassingMessage() {
     return round.passDirection == 0 &&
         round.previousTricks.isEmpty && round.currentTrick.cards.isEmpty;
@@ -302,6 +337,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
         ),
         PlayerMoods(layout: layout, moods: playerMoods),
+        if (shouldShowScoreOverlay())
+          PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
         Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );

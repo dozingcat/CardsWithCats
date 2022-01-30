@@ -208,6 +208,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void startNewHeartsMatch() {
     preferences.remove("heartsMatch");
     final newMatch = _createHeartsMatch();
+    _saveHeartsMatch(newMatch);
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
@@ -218,6 +219,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void startNewSpadesMatch() {
     preferences.remove("spadesMatch");
     final newMatch = _createSpadesMatch();
+    _saveSpadesMatch(newMatch);
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
@@ -291,6 +293,10 @@ class _MyHomePageState extends State<MyHomePage> {
     ]);
   }
 
+  void _showAboutDialog(final BuildContext context) {
+
+  }
+
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
     return Container(
@@ -308,17 +314,17 @@ class _MyHomePageState extends State<MyHomePage> {
               fontSize: min(minDim / 18, 40),
             )
           )),
-          Table(
+          _paddingAll(10, Table(
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             defaultColumnWidth: const IntrinsicColumnWidth(),
             children: [
-              if (matchType != GameType.none) _makeButtonRow("Continue game", _continueGame),
-              _makeButtonRow("New hearts game", handleNewHeartsMatchClicked),
-              _makeButtonRow("New spades game", handleNewSpadesMatchClicked),
+              if (matchType != GameType.none) _makeButtonRow("Continue match", _continueGame),
+              _makeButtonRow("New hearts match", handleNewHeartsMatchClicked),
+              _makeButtonRow("New spades match", handleNewSpadesMatchClicked),
               _makeButtonRow('Preferences...', _showPreferences),
-              // _makeButtonRow('About...', () => _showAboutDialog(context)),
+              _makeButtonRow('About...', () => _showAboutDialog(context)),
             ],
-          ),
+          )),
         ],
     )
     )));

@@ -369,6 +369,52 @@ class PlayerMoods extends StatelessWidget {
   }
 }
 
+class PlayerMessagesOverlay extends StatelessWidget {
+  final Layout layout;
+  final List<String> messages;
+
+  const PlayerMessagesOverlay({Key? key, required this.layout, required this.messages}): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget makeTextContainer(String msg) {
+      return Container(
+          decoration: BoxDecoration(
+              color: Color.fromARGB(128, 0, 0, 0),
+              border: Border.all(
+                color: Color.fromARGB(128, 0, 0, 0),
+              ),
+              borderRadius: BorderRadius.all(Radius.circular(20))
+          ),
+          child: Padding(
+              padding: EdgeInsets.all(10),
+              child: Text(msg,
+                  style: TextStyle(color: Color.fromARGB(240, 255, 255, 255)))));
+    }
+
+    return Column(children: [
+      SizedBox(height: layout.edgePx),
+      Row(children: [
+        Expanded(child: SizedBox()),
+        makeTextContainer(messages[0]),
+        Expanded(child: SizedBox()),
+      ]),
+      SizedBox(height: layout.edgePx * 2.25),
+      Expanded(child: Row(children: [
+        makeTextContainer(messages[1]),
+        Expanded(child: SizedBox()),
+        makeTextContainer(messages[2]),
+      ])),
+      Row(children: [
+        Expanded(child: SizedBox()),
+        makeTextContainer(messages[3]),
+        Expanded(child: SizedBox()),
+      ]),
+      SizedBox(height: layout.edgePx),
+    ]);
+  }
+}
+
 class TrickCards extends StatelessWidget {
   final Layout layout;
   final TrickInProgress currentTrick;
