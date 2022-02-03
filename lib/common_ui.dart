@@ -353,7 +353,8 @@ class PlayerMoods extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (moods.isEmpty) return Container();
-    final moodWidgets = Stack(children: [...moods.entries.map((elem) => MoodBubble(
+    final nonHuman = moods.entries.where((elem) => elem.key != 0);
+    final moodWidgets = Stack(children: [...nonHuman.map((elem) => MoodBubble(
       layout: layout,
       playerIndex: elem.key,
       mood: elem.value,
@@ -377,40 +378,43 @@ class PlayerMessagesOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget makeTextContainer(String msg) {
-      return Container(
+    Widget makeTextContainer(String msg, Offset offset) {
+      return Transform.translate(offset: offset, child: Container(
           decoration: BoxDecoration(
-              color: Color.fromARGB(128, 0, 0, 0),
+              color: const Color.fromARGB(208, 255, 255, 255),
               border: Border.all(
-                color: Color.fromARGB(128, 0, 0, 0),
+                color: const Color.fromARGB(128, 0, 0, 0),
               ),
-              borderRadius: BorderRadius.all(Radius.circular(20))
+              borderRadius: const BorderRadius.all(Radius.circular(20))
           ),
           child: Padding(
-              padding: EdgeInsets.all(10),
+              padding: const EdgeInsets.all(10),
               child: Text(msg,
-                  style: TextStyle(color: Color.fromARGB(240, 255, 255, 255)))));
+                  style: const TextStyle(
+                      color: Color.fromARGB(224, 0, 0, 0),
+                      fontSize: 18,
+                  )))));
     }
 
+    const spacer = Expanded(child: SizedBox());
     return Column(children: [
-      SizedBox(height: layout.edgePx),
       Row(children: [
-        Expanded(child: SizedBox()),
-        makeTextContainer(messages[0]),
-        Expanded(child: SizedBox()),
+        spacer,
+        makeTextContainer(messages[2], Offset(0, layout.edgePx)),
+        spacer,
       ]),
-      SizedBox(height: layout.edgePx * 2.25),
       Expanded(child: Row(children: [
-        makeTextContainer(messages[1]),
-        Expanded(child: SizedBox()),
-        makeTextContainer(messages[2]),
+        const SizedBox(width: 5),
+        makeTextContainer(messages[1], Offset(0, layout.edgePx * 1.25)),
+        spacer,
+        makeTextContainer(messages[3], Offset(0, layout.edgePx * 1.25)),
+        const SizedBox(width: 5),
       ])),
       Row(children: [
-        Expanded(child: SizedBox()),
-        makeTextContainer(messages[3]),
-        Expanded(child: SizedBox()),
+        spacer,
+        makeTextContainer(messages[0], Offset(0, -layout.edgePx / 2)),
+        spacer,
       ]),
-      SizedBox(height: layout.edgePx),
     ]);
   }
 }
@@ -534,7 +538,7 @@ class TrickCards extends StatelessWidget {
   }
 }
 
-LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<PlayingCard> cards) {
+LinkedHashMap<PlayingCard, Rect> playerHandCardRects0(Layout layout, List<PlayingCard> cards) {
   final rects = LinkedHashMap<PlayingCard, Rect>();
   final cardWidthFrac = 0.1875;
   final cardOverlapWidthFrac = 0.125;
@@ -581,10 +585,44 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<Playing
   return rects;
 }
 
+LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<PlayingCard> cards) {
+  final rects = LinkedHashMap<PlayingCard, Rect>();
+  const cardAspectRatio = 500.0 / 726;
+  const cardHeightFrac = 0.2;
+  const cardOverlapFraction = 1.0 / 3;
+  const upperRowHeightFracStart = 0.69;
+  const lowerRowHeightFracStart = 0.79;
+  const singleRowHeightFracStart = 0.74;
+  final ds = layout.displaySize;
+  final cardHeight = ds.height * cardHeightFrac;
+  final cardWidth = cardHeight * cardAspectRatio;
+
+  List sortedCards = [
+    ...sortedCardsInSuit(cards, Suit.hearts),
+    ...sortedCardsInSuit(cards, Suit.spades),
+    ...sortedCardsInSuit(cards, Suit.diamonds),
+    ...sortedCardsInSuit(cards, Suit.clubs),
+  ];
+  final oneRowWidth = cardWidth * (1 + ((1 - cardOverlapFraction) * (sortedCards.length - 1)));
+  if (oneRowWidth < 0.95 * ds.width) {
+    // Show all cards in a single row.
+    final startX = (ds.width - oneRowWidth) / 2;
+    final startY = singleRowHeightFracStart * ds.height;
+    for (int i = 0; i < sortedCards.length; i++) {
+      final x = startX + i * (cardWidth * (1 - cardOverlapFraction));
+      final r = Rect.fromLTWH(x, startY, cardWidth, cardHeight);
+      rects[sortedCards[i]] = r;
+    }
+    return rects;
+  }
+  return playerHandCardRects0(layout, cards);
+}
+
+
 Layout computeLayout(BuildContext context) {
   final ds = MediaQuery.of(context).size;
   return Layout()
     ..displaySize = ds
-    ..edgePx = max(ds.width / 20, ds.height / 15)
+    ..edgePx = min(ds.width / 10, ds.height / 10)
   ;
 }

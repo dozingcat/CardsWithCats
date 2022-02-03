@@ -44,10 +44,11 @@ class SpadesMatchDisplay extends StatefulWidget {
 class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
-  var showPostBidDialog = false;
+  bool showPostBidDialog = false;
   var aiMode = AiMode.human_player_0;
-  var currentBidder = 0;
+  int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
+  bool showScoreOverlay = false;
   late SpadesMatch match;
   late StreamSubscription matchUpdateSubscription;
 
@@ -281,6 +282,29 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     );
   }
 
+  List<String> _currentRoundScoreMessages() {
+    int teamScore(int p) {
+      return round.initialScores[p % round.rules.numTeams];
+    }
+    if (round.status == SpadesRoundStatus.bidding) {
+      return List.generate(round.rules.numPlayers, (i) => "Score: ${teamScore(i)}");
+    }
+    final messages = <String>[];
+    for (int i = 0; i < round.rules.numPlayers; i++) {
+      final tricksTaken = round.previousTricks.where((t) => t.winner == i).length;
+      messages.add("Score: ${teamScore(i)}\nBid ${round.players[i].bid}, Took $tricksTaken");
+    }
+    return messages;
+  }
+
+  bool shouldShowScoreOverlay() {
+    return showScoreOverlay && !widget.dialogVisible && !round.isOver();
+  }
+
+  bool shouldShowScoreOverlayToggle() {
+    return !widget.dialogVisible && !round.isOver();
+  }
+
   bool _isWaitingForHumanBid() {
     return (
         round.status == SpadesRoundStatus.bidding &&
@@ -338,6 +362,16 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     widget.mainMenuFn();
   }
 
+  Widget scoreOverlayButton() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(10, 80, 10, 10),
+      child: FloatingActionButton(
+        onPressed: () {setState(() {showScoreOverlay = !showScoreOverlay;});},
+        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -356,6 +390,10 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         ),
         ...bidSpeechBubbles(layout),
         PlayerMoods(layout: layout, moods: playerMoods),
+        if (shouldShowScoreOverlay())
+          PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
+        if (shouldShowScoreOverlayToggle())
+          scoreOverlayButton(),
         Text("${round.dealer.toString()} ${round.status}, ${round.players.map((p) => p.bid).toList()} ${_isWaitingForHumanBid()} ${match.scores}"),
       ],
     );

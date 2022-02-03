@@ -49,7 +49,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
   Map<int, Mood> playerMoods = {};
-  bool showScoreOverlay = true;
+  bool showScoreOverlay = false;
   late StreamSubscription matchUpdateSubscription;
 
   HeartsRound get round => match.currentRound;
@@ -297,6 +297,10 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return showScoreOverlay && !widget.dialogVisible && !round.isOver();
   }
 
+  bool shouldShowScoreOverlayToggle() {
+    return !widget.dialogVisible && !round.isOver();
+  }
+
   bool _shouldShowNoPassingMessage() {
     return round.passDirection == 0 &&
         round.previousTricks.isEmpty && round.currentTrick.cards.isEmpty;
@@ -314,6 +318,16 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   void _showMainMenuAfterMatch() {
     widget.saveMatchFn(null);
     widget.mainMenuFn();
+  }
+
+  Widget scoreOverlayButton() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(10, 80, 10, 10),
+      child: FloatingActionButton(
+        onPressed: () {setState(() {showScoreOverlay = !showScoreOverlay;});},
+        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
+      ),
+    );
   }
 
   @override
@@ -339,6 +353,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
+        if (shouldShowScoreOverlayToggle())
+          scoreOverlayButton(),
         Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );
@@ -470,7 +486,7 @@ class EndOfRoundDialog extends StatelessWidget {
                         _paddingAll(cellPad, headerCell("North")),
                         _paddingAll(cellPad, headerCell("East")),
                       ]),
-                      pointsRow("Previous points", match.currentRound.initialScores),
+                      pointsRow("Previous", match.currentRound.initialScores),
                       pointsRow("Round points", scores),
                       pointsRow("Total points", match.scores),
                     ],
