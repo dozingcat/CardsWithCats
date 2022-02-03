@@ -397,6 +397,8 @@ class PlayerMessagesOverlay extends StatelessWidget {
     }
 
     const spacer = Expanded(child: SizedBox());
+    // This is based on the text container being about 64px high.
+    final sidePushdownPx = layout.edgePx * 0.75 + 32;
     return Column(children: [
       Row(children: [
         spacer,
@@ -405,9 +407,9 @@ class PlayerMessagesOverlay extends StatelessWidget {
       ]),
       Expanded(child: Row(children: [
         const SizedBox(width: 5),
-        makeTextContainer(messages[1], Offset(0, layout.edgePx * 1.25)),
+        makeTextContainer(messages[1], Offset(0, sidePushdownPx)),
         spacer,
-        makeTextContainer(messages[3], Offset(0, layout.edgePx * 1.25)),
+        makeTextContainer(messages[3], Offset(0, sidePushdownPx)),
         const SizedBox(width: 5),
       ])),
       Row(children: [
@@ -538,53 +540,6 @@ class TrickCards extends StatelessWidget {
   }
 }
 
-LinkedHashMap<PlayingCard, Rect> playerHandCardRects0(Layout layout, List<PlayingCard> cards) {
-  final rects = LinkedHashMap<PlayingCard, Rect>();
-  final cardWidthFrac = 0.1875;
-  final cardOverlapWidthFrac = 0.125;
-  final totalWidthFrac = (int n) => cardWidthFrac + (n - 1) * cardOverlapWidthFrac;
-  final cardWidth = cardWidthFrac * layout.displaySize.width;
-
-  final cardHeightFrac = 0.2;
-  final cardHeight = cardHeightFrac * layout.displaySize.height;
-
-  final upperRowHeightFracStart = 0.69;
-  final lowerRowHeightFracStart = 0.79;
-
-  List sortedCards = [
-    ...sortedCardsInSuit(cards, Suit.hearts),
-    ...sortedCardsInSuit(cards, Suit.spades),
-    ...sortedCardsInSuit(cards, Suit.diamonds),
-    ...sortedCardsInSuit(cards, Suit.clubs),
-  ];
-
-  if (sortedCards.length > 7) {
-    final numUpperCards = (sortedCards.length + 1) ~/ 2;
-    final numLowerCards = sortedCards.length - numUpperCards;
-    final upperWidthFrac = totalWidthFrac(numUpperCards);
-    final upperStartX = 0.5 - upperWidthFrac / 2;
-    for (int i = 0; i < numUpperCards; i++) {
-      final left = (upperStartX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
-      final top = upperRowHeightFracStart * layout.displaySize.height;
-      rects[sortedCards[i]] = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-    }
-    for (int i = 0; i < numLowerCards; i++) {
-      final left = (upperStartX + (cardOverlapWidthFrac * (i + 0.5))) * layout.displaySize.width;
-      final top = lowerRowHeightFracStart * layout.displaySize.height;
-      rects[sortedCards[numUpperCards + i]] = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-    }
-  }
-  else {
-    final startX = 0.5 - totalWidthFrac(sortedCards.length) / 2;
-    for (int i = 0; i < sortedCards.length; i++) {
-      final left = (startX + (cardOverlapWidthFrac * i)) * layout.displaySize.width;
-      final top = lowerRowHeightFracStart * layout.displaySize.height;
-      rects[sortedCards[i]] = Rect.fromLTWH(left, top, cardWidth, cardHeight);
-    }
-  }
-  return rects;
-}
-
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<PlayingCard> cards) {
   final rects = LinkedHashMap<PlayingCard, Rect>();
   const cardAspectRatio = 500.0 / 726;
@@ -596,6 +551,10 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<Playing
   final ds = layout.displaySize;
   final cardHeight = ds.height * cardHeightFrac;
   final cardWidth = cardHeight * cardAspectRatio;
+  final pxBetweenCards = cardWidth * (1 - cardOverlapFraction);
+  final maxAllowedTotalWidth = 0.95 * ds.width;
+
+  double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
 
   List sortedCards = [
     ...sortedCardsInSuit(cards, Suit.hearts),
@@ -603,21 +562,50 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<Playing
     ...sortedCardsInSuit(cards, Suit.diamonds),
     ...sortedCardsInSuit(cards, Suit.clubs),
   ];
-  final oneRowWidth = cardWidth * (1 + ((1 - cardOverlapFraction) * (sortedCards.length - 1)));
-  if (oneRowWidth < 0.95 * ds.width) {
+  final oneRowWidth = widthOfNCards(sortedCards.length);
+  if (oneRowWidth < maxAllowedTotalWidth) {
     // Show all cards in a single row.
     final startX = (ds.width - oneRowWidth) / 2;
     final startY = singleRowHeightFracStart * ds.height;
     for (int i = 0; i < sortedCards.length; i++) {
-      final x = startX + i * (cardWidth * (1 - cardOverlapFraction));
+      final x = startX + i * pxBetweenCards;
       final r = Rect.fromLTWH(x, startY, cardWidth, cardHeight);
       rects[sortedCards[i]] = r;
     }
     return rects;
   }
-  return playerHandCardRects0(layout, cards);
+  final numLowerCards = sortedCards.length ~/ 2;
+  final numUpperCards = sortedCards.length - numLowerCards;
+  double twoRowWidth = widthOfNCards(numUpperCards);
+  // Lower row is offset by half of cardOverlapFraction, so if it has the same
+  // number of cards as the top row it extends the total width.
+  if (numLowerCards == numUpperCards) {
+    twoRowWidth += pxBetweenCards / 2;
+  }
+  final topStartX = (ds.width - twoRowWidth) / 2;
+  final bottomStartX = topStartX + pxBetweenCards / 2;
+  final topStartY = upperRowHeightFracStart * ds.height;
+  final bottomStartY = lowerRowHeightFracStart * ds.height;
+  final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth);
+  final scaledCardWidth = scale * cardWidth;
+  final scaledCardHeight = scale * cardHeight;
+  final midX = ds.width / 2;
+  for (int i = 0; i < numUpperCards; i++) {
+    double baseLeft = topStartX + i * pxBetweenCards;
+    double scaledLeft = midX + (baseLeft - midX) * scale;
+    // adjust Y for scale?
+    final r = Rect.fromLTWH(scaledLeft, topStartY, scaledCardWidth, scaledCardHeight);
+    rects[sortedCards[i]] = r;
+  }
+  for (int i = 0; i < numLowerCards; i++) {
+    double baseLeft = bottomStartX + i * pxBetweenCards;
+    double scaledLeft = midX + (baseLeft - midX) * scale;
+    // adjust Y for scale?
+    final r = Rect.fromLTWH(scaledLeft, bottomStartY, scaledCardWidth, scaledCardHeight);
+    rects[sortedCards[numUpperCards + i]] = r;
+  }
+  return rects;
 }
-
 
 Layout computeLayout(BuildContext context) {
   final ds = MediaQuery.of(context).size;
