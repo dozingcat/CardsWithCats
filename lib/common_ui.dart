@@ -120,12 +120,19 @@ class PositionedCard extends StatelessWidget {
 class AiPlayerImage extends StatelessWidget {
   final Layout layout;
   final int playerIndex;
+  final int? catImageIndex;
 
-  const AiPlayerImage({Key? key, required this.layout, required this.playerIndex}): super(key: key);
+  const AiPlayerImage({
+    Key? key,
+    required this.layout,
+    required this.playerIndex,
+    this.catImageIndex,
+  }): super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final imagePath = "assets/cats/cat${playerIndex + 1}.png";
+    final imageIndex = (catImageIndex != null) ? catImageIndex! : playerIndex;
+    final imagePath = "assets/cats/cat${imageIndex + 1}.png";
     const imageAspectRatio = 156 / 112;
     final displaySize = layout.displaySize;
     final playerSize = layout.edgePx;
@@ -319,7 +326,7 @@ class MoodBubble extends StatelessWidget {
         width: imageWidth,
         height: imageHeight,
 
-        child: Stack(children: [
+        child: Opacity(opacity: 0.8, child: Stack(children: [
           SizedBox(
             width: imageWidth,
             height: imageHeight,
@@ -340,7 +347,7 @@ class MoodBubble extends StatelessWidget {
             ),
           ),
         ],
-        ));
+        )));
   }
 }
 
@@ -397,9 +404,13 @@ class PlayerMessagesOverlay extends StatelessWidget {
     }
 
     const spacer = Expanded(child: SizedBox());
-    // This is based on the text container being about 64px high.
+    // Get approximate height of the containers so we can position them accurately.
+    final messageLineCounts = [...messages.map((m) => m.split("\n").length)];
+    final approxContainerHeights = [...messageLineCounts.map((n) => 24 + 20 * n)];
+    final p1Offset = Offset(0, layout.edgePx * 0.75 + approxContainerHeights[1] / 2);
+    final p3Offset = Offset(0, layout.edgePx * 0.75 + approxContainerHeights[3] / 2);
     final sidePushdownPx = layout.edgePx * 0.75 + 32;
-    return Column(children: [
+    final overlays = Column(children: [
       Row(children: [
         spacer,
         makeTextContainer(messages[2], Offset(0, layout.edgePx)),
@@ -407,9 +418,9 @@ class PlayerMessagesOverlay extends StatelessWidget {
       ]),
       Expanded(child: Row(children: [
         const SizedBox(width: 5),
-        makeTextContainer(messages[1], Offset(0, sidePushdownPx)),
+        makeTextContainer(messages[1], p1Offset),
         spacer,
-        makeTextContainer(messages[3], Offset(0, sidePushdownPx)),
+        makeTextContainer(messages[3], p3Offset),
         const SizedBox(width: 5),
       ])),
       Row(children: [
@@ -418,6 +429,15 @@ class PlayerMessagesOverlay extends StatelessWidget {
         spacer,
       ]),
     ]);
+
+    return TweenAnimationBuilder(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 250),
+      child: overlays,
+      builder: (BuildContext context, double opacity, Widget? child) {
+        return Opacity(opacity: opacity, child: child);
+      },
+    );
   }
 }
 
@@ -584,11 +604,11 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<Playing
   }
   final topStartX = (ds.width - twoRowWidth) / 2;
   final bottomStartX = topStartX + pxBetweenCards / 2;
-  final topStartY = upperRowHeightFracStart * ds.height;
-  final bottomStartY = lowerRowHeightFracStart * ds.height;
   final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth);
   final scaledCardWidth = scale * cardWidth;
   final scaledCardHeight = scale * cardHeight;
+  final topStartY = upperRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight);
+  final bottomStartY = lowerRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight) / 2;
   final midX = ds.width / 2;
   for (int i = 0; i < numUpperCards; i++) {
     double baseLeft = topStartX + i * pxBetweenCards;
@@ -611,6 +631,6 @@ Layout computeLayout(BuildContext context) {
   final ds = MediaQuery.of(context).size;
   return Layout()
     ..displaySize = ds
-    ..edgePx = min(ds.width / 10, ds.height / 10)
+    ..edgePx = ds.shortestSide * 0.125
   ;
 }

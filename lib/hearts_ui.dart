@@ -355,7 +355,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
         if (shouldShowScoreOverlayToggle())
           scoreOverlayButton(),
-        Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
+        // Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );
   }
@@ -434,20 +434,21 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final tableFontSize = layout.dialogBaseFontSize();
+    final headerFontSize = layout.dialogBaseFontSize() * 0.9;
+    final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
     const cellPad = 4.0;
 
     Widget pointsCell(Object p) => _paddingAll(
         cellPad,
         Text(p.toString(),
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: tableFontSize)));
+            style: TextStyle(fontSize: pointsFontSize)));
 
     Widget headerCell(String msg) => _paddingAll(
         cellPad,
         Text(msg,
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: tableFontSize*0.9, fontWeight: FontWeight.bold)));
+            style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
       _paddingAll(cellPad, headerCell(title)),

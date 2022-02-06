@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,8 +14,11 @@ import 'common_ui.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
+const appTitle = "Cat Card Cafe";
+
 void main() {
   runApp(const MyApp());
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
 }
 
 class MyApp extends StatelessWidget {
@@ -25,7 +27,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CatTricks',
+      title: appTitle,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -49,11 +51,18 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+List<int> randomizedCatImageIndices(Random rng) {
+  final indices = [0, 1, 2, 3];
+  indices.shuffle(rng);
+  return indices;
+}
+
 enum GameType {none, hearts, spades}
 
 enum DialogMode {none, mainMenu, preferences}
 
 class _MyHomePageState extends State<MyHomePage> {
+  final rng = Random();
   var loaded = false;
   var matchType = GameType.none;
   late final SharedPreferences preferences;
@@ -62,9 +71,11 @@ class _MyHomePageState extends State<MyHomePage> {
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   final matchUpdateNotifier = StreamController.broadcast();
+  List<int> catIndices = [0, 1, 2, 3];
 
   @override void initState() {
     super.initState();
+    catIndices = randomizedCatImageIndices(rng);
     _readPreferences();
   }
 
@@ -167,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (preferences.getString("matchType") == "hearts") {
       String? json = preferences.getString("heartsMatch");
       if (json != null) {
-        return HeartsMatch.fromJson(jsonDecode(json), Random());
+        return HeartsMatch.fromJson(jsonDecode(json), rng);
       }
     }
     return _createHeartsMatch();
@@ -177,17 +188,19 @@ class _MyHomePageState extends State<MyHomePage> {
     if (preferences.getString("matchType") == "spades") {
       String? json = preferences.getString("spadesMatch");
       if (json != null) {
-        return SpadesMatch.fromJson(jsonDecode(json), Random());
+        return SpadesMatch.fromJson(jsonDecode(json), rng);
       }
     }
     return _createSpadesMatch();
   }
 
   HeartsMatch _createHeartsMatch() {
-    return HeartsMatch(heartsRulesFromPrefs, Random());
+    catIndices = randomizedCatImageIndices(rng);
+    return HeartsMatch(heartsRulesFromPrefs, rng);
   }
 
   SpadesMatch _createSpadesMatch() {
+    catIndices = randomizedCatImageIndices(rng);
     return SpadesMatch(spadesRulesFromPrefs, Random());
   }
 
@@ -309,9 +322,9 @@ class _MyHomePageState extends State<MyHomePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _paddingAll(10, Text(
-            "CardCats",
+            appTitle,
             style: TextStyle(
-              fontSize: min(minDim / 18, 40),
+              fontSize: min(minDim / 15, 40),
             )
           )),
           _paddingAll(10, Table(
@@ -332,7 +345,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
-    final baseFontSize = 18.0;
+    const baseFontSize = 18.0;
 
     Widget makeHeartsRuleCheckboxRow(String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
@@ -439,7 +452,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       body: Stack(children: [
         _gameTable(layout),
-        ...[1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i)),
+        ...[1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
         if (matchType == GameType.hearts) HeartsMatchDisplay(
           initialMatchFn: _initialHeartsMatch,
           createMatchFn: _createHeartsMatch,
