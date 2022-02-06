@@ -36,12 +36,16 @@ class Layout {
   Rect trickCardAreaForPlayer(int playerIndex) {
     final ca = cardArea();
     final cs = baseCardSize();
-    final centerXFrac = (playerIndex == 1) ?
-    0.25 :
-    (playerIndex == 3) ? 0.75 : 0.5;
-    final centerYFrac = (playerIndex == 0) ?
-    0.75 :
-    (playerIndex == 2) ? 0.25 : 0.5;
+    final centerXFrac = (playerIndex == 1)
+        ? 0.25
+        : (playerIndex == 3)
+            ? 0.75
+            : 0.5;
+    final centerYFrac = (playerIndex == 0)
+        ? 0.75
+        : (playerIndex == 2)
+            ? 0.25
+            : 0.5;
     final centerX = ca.left + ca.width * centerXFrac;
     final centerY = ca.top + ca.height * centerYFrac;
     return Rect.fromLTWH(centerX - cs.width / 2, centerY - cs.height / 2, cs.width, cs.height);
@@ -65,7 +69,7 @@ class Layout {
             center: Offset(w / 2, -cardHeight / 2), width: cardWidth, height: cardHeight);
       case 3:
         return Rect.fromCenter(
-            center: Offset(w  + cardWidth / 2, h / 2), width: cardWidth, height: cardHeight);
+            center: Offset(w + cardWidth / 2, h / 2), width: cardWidth, height: cardHeight);
       default:
         throw Exception("Bad player index: $playerIndex");
     }
@@ -92,7 +96,7 @@ class PositionedCard extends StatelessWidget {
     required this.card,
     required this.onCardClicked,
     this.opacity = 1.0,
-  }): super(key: key);
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -103,12 +107,15 @@ class PositionedCard extends StatelessWidget {
         child: GestureDetector(
             onTapDown: (tap) => onCardClicked(card),
             child: Stack(children: [
-              if (opacity < 1) const Center(child: Image(
-                image: AssetImage(backgroundImagePath),
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-              )),
-              Center(child: Image(
+              if (opacity < 1)
+                const Center(
+                    child: Image(
+                  image: AssetImage(backgroundImagePath),
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                )),
+              Center(
+                  child: Image(
                 color: Color.fromRGBO(255, 255, 255, opacity),
                 colorBlendMode: BlendMode.modulate,
                 image: AssetImage(cardImagePath),
@@ -127,7 +134,7 @@ class AiPlayerImage extends StatelessWidget {
     required this.layout,
     required this.playerIndex,
     this.catImageIndex,
-  }): super(key: key);
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -162,11 +169,15 @@ class AiPlayerImage extends StatelessWidget {
         height: rect.height,
         // The image won't naturally take up the full width If rotated 90 degrees,
         // so in that case scale by the aspect ratio.
-        child: Transform.scale(scale: scale, child: Transform.rotate(angle: angle, child: Image(
-          image: AssetImage(imagePath),
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-        ))),
+        child: Transform.scale(
+            scale: scale,
+            child: Transform.rotate(
+                angle: angle,
+                child: Image(
+                  image: AssetImage(imagePath),
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                ))),
       ),
 
       // child: Text("Hello $playerNum"),
@@ -223,31 +234,35 @@ class SpeechBubble extends StatelessWidget {
     }
 
     return Positioned(
-      top: top,
-      left: left,
-      width: imageWidth,
-      height: imageHeight,
-
-      child: Stack(children: [
-        SizedBox(
-          width: imageWidth,
-          height: imageHeight,
-          child: Transform(alignment: Alignment.center, transform: transform, child: const Image(
-            image: AssetImage(imagePath),
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-          )),
-        ),
-        Center(child: Column(children: [
-          SizedBox(height: imageHeight * (playerIndex == 2 ? 0.33: 0.06)),
-          Text(message, style: TextStyle(fontSize: fontSize)),
-        ])),
-      ],
-    ));
+        top: top,
+        left: left,
+        width: imageWidth,
+        height: imageHeight,
+        child: Stack(
+          children: [
+            SizedBox(
+              width: imageWidth,
+              height: imageHeight,
+              child: Transform(
+                  alignment: Alignment.center,
+                  transform: transform,
+                  child: const Image(
+                    image: AssetImage(imagePath),
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                  )),
+            ),
+            Center(
+                child: Column(children: [
+              SizedBox(height: imageHeight * (playerIndex == 2 ? 0.33 : 0.06)),
+              Text(message, style: TextStyle(fontSize: fontSize)),
+            ])),
+          ],
+        ));
   }
 }
 
-enum Mood {happy, veryHappy, mad}
+enum Mood { happy, veryHappy, mad }
 
 class MoodBubble extends StatelessWidget {
   final Layout layout;
@@ -325,29 +340,34 @@ class MoodBubble extends StatelessWidget {
         left: left,
         width: imageWidth,
         height: imageHeight,
-
-        child: Opacity(opacity: 0.8, child: Stack(children: [
-          SizedBox(
-            width: imageWidth,
-            height: imageHeight,
-            child: Transform(alignment: Alignment.center, transform: transform, child: const Image(
-              image: AssetImage(bubbleImagePath),
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
-            )),
-          ),
-          Positioned(
-            top: moodYFrac * imageHeight,
-            left: moodXFrac * imageWidth,
-            width: moodSize,
-            height: moodSize,
-            child: Image(
-              image: AssetImage(_moodImagePath()),
-              fit: BoxFit.contain,
-            ),
-          ),
-        ],
-        )));
+        child: Opacity(
+            opacity: 0.8,
+            child: Stack(
+              children: [
+                SizedBox(
+                  width: imageWidth,
+                  height: imageHeight,
+                  child: Transform(
+                      alignment: Alignment.center,
+                      transform: transform,
+                      child: const Image(
+                        image: AssetImage(bubbleImagePath),
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                      )),
+                ),
+                Positioned(
+                  top: moodYFrac * imageHeight,
+                  left: moodXFrac * imageWidth,
+                  width: moodSize,
+                  height: moodSize,
+                  child: Image(
+                    image: AssetImage(_moodImagePath()),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ],
+            )));
   }
 }
 
@@ -355,17 +375,19 @@ class PlayerMoods extends StatelessWidget {
   final Layout layout;
   final Map<int, Mood> moods;
 
-  const PlayerMoods({Key? key, required this.layout, required this.moods}): super(key: key);
+  const PlayerMoods({Key? key, required this.layout, required this.moods}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     if (moods.isEmpty) return Container();
     final nonHuman = moods.entries.where((elem) => elem.key != 0);
-    final moodWidgets = Stack(children: [...nonHuman.map((elem) => MoodBubble(
-      layout: layout,
-      playerIndex: elem.key,
-      mood: elem.value,
-    ))]);
+    final moodWidgets = Stack(children: [
+      ...nonHuman.map((elem) => MoodBubble(
+            layout: layout,
+            playerIndex: elem.key,
+            mood: elem.value,
+          ))
+    ]);
 
     return TweenAnimationBuilder(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -381,26 +403,28 @@ class PlayerMessagesOverlay extends StatelessWidget {
   final Layout layout;
   final List<String> messages;
 
-  const PlayerMessagesOverlay({Key? key, required this.layout, required this.messages}): super(key: key);
+  const PlayerMessagesOverlay({Key? key, required this.layout, required this.messages})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     Widget makeTextContainer(String msg, Offset offset) {
-      return Transform.translate(offset: offset, child: Container(
-          decoration: BoxDecoration(
-              color: const Color.fromARGB(208, 255, 255, 255),
-              border: Border.all(
-                color: const Color.fromARGB(128, 0, 0, 0),
-              ),
-              borderRadius: const BorderRadius.all(Radius.circular(20))
-          ),
-          child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Text(msg,
-                  style: const TextStyle(
-                      color: Color.fromARGB(224, 0, 0, 0),
-                      fontSize: 18,
-                  )))));
+      return Transform.translate(
+          offset: offset,
+          child: Container(
+              decoration: BoxDecoration(
+                  color: const Color.fromARGB(208, 255, 255, 255),
+                  border: Border.all(
+                    color: const Color.fromARGB(128, 0, 0, 0),
+                  ),
+                  borderRadius: const BorderRadius.all(Radius.circular(20))),
+              child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(msg,
+                      style: const TextStyle(
+                        color: Color.fromARGB(224, 0, 0, 0),
+                        fontSize: 18,
+                      )))));
     }
 
     const spacer = Expanded(child: SizedBox());
@@ -416,7 +440,8 @@ class PlayerMessagesOverlay extends StatelessWidget {
         makeTextContainer(messages[2], Offset(0, layout.edgePx)),
         spacer,
       ]),
-      Expanded(child: Row(children: [
+      Expanded(
+          child: Row(children: [
         const SizedBox(width: 5),
         makeTextContainer(messages[1], p1Offset),
         spacer,
@@ -461,7 +486,7 @@ class TrickCards extends StatelessWidget {
     required this.onTrickCardAnimationFinished,
     required this.onTrickToWinnerAnimationFinished,
     this.humanPlayerHand,
-  }): super(key: key);
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -473,19 +498,16 @@ class TrickCards extends StatelessWidget {
       if (animationMode == AnimationMode.moving_trick_card) {
         cardWidgets.addAll(_trickCardsWithLastAnimating(
             layout, currentTrick.leader, numPlayers, currentTrick.cards));
+      } else {
+        cardWidgets
+            .addAll(_staticTrickCards(layout, currentTrick.leader, numPlayers, currentTrick.cards));
       }
-      else {
-        cardWidgets.addAll(_staticTrickCards(
-            layout, currentTrick.leader, numPlayers, currentTrick.cards));
-      }
-    }
-    else if (previousTricks.isNotEmpty) {
+    } else if (previousTricks.isNotEmpty) {
       final trick = previousTricks.last;
       if (animationMode == AnimationMode.moving_trick_card) {
-        cardWidgets.addAll(_trickCardsWithLastAnimating(
-            layout, trick.leader, numPlayers, trick.cards));
-      }
-      else {
+        cardWidgets
+            .addAll(_trickCardsWithLastAnimating(layout, trick.leader, numPlayers, trick.cards));
+      } else {
         // Finished animating trick to winner, don't show any cards.
       }
     }
@@ -511,7 +533,7 @@ class TrickCards extends StatelessWidget {
       final Layout layout, int leader, int numPlayers, List<PlayingCard> cards) {
     final cardsWithoutLast = cards.sublist(0, cards.length - 1);
     List<Widget> cardWidgets =
-    List.of(_staticTrickCards(layout, leader, numPlayers, cardsWithoutLast));
+        List.of(_staticTrickCards(layout, leader, numPlayers, cardsWithoutLast));
     final animPlayer = (leader + cards.length - 1) % numPlayers;
     final endRect = layout.trickCardAreaForPlayer(animPlayer);
     var startRect = layout.cardOriginAreaForPlayer(animPlayer);
@@ -528,8 +550,7 @@ class TrickCards extends StatelessWidget {
         onEnd: onTrickCardAnimationFinished,
         builder: (BuildContext context, double frac, Widget? child) {
           final animRect = Rect.lerp(startRect, endRect, frac)!;
-          return PositionedCard(
-              rect: animRect, card: cards.last, onCardClicked: (_) => {});
+          return PositionedCard(rect: animRect, card: cards.last, onCardClicked: (_) => {});
         }));
 
     return cardWidgets;
@@ -550,10 +571,10 @@ class TrickCards extends StatelessWidget {
             int p = (trick.leader + i) % trick.cards.length;
             final startRect = layout.trickCardAreaForPlayer(p);
             final center = startRect.center + (endRect.center - startRect.center) * max(0, t);
-            Rect animRect = Rect.fromCenter(
-                center: center, width: endRect.width, height: endRect.height);
-            cardWidgets.add(PositionedCard(
-                rect: animRect, card: trick.cards[i], onCardClicked: (_) => {}));
+            Rect animRect =
+                Rect.fromCenter(center: center, width: endRect.width, height: endRect.height);
+            cardWidgets.add(
+                PositionedCard(rect: animRect, card: trick.cards[i], onCardClicked: (_) => {}));
           }
           return Stack(children: cardWidgets);
         });
@@ -631,6 +652,5 @@ Layout computeLayout(BuildContext context) {
   final ds = MediaQuery.of(context).size;
   return Layout()
     ..displaySize = ds
-    ..edgePx = ds.shortestSide * 0.125
-  ;
+    ..edgePx = ds.shortestSide * 0.125;
 }

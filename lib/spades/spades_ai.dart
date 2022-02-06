@@ -12,7 +12,11 @@ class BidRequest {
   final List<int> otherBids;
   final List<PlayingCard> hand;
 
-  BidRequest({required this.rules, required this.scoresBeforeRound, required this.otherBids, required this.hand});
+  BidRequest(
+      {required this.rules,
+      required this.scoresBeforeRound,
+      required this.otherBids,
+      required this.hand});
 }
 
 class CardToPlayRequest {
@@ -32,8 +36,7 @@ class CardToPlayRequest {
     required this.bids,
   });
 
-  static CardToPlayRequest fromRound(final SpadesRound round) =>
-      CardToPlayRequest(
+  static CardToPlayRequest fromRound(final SpadesRound round) => CardToPlayRequest(
         rules: round.rules.copy(),
         scoresBeforeRound: List.from(round.initialScores),
         hand: List.from(round.currentPlayer().hand),
@@ -97,7 +100,7 @@ double _estimatedTricksForNonspades(List<Rank> ranks) {
           return 1 * scale;
       }
     case Rank.king:
-      switch(ranks[1]) {
+      switch (ranks[1]) {
         case Rank.queen:
           return 1.1 * scale;
         case Rank.jack:
@@ -123,18 +126,20 @@ double _estimatedTricksForSpades(List<Rank> ranks) {
   double gapPenalty = 0;
   for (int i = 0; i < numRanksToCheck; i++) {
     gaps += previousTopRankIndex - ranks[i].index - 1;
-    gapPenalty +=
-        (gaps == 0) ? 0 :
-        (gaps == 1) ? 0.4 :
-        (gaps == 2) ? 0.8 : 1;
+    gapPenalty += (gaps == 0)
+        ? 0
+        : (gaps == 1)
+            ? 0.4
+            : (gaps == 2)
+                ? 0.8
+                : 1;
   }
   return ranks.length - gapPenalty;
 }
 
 // match equity, bidding, playing.
 int chooseBid(BidRequest req) {
-  double estimatedTricks =
-      _estimatedTricksForSpades(sortedRanksInSuit(req.hand, Suit.spades)) +
+  double estimatedTricks = _estimatedTricksForSpades(sortedRanksInSuit(req.hand, Suit.spades)) +
       _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.hearts)) +
       _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.diamonds)) +
       _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.clubs));
@@ -187,15 +192,13 @@ PlayingCard _lowDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Ran
   for (int i = 0; i < legalPlays.length; i++) {
     if (legalPlays[i].suit == Suit.spades) {
       anySpades = true;
-    }
-    else {
+    } else {
       allSpades = false;
     }
   }
   if (allSpades || !anySpades) {
     return minCardByRank(legalPlays);
-  }
-  else {
+  } else {
     return minCardByRank([...legalPlays.where((c) => c.suit != Suit.spades)]);
   }
 }
@@ -206,15 +209,13 @@ PlayingCard _highDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Ra
   for (int i = 0; i < legalPlays.length; i++) {
     if (legalPlays[i].suit == Suit.spades) {
       anySpades = true;
-    }
-    else {
+    } else {
       allSpades = false;
     }
   }
   if (allSpades || !anySpades) {
     return maxCardByRank(legalPlays);
-  }
-  else {
+  } else {
     return maxCardByRank([...legalPlays.where((c) => c.suit != Suit.spades)]);
   }
 }
@@ -233,16 +234,14 @@ PlayingCard _avoidTakingTrick(CardToPlayRequest req, List<PlayingCard> legalPlay
         if (lowestAbove == null || c.rank.isLowerThan(lowestAbove.rank)) {
           lowestAbove = c;
         }
-      }
-      else {
+      } else {
         if (highestBelow == null || c.rank.isHigherThan(highestBelow.rank)) {
           highestBelow = c;
         }
       }
     }
     return highestBelow ?? lowestAbove!;
-  }
-  else if (highCard.suit == Suit.spades) {
+  } else if (highCard.suit == Suit.spades) {
     PlayingCard? bestLowerSpade;
     for (final c in legalPlays) {
       if (c.suit == Suit.spades && c.rank.isLowerThan(highCard.rank)) {
@@ -252,8 +251,7 @@ PlayingCard _avoidTakingTrick(CardToPlayRequest req, List<PlayingCard> legalPlay
       }
     }
     return bestLowerSpade ?? _highDiscard(req, legalPlays, rng);
-  }
-  else {
+  } else {
     return _highDiscard(req, legalPlays, rng);
   }
 }
@@ -280,23 +278,22 @@ PlayingCard _highestIfCanWinOrLowest(List<PlayingCard> legalPlays, PlayingCard c
   return maxCard.rank.isHigherThan(currentHigh.rank) ? maxCard : minCardByRank(legalPlays);
 }
 
-PlayingCard _lowestWinnerOrLowest(CardToPlayRequest req, List<PlayingCard> legalPlays, PlayingCard highCard, Random rng) {
+PlayingCard _lowestWinnerOrLowest(
+    CardToPlayRequest req, List<PlayingCard> legalPlays, PlayingCard highCard, Random rng) {
   if (highCard.suit == Suit.spades) {
-    final higherSpades = legalPlays.where(
-            (c) => c.suit == Suit.spades && c.rank.isHigherThan(highCard.rank));
+    final higherSpades =
+        legalPlays.where((c) => c.suit == Suit.spades && c.rank.isHigherThan(highCard.rank));
     if (higherSpades.isNotEmpty) {
       return minCardByRank([...higherSpades]);
     }
-  }
-  else {
+  } else {
     if (legalPlays[0].suit == highCard.suit) {
       // legalPlays should all be same suit.
       final higherInSuit = legalPlays.where((c) => c.rank.isHigherThan(highCard.rank));
       if (higherInSuit.isNotEmpty) {
         return minCardByRank([...higherInSuit]);
       }
-    }
-    else {
+    } else {
       final spades = legalPlays.where((c) => c.suit == Suit.spades);
       if (spades.isNotEmpty) {
         return minCardByRank([...spades]);
@@ -352,22 +349,18 @@ PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalP
       if (legalPlays[0].suit == Suit.spades) {
         // All legal plays must be spades.
         return _highestIfCanWinOrLowest(legalPlays, tc[1]);
-      }
-      else {
+      } else {
         return _lowDiscard(req, legalPlays, rng);
       }
-    }
-    else {
+    } else {
       if (legalPlays[0].suit == tc[0].suit) {
         // We have to follow suit. If opponent trumped then go low.
         if (tc[1].suit == Suit.spades) {
           return minCardByRank(legalPlays);
-        }
-        else {
+        } else {
           return _highestIfCanWinOrLowest(legalPlays, tc[1]);
         }
-      }
-      else {
+      } else {
         final spades = sortedCardsInSuit(legalPlays, Suit.spades);
         if (spades.isEmpty) {
           return _lowDiscard(req, legalPlays, rng);
@@ -375,8 +368,7 @@ PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalP
         if (tc[1].suit == tc[0].suit) {
           // Trump low.
           return spades.last;
-        }
-        else {
+        } else {
           assert(tc[1].suit == Suit.spades);
           if (spades.isNotEmpty && spades[0].rank.index > tc[1].rank.index) {
             // Overtrump as low as needed to be highest.
@@ -385,22 +377,19 @@ PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalP
                 return c;
               }
             }
-          }
-          else {
+          } else {
             // Can't win.
             return _lowDiscard(req, legalPlays, rng);
           }
         }
       }
     }
-  }
-  else {
+  } else {
     // Partner has high card, go higher if possible or trump low.
     if (legalPlays[0].suit == tc[0].suit) {
       // Following suit, go higher if useful.
       return _abovePartnerIfPossible(req, tc[0], legalPlays, rng);
-    }
-    else {
+    } else {
       return _trumpOverPartnerIfUseful(req, tc[0], legalPlays, rng);
     }
   }
@@ -413,8 +402,7 @@ PlayingCard _maximizeTricksCard4(CardToPlayRequest req, List<PlayingCard> legalP
   if (leader == 1) {
     // Partner is winning.
     return _lowDiscard(req, legalPlays, rng);
-  }
-  else {
+  } else {
     return _lowestWinnerOrLowest(req, legalPlays, tc[leader], rng);
   }
 }
@@ -530,6 +518,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
       }
     }
   }
+
   for (final t in req.previousTricks) {
     processTrick(t.cards, t.leader);
   }
@@ -537,8 +526,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
     processTrick(req.currentTrick.cards, req.currentTrick.leader);
   }
 
-  final baseNumCards = req.rules.numberOfCardsPerPlayer -
-      req.previousTricks.length;
+  final baseNumCards = req.rules.numberOfCardsPerPlayer - req.previousTricks.length;
   final cardCounts = List.generate(numPlayers, (_n) => baseNumCards);
   for (int i = 0; i < req.currentTrick.cards.length; i++) {
     final pi = (req.currentTrick.leader + i) % numPlayers;
@@ -546,11 +534,13 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   }
   cardCounts[req.currentPlayerIndex()] = 0;
 
-  final constraints = List.generate(numPlayers, (pnum) => CardDistributionConstraint(
-    numCards: cardCounts[pnum],
-    voidedSuits: voidedSuits[pnum].toList(),
-    fixedCards: [],
-  ));
+  final constraints = List.generate(
+      numPlayers,
+      (pnum) => CardDistributionConstraint(
+            numCards: cardCounts[pnum],
+            voidedSuits: voidedSuits[pnum].toList(),
+            fixedCards: [],
+          ));
   final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
   cardsToAssign.removeAll(seenCards);
   cardsToAssign.removeAll(req.rules.removedCards);
@@ -564,8 +554,7 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
   }
   final currentPlayer = cardReq.currentPlayerIndex();
   final resultPlayers = List.generate(cardReq.rules.numPlayers,
-          (i) => SpadesPlayer(i == currentPlayer ? cardReq.hand : dist[i])
-            ..bid = cardReq.bids[i]);
+      (i) => SpadesPlayer(i == currentPlayer ? cardReq.hand : dist[i])..bid = cardReq.bids[i]);
   return SpadesRound()
     ..rules = cardReq.rules.copy()
     ..players = resultPlayers
@@ -576,11 +565,8 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..dealer = 0;
 }
 
-PlayingCard chooseCardMonteCarlo(
-    CardToPlayRequest cardReq,
-    MonteCarloParams mcParams,
-    ChooseCardFn rolloutChooseFn,
-    Random rng) {
+PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
+    ChooseCardFn rolloutChooseFn, Random rng) {
   final legalPlays = cardReq.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
@@ -602,8 +588,8 @@ PlayingCard chooseCardMonteCarlo(
         doRollout(rolloutRound, rolloutChooseFn, rng);
         final pointsForRound = rolloutRound.pointsTaken();
         final scoresAfterRound = pointsForRound.map((p) => p.endingMatchPoints).toList();
-        playEquities[ci] += matchEquityForScores(
-            scoresAfterRound, pnum % cardReq.rules.numTeams, cardReq.rules);
+        playEquities[ci] +=
+            matchEquityForScores(scoresAfterRound, pnum % cardReq.rules.numTeams, cardReq.rules);
       }
     }
   }
@@ -613,8 +599,7 @@ PlayingCard chooseCardMonteCarlo(
     if (playEquities[i] > playEquities[bestIndex]) {
       bestIndex = i;
       // print("Better: " + legalPlays[i].toString() + " " + playEquities[i].toString());
-    }
-    else {
+    } else {
       // print("Worse: " + legalPlays[i].toString() + " " + playEquities[i].toString());
     }
   }

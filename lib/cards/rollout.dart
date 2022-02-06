@@ -8,9 +8,11 @@ class CardDistributionConstraint {
   List<PlayingCard> fixedCards;
 
   CardDistributionConstraint({
-    required this.numCards, List<Suit>? voidedSuits, List<PlayingCard>? fixedCards,
-  }) : voidedSuits = voidedSuits ?? [],
-       fixedCards = fixedCards ?? [];
+    required this.numCards,
+    List<Suit>? voidedSuits,
+    List<PlayingCard>? fixedCards,
+  })  : voidedSuits = voidedSuits ?? [],
+        fixedCards = fixedCards ?? [];
 }
 
 class CardDistributionRequest {

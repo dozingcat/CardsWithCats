@@ -57,9 +57,9 @@ List<int> randomizedCatImageIndices(Random rng) {
   return indices;
 }
 
-enum GameType {none, hearts, spades}
+enum GameType { none, hearts, spades }
 
-enum DialogMode {none, mainMenu, preferences}
+enum DialogMode { none, mainMenu, preferences }
 
 class _MyHomePageState extends State<MyHomePage> {
   final rng = Random();
@@ -73,7 +73,8 @@ class _MyHomePageState extends State<MyHomePage> {
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
 
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
     catIndices = randomizedCatImageIndices(rng);
     _readPreferences();
@@ -90,11 +91,9 @@ class _MyHomePageState extends State<MyHomePage> {
       String? savedMatchType = preferences.getString("matchType") ?? "";
       if (savedMatchType == "hearts") {
         matchType = GameType.hearts;
-      }
-      else if (savedMatchType == "spades") {
+      } else if (savedMatchType == "spades") {
         matchType = GameType.spades;
-      }
-      else {
+      } else {
         dialogMode = DialogMode.mainMenu;
       }
     });
@@ -105,8 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (json != null) {
       try {
         return HeartsRuleSet.fromJson(jsonDecode(json));
-      }
-      catch (ex) {
+      } catch (ex) {
         print("Failed to read hearts rules from JSON: $ex");
       }
     }
@@ -125,8 +123,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (json != null) {
       try {
         return SpadesRuleSet.fromJson(jsonDecode(json));
-      }
-      catch (ex) {
+      } catch (ex) {
         print("Failed to read spades rules from JSON: $ex");
       }
     }
@@ -141,19 +138,22 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _showMainMenu() {
-    setState(() {dialogMode = DialogMode.mainMenu;});
+    setState(() {
+      dialogMode = DialogMode.mainMenu;
+    });
   }
 
   void _showPreferences() {
-    setState(() {dialogMode = DialogMode.preferences;});
+    setState(() {
+      dialogMode = DialogMode.preferences;
+    });
   }
 
   void _saveHeartsMatch(final HeartsMatch? match) {
     if (match != null) {
       preferences.setString("matchType", "hearts");
       preferences.setString("heartsMatch", jsonEncode(match.toJson()));
-    }
-    else {
+    } else {
       preferences.remove("matchType");
       preferences.remove("heartsMatch");
       matchType = GameType.none;
@@ -165,8 +165,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (match != null) {
       preferences.setString("matchType", "spades");
       preferences.setString("spadesMatch", jsonEncode(match.toJson()));
-    }
-    else {
+    } else {
       preferences.remove("matchType");
       preferences.remove("spadesMatch");
       matchType = GameType.none;
@@ -205,7 +204,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _continueGame() {
-    setState(() {dialogMode = DialogMode.none;});
+    setState(() {
+      dialogMode = DialogMode.none;
+    });
   }
 
   bool isMatchInProgress() {
@@ -242,37 +243,34 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void showNewMatchConfirmationDialog(Function() doNewMatch) {
     showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("New match"),
-          content: const Text("Are you sure you want to end the current match and start a new one?"),
-          actions: [
-            TextButton(
-              child: const Text("Don't end match"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              }
-            ),
-            TextButton(
-                child: const Text("End match"),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  doNewMatch();
-                }
-            ),
-          ],
-        );
-      }
-    );
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("New match"),
+            content:
+                const Text("Are you sure you want to end the current match and start a new one?"),
+            actions: [
+              TextButton(
+                  child: const Text("Don't end match"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  }),
+              TextButton(
+                  child: const Text("End match"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    doNewMatch();
+                  }),
+            ],
+          );
+        });
   }
 
   void handleNewHeartsMatchClicked() {
     if (isMatchInProgress()) {
       showNewMatchConfirmationDialog(startNewHeartsMatch);
-    }
-    else {
+    } else {
       startNewHeartsMatch();
     }
   }
@@ -280,8 +278,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void handleNewSpadesMatchClicked() {
     if (isMatchInProgress()) {
       showNewMatchConfirmationDialog(startNewSpadesMatch);
-    }
-    else {
+    } else {
       startNewHeartsMatch();
     }
   }
@@ -306,9 +303,7 @@ class _MyHomePageState extends State<MyHomePage> {
     ]);
   }
 
-  void _showAboutDialog(final BuildContext context) {
-
-  }
+  void _showAboutDialog(final BuildContext context) {}
 
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
@@ -316,38 +311,41 @@ class _MyHomePageState extends State<MyHomePage> {
         width: double.infinity,
         height: double.infinity,
         child: Center(
-        child: Dialog(
-        backgroundColor: dialogBackgroundColor,
-        child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _paddingAll(10, Text(
-            appTitle,
-            style: TextStyle(
-              fontSize: min(minDim / 15, 40),
-            )
-          )),
-          _paddingAll(10, Table(
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            defaultColumnWidth: const IntrinsicColumnWidth(),
-            children: [
-              if (matchType != GameType.none) _makeButtonRow("Continue match", _continueGame),
-              _makeButtonRow("New hearts match", handleNewHeartsMatchClicked),
-              _makeButtonRow("New spades match", handleNewSpadesMatchClicked),
-              _makeButtonRow('Preferences...', _showPreferences),
-              _makeButtonRow('About...', () => _showAboutDialog(context)),
-            ],
-          )),
-        ],
-    )
-    )));
+            child: Dialog(
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paddingAll(
+                        10,
+                        Text(appTitle,
+                            style: TextStyle(
+                              fontSize: min(minDim / 15, 40),
+                            ))),
+                    _paddingAll(
+                        10,
+                        Table(
+                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          defaultColumnWidth: const IntrinsicColumnWidth(),
+                          children: [
+                            if (matchType != GameType.none)
+                              _makeButtonRow("Continue match", _continueGame),
+                            _makeButtonRow("New hearts match", handleNewHeartsMatchClicked),
+                            _makeButtonRow("New spades match", handleNewSpadesMatchClicked),
+                            _makeButtonRow('Preferences...', _showPreferences),
+                            _makeButtonRow('About...', () => _showAboutDialog(context)),
+                          ],
+                        )),
+                  ],
+                ))));
   }
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
     const baseFontSize = 18.0;
 
-    Widget makeHeartsRuleCheckboxRow(String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
+    Widget makeHeartsRuleCheckboxRow(
+        String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
         title: Text(title, style: TextStyle(fontSize: baseFontSize)),
@@ -359,7 +357,8 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
-    Widget makeSpadesRuleCheckboxRow(String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
+    Widget makeSpadesRuleCheckboxRow(
+        String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
         title: Text(title, style: TextStyle(fontSize: baseFontSize)),
@@ -375,62 +374,60 @@ class _MyHomePageState extends State<MyHomePage> {
         width: double.infinity,
         height: double.infinity,
         child: Center(
-          child: Dialog(
-          backgroundColor: dialogBackgroundColor,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _paddingAll(10, Text(
-                "Preferences",
-                style: TextStyle(fontSize: min(minDim / 18, 40)),
-              )),
-              Wrap(children: [
-                GestureDetector(
-                  onTapDown: (tap) {setState(() {prefsGameType = GameType.hearts;});},
-                  child: Text("Hearts"),
-                ),
-                GestureDetector(
-                  onTapDown: (tap) {setState(() {prefsGameType = GameType.spades;});},
-                  child: Text("Spades"),
-                ),
-              ]),
-              if (prefsGameType == GameType.hearts) ...[
-                Text("Hearts settings"),
-                makeHeartsRuleCheckboxRow(
-                    "Jack of diamonds is -10 points",
-                    heartsRulesFromPrefs.jdMinus10,
-                    (rules, checked) {rules.jdMinus10 = checked;},
-                ),
-                makeHeartsRuleCheckboxRow(
-                  "Allow points on first trick",
-                  heartsRulesFromPrefs.pointsOnFirstTrick,
-                  (rules, checked) {rules.pointsOnFirstTrick = checked;},
-                ),
-                makeHeartsRuleCheckboxRow(
-                  "Queen of spades breaks hearts",
-                  heartsRulesFromPrefs.queenBreaksHearts,
-                  (rules, checked) {rules.queenBreaksHearts = checked;},
-                ),
-              ],
-              if (prefsGameType == GameType.spades) ...[
-                Text("Spades settings"),
-                makeSpadesRuleCheckboxRow(
-                  "Penalize sandbags",
-                  spadesRulesFromPrefs.penalizeBags,
-                  (rules, checked) {rules.penalizeBags = checked;},
-                ),
-                makeSpadesRuleCheckboxRow(
-                  "No leading spades until broken",
-                  spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
-                  (rules, checked) {
-                    rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
-                  },
-                ),
-              ],
-              _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))),
-            ],
-          )
-        )));
+            child: Dialog(
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paddingAll(
+                        10,
+                        Text(
+                          "Preferences",
+                          style: TextStyle(fontSize: min(minDim / 18, 40)),
+                        )),
+                    ListTile(title: Text("Hearts",
+                        style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+                    makeHeartsRuleCheckboxRow(
+                      "Jack of diamonds is -10 points",
+                      heartsRulesFromPrefs.jdMinus10,
+                      (rules, checked) {
+                        rules.jdMinus10 = checked;
+                      },
+                    ),
+                    makeHeartsRuleCheckboxRow(
+                      "Allow points on first trick",
+                      heartsRulesFromPrefs.pointsOnFirstTrick,
+                      (rules, checked) {
+                        rules.pointsOnFirstTrick = checked;
+                      },
+                    ),
+                    makeHeartsRuleCheckboxRow(
+                      "Queen of spades breaks hearts",
+                      heartsRulesFromPrefs.queenBreaksHearts,
+                      (rules, checked) {
+                        rules.queenBreaksHearts = checked;
+                      },
+                    ),
+                    ListTile(title: Text("Spades",
+                        style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+                    makeSpadesRuleCheckboxRow(
+                      "Penalize sandbags",
+                      spadesRulesFromPrefs.penalizeBags,
+                      (rules, checked) {
+                        rules.penalizeBags = checked;
+                      },
+                    ),
+                    makeSpadesRuleCheckboxRow(
+                      "No leading spades until broken",
+                      spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
+                      (rules, checked) {
+                        rules.spadeLeading =
+                            checked ? SpadeLeading.after_broken : SpadeLeading.always;
+                      },
+                    ),
+                    _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))),
+                  ],
+                ))));
   }
 
   Widget _menuIcon() {
@@ -452,36 +449,33 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       body: Stack(children: [
         _gameTable(layout),
-        ...[1, 2, 3].map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
-        if (matchType == GameType.hearts) HeartsMatchDisplay(
-          initialMatchFn: _initialHeartsMatch,
-          createMatchFn: _createHeartsMatch,
-          saveMatchFn: _saveHeartsMatch,
-          mainMenuFn: _showMainMenu,
-          matchUpdateStream: matchUpdateNotifier.stream,
-          dialogVisible: dialogMode != DialogMode.none,
-        ),
-        if (matchType == GameType.spades) SpadesMatchDisplay(
-          initialMatchFn: _initialSpadesMatch,
-          createMatchFn: _createSpadesMatch,
-          saveMatchFn: _saveSpadesMatch,
-          mainMenuFn: _showMainMenu,
-          matchUpdateStream: matchUpdateNotifier.stream,
-          dialogVisible: dialogMode != DialogMode.none,
-        ),
+        ...[
+          1,
+          2,
+          3
+        ].map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
+        if (matchType == GameType.hearts)
+          HeartsMatchDisplay(
+            initialMatchFn: _initialHeartsMatch,
+            createMatchFn: _createHeartsMatch,
+            saveMatchFn: _saveHeartsMatch,
+            mainMenuFn: _showMainMenu,
+            matchUpdateStream: matchUpdateNotifier.stream,
+            dialogVisible: dialogMode != DialogMode.none,
+          ),
+        if (matchType == GameType.spades)
+          SpadesMatchDisplay(
+            initialMatchFn: _initialSpadesMatch,
+            createMatchFn: _createSpadesMatch,
+            saveMatchFn: _saveSpadesMatch,
+            mainMenuFn: _showMainMenu,
+            matchUpdateStream: matchUpdateNotifier.stream,
+            dialogVisible: dialogMode != DialogMode.none,
+          ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
         if (dialogMode == DialogMode.none) _menuIcon(),
       ]),
     );
   }
-}
-
-class MainMenu extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
-  }
-  
 }

@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:hearts/cards/rollout.dart';
@@ -30,11 +29,11 @@ void main() {
         print("Passing dir=$passDir");
         for (int i = 0; i < rules.numPlayers; i++) {
           final passReq = CardsToPassRequest(
-              rules: rules,
-              scoresBeforeRound: List.of(round.initialScores),
-              hand: round.players[i].hand,
-              direction: passDir,
-              numCards: rules.numPassedCards,
+            rules: rules,
+            scoresBeforeRound: List.of(round.initialScores),
+            hand: round.players[i].hand,
+            direction: passDir,
+            numCards: rules.numPassedCards,
           );
           final cardsToPass = chooseCardsToPass(passReq);
           round.setPassedCardsForPlayer(i, cardsToPass);
@@ -45,8 +44,7 @@ void main() {
         for (int i = 0; i < rules.numPlayers; i++) {
           print("P$i: ${descriptionWithSuitGroups(round.players[i].hand)}");
         }
-      }
-      else {
+      } else {
         print("No passing");
       }
       while (!round.isOver()) {
@@ -93,6 +91,6 @@ PlayingCard computeCardToPlay(final HeartsRound round, Random rng) {
 
 List<int> getVictoryPoints(HeartsMatch match) {
   final winners = match.winningPlayers();
-  return List.generate(match.rules.numPlayers,
-          (i) => winners.contains(i) ? 12 ~/ winners.length : 0);
+  return List.generate(
+      match.rules.numPlayers, (i) => winners.contains(i) ? 12 ~/ winners.length : 0);
 }

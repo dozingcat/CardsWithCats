@@ -43,8 +43,7 @@ class CardToPlayRequest {
     required this.receivedCards,
   });
 
-  static CardToPlayRequest fromRound(final HeartsRound round) =>
-      CardToPlayRequest(
+  static CardToPlayRequest fromRound(final HeartsRound round) => CardToPlayRequest(
         rules: round.rules.copy(),
         scoresBeforeRound: List.from(round.initialScores),
         hand: List.from(round.currentPlayer().hand),
@@ -127,8 +126,7 @@ int dangerForCard(PlayingCard card, List<Rank> suitRanks, CardsToPassRequest req
         }
         int secondLowestClubVal = suitRanks[suitRanks.length - 2].numericValue;
         return adjustedVal + secondLowestClubVal;
-      }
-      else {
+      } else {
         return adjustedVal + lowestValInSuit - 1;
       }
   }
@@ -171,10 +169,8 @@ PlayingCard chooseCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
   if (trick.cards.isEmpty) {
     // Pick a suit and lead the lowest card, but not QS.
     final suit = legalSuits.toList()[rng.nextInt(legalSuits.length)];
-    return legalPlays.reversed.firstWhere(
-        (c) => c.suit == suit && c != queenOfSpades,
-        orElse: () => legalPlays.reversed.firstWhere((c) => c != queenOfSpades)
-    );
+    return legalPlays.reversed.firstWhere((c) => c.suit == suit && c != queenOfSpades,
+        orElse: () => legalPlays.reversed.firstWhere((c) => c != queenOfSpades));
   }
   final trickSuit = trick.cards[0].suit;
   final isFollowingSuit = legalSuits.contains(trickSuit);
@@ -205,21 +201,17 @@ PlayingCard chooseCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
       // Avoid taking the trick if we can; if we can't play highest.
       // If playing with JD rule, don't play it under a higher diamond.
       // TODO: Win with AS or KS if it helps to avoid the queen.
-      return legalPlays
-          .where((c) => !(hasJD && c == jackOfDiamonds))
-          .firstWhere((c) => c.rank.index < highCard.rank.index,
-              orElse: () => _firstInSuitNotQS(legalPlays, trickSuit));
-    }
-    else {
+      return legalPlays.where((c) => !(hasJD && c == jackOfDiamonds)).firstWhere(
+          (c) => c.rank.index < highCard.rank.index,
+          orElse: () => _firstInSuitNotQS(legalPlays, trickSuit));
+    } else {
       // Play just under the winner if possible (but not JD if it's -10 points).
       // If we can't, play the lowest (other than QS).
-      return legalPlays
-          .where((c) => !(hasJD && c == jackOfDiamonds))
-          .firstWhere((c) => c.rank.index < highCard.rank.index,
+      return legalPlays.where((c) => !(hasJD && c == jackOfDiamonds)).firstWhere(
+          (c) => c.rank.index < highCard.rank.index,
           orElse: () => _firstInSuitNotQS(legalPlays.reversed, trickSuit));
     }
-  }
-  else {
+  } else {
     // Ditch QS if possible, otherwise highest heart, otherwise highest other card.
     if (hasQS) {
       return queenOfSpades;
@@ -286,11 +278,13 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   }
   cardCounts[req.currentPlayerIndex()] = 0;
 
-  final constraints = List.generate(numPlayers, (pnum) => CardDistributionConstraint(
-    numCards: cardCounts[pnum],
-    voidedSuits: voidedSuits[pnum].toList(),
-    fixedCards: [],
-  ));
+  final constraints = List.generate(
+      numPlayers,
+      (pnum) => CardDistributionConstraint(
+            numCards: cardCounts[pnum],
+            voidedSuits: voidedSuits[pnum].toList(),
+            fixedCards: [],
+          ));
   if (req.rules.numPassedCards > 0) {
     final passedTo = (req.currentPlayerIndex() + req.passDirection) % numPlayers;
     constraints[passedTo].fixedCards.addAll(req.passedCards);
@@ -308,25 +302,22 @@ HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     return null;
   }
   final currentPlayer = cardReq.currentPlayerIndex();
-  final resultPlayers = List.generate(cardReq.rules.numPlayers,
-      (i) => HeartsPlayer(i == currentPlayer ? cardReq.hand : dist[i]));
+  final resultPlayers = List.generate(
+      cardReq.rules.numPlayers, (i) => HeartsPlayer(i == currentPlayer ? cardReq.hand : dist[i]));
   return HeartsRound()
-      ..rules = cardReq.rules.copy()
-      ..players = resultPlayers
-      ..initialScores = List.of(cardReq.scoresBeforeRound)
-      ..currentTrick = cardReq.currentTrick.copy()
-      ..previousTricks = Trick.copyAll(cardReq.previousTricks)
-      ..status = HeartsRoundStatus.playing
-      // Ignore passed cards. TODO: Incorporate the fact that we know what cards were passed
-      // to the current player.
-      ..passDirection = 0;
+    ..rules = cardReq.rules.copy()
+    ..players = resultPlayers
+    ..initialScores = List.of(cardReq.scoresBeforeRound)
+    ..currentTrick = cardReq.currentTrick.copy()
+    ..previousTricks = Trick.copyAll(cardReq.previousTricks)
+    ..status = HeartsRoundStatus.playing
+    // Ignore passed cards. TODO: Incorporate the fact that we know what cards were passed
+    // to the current player.
+    ..passDirection = 0;
 }
 
-PlayingCard chooseCardMonteCarlo(
-    CardToPlayRequest cardReq,
-    MonteCarloParams mcParams,
-    ChooseCardFn rolloutChooseFn,
-    Random rng) {
+PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
+    ChooseCardFn rolloutChooseFn, Random rng) {
   final legalPlays = cardReq.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
@@ -347,10 +338,9 @@ PlayingCard chooseCardMonteCarlo(
         rolloutRound.playCard(legalPlays[ci]);
         doRollout(rolloutRound, rolloutChooseFn, rng);
         final pointsForRound = rolloutRound.pointsTaken();
-        final scoresAfterRound = List.generate(pointsForRound.length,
-            (p) => pointsForRound[p] + cardReq.scoresBeforeRound[p]);
-        playEquities[ci] += matchEquityForScores(
-            scoresAfterRound, cardReq.rules.pointLimit, pnum);
+        final scoresAfterRound = List.generate(
+            pointsForRound.length, (p) => pointsForRound[p] + cardReq.scoresBeforeRound[p]);
+        playEquities[ci] += matchEquityForScores(scoresAfterRound, cardReq.rules.pointLimit, pnum);
       }
     }
   }
@@ -360,8 +350,7 @@ PlayingCard chooseCardMonteCarlo(
     if (playEquities[i] > playEquities[bestIndex]) {
       bestIndex = i;
       // print("Better: " + legalPlays[i].toString() + " " + playEquities[i].toString());
-    }
-    else {
+    } else {
       // print("Worse: " + legalPlays[i].toString() + " " + playEquities[i].toString());
     }
   }

@@ -27,15 +27,15 @@ class HeartsRuleSet {
 
   HeartsRuleSet copy() => HeartsRuleSet.from(this);
 
-  HeartsRuleSet.from(HeartsRuleSet src) :
-      numPlayers = src.numPlayers,
-      numPassedCards = src.numPassedCards,
-      removedCards = List.from(src.removedCards),
-      pointLimit = src.pointLimit,
-      pointsOnFirstTrick = src.pointsOnFirstTrick,
-      queenBreaksHearts = src.queenBreaksHearts,
-      jdMinus10 = src.jdMinus10,
-      moonShooting = src.moonShooting;
+  HeartsRuleSet.from(HeartsRuleSet src)
+      : numPlayers = src.numPlayers,
+        numPassedCards = src.numPassedCards,
+        removedCards = List.from(src.removedCards),
+        pointLimit = src.pointLimit,
+        pointsOnFirstTrick = src.pointsOnFirstTrick,
+        queenBreaksHearts = src.queenBreaksHearts,
+        jdMinus10 = src.jdMinus10,
+        moonShooting = src.moonShooting;
 
   Map<String, dynamic> toJson() {
     return {
@@ -59,8 +59,7 @@ class HeartsRuleSet {
       ..pointsOnFirstTrick = json["pointsOnFirstTrick"] as bool
       ..queenBreaksHearts = json["queenBreaksHearts"] as bool
       ..jdMinus10 = json["jdMinus10"] as bool
-      ..moonShooting = MoonShooting.values.firstWhere((v) => v.name == json["moonShooting"])
-      ;
+      ..moonShooting = MoonShooting.values.firstWhere((v) => v.name == json["moonShooting"]);
   }
 
   int get numberOfUsedCards => (52 - removedCards.length);
@@ -116,8 +115,7 @@ int? moonShooter(List<Trick> tricks) {
     for (final c in t.cards) {
       if (c == queenOfSpades) {
         qsOwner = t.winner;
-      }
-      else if (c.suit == Suit.hearts) {
+      } else if (c.suit == Suit.hearts) {
         if (heartsOwner != null && heartsOwner != t.winner) {
           return null;
         }
@@ -129,8 +127,7 @@ int? moonShooter(List<Trick> tricks) {
   return (qsOwner == heartsOwner && numHearts == 13) ? qsOwner : null;
 }
 
-bool _areHeartsBroken(
-    TrickInProgress currentTrick, List<Trick> prevTricks, HeartsRuleSet rules) {
+bool _areHeartsBroken(TrickInProgress currentTrick, List<Trick> prevTricks, HeartsRuleSet rules) {
   bool qb = rules.queenBreaksHearts;
   for (final t in prevTricks) {
     for (final c in t.cards) {
@@ -147,11 +144,8 @@ bool _areHeartsBroken(
   return false;
 }
 
-List<PlayingCard> legalPlays(
-    List<PlayingCard> hand,
-    TrickInProgress currentTrick,
-    List<Trick> prevTricks,
-    HeartsRuleSet rules) {
+List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick,
+    List<Trick> prevTricks, HeartsRuleSet rules) {
   if (prevTricks.isEmpty) {
     // First trick.
     if (currentTrick.cards.isEmpty) {
@@ -171,8 +165,7 @@ List<PlayingCard> legalPlays(
     }
     // Either points are allowed or we have nothing but points.
     return hand;
-  }
-  else if (currentTrick.cards.isEmpty) {
+  } else if (currentTrick.cards.isEmpty) {
     // Leading a new trick; remove hearts unless hearts are broken or there's no choice.
     if (!_areHeartsBroken(currentTrick, prevTricks, rules)) {
       final nonHearts = hand.where((c) => c.suit != Suit.hearts).toList();
@@ -181,8 +174,7 @@ List<PlayingCard> legalPlays(
       }
     }
     return hand;
-  }
-  else {
+  } else {
     // Follow suit if possible; otherwise play anything.
     final lead = currentTrick.cards[0].suit;
     final matching = hand.where((c) => c.suit == lead).toList();
@@ -199,16 +191,15 @@ class HeartsPlayer {
   List<PlayingCard> passedCards;
   List<PlayingCard> receivedCards;
 
-  HeartsPlayer(
-      List<PlayingCard> _hand) :
-        hand = List.from(_hand),
+  HeartsPlayer(List<PlayingCard> _hand)
+      : hand = List.from(_hand),
         passedCards = [],
         receivedCards = [];
 
-  HeartsPlayer.from(HeartsPlayer src) :
-      hand = List.from(src.hand),
-      passedCards = List.from(src.passedCards),
-      receivedCards = List.from(src.receivedCards);
+  HeartsPlayer.from(HeartsPlayer src)
+      : hand = List.from(src.hand),
+        passedCards = List.from(src.passedCards),
+        receivedCards = List.from(src.receivedCards);
 
   HeartsPlayer copy() => HeartsPlayer.from(this);
   static List<HeartsPlayer> copyAll(Iterable<HeartsPlayer> ps) => ps.map((p) => p.copy()).toList();
@@ -224,8 +215,7 @@ class HeartsPlayer {
   static HeartsPlayer fromJson(final Map<String, dynamic> json) {
     return HeartsPlayer(PlayingCard.cardsFromString(json["hand"] as String))
       ..passedCards = PlayingCard.cardsFromString(json["passedCards"] as String)
-      ..receivedCards = PlayingCard.cardsFromString(json["receivedCards"] as String)
-      ;
+      ..receivedCards = PlayingCard.cardsFromString(json["receivedCards"] as String);
   }
 }
 
@@ -297,8 +287,9 @@ class HeartsRound {
       ..initialScores = List<int>.from(json["initialScores"])
       ..passDirection = json["passDirection"] as int
       ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
-      ..previousTricks = [...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))]
-      ;
+      ..previousTricks = [
+        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))
+      ];
   }
 
   bool isOver() {
@@ -388,8 +379,7 @@ class HeartsMatch {
   List<HeartsRound> previousRounds = [];
   late HeartsRound currentRound;
 
-  HeartsMatch(HeartsRuleSet _rules, this.rng) : rules = _rules.copy()
-  {
+  HeartsMatch(HeartsRuleSet _rules, this.rng) : rules = _rules.copy() {
     currentRound = HeartsRound.deal(rules, List.filled(rules.numPlayers, 0), passDirection, rng);
   }
 
@@ -405,10 +395,10 @@ class HeartsMatch {
   static HeartsMatch fromJson(final Map<String, dynamic> json, Random rng) {
     return HeartsMatch(HeartsRuleSet.fromJson(json["rules"] as Map<String, dynamic>), rng)
       ..passDirection = json["passDirection"] as int
-      ..previousRounds =
-          [...json["previousRounds"].map((x) => HeartsRound.fromJson(x as Map<String, dynamic>))]
-      ..currentRound = HeartsRound.fromJson(json["currentRound"] as Map<String, dynamic>)
-      ;
+      ..previousRounds = [
+        ...json["previousRounds"].map((x) => HeartsRound.fromJson(x as Map<String, dynamic>))
+      ]
+      ..currentRound = HeartsRound.fromJson(json["currentRound"] as Map<String, dynamic>);
   }
 
   HeartsMatch copy() {
@@ -420,8 +410,7 @@ class HeartsMatch {
     if (currentRound.isOver()) {
       final roundPoints = currentRound.pointsTaken();
       return List.generate(rules.numPlayers, (p) => currentRound.initialScores[p] + roundPoints[p]);
-    }
-    else {
+    } else {
       return currentRound.initialScores;
     }
   }
@@ -430,19 +419,15 @@ class HeartsMatch {
     int np = rules.numPlayers;
     if (np <= 3) {
       passDirection = (passDirection + 1) % np;
-    }
-    else {
+    } else {
       // Order is left, right, "middle" (from left to right if >1), none.
       if (passDirection == 1) {
         passDirection = np - 1;
-      }
-      else if (passDirection == np - 2) {
+      } else if (passDirection == np - 2) {
         passDirection = 0;
-      }
-      else if (passDirection == np - 1) {
+      } else if (passDirection == np - 1) {
         passDirection = 2;
-      }
-      else {
+      } else {
         passDirection += 1;
       }
     }

@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:hearts/cards/rollout.dart';
@@ -74,9 +73,8 @@ void main() {
 final mcParams = MonteCarloParams(numHands: 50, rolloutsPerHand: 20);
 
 ChooseCardFn makeMixedRandomMakeBidsFn(double randomProb) {
-  return (req, rng) => rng.nextDouble() < randomProb
-      ? chooseCardToMakeBids(req, rng)
-      : chooseCardRandom(req, rng);
+  return (req, rng) =>
+      rng.nextDouble() < randomProb ? chooseCardToMakeBids(req, rng) : chooseCardRandom(req, rng);
 }
 
 PlayingCard computeCardToPlay(final SpadesRound round, Random rng) {
@@ -87,7 +85,7 @@ PlayingCard computeCardToPlay(final SpadesRound round, Random rng) {
       // return chooseCardRandom(cardReq, rng);
       // return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
       return chooseCardMonteCarlo(cardReq, mcParams, makeMixedRandomMakeBidsFn(1.0), rng);
-      // return chooseCardToMakeBids(cardReq, rng);
+    // return chooseCardToMakeBids(cardReq, rng);
     case 1:
     case 3:
       // return chooseCardRandom(cardReq, rng);

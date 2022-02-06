@@ -13,12 +13,8 @@ import 'hearts/hearts_ai.dart';
 
 PlayingCard computeCard(final CardToPlayRequest req) {
   return chooseCardMonteCarlo(
-      req,
-      MonteCarloParams(numHands: 20, rolloutsPerHand: 50),
-      chooseCardAvoidingPoints,
-      Random());
+      req, MonteCarloParams(numHands: 20, rolloutsPerHand: 50), chooseCardAvoidingPoints, Random());
 }
-
 
 class HeartsMatchDisplay extends StatefulWidget {
   final HeartsMatch Function() initialMatchFn;
@@ -54,7 +50,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   HeartsRound get round => match.currentRound;
 
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
     match = widget.initialMatchFn();
     matchUpdateSubscription = widget.matchUpdateStream.listen((event) {
@@ -65,7 +62,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     _scheduleNextPlayIfNeeded();
   }
 
-  @override void deactivate() {
+  @override
+  void deactivate() {
     super.deactivate();
     matchUpdateSubscription.cancel();
   }
@@ -123,19 +121,16 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       for (int i = 1; i < match.rules.numPlayers; i++) {
         playerMoods[i] = (winners.contains(i)) ? Mood.veryHappy : Mood.mad;
       }
-    }
-    else if (round.isOver()) {
+    } else if (round.isOver()) {
       final points = round.pointsTaken();
       for (int i = 1; i < match.rules.numPlayers; i++) {
         if (points[i] <= 0) {
           playerMoods[i] = Mood.happy;
-        }
-        else if (points[i] >= 13) {
+        } else if (points[i] >= 13) {
           playerMoods[i] = Mood.mad;
         }
       }
-    }
-    else {
+    } else {
       // Mad when taking QS, happy when taking JD.
       final trick = round.previousTricks.last;
       final hasQS = trick.cards.contains(queenOfSpades);
@@ -153,8 +148,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         if (otherPlayerHasHeart) {
           playerMoods[trick.winner] = Mood.mad;
         }
-      }
-      else if (hasJD && !hasQS) {
+      } else if (hasJD && !hasQS) {
         playerMoods[trick.winner] = Mood.happy;
       }
     }
@@ -162,17 +156,22 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   void _trickCardAnimationFinished() {
     if (!round.isOver() && round.currentTrick.cards.isNotEmpty) {
-      setState(() {animationMode = AnimationMode.none;});
+      setState(() {
+        animationMode = AnimationMode.none;
+      });
       _scheduleNextPlayIfNeeded();
-    }
-    else {
-      setState(() {animationMode = AnimationMode.moving_trick_to_winner;});
+    } else {
+      setState(() {
+        animationMode = AnimationMode.moving_trick_to_winner;
+      });
       _updateMoodsAfterTrick();
     }
   }
 
   void _trickToWinnerAnimationFinished() {
-    setState(() {animationMode = AnimationMode.none;});
+    setState(() {
+      animationMode = AnimationMode.none;
+    });
     _scheduleNextPlayIfNeeded();
   }
 
@@ -204,19 +203,18 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void handleHandCardClicked(final PlayingCard card) {
-    print("Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
+    print(
+        "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         print("Playing");
         _playCard(card);
       }
-    }
-    else if (round.status == HeartsRoundStatus.passing) {
+    } else if (round.status == HeartsRoundStatus.passing) {
       setState(() {
         if (selectedCardsToPass.contains(card)) {
           selectedCardsToPass.remove(card);
-        }
-        else if (selectedCardsToPass.length < round.rules.numPassedCards) {
+        } else if (selectedCardsToPass.length < round.rules.numPassedCards) {
           selectedCardsToPass.add(card);
         }
       });
@@ -230,8 +228,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     List<PlayingCard> highlightedCards = [];
     if (isHumanTurn) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
-    }
-    else if (round.status == HeartsRoundStatus.passing) {
+    } else if (round.status == HeartsRoundStatus.passing) {
       highlightedCards = cards.where((c) => !selectedCardsToPass.contains(c)).toList();
     }
 
@@ -247,7 +244,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
     return Stack(children: cardImages);
   }
-
 
   Widget _trickCards(final Layout layout) {
     final humanHand = aiMode == AiMode.human_player_0 ? round.players[0].hand : null;
@@ -283,11 +279,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
           numHearts += t.cards.where((c) => c.suit == Suit.hearts).length;
         }
       }
-      String taken = [
-        if (hasQS) "Q♠",
-        if (hasJD) "J♦",
-        "$numHearts♥"
-      ].join(", ");
+      String taken = [if (hasQS) "Q♠", if (hasJD) "J♦", "$numHearts♥"].join(", ");
       messages.add("Score: ${round.initialScores[i]}\nTaken: $taken");
     }
     return messages;
@@ -303,12 +295,13 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   bool _shouldShowNoPassingMessage() {
     return round.passDirection == 0 &&
-        round.previousTricks.isEmpty && round.currentTrick.cards.isEmpty;
+        round.previousTricks.isEmpty &&
+        round.currentTrick.cards.isEmpty;
   }
 
   bool _shouldShowPassDialog() {
-    return !widget.dialogVisible && (
-        round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage());
+    return !widget.dialogVisible &&
+        (round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage());
   }
 
   bool _shouldShowEndOfRoundDialog() {
@@ -324,7 +317,11 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return Padding(
       padding: EdgeInsets.fromLTRB(10, 80, 10, 10),
       child: FloatingActionButton(
-        onPressed: () {setState(() {showScoreOverlay = !showScoreOverlay;});},
+        onPressed: () {
+          setState(() {
+            showScoreOverlay = !showScoreOverlay;
+          });
+        },
         child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
       ),
     );
@@ -338,23 +335,24 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       children: <Widget>[
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
-        if (_shouldShowPassDialog()) PassCardsDialog(
+        if (_shouldShowPassDialog())
+          PassCardsDialog(
             layout: layout,
             round: round,
             selectedCards: selectedCardsToPass,
             onConfirm: _passCards,
-        ),
-        if (_shouldShowEndOfRoundDialog()) EndOfRoundDialog(
+          ),
+        if (_shouldShowEndOfRoundDialog())
+          EndOfRoundDialog(
             layout: layout,
             match: match,
             onContinue: _startRound,
             onMainMenu: _showMainMenuAfterMatch,
-        ),
+          ),
         PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
-        if (shouldShowScoreOverlayToggle())
-          scoreOverlayButton(),
+        if (shouldShowScoreOverlayToggle()) scoreOverlayButton(),
         // Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );
@@ -373,15 +371,26 @@ class PassCardsDialog extends StatelessWidget {
   final List<PlayingCard> selectedCards;
   final Function() onConfirm;
 
-  const PassCardsDialog({Key? key, required this.layout, required this.round, required this.selectedCards, required this.onConfirm}): super(key: key);
+  const PassCardsDialog(
+      {Key? key,
+      required this.layout,
+      required this.round,
+      required this.selectedCards,
+      required this.onConfirm})
+      : super(key: key);
 
   String passMessage() {
     switch (round.passDirection) {
-      case 0: return "No passing this round";
-      case 1: return "Choose ${round.rules.numPassedCards} cards to pass left";
-      case 2: return "Choose ${round.rules.numPassedCards} cards to pass across";
-      case 3: return "Choose ${round.rules.numPassedCards} cards to pass right";
-      default: throw AssertionError("Bad pass direction: ${round.passDirection}");
+      case 0:
+        return "No passing this round";
+      case 1:
+        return "Choose ${round.rules.numPassedCards} cards to pass left";
+      case 2:
+        return "Choose ${round.rules.numPassedCards} cards to pass across";
+      case 3:
+        return "Choose ${round.rules.numPassedCards} cards to pass right";
+      default:
+        throw AssertionError("Bad pass direction: ${round.passDirection}");
     }
   }
 
@@ -400,19 +409,21 @@ class PassCardsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-        child: Dialog(
-            backgroundColor: dialogBackgroundColor,
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _paddingAll(15, Text(passMessage())),
-                  _paddingAll(15, ElevatedButton(
-                    child: Text(buttonLabel()),
-                    onPressed: isButtonEnabled() ? onConfirm : null,
-                  )),
-                ],
-            ),
+      child: Dialog(
+        backgroundColor: dialogBackgroundColor,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _paddingAll(15, Text(passMessage())),
+            _paddingAll(
+                15,
+                ElevatedButton(
+                  child: Text(buttonLabel()),
+                  onPressed: isButtonEnabled() ? onConfirm : null,
+                )),
+          ],
         ),
+      ),
     );
   }
 }
@@ -429,7 +440,7 @@ class EndOfRoundDialog extends StatelessWidget {
     required this.match,
     required this.onContinue,
     required this.onMainMenu,
-  }): super(key: key);
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -438,11 +449,8 @@ class EndOfRoundDialog extends StatelessWidget {
     final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
     const cellPad = 4.0;
 
-    Widget pointsCell(Object p) => _paddingAll(
-        cellPad,
-        Text(p.toString(),
-            textAlign: TextAlign.right,
-            style: TextStyle(fontSize: pointsFontSize)));
+    Widget pointsCell(Object p) => _paddingAll(cellPad,
+        Text(p.toString(), textAlign: TextAlign.right, style: TextStyle(fontSize: pointsFontSize)));
 
     Widget headerCell(String msg) => _paddingAll(
         cellPad,
@@ -451,9 +459,9 @@ class EndOfRoundDialog extends StatelessWidget {
             style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
-      _paddingAll(cellPad, headerCell(title)),
-      ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
-    ]);
+          _paddingAll(cellPad, headerCell(title)),
+          ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
+        ]);
 
     String matchOverMessage() {
       final p = match.winningPlayers();
@@ -466,17 +474,21 @@ class EndOfRoundDialog extends StatelessWidget {
     final dialog = Center(
         child: Dialog(
             backgroundColor: dialogBackgroundColor,
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (match.isMatchOver()) Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _paddingAll(10, Text(matchOverMessage(), style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
-                    ],
-                  ),
-                  _paddingAll(10, Table(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              if (match.isMatchOver())
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paddingAll(
+                        10,
+                        Text(matchOverMessage(),
+                            style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+                  ],
+                ),
+              _paddingAll(
+                  10,
+                  Table(
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     defaultColumnWidth: const IntrinsicColumnWidth(),
                     children: [
@@ -492,29 +504,39 @@ class EndOfRoundDialog extends StatelessWidget {
                       pointsRow("Total points", match.scores),
                     ],
                   )),
-                  if (match.isMatchOver()) Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _paddingAll(15, ElevatedButton(
-                        child: const Text("New Game"),
-                        onPressed: onContinue,
-                      )),
-                      _paddingAll(15, ElevatedButton(
-                        child: const Text("Main Menu"),
-                        onPressed: onMainMenu,
-                      )),
-                    ],
-                  ),
-                  if (!match.isMatchOver()) Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [_paddingAll(15, ElevatedButton(
-                      child: const Text("Continue"),
-                      onPressed: onContinue,
-                    ))],
-                  ),
-                ])));
+              if (match.isMatchOver())
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paddingAll(
+                        15,
+                        ElevatedButton(
+                          child: const Text("New Game"),
+                          onPressed: onContinue,
+                        )),
+                    _paddingAll(
+                        15,
+                        ElevatedButton(
+                          child: const Text("Main Menu"),
+                          onPressed: onMainMenu,
+                        )),
+                  ],
+                ),
+              if (!match.isMatchOver())
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paddingAll(
+                        15,
+                        ElevatedButton(
+                          child: const Text("Continue"),
+                          onPressed: onContinue,
+                        ))
+                  ],
+                ),
+            ])));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),

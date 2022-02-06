@@ -30,13 +30,13 @@ class SpadesRuleSet {
   SpadesRuleSet copy() => SpadesRuleSet.from(this);
 
   static SpadesRuleSet from(SpadesRuleSet src) => SpadesRuleSet(
-    numPlayers: src.numPlayers,
-    numTeams: src.numTeams,
-    removedCards: [...src.removedCards],
-    pointLimit: src.pointLimit,
-    spadeLeading: src.spadeLeading,
-    penalizeBags: src.penalizeBags,
-  );
+        numPlayers: src.numPlayers,
+        numTeams: src.numTeams,
+        removedCards: [...src.removedCards],
+        pointLimit: src.pointLimit,
+        spadeLeading: src.spadeLeading,
+        penalizeBags: src.penalizeBags,
+      );
 
   Map<String, dynamic> toJson() {
     return {
@@ -75,11 +75,8 @@ bool _canLeadSpade(List<Trick> prevTricks, SpadesRuleSet rules) {
   }
 }
 
-List<PlayingCard> legalPlays(
-    List<PlayingCard> hand,
-    TrickInProgress currentTrick,
-    List<Trick> prevTricks,
-    SpadesRuleSet rules) {
+List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick,
+    List<Trick> prevTricks, SpadesRuleSet rules) {
   if (currentTrick.cards.isEmpty) {
     if (!_canLeadSpade(prevTricks, rules)) {
       final nonSpades = [...hand.where((c) => c.suit != Suit.spades)];
@@ -99,11 +96,10 @@ class SpadesPlayer {
   List<PlayingCard> hand;
   int? bid;
 
-  SpadesPlayer(List<PlayingCard> _hand, {this.bid}) :
-        hand = List.from(_hand);
+  SpadesPlayer(List<PlayingCard> _hand, {this.bid}) : hand = List.from(_hand);
 
-  SpadesPlayer.from(SpadesPlayer src) :
-        hand = List.from(src.hand),
+  SpadesPlayer.from(SpadesPlayer src)
+      : hand = List.from(src.hand),
         bid = src.bid;
 
   SpadesPlayer copy() => SpadesPlayer.from(this);
@@ -117,8 +113,7 @@ class SpadesPlayer {
   }
 
   static SpadesPlayer fromJson(Map<String, dynamic?> json) {
-    return SpadesPlayer(
-        PlayingCard.cardsFromString(json["hand"] as String),
+    return SpadesPlayer(PlayingCard.cardsFromString(json["hand"] as String),
         bid: json["bid"] as int?);
   }
 }
@@ -132,17 +127,18 @@ class RoundScoreResult {
   int failedNilPoints = 0;
 
   int get totalRoundPoints =>
-      successfulBidPoints + failedBidPoints + overtricks + overtrickPenalty +
-          successfulNilPoints + failedNilPoints;
+      successfulBidPoints +
+      failedBidPoints +
+      overtricks +
+      overtrickPenalty +
+      successfulNilPoints +
+      failedNilPoints;
 
   int endingMatchPoints = 0;
 }
 
 List<RoundScoreResult> pointsForTrickWinners(
-    List<int> trickWinners,
-    List<int> bids,
-    List<int> previousPoints,
-    SpadesRuleSet rules) {
+    List<int> trickWinners, List<int> bids, List<int> previousPoints, SpadesRuleSet rules) {
   List<RoundScoreResult> results = List.generate(rules.numTeams, (_) => RoundScoreResult());
   List<int> winnerCounts = List.filled(rules.numPlayers, 0);
   List<int> teamWinnerCounts = List.filled(rules.numTeams, 0);
@@ -162,8 +158,7 @@ List<RoundScoreResult> pointsForTrickWinners(
   for (int nb in nilBidders) {
     if (winnerCounts[nb] == 0) {
       results[nb % rules.numTeams].successfulNilPoints += 100;
-    }
-    else {
+    } else {
       results[nb % rules.numTeams].failedNilPoints -= 100;
     }
   }
@@ -179,8 +174,7 @@ List<RoundScoreResult> pointsForTrickWinners(
             results[ti].overtrickPenalty = -110;
           }
         }
-      }
-      else {
+      } else {
         results[ti].failedBidPoints -= 10 * teamBids[ti];
       }
     }
@@ -190,10 +184,7 @@ List<RoundScoreResult> pointsForTrickWinners(
 }
 
 List<RoundScoreResult> pointsForTricks(
-    List<Trick> tricks,
-    List<int> bids,
-    List<int> previousPoints,
-    SpadesRuleSet rules) {
+    List<Trick> tricks, List<int> bids, List<int> previousPoints, SpadesRuleSet rules) {
   return pointsForTrickWinners([...tricks.map((t) => t.winner)], bids, previousPoints, rules);
 }
 
@@ -218,8 +209,7 @@ class SpadesRound {
     List<SpadesPlayer> players = [];
     int numCardsPerPlayer = cards.length ~/ rules.numPlayers;
     for (int i = 0; i < rules.numPlayers; i++) {
-      final playerCards = cards.sublist(
-          i * numCardsPerPlayer, (i + 1) * numCardsPerPlayer);
+      final playerCards = cards.sublist(i * numCardsPerPlayer, (i + 1) * numCardsPerPlayer);
       players.add(SpadesPlayer(playerCards));
     }
 
@@ -313,14 +303,15 @@ class SpadesRound {
 
   static SpadesRound fromJson(final Map<String, dynamic> json) {
     return SpadesRound()
-        ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
-        ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
-        ..players = [...json["players"].map((p) => SpadesPlayer.fromJson(p as Map<String, dynamic>))]
-        ..initialScores = List<int>.from(json["initialScores"])
-        ..dealer = json["dealer"] as int
-        ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
-        ..previousTricks = [...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))]
-        ;
+      ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
+      ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
+      ..players = [...json["players"].map((p) => SpadesPlayer.fromJson(p as Map<String, dynamic>))]
+      ..initialScores = List<int>.from(json["initialScores"])
+      ..dealer = json["dealer"] as int
+      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+      ..previousTricks = [
+        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))
+      ];
   }
 }
 
@@ -331,8 +322,7 @@ class SpadesMatch {
   List<SpadesRound> previousRounds = [];
   late SpadesRound currentRound;
 
-  SpadesMatch(SpadesRuleSet _rules, this.rng) : rules = _rules.copy()
-  {
+  SpadesMatch(SpadesRuleSet _rules, this.rng) : rules = _rules.copy() {
     dealer = rng.nextInt(rules.numPlayers);
     currentRound = SpadesRound.deal(rules, List.filled(rules.numTeams, 0), dealer, rng);
   }
@@ -349,11 +339,11 @@ class SpadesMatch {
   static SpadesMatch fromJson(final Map<String, dynamic> json, Random rng) {
     final rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>);
     return SpadesMatch(rules, rng)
-        ..dealer = json["dealer"] as int
-        ..previousRounds =
-            [...json["previousRounds"].map((r) => SpadesRound.fromJson(r as Map<String, dynamic>))]
-        ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, dynamic>)
-        ;
+      ..dealer = json["dealer"] as int
+      ..previousRounds = [
+        ...json["previousRounds"].map((r) => SpadesRound.fromJson(r as Map<String, dynamic>))
+      ]
+      ..currentRound = SpadesRound.fromJson(json["currentRound"] as Map<String, dynamic>);
   }
 
   SpadesMatch copy() {
@@ -379,8 +369,7 @@ class SpadesMatch {
   List<int> get scores {
     if (currentRound.isOver()) {
       return [...currentRound.pointsTaken().map((p) => p.endingMatchPoints)];
-    }
-    else {
+    } else {
       return currentRound.initialScores;
     }
   }

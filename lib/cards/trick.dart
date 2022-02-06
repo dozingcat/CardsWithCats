@@ -14,14 +14,12 @@ int trickWinnerIndex(final List<PlayingCard> cards, {Suit? trump}) {
         topIndex = i;
         topRank = cr;
       }
-    }
-    else {
+    } else {
       if (cs == effectiveTrump) {
         hasTrump = true;
         topIndex = i;
         topRank = cr;
-      }
-      else if (cs == leadSuit && cr.isHigherThan(topRank)) {
+      } else if (cs == leadSuit && cr.isHigherThan(topRank)) {
         topIndex = i;
         topRank = cr;
       }
@@ -54,9 +52,7 @@ class Trick {
   }
 
   static Trick fromJson(final Map<String, dynamic> json) {
-    return Trick(
-        json["leader"] as int,
-        PlayingCard.cardsFromString(json["cards"] as String),
+    return Trick(json["leader"] as int, PlayingCard.cardsFromString(json["cards"] as String),
         json["winner"] as int);
   }
 }
@@ -65,8 +61,7 @@ class TrickInProgress {
   final int leader;
   final List<PlayingCard> cards;
 
-  TrickInProgress(this.leader, [List<PlayingCard>? _cards]) :
-        cards=_cards ?? [];
+  TrickInProgress(this.leader, [List<PlayingCard>? _cards]) : cards = _cards ?? [];
 
   TrickInProgress copy() => TrickInProgress(leader, List.of(cards));
 
