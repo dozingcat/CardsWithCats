@@ -4,8 +4,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'hearts/hearts.dart';
 import 'spades/spades.dart';
@@ -303,11 +305,29 @@ class _MyHomePageState extends State<MyHomePage> {
     ]);
   }
 
-  void _showAboutDialog(final BuildContext context) {}
+  void _showAboutDialog(BuildContext context) async {
+    final aboutText = await DefaultAssetBundle.of(context).loadString('assets/doc/about.md');
+    showAboutDialog(
+      context: context,
+      applicationName: 'Cat Card Cafe',
+      applicationVersion: '1.0.0',
+      applicationLegalese: '© 2022 Brian Nenninger',
+      children: [
+        Container(height: 15),
+        MarkdownBody(
+          data: aboutText,
+          onTapLink: (text, href, title) => launch(href!),
+          // https://github.com/flutter/flutter_markdown/issues/311
+          listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
+        ),
+      ],
+    );
+  }
+
 
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
-    return Container(
+    return SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: Center(
@@ -343,12 +363,13 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
     const baseFontSize = 18.0;
+    const optionFontSize = 14.0;
 
     Widget makeHeartsRuleCheckboxRow(
         String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
-        title: Text(title, style: TextStyle(fontSize: baseFontSize)),
+        title: Text(title, style: TextStyle(fontSize: optionFontSize)),
         isThreeLine: false,
         onChanged: (bool? checked) {
           updateHeartsRules((rules) => updateRulesFn(rules, checked == true));
@@ -361,7 +382,7 @@ class _MyHomePageState extends State<MyHomePage> {
         String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
-        title: Text(title, style: TextStyle(fontSize: baseFontSize)),
+        title: Text(title, style: TextStyle(fontSize: optionFontSize)),
         isThreeLine: false,
         onChanged: (bool? checked) {
           updateSpadesRules((rules) => updateRulesFn(rules, checked == true));
@@ -370,11 +391,14 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
+    final dialogWidth = 0.8 * minDim;
+    final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
+
     return SizedBox(
         width: double.infinity,
         height: double.infinity,
-        child: Center(
             child: Dialog(
+                insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
                 backgroundColor: dialogBackgroundColor,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -385,27 +409,29 @@ class _MyHomePageState extends State<MyHomePage> {
                           "Preferences",
                           style: TextStyle(fontSize: min(minDim / 18, 40)),
                         )),
+                    Text("Changes take effect in the next match.",
+                        style: TextStyle(fontSize: baseFontSize * 0.65)),
                     ListTile(title: Text("Hearts",
                         style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
                     makeHeartsRuleCheckboxRow(
-                      "Jack of diamonds is -10 points",
+                      "J♦ is -10 points",
                       heartsRulesFromPrefs.jdMinus10,
                       (rules, checked) {
                         rules.jdMinus10 = checked;
                       },
                     ),
                     makeHeartsRuleCheckboxRow(
-                      "Allow points on first trick",
-                      heartsRulesFromPrefs.pointsOnFirstTrick,
-                      (rules, checked) {
-                        rules.pointsOnFirstTrick = checked;
-                      },
-                    ),
-                    makeHeartsRuleCheckboxRow(
-                      "Queen of spades breaks hearts",
+                      "Q♠ breaks hearts",
                       heartsRulesFromPrefs.queenBreaksHearts,
                       (rules, checked) {
                         rules.queenBreaksHearts = checked;
+                      },
+                    ),
+                    makeHeartsRuleCheckboxRow(
+                      "Allow points on first trick",
+                      heartsRulesFromPrefs.pointsOnFirstTrick,
+                          (rules, checked) {
+                        rules.pointsOnFirstTrick = checked;
                       },
                     ),
                     ListTile(title: Text("Spades",
@@ -425,9 +451,9 @@ class _MyHomePageState extends State<MyHomePage> {
                             checked ? SpadeLeading.after_broken : SpadeLeading.always;
                       },
                     ),
-                    _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("Done"))),
+                    _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("OK"))),
                   ],
-                ))));
+                )));
   }
 
   Widget _menuIcon() {

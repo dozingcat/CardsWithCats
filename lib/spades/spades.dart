@@ -24,7 +24,7 @@ class SpadesRuleSet {
     this.pointLimit = 500,
     this.penalizeBags = true,
     this.removedCards = const [],
-    this.spadeLeading = SpadeLeading.always,
+    this.spadeLeading = SpadeLeading.after_broken,
   });
 
   SpadesRuleSet copy() => SpadesRuleSet.from(this);
