@@ -50,6 +50,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   late StreamSubscription matchUpdateSubscription;
 
   SpadesRound get round => match.currentRound;
+  final suitDisplayOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
 
   @override
   void initState() {
@@ -247,7 +248,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
-    final rects = playerHandCardRects(layout, cards);
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder);
 
     bool isHumanTurn = round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0;
     List<PlayingCard> highlightedCards = [];
@@ -279,6 +280,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       humanPlayerHand: humanHand,
+      humanPlayerSuitOrder: suitDisplayOrder,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );
@@ -542,20 +544,24 @@ class PostBidDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
+    final halfPadding = textStyle.fontSize! * 0.75;
     return Center(
         child: Dialog(
             backgroundColor: dialogBackgroundColor,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _paddingAll(15, Text(playerBidMessage())),
-                _paddingAll(15, Text(opponentBidMessage())),
+                SizedBox(height: halfPadding),
+                _paddingAll(halfPadding, Text(playerBidMessage(), style: textStyle)),
+                _paddingAll(halfPadding, Text(opponentBidMessage(), style: textStyle)),
                 _paddingAll(
-                    15,
+                    halfPadding,
                     ElevatedButton(
                       child: Text("Start round"),
                       onPressed: onConfirm,
                     )),
+                SizedBox(height: halfPadding),
               ],
             )));
   }
@@ -647,7 +653,7 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("New Game"),
+                          child: const Text("Rematch"),
                           onPressed: onContinue,
                         )),
                     _paddingAll(

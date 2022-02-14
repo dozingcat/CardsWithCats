@@ -76,10 +76,13 @@ class Layout {
   }
 
   double dialogBaseFontSize() {
-    return max(16, displaySize.shortestSide / 30);
+    final baseSize = displaySize.shortestSide / 30;
+    return baseSize.clamp(14, 20);
   }
 
   double dialogHeaderFontSize() {
+    final baseSize = displaySize.shortestSide / 20;
+    return baseSize.clamp(18, 50);
     return max(26, displaySize.shortestSide / 20);
   }
 }
@@ -475,6 +478,7 @@ class TrickCards extends StatelessWidget {
   final void Function() onTrickCardAnimationFinished;
   final void Function() onTrickToWinnerAnimationFinished;
   final List<PlayingCard>? humanPlayerHand;
+  final List<Suit>? humanPlayerSuitOrder;
 
   const TrickCards({
     Key? key,
@@ -486,6 +490,7 @@ class TrickCards extends StatelessWidget {
     required this.onTrickCardAnimationFinished,
     required this.onTrickToWinnerAnimationFinished,
     this.humanPlayerHand,
+    this.humanPlayerSuitOrder,
   }) : super(key: key);
 
   @override
@@ -541,7 +546,7 @@ class TrickCards extends StatelessWidget {
       // We want to know where the card was drawn in the player's hand. It's not
       // there now, so we have to compute the card rects as if it were.
       final previousHandCards = [...humanPlayerHand!, cards.last];
-      startRect = playerHandCardRects(layout, previousHandCards)[cards.last]!;
+      startRect = playerHandCardRects(layout, previousHandCards, humanPlayerSuitOrder!)[cards.last]!;
     }
 
     cardWidgets.add(TweenAnimationBuilder(
@@ -581,7 +586,8 @@ class TrickCards extends StatelessWidget {
   }
 }
 
-LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<PlayingCard> cards) {
+LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
+    Layout layout, List<PlayingCard> cards, List<Suit> suitOrder) {
   final rects = LinkedHashMap<PlayingCard, Rect>();
   const cardAspectRatio = 500.0 / 726;
   const cardHeightFrac = 0.2;
@@ -597,12 +603,10 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(Layout layout, List<Playing
 
   double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
 
-  List sortedCards = [
-    ...sortedCardsInSuit(cards, Suit.hearts),
-    ...sortedCardsInSuit(cards, Suit.spades),
-    ...sortedCardsInSuit(cards, Suit.diamonds),
-    ...sortedCardsInSuit(cards, Suit.clubs),
-  ];
+  List<PlayingCard> sortedCards = [];
+  for (Suit suit in suitOrder) {
+    sortedCards.addAll(sortedCardsInSuit(cards, suit));
+  }
   final oneRowWidth = widthOfNCards(sortedCards.length);
   if (oneRowWidth < maxAllowedTotalWidth) {
     // Show all cards in a single row.

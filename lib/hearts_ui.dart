@@ -49,6 +49,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   late StreamSubscription matchUpdateSubscription;
 
   HeartsRound get round => match.currentRound;
+  final suitDisplayOrder = [Suit.hearts, Suit.spades, Suit.diamonds, Suit.clubs];
 
   @override
   void initState() {
@@ -222,7 +223,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
-    final rects = playerHandCardRects(layout, cards);
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder);
 
     bool isHumanTurn = round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0;
     List<PlayingCard> highlightedCards = [];
@@ -254,6 +255,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       humanPlayerHand: humanHand,
+      humanPlayerSuitOrder: suitDisplayOrder,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );
@@ -408,19 +410,23 @@ class PassCardsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
+    final halfPadding = textStyle.fontSize! * 0.75;
     return Center(
       child: Dialog(
         backgroundColor: dialogBackgroundColor,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _paddingAll(15, Text(passMessage())),
+            SizedBox(height: halfPadding),
+            _paddingAll(halfPadding, Text(passMessage(), style: textStyle)),
             _paddingAll(
-                15,
+                halfPadding,
                 ElevatedButton(
                   child: Text(buttonLabel()),
                   onPressed: isButtonEnabled() ? onConfirm : null,
                 )),
+            SizedBox(height: halfPadding),
           ],
         ),
       ),
@@ -512,7 +518,7 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("New Game"),
+                          child: const Text("Rematch"),
                           onPressed: onContinue,
                         )),
                     _paddingAll(
