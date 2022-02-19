@@ -16,7 +16,7 @@ import 'common_ui.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
-const appTitle = "Cat Card Cafe";
+const appTitle = "Cards with Cats";
 
 void main() {
   runApp(const MyApp());
@@ -309,7 +309,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final aboutText = await DefaultAssetBundle.of(context).loadString('assets/doc/about.md');
     showAboutDialog(
       context: context,
-      applicationName: 'Cat Card Cafe',
+      applicationName: appTitle,
       applicationVersion: '1.0.0',
       applicationLegalese: '© 2022 Brian Nenninger',
       children: [
@@ -337,10 +337,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(
-                        10,
+                        20,
                         Text(appTitle,
                             style: TextStyle(
-                              fontSize: min(minDim / 15, 40),
+                              fontSize: min(minDim / 18, 40),
                             ))),
                     _paddingAll(
                         10,
@@ -391,12 +391,12 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
-    final dialogWidth = 0.8 * minDim;
-    final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
+    // final dialogWidth = 0.8 * minDim;
+    final dialogPadding = 0.0; // (layout.displaySize.width - dialogWidth) / 2;
 
-    return SizedBox(
-        width: double.infinity,
-        height: double.infinity,
+    return Container(
+        // width: double.infinity,
+        // height: double.infinity,
             child: Dialog(
                 insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
                 backgroundColor: dialogBackgroundColor,
@@ -404,7 +404,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(
-                        10,
+                        20,
                         Text(
                           "Preferences",
                           style: TextStyle(fontSize: min(minDim / 18, 40)),

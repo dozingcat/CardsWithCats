@@ -1,11 +1,11 @@
 import 'dart:math';
 
 import "package:flutter_test/flutter_test.dart";
-import "package:hearts/cards/card.dart";
-import 'package:hearts/cards/rollout.dart';
-import 'package:hearts/cards/trick.dart';
-import "package:hearts/hearts/hearts.dart";
-import "package:hearts/hearts/hearts_ai.dart";
+import "package:cards_with_cats/cards/card.dart";
+import 'package:cards_with_cats/cards/rollout.dart';
+import 'package:cards_with_cats/cards/trick.dart';
+import "package:cards_with_cats/hearts/hearts.dart";
+import "package:cards_with_cats/hearts/hearts_ai.dart";
 
 const c = PlayingCard.cardsFromString;
 

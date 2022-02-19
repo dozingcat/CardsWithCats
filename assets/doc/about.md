@@ -9,14 +9,14 @@ selects three cards to pass to an opponent. The pass direction cycles between le
 and then a round without passing.
 
 In each round, players play cards one at a time in "tricks". One player leads a trick by playing a
-card. Each other player must play a card of the same suit as the first card if they have one. If
+card. Each other player must play a card of the same suit as the first card if possible. If
 not, they may play any card. After each player has played a card, whoever played the highest ranking
 card of the suit that was led takes all the cards.
 
-The player with the two of clubs must lead it for the first trick. After that, whoever takes each
-trick leads the next one. You cannot lead hearts unless a heart has been played on a previous trick
-(unless all your cards are hearts). Note: the first trick of a round is "safe"; players are not
-allowed to play hearts or the queen of spades, even if they have no clubs.
+The player with the two of clubs leads it for the first trick. After that, whoever takes each
+trick leads the next one. You cannot lead hearts unless a heart has been played on a previous trick.
+Note: the first trick of a round is "safe"; players are not allowed to play hearts or the queen of
+spades, even if they have no clubs.
 
 When a round is over, each player gets 1 point for each heart they took, and 13 points for taking
 the queen of spades. The match is over when one or more players have taken at least 100 points, and

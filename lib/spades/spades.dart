@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:hearts/cards/card.dart';
-import 'package:hearts/cards/trick.dart';
+import 'package:cards_with_cats/cards/card.dart';
+import 'package:cards_with_cats/cards/trick.dart';
 
 enum SpadeLeading {
   always,

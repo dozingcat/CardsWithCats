@@ -1,8 +1,8 @@
 import 'dart:math';
 
-import 'package:hearts/cards/rollout.dart';
-import 'package:hearts/hearts/hearts.dart';
-import 'package:hearts/hearts/hearts_ai.dart';
+import 'package:cards_with_cats/cards/rollout.dart';
+import 'package:cards_with_cats/hearts/hearts.dart';
+import 'package:cards_with_cats/hearts/hearts_ai.dart';
 
 import 'cards/card.dart';
 

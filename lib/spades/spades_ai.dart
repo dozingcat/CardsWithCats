@@ -1,10 +1,10 @@
 import 'dart:math';
 
-import 'package:hearts/cards/card.dart';
-import 'package:hearts/cards/rollout.dart';
-import 'package:hearts/cards/trick.dart';
-import 'package:hearts/spades/spades.dart';
-import 'package:hearts/spades/spades.dart' as spades;
+import 'package:cards_with_cats/cards/card.dart';
+import 'package:cards_with_cats/cards/rollout.dart';
+import 'package:cards_with_cats/cards/trick.dart';
+import 'package:cards_with_cats/spades/spades.dart';
+import 'package:cards_with_cats/spades/spades.dart' as spades;
 
 class BidRequest {
   final SpadesRuleSet rules;

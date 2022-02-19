@@ -1,8 +1,8 @@
 import "dart:math";
 
 import "package:flutter_test/flutter_test.dart";
-import "package:hearts/cards/card.dart";
-import "package:hearts/cards/rollout.dart";
+import "package:cards_with_cats/cards/card.dart";
+import "package:cards_with_cats/cards/rollout.dart";
 
 void main() {
   test("Distribution with no constraints", () {

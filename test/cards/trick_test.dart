@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hearts/cards/card.dart';
-import 'package:hearts/cards/trick.dart';
+import 'package:cards_with_cats/cards/card.dart';
+import 'package:cards_with_cats/cards/trick.dart';
 
 void main() {
   test('All same suit', () {
