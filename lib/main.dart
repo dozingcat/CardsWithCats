@@ -391,8 +391,8 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
-    // final dialogWidth = 0.8 * minDim;
-    final dialogPadding = 0.0; // (layout.displaySize.width - dialogWidth) / 2;
+    final dialogWidth = 0.8 * minDim;
+    final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
 
     return Container(
         // width: double.infinity,
