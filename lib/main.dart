@@ -488,6 +488,7 @@ class _MyHomePageState extends State<MyHomePage> {
             mainMenuFn: _showMainMenu,
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
+            catImageIndices: catIndices,
           ),
         if (matchType == GameType.spades)
           SpadesMatchDisplay(
@@ -497,6 +498,7 @@ class _MyHomePageState extends State<MyHomePage> {
             mainMenuFn: _showMainMenu,
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
+            catImageIndices: catIndices,
           ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),

@@ -21,8 +21,9 @@ class HeartsMatchDisplay extends StatefulWidget {
   final HeartsMatch Function() createMatchFn;
   final void Function(HeartsMatch?) saveMatchFn;
   final void Function() mainMenuFn;
-  final Stream matchUpdateStream;
   final bool dialogVisible;
+  final List<int> catImageIndices;
+  final Stream matchUpdateStream;
 
   const HeartsMatchDisplay({
     Key? key,
@@ -31,6 +32,7 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.saveMatchFn,
     required this.mainMenuFn,
     required this.dialogVisible,
+    required this.catImageIndices,
     required this.matchUpdateStream,
   }) : super(key: key);
 
@@ -100,7 +102,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void _playCard(final PlayingCard card) {
-    print(round.toJson());
+    // print(round.toJson());
     if (round.status == HeartsRoundStatus.playing) {
       setState(() {
         round.playCard(card);
@@ -115,7 +117,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void _updateMoodsAfterTrick() {
-    print(round.toJson());
+    // print(round.toJson());
     playerMoods.clear();
     if (match.isMatchOver()) {
       final winners = match.winningPlayers();
@@ -178,8 +180,14 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   void _playNextCard() async {
     // Do this in a separate thread/isolate.
-    final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
-    _playCard(card);
+    try {
+      print("Starting isolate");
+      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
+      _playCard(card);
+    }
+    catch (ex) {
+      print("*** Exception in isolate: $ex");
+    }
   }
 
   void _passCards() {
@@ -350,6 +358,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             match: match,
             onContinue: _startRound,
             onMainMenu: _showMainMenuAfterMatch,
+            catImageIndices: widget.catImageIndices,
           ),
         PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
@@ -439,6 +448,7 @@ class EndOfRoundDialog extends StatelessWidget {
   final HeartsMatch match;
   final Function() onContinue;
   final Function() onMainMenu;
+  final List<int> catImageIndices;
 
   const EndOfRoundDialog({
     Key? key,
@@ -446,6 +456,7 @@ class EndOfRoundDialog extends StatelessWidget {
     required this.match,
     required this.onContinue,
     required this.onMainMenu,
+    required this.catImageIndices,
   }) : super(key: key);
 
   @override
@@ -464,6 +475,15 @@ class EndOfRoundDialog extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
+    Widget catImageCell(int imageIndex) {
+      final imageHeight = headerFontSize * 1.25;
+      final leftPadding = headerFontSize * 1.1;
+      return Padding(
+          padding: EdgeInsets.only(left: leftPadding),
+          child: Image.asset(catImageForIndex(imageIndex), height: imageHeight)
+      );
+    }
+
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
           _paddingAll(cellPad, headerCell(title)),
           ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
@@ -479,6 +499,7 @@ class EndOfRoundDialog extends StatelessWidget {
 
     final dialog = Center(
         child: Dialog(
+          insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
@@ -501,13 +522,13 @@ class EndOfRoundDialog extends StatelessWidget {
                       TableRow(children: [
                         _paddingAll(cellPad, headerCell("")),
                         _paddingAll(cellPad, headerCell("You")),
-                        _paddingAll(cellPad, headerCell("West")),
-                        _paddingAll(cellPad, headerCell("North")),
-                        _paddingAll(cellPad, headerCell("East")),
+                        _paddingAll(cellPad, catImageCell(catImageIndices[1])),
+                        _paddingAll(cellPad, catImageCell(catImageIndices[2])),
+                        _paddingAll(cellPad, catImageCell(catImageIndices[3])),
                       ]),
                       pointsRow("Previous", match.currentRound.initialScores),
-                      pointsRow("Round points", scores),
-                      pointsRow("Total points", match.scores),
+                      pointsRow("Round score", scores),
+                      pointsRow("Total score", match.scores),
                     ],
                   )),
               if (match.isMatchOver())

@@ -21,8 +21,9 @@ class SpadesMatchDisplay extends StatefulWidget {
   final SpadesMatch Function() createMatchFn;
   final void Function(SpadesMatch?) saveMatchFn;
   final void Function() mainMenuFn;
-  final Stream matchUpdateStream;
   final bool dialogVisible;
+  final List<int> catImageIndices;
+  final Stream matchUpdateStream;
 
   const SpadesMatchDisplay({
     Key? key,
@@ -30,8 +31,9 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.createMatchFn,
     required this.saveMatchFn,
     required this.mainMenuFn,
-    required this.matchUpdateStream,
     required this.dialogVisible,
+    required this.catImageIndices,
+    required this.matchUpdateStream,
   }) : super(key: key);
 
   @override
@@ -173,7 +175,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void _updateMoodsAfterTrick() {
-    print(round.toJson());
+    // print(round.toJson());
     playerMoods.clear();
     final lastTrick = round.previousTricks.last;
     // playerMoods[lastTrick.winner] = Mood.happy;
@@ -232,8 +234,16 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _playNextCard() async {
     // Do this in a separate thread/isolate.
-    final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
-    _playCard(card);
+    try {
+      print("Starting isolate");
+      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
+      _playCard(card);
+    }
+    catch (ex) {
+      print("*** Exception in isolate: $ex");
+      // final card = chooseCardToMakeBids(CardToPlayRequest.fromRound(round), rng);
+      // _playCard(card);
+    }
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -400,6 +410,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
             match: match,
             onContinue: () => setState(_startRound),
             onMainMenu: _showMainMenuAfterMatch,
+            catImageIndices: widget.catImageIndices,
           ),
         ...bidSpeechBubbles(layout),
         PlayerMoods(layout: layout, moods: playerMoods),
@@ -519,9 +530,9 @@ class PostBidDialog extends StatelessWidget {
     if (totalBid == 0) {
       return "You and your partner have both bid nil.";
     } else if (playerBid == 0) {
-      return "Your team has bid $totalBid. You bid nil.";
+      return "Your team has bid $totalBid.\nYou bid nil.";
     } else if (partnerBid == 0) {
-      return "Your team has bid $totalBid. Your partner bid nil.";
+      return "Your team has bid $totalBid.\nYour partner bid nil.";
     } else {
       return "Your team has bid $totalBid.";
     }
@@ -534,9 +545,9 @@ class PostBidDialog extends StatelessWidget {
     if (totalBid == 0) {
       return "Your opponents have both bid nil.";
     } else if (westBid == 0) {
-      return "Your opponents have bid $totalBid. The left opponent bid nil.";
+      return "Your opponents have bid $totalBid.\nThe left opponent bid nil.";
     } else if (eastBid == 0) {
-      return "Your opponents have bid $totalBid. The right opponent bid nil.";
+      return "Your opponents have bid $totalBid.\nThe right opponent bid nil.";
     } else {
       return "Your opponents have bid $totalBid.";
     }
@@ -558,7 +569,7 @@ class PostBidDialog extends StatelessWidget {
                 _paddingAll(
                     halfPadding,
                     ElevatedButton(
-                      child: Text("Start round"),
+                      child: const Text("Start round"),
                       onPressed: onConfirm,
                     )),
                 SizedBox(height: halfPadding),
@@ -572,6 +583,7 @@ class EndOfRoundDialog extends StatelessWidget {
   final SpadesMatch match;
   final Function() onContinue;
   final Function() onMainMenu;
+  final List<int> catImageIndices;
 
   const EndOfRoundDialog({
     Key? key,
@@ -579,6 +591,7 @@ class EndOfRoundDialog extends StatelessWidget {
     required this.match,
     required this.onContinue,
     required this.onMainMenu,
+    required this.catImageIndices,
   }) : super(key: key);
 
   @override
@@ -597,6 +610,22 @@ class EndOfRoundDialog extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
+    final catImageHeight = headerFontSize * 1.25;
+
+    Widget humanTeamHeaderCell() => Row(children: [
+      Text("You/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+      Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
+    ]);
+
+    Widget opponentTeamHeaderCell() => Padding(
+        padding: EdgeInsets.only(left: headerFontSize * 1.1),
+        child: Row(children: [
+            Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
+            Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+            Image.asset(catImageForIndex(catImageIndices[3]), height: catImageHeight),
+        ]
+    ));
+
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
           _paddingAll(cellPad, headerCell(title)),
           ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
@@ -608,6 +637,7 @@ class EndOfRoundDialog extends StatelessWidget {
 
     final dialog = Center(
         child: Dialog(
+            insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
@@ -628,9 +658,9 @@ class EndOfRoundDialog extends StatelessWidget {
                     defaultColumnWidth: const IntrinsicColumnWidth(),
                     children: [
                       TableRow(children: [
-                        _paddingAll(cellPad, headerCell("")),
-                        _paddingAll(cellPad, headerCell("You")),
-                        _paddingAll(cellPad, headerCell("Them")),
+                        _paddingAll(cellPad, const SizedBox()),
+                        _paddingAll(cellPad, humanTeamHeaderCell()),
+                        _paddingAll(cellPad, opponentTeamHeaderCell()),
                       ]),
                       pointsRow("Previous score", match.currentRound.initialScores),
                       pointsRow("Points from tricks",

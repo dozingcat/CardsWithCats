@@ -111,14 +111,12 @@ class PositionedCard extends StatelessWidget {
             onTapDown: (tap) => onCardClicked(card),
             child: Stack(children: [
               if (opacity < 1)
-                const Center(
-                    child: Image(
+                const Center(child: Image(
                   image: AssetImage(backgroundImagePath),
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
                 )),
-              Center(
-                  child: Image(
+              Center(child: Image(
                 color: Color.fromRGBO(255, 255, 255, opacity),
                 colorBlendMode: BlendMode.modulate,
                 image: AssetImage(cardImagePath),
@@ -126,6 +124,8 @@ class PositionedCard extends StatelessWidget {
             ])));
   }
 }
+
+String catImageForIndex(int index) => "assets/cats/cat${index + 1}.png";
 
 class AiPlayerImage extends StatelessWidget {
   final Layout layout;
@@ -142,7 +142,7 @@ class AiPlayerImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageIndex = (catImageIndex != null) ? catImageIndex! : playerIndex;
-    final imagePath = "assets/cats/cat${imageIndex + 1}.png";
+    final imagePath = catImageForIndex(imageIndex);
     const imageAspectRatio = 156 / 112;
     final displaySize = layout.displaySize;
     final playerSize = layout.edgePx;
@@ -170,17 +170,15 @@ class AiPlayerImage extends StatelessWidget {
         color: Colors.transparent,
         width: rect.width,
         height: rect.height,
-        // The image won't naturally take up the full width If rotated 90 degrees,
+        // The image won't naturally take up the full width if rotated 90 degrees,
         // so in that case scale by the aspect ratio.
         child: Transform.scale(
             scale: scale,
             child: Transform.rotate(
                 angle: angle,
-                child: Image(
-                  image: AssetImage(imagePath),
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                ))),
+                child: Image.asset(imagePath),
+            )
+        ),
       ),
 
       // child: Text("Hello $playerNum"),
@@ -353,21 +351,16 @@ class MoodBubble extends StatelessWidget {
                   child: Transform(
                       alignment: Alignment.center,
                       transform: transform,
-                      child: const Image(
-                        image: AssetImage(bubbleImagePath),
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                      )),
+                      child: Image.asset(bubbleImagePath, fit: BoxFit.contain),
+                  ),
                 ),
                 Positioned(
                   top: moodYFrac * imageHeight,
                   left: moodXFrac * imageWidth,
                   width: moodSize,
                   height: moodSize,
-                  child: Image(
-                    image: AssetImage(_moodImagePath()),
-                    fit: BoxFit.contain,
-                  ),
+
+                  child: Image.asset(_moodImagePath(), fit: BoxFit.contain),
                 ),
               ],
             )));

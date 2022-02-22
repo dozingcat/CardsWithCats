@@ -316,7 +316,7 @@ HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..passDirection = 0;
 }
 
-PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
+PlayingCard _chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
     ChooseCardFn rolloutChooseFn, Random rng) {
   final legalPlays = cardReq.legalPlays();
   assert(legalPlays.isNotEmpty);
@@ -356,6 +356,15 @@ PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcP
   }
   return legalPlays[bestIndex];
 }
+
+PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
+    ChooseCardFn rolloutChooseFn, Random rng) {
+  print("In HeartsAI.chooseCardMonteCarlo");
+  final card = _chooseCardMonteCarlo(cardReq, mcParams, rolloutChooseFn, rng);
+  print("Got card: $card");
+  return card;
+}
+
 
 void doRollout(HeartsRound round, ChooseCardFn chooseFn, Random rng) {
   while (!round.isOver()) {

@@ -565,7 +565,7 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..dealer = 0;
 }
 
-PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
+PlayingCard _chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
     ChooseCardFn rolloutChooseFn, Random rng) {
   final legalPlays = cardReq.legalPlays();
   assert(legalPlays.isNotEmpty);
@@ -604,6 +604,14 @@ PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcP
     }
   }
   return legalPlays[bestIndex];
+}
+
+PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
+    ChooseCardFn rolloutChooseFn, Random rng) {
+  print("In SpadesAI.chooseCardMonteCarlo");
+  final card = _chooseCardMonteCarlo(cardReq, mcParams, rolloutChooseFn, rng);
+  print("Got card: $card");
+  return card;
 }
 
 void doRollout(SpadesRound round, ChooseCardFn chooseFn, Random rng) {
