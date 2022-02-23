@@ -620,7 +620,7 @@ class EndOfRoundDialog extends StatelessWidget {
         padding: EdgeInsets.only(left: headerFontSize * 1.1),
         child: Row(children: [
             Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
-            Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+            Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
             Image.asset(catImageForIndex(catImageIndices[3]), height: catImageHeight),
         ]
     ));

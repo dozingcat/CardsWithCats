@@ -152,11 +152,11 @@ class AiPlayerImage extends StatelessWidget {
         case 0:
           return Rect.fromLTWH(0, displaySize.height - playerSize, displaySize.width, playerSize);
         case 1:
-          return Rect.fromLTWH(0, 0, playerSize, displaySize.height);
+          return Rect.fromLTWH(1, 0, playerSize, displaySize.height);
         case 2:
-          return Rect.fromLTWH(0, 0, displaySize.width, playerSize);
+          return Rect.fromLTWH(0, 1, displaySize.width, playerSize);
         case 3:
-          return Rect.fromLTWH(displaySize.width - playerSize, 0, playerSize, displaySize.height);
+          return Rect.fromLTWH(displaySize.width - playerSize - 1, 0, playerSize, displaySize.height);
         default:
           return const Rect.fromLTWH(0, 0, 0, 0);
       }
