@@ -2,6 +2,12 @@ Comments or bug reports: [bnenning@gmail.com](mailto:bnenning@gmail.com)
 
 ## General
 
+In both Hearts and Spades, each player is dealt 13 cards and plays them in a series of "tricks".
+In each trick, one player leads by playing a card. Each other player then plays a card, in
+clockwise order. You must play a card of the same suit as the card that was led if possible; if not
+you may play any card. Whoever plays the highest card of the suit that was led takes the cards in
+the trick and leads the next trick. (Unless a trump was played, as described in the Spades rules).
+
 
 ## Hearts
 
@@ -13,18 +19,13 @@ After the cards are dealt for each round, there is usually a passing step. In th
 selects three cards to pass to an opponent. The pass direction cycles between left, right, across,
 and then a round without passing.
 
-In each round, players play cards one at a time in "tricks". One player leads a trick by playing a
-card. Each other player must play a card of the same suit as the first card if possible. If
-not, they may play any card. After each player has played a card, whoever played the highest ranking
-card of the suit that was led takes all the cards.
-
 The player with the two of clubs leads it for the first trick. After that, whoever takes each
 trick leads the next one. You cannot lead hearts unless a heart has been played on a previous trick.
-Note: the first trick of a round is "safe"; players are not allowed to play hearts or the queen of
-spades, even if they have no clubs.
+The first trick of a round is "safe"; players are not allowed to play hearts or the queen of spades,
+even if they have no clubs.
 
 ### Scoring
-When a round is over, each player gets 1 point for each heart they took, and 13 points for taking
+When a round is over, each player scores 1 point for each heart they took, and 13 points for taking
 the queen of spades. The match is over when one or more players have taken at least 100 points, and
 the player with the lowest score wins. This means that you generally want to avoid taking
 points, but there is a special rule: if a player takes all 13 hearts and the queen of spades, that
@@ -40,25 +41,21 @@ also allows hearts to be led in subsequent tricks.
 - Allow points on first trick: Normally, points (hearts and the queen of spades) cannot be played on
 the first trick of a round. If this option is enabled, they can be.
 
+
 ## Spades
 
-## Rules
+### Rules
 There are two teams in spades. Your partner is at the top of the screen, and your opponents are on
 the sides. The goal is to reach 500 points by bidding on how many tricks you will take in each
-round, and then taking that many while preventing your opponents from doing the same. Spades are
-always the trump suit.
+round, and then taking that many while preventing your opponents from doing the same.
+
+Spades are the "trump" suit, meaning that if a spade is played in a trick, then the highest spade
+wins the trick regardless of what other cards were played.
 
 A round starts with each player making a bid, which is a declaration of how many tricks they expect
 to win. Bids of zero (called "nil") are treated specially; see the Scoring section. After all
 players have made a bid, the first bidder (this rotates every round) leads the first trick.
-
-In each trick, each player after the leader must play a card of the same suit as the first card if
-possible. If not, they may play any card. Spades are trumps, so if any spade is played then the
-highest spade wins the trick. If there are no spades, then the highest card in the suit that was
-led wins the trick.a
-
-The winner of each trick leads the next trick. Spades cannot be led until a spade has been played
-on a previous trick.
+Spades cannot be led until a spade has been played on a previous trick.
 
 ### Scoring
 If you and your partner make your combined bid, you score 10 points for each trick that you bid.
@@ -70,13 +67,15 @@ For each trick that a team takes over the bid amount, 1 point is scored. These p
 "bags", and if a team accumulates 10 or more bags they lose 110 points. (This encourages not being
 overly cautious when bidding).
 
-If a player bids nil and successfully takes no tricks, the team scores 100 points. But if the
-player takes one or more tricks, the team loses 100 points.
+If a player bids nil and successfully takes no tricks, their team scores 100 points. But if the nil
+bidder takes one or more tricks, their team loses 100 points.
+
 
 ## License
 
 This application is released under the GNU General Public License, version 3. Source code is
-available [here](https://github.com/dozingcat/CatCardCafe).
+available [here](https://github.com/dozingcat/CardsWithCats).
+
 
 ## Credits
 

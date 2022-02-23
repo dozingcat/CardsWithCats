@@ -557,15 +557,14 @@ class PostBidDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
     final halfPadding = textStyle.fontSize! * 0.75;
-    return Center(
-        child: Dialog(
+    return Dialog(
             backgroundColor: dialogBackgroundColor,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: halfPadding),
-                _paddingAll(halfPadding, Text(playerBidMessage(), style: textStyle)),
-                _paddingAll(halfPadding, Text(opponentBidMessage(), style: textStyle)),
+                _paddingAll(halfPadding, Text(playerBidMessage(), style: textStyle, textAlign: TextAlign.left)),
+                _paddingAll(halfPadding, Text(opponentBidMessage(), style: textStyle, textAlign: TextAlign.left)),
                 _paddingAll(
                     halfPadding,
                     ElevatedButton(
@@ -574,7 +573,7 @@ class PostBidDialog extends StatelessWidget {
                     )),
                 SizedBox(height: halfPadding),
               ],
-            )));
+            ));
   }
 }
 
@@ -597,7 +596,7 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final headerFontSize = layout.dialogBaseFontSize() * 0.9;
+    final headerFontSize = layout.dialogBaseFontSize();
     final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
     const cellPad = 4.0;
 
@@ -610,7 +609,7 @@ class EndOfRoundDialog extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
-    final catImageHeight = headerFontSize * 1.25;
+    final catImageHeight = headerFontSize * 1.3;
 
     Widget humanTeamHeaderCell() => Row(children: [
       Text("You/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),

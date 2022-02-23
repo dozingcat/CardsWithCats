@@ -176,7 +176,7 @@ class AiPlayerImage extends StatelessWidget {
             scale: scale,
             child: Transform.rotate(
                 angle: angle,
-                child: Image.asset(imagePath),
+                child: Image.asset(imagePath, fit: BoxFit.contain),
             )
         ),
       ),

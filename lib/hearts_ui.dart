@@ -462,7 +462,7 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final headerFontSize = layout.dialogBaseFontSize() * 0.9;
+    final headerFontSize = layout.dialogBaseFontSize();
     final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
     const cellPad = 4.0;
 
@@ -476,7 +476,7 @@ class EndOfRoundDialog extends StatelessWidget {
             style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
     Widget catImageCell(int imageIndex) {
-      final imageHeight = headerFontSize * 1.25;
+      final imageHeight = headerFontSize * 1.3;
       final leftPadding = headerFontSize * 1.1;
       return Padding(
           padding: EdgeInsets.only(left: leftPadding),
