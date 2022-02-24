@@ -82,7 +82,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _scheduleNextActionIfNeeded() {
     _scheduleNextAiBidIfNeeded();
-    _scheduleNextPlayIfNeeded();
+    _scheduleNextAiPlayIfNeeded();
   }
 
   bool hasHumanPlayer() {
@@ -151,11 +151,30 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     _scheduleNextActionIfNeeded();
   }
 
-  void _scheduleNextPlayIfNeeded() {
+  void _scheduleNextAiPlayIfNeeded() {
     if (round.isOver()) {
       print("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
     } else if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
-      Future.delayed(const Duration(milliseconds: 500), _playNextCard);
+      _computeAiPlay(minDelayMillis: 500);
+    }
+  }
+
+  void _computeAiPlay({required int minDelayMillis}) async {
+    // Do this in a separate thread/isolate. Note: `compute` has an overhead of
+    // several hundred milliseconds in debug mode, but not in release mode.
+    final t1 = DateTime.now().millisecondsSinceEpoch;
+    try {
+      print("Starting isolate");
+      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
+      final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
+      final delayMillis = max(0, minDelayMillis - elapsed);
+      print("Delaying for $delayMillis ms");
+      Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
+    }
+    catch (ex) {
+      print("*** Exception in isolate: $ex");
+      // final card = chooseCardToMakeBids(CardToPlayRequest.fromRound(round), rng);
+      // _playCard(card);
     }
   }
 
@@ -230,20 +249,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       animationMode = AnimationMode.none;
     });
     _scheduleNextActionIfNeeded();
-  }
-
-  void _playNextCard() async {
-    // Do this in a separate thread/isolate.
-    try {
-      print("Starting isolate");
-      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
-      _playCard(card);
-    }
-    catch (ex) {
-      print("*** Exception in isolate: $ex");
-      // final card = chooseCardToMakeBids(CardToPlayRequest.fromRound(round), rng);
-      // _playCard(card);
-    }
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -612,7 +617,7 @@ class EndOfRoundDialog extends StatelessWidget {
     final catImageHeight = headerFontSize * 1.3;
 
     Widget humanTeamHeaderCell() => Row(children: [
-      Text("You/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+      Text("You /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
       Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
     ]);
 

@@ -11,7 +11,10 @@ import 'cards/rollout.dart';
 import 'hearts/hearts.dart';
 import 'hearts/hearts_ai.dart';
 
+int nowMillis() => DateTime.now().millisecondsSinceEpoch % 10000;
+
 PlayingCard computeCard(final CardToPlayRequest req) {
+  print("In computeCard (t=${nowMillis()})");
   return chooseCardMonteCarlo(
       req, MonteCarloParams(numHands: 20, rolloutsPerHand: 50), chooseCardAvoidingPoints, Random());
 }
@@ -62,7 +65,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         _updateMatch(event);
       }
     });
-    _scheduleNextPlayIfNeeded();
+    _scheduleAiPlayIfNeeded();
   }
 
   @override
@@ -92,12 +95,30 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     widget.saveMatchFn(match);
   }
 
-  void _scheduleNextPlayIfNeeded() {
+  void _scheduleAiPlayIfNeeded() {
     if (round.isOver()) {
       return;
     }
-    if (round.currentPlayerIndex() != 0) {
-      Future.delayed(const Duration(milliseconds: 500), _playNextCard);
+    if (round.currentPlayerIndex() != 0 && round.status == HeartsRoundStatus.playing) {
+      _computeAiPlay(minDelayMillis: 500);
+    }
+  }
+
+  void _computeAiPlay({required int minDelayMillis}) async {
+    // Do this in a separate thread/isolate. Note: `compute` has an overhead of
+    // several hundred milliseconds in debug mode, but not in release mode.
+    final t1 = DateTime.now().millisecondsSinceEpoch;
+    try {
+      print("Starting isolate (t=${nowMillis()})");
+      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
+      print("Got card: ${card.toString()} (t=${nowMillis()})");
+      final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
+      final delayMillis = max(0, minDelayMillis - elapsed);
+      print("Delaying for $delayMillis ms");
+      Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
+    }
+    catch (ex) {
+      print("*** Exception in isolate: $ex");
     }
   }
 
@@ -162,7 +183,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       setState(() {
         animationMode = AnimationMode.none;
       });
-      _scheduleNextPlayIfNeeded();
+      _scheduleAiPlayIfNeeded();
     } else {
       setState(() {
         animationMode = AnimationMode.moving_trick_to_winner;
@@ -175,19 +196,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextPlayIfNeeded();
-  }
-
-  void _playNextCard() async {
-    // Do this in a separate thread/isolate.
-    try {
-      print("Starting isolate");
-      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
-      _playCard(card);
-    }
-    catch (ex) {
-      print("*** Exception in isolate: $ex");
-    }
+    _scheduleAiPlayIfNeeded();
   }
 
   void _passCards() {
@@ -208,7 +217,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         round.passCards();
       });
     }
-    _scheduleNextPlayIfNeeded();
+    _scheduleAiPlayIfNeeded();
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -216,7 +225,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
-        print("Playing");
+        print("Playing ${card.toString()}");
         _playCard(card);
       }
     } else if (round.status == HeartsRoundStatus.passing) {
