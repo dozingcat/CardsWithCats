@@ -155,7 +155,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     if (round.isOver()) {
       print("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
     } else if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
-      _computeAiPlay(minDelayMillis: 500);
+      _computeAiPlay(minDelayMillis: 750);
     }
   }
 
@@ -617,12 +617,14 @@ class EndOfRoundDialog extends StatelessWidget {
     final catImageHeight = headerFontSize * 1.3;
 
     Widget humanTeamHeaderCell() => Row(children: [
-      Text("You /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+      Text("You", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+      SizedBox(width: headerFontSize * 0.1),
+      Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
       Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
     ]);
 
     Widget opponentTeamHeaderCell() => Padding(
-        padding: EdgeInsets.only(left: headerFontSize * 1.1),
+        padding: EdgeInsets.only(left: headerFontSize * 1.25),
         child: Row(children: [
             Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
             Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
