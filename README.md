@@ -1,6 +1,6 @@
-# DartHearts
+# Cards With Cats
 
-Hearts, Spades, bridge?
+Play Hearts or Spades with computer-controlled opponents.
 
 Built with [Flutter](https://flutter.dev), and runs on Android, iOS, web, macOS, Linux, and probably Windows.
 
