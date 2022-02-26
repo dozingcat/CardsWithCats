@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(runner LANGUAGES CXX)
 
-set(BINARY_NAME "hearts")
-set(APPLICATION_ID "com.example.hearts")
+set(BINARY_NAME "CardsWithCats")
+set(APPLICATION_ID "com.dozingcatsoftware.cardswithcats")
 
 cmake_policy(SET CMP0063 NEW)
 
