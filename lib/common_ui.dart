@@ -111,12 +111,14 @@ class PositionedCard extends StatelessWidget {
             onTapDown: (tap) => onCardClicked(card),
             child: Stack(children: [
               if (opacity < 1)
-                const Center(child: Image(
+                const Center(
+                    child: Image(
                   image: AssetImage(backgroundImagePath),
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
                 )),
-              Center(child: Image(
+              Center(
+                  child: Image(
                 color: Color.fromRGBO(255, 255, 255, opacity),
                 colorBlendMode: BlendMode.modulate,
                 image: AssetImage(cardImagePath),
@@ -156,7 +158,8 @@ class AiPlayerImage extends StatelessWidget {
         case 2:
           return Rect.fromLTWH(0, 1, displaySize.width, playerSize);
         case 3:
-          return Rect.fromLTWH(displaySize.width - playerSize - 1, 0, playerSize, displaySize.height);
+          return Rect.fromLTWH(
+              displaySize.width - playerSize - 1, 0, playerSize, displaySize.height);
         default:
           return const Rect.fromLTWH(0, 0, 0, 0);
       }
@@ -175,10 +178,9 @@ class AiPlayerImage extends StatelessWidget {
         child: Transform.scale(
             scale: scale,
             child: Transform.rotate(
-                angle: angle,
-                child: Image.asset(imagePath, fit: BoxFit.contain),
-            )
-        ),
+              angle: angle,
+              child: Image.asset(imagePath, fit: BoxFit.contain),
+            )),
       ),
 
       // child: Text("Hello $playerNum"),
@@ -349,9 +351,9 @@ class MoodBubble extends StatelessWidget {
                   width: imageWidth,
                   height: imageHeight,
                   child: Transform(
-                      alignment: Alignment.center,
-                      transform: transform,
-                      child: Image.asset(bubbleImagePath, fit: BoxFit.contain),
+                    alignment: Alignment.center,
+                    transform: transform,
+                    child: Image.asset(bubbleImagePath, fit: BoxFit.contain),
                   ),
                 ),
                 Positioned(
@@ -359,7 +361,6 @@ class MoodBubble extends StatelessWidget {
                   left: moodXFrac * imageWidth,
                   width: moodSize,
                   height: moodSize,
-
                   child: Image.asset(_moodImagePath(), fit: BoxFit.contain),
                 ),
               ],
@@ -539,7 +540,8 @@ class TrickCards extends StatelessWidget {
       // We want to know where the card was drawn in the player's hand. It's not
       // there now, so we have to compute the card rects as if it were.
       final previousHandCards = [...humanPlayerHand!, cards.last];
-      startRect = playerHandCardRects(layout, previousHandCards, humanPlayerSuitOrder!)[cards.last]!;
+      startRect =
+          playerHandCardRects(layout, previousHandCards, humanPlayerSuitOrder!)[cards.last]!;
     }
 
     cardWidgets.add(TweenAnimationBuilder(

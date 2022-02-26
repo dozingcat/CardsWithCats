@@ -170,8 +170,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       final delayMillis = max(0, minDelayMillis - elapsed);
       print("Delaying for $delayMillis ms");
       Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
-    }
-    catch (ex) {
+    } catch (ex) {
       print("*** Exception in isolate: $ex");
       // final card = chooseCardToMakeBids(CardToPlayRequest.fromRound(round), rng);
       // _playCard(card);
@@ -563,22 +562,24 @@ class PostBidDialog extends StatelessWidget {
     final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
     final halfPadding = textStyle.fontSize! * 0.75;
     return Dialog(
-            backgroundColor: dialogBackgroundColor,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(height: halfPadding),
-                _paddingAll(halfPadding, Text(playerBidMessage(), style: textStyle, textAlign: TextAlign.left)),
-                _paddingAll(halfPadding, Text(opponentBidMessage(), style: textStyle, textAlign: TextAlign.left)),
-                _paddingAll(
-                    halfPadding,
-                    ElevatedButton(
-                      child: const Text("Start round"),
-                      onPressed: onConfirm,
-                    )),
-                SizedBox(height: halfPadding),
-              ],
-            ));
+        backgroundColor: dialogBackgroundColor,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: halfPadding),
+            _paddingAll(
+                halfPadding, Text(playerBidMessage(), style: textStyle, textAlign: TextAlign.left)),
+            _paddingAll(halfPadding,
+                Text(opponentBidMessage(), style: textStyle, textAlign: TextAlign.left)),
+            _paddingAll(
+                halfPadding,
+                ElevatedButton(
+                  child: const Text("Start round"),
+                  onPressed: onConfirm,
+                )),
+            SizedBox(height: halfPadding),
+          ],
+        ));
   }
 }
 
@@ -617,20 +618,19 @@ class EndOfRoundDialog extends StatelessWidget {
     final catImageHeight = headerFontSize * 1.3;
 
     Widget humanTeamHeaderCell() => Row(children: [
-      Text("You", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-      SizedBox(width: headerFontSize * 0.1),
-      Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-      Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
-    ]);
+          Text("You", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+          SizedBox(width: headerFontSize * 0.1),
+          Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+          Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
+        ]);
 
     Widget opponentTeamHeaderCell() => Padding(
         padding: EdgeInsets.only(left: headerFontSize * 1.25),
         child: Row(children: [
-            Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
-            Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-            Image.asset(catImageForIndex(catImageIndices[3]), height: catImageHeight),
-        ]
-    ));
+          Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
+          Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+          Image.asset(catImageForIndex(catImageIndices[3]), height: catImageHeight),
+        ]));
 
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
           _paddingAll(cellPad, headerCell(title)),

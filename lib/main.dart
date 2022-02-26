@@ -324,7 +324,6 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
     return SizedBox(
@@ -397,63 +396,64 @@ class _MyHomePageState extends State<MyHomePage> {
     return Container(
         // width: double.infinity,
         // height: double.infinity,
-            child: Dialog(
-                insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
-                backgroundColor: dialogBackgroundColor,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _paddingAll(
-                        20,
-                        Text(
-                          "Preferences",
-                          style: TextStyle(fontSize: min(minDim / 18, 40)),
-                        )),
-                    Text("Changes take effect in the next match.",
-                        style: TextStyle(fontSize: baseFontSize * 0.65)),
-                    ListTile(title: Text("Hearts",
+        child: Dialog(
+            insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
+            backgroundColor: dialogBackgroundColor,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _paddingAll(
+                    20,
+                    Text(
+                      "Preferences",
+                      style: TextStyle(fontSize: min(minDim / 18, 40)),
+                    )),
+                Text("Changes take effect in the next match.",
+                    style: TextStyle(fontSize: baseFontSize * 0.65)),
+                ListTile(
+                    title: Text("Hearts",
                         style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
-                    makeHeartsRuleCheckboxRow(
-                      "J♦ is -10 points",
-                      heartsRulesFromPrefs.jdMinus10,
-                      (rules, checked) {
-                        rules.jdMinus10 = checked;
-                      },
-                    ),
-                    makeHeartsRuleCheckboxRow(
-                      "Q♠ breaks hearts",
-                      heartsRulesFromPrefs.queenBreaksHearts,
-                      (rules, checked) {
-                        rules.queenBreaksHearts = checked;
-                      },
-                    ),
-                    makeHeartsRuleCheckboxRow(
-                      "Allow points on first trick",
-                      heartsRulesFromPrefs.pointsOnFirstTrick,
-                          (rules, checked) {
-                        rules.pointsOnFirstTrick = checked;
-                      },
-                    ),
-                    ListTile(title: Text("Spades",
+                makeHeartsRuleCheckboxRow(
+                  "J♦ is -10 points",
+                  heartsRulesFromPrefs.jdMinus10,
+                  (rules, checked) {
+                    rules.jdMinus10 = checked;
+                  },
+                ),
+                makeHeartsRuleCheckboxRow(
+                  "Q♠ breaks hearts",
+                  heartsRulesFromPrefs.queenBreaksHearts,
+                  (rules, checked) {
+                    rules.queenBreaksHearts = checked;
+                  },
+                ),
+                makeHeartsRuleCheckboxRow(
+                  "Allow points on first trick",
+                  heartsRulesFromPrefs.pointsOnFirstTrick,
+                  (rules, checked) {
+                    rules.pointsOnFirstTrick = checked;
+                  },
+                ),
+                ListTile(
+                    title: Text("Spades",
                         style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
-                    makeSpadesRuleCheckboxRow(
-                      "Penalize sandbags",
-                      spadesRulesFromPrefs.penalizeBags,
-                      (rules, checked) {
-                        rules.penalizeBags = checked;
-                      },
-                    ),
-                    makeSpadesRuleCheckboxRow(
-                      "No leading spades until broken",
-                      spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
-                      (rules, checked) {
-                        rules.spadeLeading =
-                            checked ? SpadeLeading.after_broken : SpadeLeading.always;
-                      },
-                    ),
-                    _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("OK"))),
-                  ],
-                )));
+                makeSpadesRuleCheckboxRow(
+                  "Penalize sandbags",
+                  spadesRulesFromPrefs.penalizeBags,
+                  (rules, checked) {
+                    rules.penalizeBags = checked;
+                  },
+                ),
+                makeSpadesRuleCheckboxRow(
+                  "No leading spades until broken",
+                  spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
+                  (rules, checked) {
+                    rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
+                  },
+                ),
+                _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("OK"))),
+              ],
+            )));
   }
 
   Widget _menuIcon() {

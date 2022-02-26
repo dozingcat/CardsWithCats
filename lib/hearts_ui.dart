@@ -116,8 +116,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       final delayMillis = max(0, minDelayMillis - elapsed);
       print("Delaying for $delayMillis ms");
       Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
-    }
-    catch (ex) {
+    } catch (ex) {
       print("*** Exception in isolate: $ex");
     }
   }
@@ -489,8 +488,7 @@ class EndOfRoundDialog extends StatelessWidget {
       final leftPadding = headerFontSize * 1.1;
       return Padding(
           padding: EdgeInsets.only(left: leftPadding),
-          child: Image.asset(catImageForIndex(imageIndex), height: imageHeight)
-      );
+          child: Image.asset(catImageForIndex(imageIndex), height: imageHeight));
     }
 
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
@@ -508,7 +506,7 @@ class EndOfRoundDialog extends StatelessWidget {
 
     final dialog = Center(
         child: Dialog(
-          insetPadding: EdgeInsets.zero,
+            insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
