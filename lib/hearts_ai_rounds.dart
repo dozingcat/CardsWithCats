@@ -10,9 +10,10 @@ void main() {
   final rules = HeartsRuleSet();
   final victoryPoints = List.filled(rules.numPlayers, 0);
   final rng = Random();
+  const numMatchesToPlay = 10;
   int totalRounds = 0;
 
-  for (int matchNum = 1; matchNum <= 10; matchNum++) {
+  for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
     print("Match #$matchNum");
     HeartsMatch match = HeartsMatch(rules, rng);
     int roundNum = 0;
@@ -48,9 +49,10 @@ void main() {
         print("No passing");
       }
       while (!round.isOver()) {
-        final card = computeCardToPlay(round, rng);
-        print("P${round.currentPlayerIndex()} plays ${card.symbolString()}");
-        round.playCard(card);
+        final result = computeCardToPlay(round, rng);
+        print(
+            "P${round.currentPlayerIndex()} plays ${result.bestCard.symbolString()} (${result.toString()})");
+        round.playCard(result.bestCard);
         if (round.currentTrick.cards.isEmpty) {
           print("P${round.previousTricks.last.winner} takes the trick");
         }
@@ -70,14 +72,14 @@ void main() {
   }
 }
 
-final mcParams = MonteCarloParams(numHands: 50, rolloutsPerHand: 20);
+final mcParams = MonteCarloParams(maxRounds: 500, rolloutsPerRound: 20);
 final mixedStrategy20PercentRandom = makeMixedRandomOrAvoidPoints(0.2);
 
-PlayingCard computeCardToPlay(final HeartsRound round, Random rng) {
+MonteCarloResult computeCardToPlay(final HeartsRound round, Random rng) {
   final cardReq = CardToPlayRequest.fromRound(round);
   switch (round.currentPlayerIndex()) {
     case 0:
-      return chooseCardAvoidingPoints(cardReq, rng);
+      return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardAvoidingPoints(cardReq, rng));
     case 1:
       return chooseCardMonteCarlo(cardReq, mcParams, mixedStrategy20PercentRandom, rng);
     case 2:

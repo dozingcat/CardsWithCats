@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 import 'common_ui.dart';
 import 'cards/card.dart';
@@ -12,8 +11,10 @@ import 'spades/spades.dart';
 import 'spades/spades_ai.dart';
 
 PlayingCard computeCard(final CardToPlayRequest req) {
-  return chooseCardMonteCarlo(
-      req, MonteCarloParams(numHands: 20, rolloutsPerHand: 50), chooseCardRandom, Random());
+  final result = chooseCardMonteCarlo(
+      req, MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50), chooseCardToMakeBids, Random());
+  print("Computed play: ${result.toString()}");
+  return result.bestCard;
 }
 
 class SpadesMatchDisplay extends StatefulWidget {

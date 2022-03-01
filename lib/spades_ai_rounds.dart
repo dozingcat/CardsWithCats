@@ -20,7 +20,7 @@ void main() {
   final rules = SpadesRuleSet();
   final teamMatchWins = List.filled(rules.numTeams, 0);
   final rng = Random();
-  final numMatchesToPlay = 10;
+  const numMatchesToPlay = 10;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -50,9 +50,10 @@ void main() {
         round.setBidForPlayer(bid: bid, playerIndex: pnum);
       }
       while (!round.isOver()) {
-        final card = computeCardToPlay(round, rng);
-        print("P${round.currentPlayerIndex()} plays ${card.symbolString()}");
-        round.playCard(card);
+        final result = computeCardToPlay(round, rng);
+        print(
+            "P${round.currentPlayerIndex()} plays ${result.bestCard.symbolString()} (${result.toString()})");
+        round.playCard(result.bestCard);
         if (round.currentTrick.cards.isEmpty) {
           print("P${round.previousTricks.last.winner} takes the trick");
         }
@@ -70,27 +71,22 @@ void main() {
   }
 }
 
-final mcParams = MonteCarloParams(numHands: 50, rolloutsPerHand: 20);
+final mcParams = MonteCarloParams(maxRounds: 50, rolloutsPerRound: 20);
 
 ChooseCardFn makeMixedRandomMakeBidsFn(double randomProb) {
   return (req, rng) =>
       rng.nextDouble() < randomProb ? chooseCardToMakeBids(req, rng) : chooseCardRandom(req, rng);
 }
 
-PlayingCard computeCardToPlay(final SpadesRound round, Random rng) {
+MonteCarloResult computeCardToPlay(final SpadesRound round, Random rng) {
   final cardReq = CardToPlayRequest.fromRound(round);
   switch (round.currentPlayerIndex()) {
     case 0:
     case 2:
-      // return chooseCardRandom(cardReq, rng);
-      // return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
       return chooseCardMonteCarlo(cardReq, mcParams, makeMixedRandomMakeBidsFn(1.0), rng);
-    // return chooseCardToMakeBids(cardReq, rng);
     case 1:
     case 3:
-      // return chooseCardRandom(cardReq, rng);
-      // return chooseCardMonteCarlo(cardReq, mcParams, makeMixedRandomMakeBidsFn(1.0), rng);
-      return chooseCardToMakeBids(cardReq, rng);
+      return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
   }

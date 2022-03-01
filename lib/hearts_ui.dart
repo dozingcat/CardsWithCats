@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 import 'common_ui.dart';
 import 'cards/card.dart';
@@ -14,9 +13,10 @@ import 'hearts/hearts_ai.dart';
 int nowMillis() => DateTime.now().millisecondsSinceEpoch % 10000;
 
 PlayingCard computeCard(final CardToPlayRequest req) {
-  print("In computeCard (t=${nowMillis()})");
-  return chooseCardMonteCarlo(
-      req, MonteCarloParams(numHands: 20, rolloutsPerHand: 50), chooseCardAvoidingPoints, Random());
+  final result = chooseCardMonteCarlo(req, MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50),
+      chooseCardAvoidingPoints, Random());
+  print("Computed play: ${result.toString()}");
+  return result.bestCard;
 }
 
 class HeartsMatchDisplay extends StatefulWidget {

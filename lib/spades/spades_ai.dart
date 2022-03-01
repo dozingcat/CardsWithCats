@@ -565,24 +565,42 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..dealer = 0;
 }
 
-PlayingCard _chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
-    ChooseCardFn rolloutChooseFn, Random rng) {
+MonteCarloResult chooseCardMonteCarlo(
+    CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
+    {int Function()? timeFn}) {
+  timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
+  final startTime = timeFn();
   final legalPlays = cardReq.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
-    return legalPlays[0];
+    return MonteCarloResult.rolloutNotNeeded(bestCard: legalPlays[0]);
   }
   final pnum = cardReq.currentPlayerIndex();
   final playEquities = List.generate(legalPlays.length, (_) => 0.0);
   final distReq = makeCardDistributionRequest(cardReq);
-  for (int i = 0; i < mcParams.numHands; i++) {
+  int numRounds = 0;
+  int numRollouts = 0;
+  int numRolloutCardsPlayed = 0;
+  final cardsPerRollout =
+      52 - (4 * cardReq.previousTricks.length + cardReq.currentTrick.cards.length);
+  for (int i = 0; i < mcParams.maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng);
     if (hypoRound == null) {
       print("MC failed to generate round, falling back to default");
-      return chooseCardToMakeBids(cardReq, rng);
+      final bestCard = chooseCardToMakeBids(cardReq, rng);
+      final normalizedEquities =
+          playEquities.map((e) => e / numRollouts * legalPlays.length).toList();
+      return MonteCarloResult.rolloutFailed(
+        bestCard: bestCard,
+        cardEquities: Map.fromIterables(legalPlays, normalizedEquities),
+        numRounds: numRounds,
+        numRollouts: numRollouts,
+        numRolloutCardsPlayed: numRolloutCardsPlayed,
+        elapsedMillis: timeFn() - startTime,
+      );
     }
     for (int ci = 0; ci < legalPlays.length; ci++) {
-      for (int r = 0; r < mcParams.rolloutsPerHand; r++) {
+      for (int r = 0; r < mcParams.rolloutsPerRound; r++) {
         final rolloutRound = hypoRound.copy();
         rolloutRound.playCard(legalPlays[ci]);
         doRollout(rolloutRound, rolloutChooseFn, rng);
@@ -590,7 +608,13 @@ PlayingCard _chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mc
         final scoresAfterRound = pointsForRound.map((p) => p.endingMatchPoints).toList();
         playEquities[ci] +=
             matchEquityForScores(scoresAfterRound, pnum % cardReq.rules.numTeams, cardReq.rules);
+        numRollouts += 1;
+        numRolloutCardsPlayed += cardsPerRollout;
       }
+    }
+    numRounds += 1;
+    if (mcParams.maxTimeMillis != null && timeFn() - startTime >= mcParams.maxTimeMillis!) {
+      break;
     }
   }
   int bestIndex = 0;
@@ -603,15 +627,14 @@ PlayingCard _chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mc
       // print("Worse: " + legalPlays[i].toString() + " " + playEquities[i].toString());
     }
   }
-  return legalPlays[bestIndex];
-}
-
-PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
-    ChooseCardFn rolloutChooseFn, Random rng) {
-  print("In SpadesAI.chooseCardMonteCarlo");
-  final card = _chooseCardMonteCarlo(cardReq, mcParams, rolloutChooseFn, rng);
-  print("Got card: $card");
-  return card;
+  final normalizedEquities = playEquities.map((e) => e / numRollouts * legalPlays.length).toList();
+  return MonteCarloResult.rolloutSuccess(
+    cardEquities: Map.fromIterables(legalPlays, normalizedEquities),
+    numRounds: numRounds,
+    numRollouts: numRollouts,
+    numRolloutCardsPlayed: numRolloutCardsPlayed,
+    elapsedMillis: timeFn() - startTime,
+  );
 }
 
 void doRollout(SpadesRound round, ChooseCardFn chooseFn, Random rng) {

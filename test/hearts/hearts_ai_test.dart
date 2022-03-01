@@ -256,4 +256,4 @@ void main() {
 }
 
 MonteCarloParams makeMCParams(int hands, int rollouts) =>
-    MonteCarloParams(numHands: hands, rolloutsPerHand: rollouts);
+    MonteCarloParams(maxRounds: hands, rolloutsPerRound: rollouts);

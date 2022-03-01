@@ -75,7 +75,7 @@ double matchEquityForScores(List<int> scores, int maxScore, int playerIndex) {
       return 0;
     }
     // An N-way tie for first has an equity of 1/N.
-    int numWinners = scores.where((s) => s == minScore).fold(0, (n, _) => n + 1);
+    int numWinners = scores.where((s) => s == minScore).length;
     return 1.0 / numWinners;
   }
   // Approximate the probability as (player distance to max) / (sum of all distances to max).
@@ -316,24 +316,42 @@ HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..passDirection = 0;
 }
 
-PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcParams,
-    ChooseCardFn rolloutChooseFn, Random rng) {
+MonteCarloResult chooseCardMonteCarlo(
+    CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
+    {int Function()? timeFn}) {
+  timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
+  final startTime = timeFn();
   final legalPlays = cardReq.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
-    return legalPlays[0];
+    return MonteCarloResult.rolloutNotNeeded(bestCard: legalPlays[0]);
   }
   final pnum = cardReq.currentPlayerIndex();
-  final playEquities = List.generate(legalPlays.length, (_) => 0.0);
+  final playEquities = List.filled(legalPlays.length, 0.0);
   final distReq = makeCardDistributionRequest(cardReq);
-  for (int i = 0; i < mcParams.numHands; i++) {
+  int numRounds = 0;
+  int numRollouts = 0;
+  int numRolloutCardsPlayed = 0;
+  final cardsPerRollout =
+      52 - (4 * cardReq.previousTricks.length + cardReq.currentTrick.cards.length);
+  for (int i = 0; i < mcParams.maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng);
     if (hypoRound == null) {
       print("MC failed to generate round, falling back to avoiding points");
-      return chooseCardAvoidingPoints(cardReq, rng);
+      final bestCard = chooseCardAvoidingPoints(cardReq, rng);
+      final normalizedEquities =
+          playEquities.map((e) => e / numRollouts * legalPlays.length).toList();
+      return MonteCarloResult.rolloutFailed(
+        bestCard: bestCard,
+        cardEquities: Map.fromIterables(legalPlays, normalizedEquities),
+        numRounds: numRounds,
+        numRollouts: numRollouts,
+        numRolloutCardsPlayed: numRolloutCardsPlayed,
+        elapsedMillis: timeFn() - startTime,
+      );
     }
     for (int ci = 0; ci < legalPlays.length; ci++) {
-      for (int r = 0; r < mcParams.rolloutsPerHand; r++) {
+      for (int r = 0; r < mcParams.rolloutsPerRound; r++) {
         final rolloutRound = hypoRound.copy();
         rolloutRound.playCard(legalPlays[ci]);
         doRollout(rolloutRound, rolloutChooseFn, rng);
@@ -341,20 +359,23 @@ PlayingCard chooseCardMonteCarlo(CardToPlayRequest cardReq, MonteCarloParams mcP
         final scoresAfterRound = List.generate(
             pointsForRound.length, (p) => pointsForRound[p] + cardReq.scoresBeforeRound[p]);
         playEquities[ci] += matchEquityForScores(scoresAfterRound, cardReq.rules.pointLimit, pnum);
+        numRollouts += 1;
+        numRolloutCardsPlayed += cardsPerRollout;
       }
     }
-  }
-  int bestIndex = 0;
-  // print("First card: " + legalPlays[0].toString() + " " + playEquities[0].toString());
-  for (int i = 1; i < legalPlays.length; i++) {
-    if (playEquities[i] > playEquities[bestIndex]) {
-      bestIndex = i;
-      // print("Better: " + legalPlays[i].toString() + " " + playEquities[i].toString());
-    } else {
-      // print("Worse: " + legalPlays[i].toString() + " " + playEquities[i].toString());
+    numRounds += 1;
+    if (mcParams.maxTimeMillis != null && timeFn() - startTime >= mcParams.maxTimeMillis!) {
+      break;
     }
   }
-  return legalPlays[bestIndex];
+  final normalizedEquities = playEquities.map((e) => e / numRollouts * legalPlays.length).toList();
+  return MonteCarloResult.rolloutSuccess(
+    cardEquities: Map.fromIterables(legalPlays, normalizedEquities),
+    numRounds: numRounds,
+    numRollouts: numRollouts,
+    numRolloutCardsPlayed: numRolloutCardsPlayed,
+    elapsedMillis: timeFn() - startTime,
+  );
 }
 
 void doRollout(HeartsRound round, ChooseCardFn chooseFn, Random rng) {

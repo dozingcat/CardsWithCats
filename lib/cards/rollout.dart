@@ -23,10 +23,94 @@ class CardDistributionRequest {
 }
 
 class MonteCarloParams {
-  int numHands;
-  int rolloutsPerHand;
+  int maxRounds;
+  int rolloutsPerRound;
+  int? maxTimeMillis;
 
-  MonteCarloParams({required this.numHands, required this.rolloutsPerHand});
+  MonteCarloParams({required this.maxRounds, required this.rolloutsPerRound, this.maxTimeMillis});
+}
+
+enum MonteCarloResultType { rollout_not_needed, rollout_failed, rollout_success }
+
+class MonteCarloResult {
+  MonteCarloResultType resultType;
+  PlayingCard bestCard;
+  Map<PlayingCard, double> cardEquities;
+  int numRounds;
+  int numRollouts;
+  int numRolloutCardsPlayed;
+  int elapsedMillis;
+
+  MonteCarloResult({
+    required this.resultType,
+    required this.bestCard,
+    this.cardEquities = const {},
+    this.numRounds = 0,
+    this.numRollouts = 0,
+    this.numRolloutCardsPlayed = 0,
+    this.elapsedMillis = 0,
+  });
+
+  @override
+  String toString() {
+    switch (resultType) {
+      case MonteCarloResultType.rollout_not_needed:
+        return "<${bestCard.toString()}; no rollouts>";
+      case MonteCarloResultType.rollout_failed:
+        return "<${bestCard.toString()}; rollouts failed; time=${elapsedMillis}ms>";
+      case MonteCarloResultType.rollout_success:
+        return "<${bestCard.toString()}; equity=${cardEquities[bestCard]!.toStringAsFixed(4)}; time=${elapsedMillis}ms, rounds=$numRounds, rollouts=$numRollouts, cards=$numRolloutCardsPlayed>";
+    }
+  }
+
+  static MonteCarloResult rolloutNotNeeded({required PlayingCard bestCard}) => MonteCarloResult(
+        resultType: MonteCarloResultType.rollout_not_needed,
+        bestCard: bestCard,
+      );
+
+  static MonteCarloResult rolloutFailed({
+    required PlayingCard bestCard,
+    required Map<PlayingCard, double> cardEquities,
+    required int numRounds,
+    required int numRollouts,
+    required int numRolloutCardsPlayed,
+    required int elapsedMillis,
+  }) =>
+      MonteCarloResult(
+        resultType: MonteCarloResultType.rollout_failed,
+        bestCard: bestCard,
+        cardEquities: cardEquities,
+        numRounds: numRounds,
+        numRollouts: numRollouts,
+        numRolloutCardsPlayed: numRolloutCardsPlayed,
+        elapsedMillis: elapsedMillis,
+      );
+
+  static MonteCarloResult rolloutSuccess({
+    required Map<PlayingCard, double> cardEquities,
+    required int numRounds,
+    required int numRollouts,
+    required int numRolloutCardsPlayed,
+    required int elapsedMillis,
+  }) {
+    PlayingCard? bestCard;
+    double bestEquity = 0.0;
+    for (final e in cardEquities.entries) {
+      if (bestCard == null || e.value > bestEquity) {
+        bestCard = e.key;
+        bestEquity = e.value;
+      }
+    }
+    return MonteCarloResult(
+      resultType: MonteCarloResultType.rollout_success,
+      bestCard: bestCard!,
+      cardEquities: cardEquities,
+      numRounds: numRounds,
+      numRollouts: numRollouts,
+      numRolloutCardsPlayed: numRolloutCardsPlayed,
+      elapsedMillis: elapsedMillis,
+    );
+  }
 }
 
 List<List<PlayingCard>>? _possibleCardDistribution(CardDistributionRequest req, Random rng) {
