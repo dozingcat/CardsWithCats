@@ -7,20 +7,20 @@ import 'package:cards_with_cats/spades/spades_ai.dart';
 import 'cards/card.dart';
 
 /*
-Results of Monte Carlo AIs playing against each other for 1000 rounds:
+Results of AIs playing against each other for 1000 matches.
+20 rounds, 20 rollouts per hand for MC.
+- chooseCardToMakeBids beats chooseCardRandom 990-10
+- MonteCarlo(random) beats chooseCardToMakeBids 806-194.
+- MonteCarlo(random) beats MonteCarlo(makeBids) 537-463
 
-100% chooseCardToMakeBids vs 50/50 random/chooseCardToMakeBids: 322 to 678
-50/50 random/chooseCardToMakeBids vs 100% random: 532 to 468
-100% chooseCardToMakeBids vs 100% random: 346 to 654
-
-So random rollouts seem to be better than "smart", with a mix possibly slightly better.
+So random meta-strategy for rollouts seem to be better than "smart"?
  */
 
 void main() {
   final rules = SpadesRuleSet();
   final teamMatchWins = List.filled(rules.numTeams, 0);
   final rng = Random();
-  const numMatchesToPlay = 10;
+  const numMatchesToPlay = 250;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -71,7 +71,7 @@ void main() {
   }
 }
 
-final mcParams = MonteCarloParams(maxRounds: 50, rolloutsPerRound: 20);
+final mcParams = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 20);
 
 ChooseCardFn makeMixedRandomMakeBidsFn(double randomProb) {
   return (req, rng) =>
@@ -83,10 +83,13 @@ MonteCarloResult computeCardToPlay(final SpadesRound round, Random rng) {
   switch (round.currentPlayerIndex()) {
     case 0:
     case 2:
-      return chooseCardMonteCarlo(cardReq, mcParams, makeMixedRandomMakeBidsFn(1.0), rng);
+      // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
+      // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardRandom(cardReq, rng));
+      return chooseCardMonteCarlo(cardReq, mcParams, chooseCardToMakeBids, rng);
     case 1:
     case 3:
-      return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
+      return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
+      // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
   }
