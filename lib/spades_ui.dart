@@ -12,7 +12,7 @@ import 'spades/spades_ai.dart';
 
 PlayingCard computeCard(final CardToPlayRequest req) {
   final result = chooseCardMonteCarlo(
-      req, MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50), chooseCardToMakeBids, Random());
+      req, MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30), chooseCardRandom, Random());
   print("Computed play: ${result.toString()}");
   return result.bestCard;
 }
