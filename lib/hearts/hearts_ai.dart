@@ -316,12 +316,43 @@ HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..passDirection = 0;
 }
 
+List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
+  // For testing with and without this feature.
+  // It seems to slightly improve the AI with rounds=20, rollouts=50;
+  // with players 1 and 3 using this path and 0 and 2 not, "victory points"
+  // (12 points for win, 12/n for n-way tie) after 1000 matches:
+  // [2712, 3174, 2910, 3204]
+  // if (req.currentPlayerIndex() % 2 == 0) return req.legalPlays();
+
+  final legalPlays = req.legalPlays();
+  // Always handle the queen of spades individually; if you have both the king
+  // and queen they're equivalent in terms of winning tricks, but obviously not
+  // in terms of scoring. Jack of diamonds if enabled as well.
+  List<PlayingCard> result = [];
+  final cardsToGroup = List.of(legalPlays);
+  if (cardsToGroup.contains(queenOfSpades)) {
+    result.add(queenOfSpades);
+    cardsToGroup.remove(queenOfSpades);
+  }
+  if (req.rules.jdMinus10 && cardsToGroup.contains(jackOfDiamonds)) {
+    result.add(jackOfDiamonds);
+    cardsToGroup.remove(jackOfDiamonds);
+  }
+  // Choose one card at random from each group of identical cards.
+  final groups = groupsOfEffectivelyIdenticalCards(cardsToGroup, req.previousTricks);
+  result.addAll(groups.map((g) => g[rng.nextInt(g.length)]));
+  if (legalPlays.length != result.length) {
+    print("Reduced ${legalPlays.length} choices to ${result.length}");
+  }
+  return result;
+}
+
 MonteCarloResult chooseCardMonteCarlo(
     CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
   final startTime = timeFn();
-  final legalPlays = cardReq.legalPlays();
+  final legalPlays = cardsToConsiderPlaying(cardReq, rng);
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
     return MonteCarloResult.rolloutNotNeeded(bestCard: legalPlays[0]);

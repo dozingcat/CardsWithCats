@@ -10,11 +10,9 @@ import 'cards/rollout.dart';
 import 'hearts/hearts.dart';
 import 'hearts/hearts_ai.dart';
 
-int nowMillis() => DateTime.now().millisecondsSinceEpoch % 10000;
-
 PlayingCard computeCard(final CardToPlayRequest req) {
-  final result = chooseCardMonteCarlo(req, MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50),
-      chooseCardAvoidingPoints, Random());
+  final mcParams = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50, maxTimeMillis: 2500);
+  final result = chooseCardMonteCarlo(req, mcParams, chooseCardAvoidingPoints, Random());
   print("Computed play: ${result.toString()}");
   return result.bestCard;
 }
@@ -109,9 +107,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     // several hundred milliseconds in debug mode, but not in release mode.
     final t1 = DateTime.now().millisecondsSinceEpoch;
     try {
-      print("Starting isolate (t=${nowMillis()})");
       final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
-      print("Got card: ${card.toString()} (t=${nowMillis()})");
       final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
       final delayMillis = max(0, minDelayMillis - elapsed);
       print("Delaying for $delayMillis ms");

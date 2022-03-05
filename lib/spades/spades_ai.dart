@@ -565,12 +565,26 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..dealer = 0;
 }
 
+List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
+  // For testing with and without this feature.
+  // if (req.currentPlayerIndex() % 2 == 0) return req.legalPlays();
+
+  final legalPlays = req.legalPlays();
+  // Choose one card at random from each group of identical cards.
+  final groups = groupsOfEffectivelyIdenticalCards(legalPlays, req.previousTricks);
+  final result = groups.map((g) => g[rng.nextInt(g.length)]).toList();
+  if (legalPlays.length != result.length) {
+    print("Reduced ${legalPlays.length} choices to ${result.length}");
+  }
+  return result;
+}
+
 MonteCarloResult chooseCardMonteCarlo(
     CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
   final startTime = timeFn();
-  final legalPlays = cardReq.legalPlays();
+  final legalPlays = cardsToConsiderPlaying(cardReq, rng);
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
     return MonteCarloResult.rolloutNotNeeded(bestCard: legalPlays[0]);
@@ -618,13 +632,9 @@ MonteCarloResult chooseCardMonteCarlo(
     }
   }
   int bestIndex = 0;
-  // print("First card: " + legalPlays[0].toString() + " " + playEquities[0].toString());
   for (int i = 1; i < legalPlays.length; i++) {
     if (playEquities[i] > playEquities[bestIndex]) {
       bestIndex = i;
-      // print("Better: " + legalPlays[i].toString() + " " + playEquities[i].toString());
-    } else {
-      // print("Worse: " + legalPlays[i].toString() + " " + playEquities[i].toString());
     }
   }
   final normalizedEquities = playEquities.map((e) => e / numRollouts * legalPlays.length).toList();
@@ -638,6 +648,7 @@ MonteCarloResult chooseCardMonteCarlo(
 }
 
 void doRollout(SpadesRound round, ChooseCardFn chooseFn, Random rng) {
+  final bids = [...round.players.map((p) => p.bid!)];
   while (!round.isOver()) {
     final legalPlays = round.legalPlaysForCurrentPlayer();
     if (legalPlays.isEmpty) {
@@ -654,7 +665,7 @@ void doRollout(SpadesRound round, ChooseCardFn chooseFn, Random rng) {
       hand: round.currentPlayer().hand,
       previousTricks: round.previousTricks,
       currentTrick: round.currentTrick,
-      bids: [...round.players.map((p) => p.bid!)],
+      bids: bids,
     );
     final cardToPlay = chooseFn(req, rng);
     round.playCard(cardToPlay);

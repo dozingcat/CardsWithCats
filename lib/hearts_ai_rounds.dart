@@ -10,7 +10,7 @@ void main() {
   final rules = HeartsRuleSet();
   final victoryPoints = List.filled(rules.numPlayers, 0);
   final rng = Random();
-  const numMatchesToPlay = 10;
+  const numMatchesToPlay = 250;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -72,20 +72,24 @@ void main() {
   }
 }
 
-final mcParams = MonteCarloParams(maxRounds: 500, rolloutsPerRound: 20);
+final mcParams_20_50 = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50);
 final mixedStrategy20PercentRandom = makeMixedRandomOrAvoidPoints(0.2);
 
 MonteCarloResult computeCardToPlay(final HeartsRound round, Random rng) {
   final cardReq = CardToPlayRequest.fromRound(round);
   switch (round.currentPlayerIndex()) {
     case 0:
-      return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardAvoidingPoints(cardReq, rng));
+      // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardAvoidingPoints(cardReq, rng));
+      return chooseCardMonteCarlo(cardReq, mcParams_20_50, chooseCardAvoidingPoints, rng);
     case 1:
-      return chooseCardMonteCarlo(cardReq, mcParams, mixedStrategy20PercentRandom, rng);
+      // return chooseCardMonteCarlo(cardReq, mcParams_20_50, mixedStrategy20PercentRandom, rng);
+      return chooseCardMonteCarlo(cardReq, mcParams_20_50, chooseCardAvoidingPoints, rng);
     case 2:
-      return chooseCardMonteCarlo(cardReq, mcParams, chooseCardRandom, rng);
+      // return chooseCardMonteCarlo(cardReq, mcParams_20_50, chooseCardRandom, rng);
+      return chooseCardMonteCarlo(cardReq, mcParams_20_50, chooseCardAvoidingPoints, rng);
     case 3:
-      return chooseCardMonteCarlo(cardReq, mcParams, chooseCardAvoidingPoints, rng);
+      // return chooseCardMonteCarlo(cardReq, mcParams_20_50, chooseCardAvoidingPoints, rng);
+      return chooseCardMonteCarlo(cardReq, mcParams_20_50, chooseCardAvoidingPoints, rng);
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
   }

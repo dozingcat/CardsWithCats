@@ -1,6 +1,7 @@
 import 'dart:math';
 
-import "./card.dart" show Suit, PlayingCard;
+import 'package:cards_with_cats/cards/card.dart';
+import 'package:cards_with_cats/cards/trick.dart';
 
 class CardDistributionConstraint {
   int numCards;
@@ -199,4 +200,61 @@ List<List<PlayingCard>>? possibleCardDistribution(CardDistributionRequest req, R
     }
   }
   return null;
+}
+
+// Splits `cards` into groups that are "identical" for purposes of taking tricks.
+// For example, if `cards` contains both the king and queen of hearts, those are
+// identical because anytime playing the king would win a trick, the queen would
+// as well. Similarly, the 10 and 8 of spades are identical if the 9 of spades
+// was played in a previous trick. This can reduce the work needed by the
+// Monte Carlo strategy; there's no need to do rollouts for more than one card
+// in each group of identical cards.
+//
+// Each list in the returned value will contain one or more cards of a single
+// suit, sorted descending by rank.
+List<List<PlayingCard>> groupsOfEffectivelyIdenticalCards(
+    List<PlayingCard> cards, Iterable<Trick> previousTricks) {
+  if (cards.isEmpty) return [];
+  if (cards.length == 1)
+    return [
+      [cards[0]]
+    ];
+  List<List<PlayingCard>> groups = [];
+  final remainingCards = Set.of(cards);
+  final seenCards = <PlayingCard>{};
+  for (final t in previousTricks) {
+    seenCards.addAll(t.cards);
+  }
+  while (remainingCards.isNotEmpty) {
+    final start = remainingCards.first;
+    final currentGroup = [start];
+    remainingCards.remove(start);
+    // Go up, then down.
+    var rank = start.rank;
+    while (rank.isLowerThan(Rank.ace)) {
+      rank = rank.nextHigherRank();
+      final c = PlayingCard(rank, start.suit);
+      if (remainingCards.contains(c)) {
+        // `c` is adjacent to and thus identical to a card in `currentGroup`.
+        remainingCards.remove(c);
+        currentGroup.add(c);
+      } else if (!seenCards.contains(c)) {
+        break;
+      }
+      // If here, the card was in a previous trick so we can keep going.
+    }
+    rank = start.rank;
+    while (rank.isHigherThan(Rank.two)) {
+      rank = rank.nextLowerRank();
+      final c = PlayingCard(rank, start.suit);
+      if (remainingCards.contains(c)) {
+        remainingCards.remove(c);
+        currentGroup.add(c);
+      } else if (!seenCards.contains(c)) {
+        break;
+      }
+    }
+    groups.add(sortedCardsInSuit(currentGroup, start.suit));
+  }
+  return groups;
 }

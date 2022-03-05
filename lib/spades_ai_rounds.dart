@@ -23,7 +23,7 @@ void main() {
   final rules = SpadesRuleSet();
   final teamMatchWins = List.filled(rules.numTeams, 0);
   final rng = Random();
-  const numMatchesToPlay = 250;
+  const numMatchesToPlay = 5;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -94,8 +94,8 @@ MonteCarloResult computeCardToPlay(final SpadesRound round, Random rng) {
       return chooseCardMonteCarlo(cardReq, mcParams30, chooseCardRandom, rng);
     case 1:
     case 3:
-      return chooseCardMonteCarlo(cardReq, mcParams50, chooseCardRandom, rng);
-      // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
+      return chooseCardMonteCarlo(cardReq, mcParams30, chooseCardRandom, rng);
+    // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
   }

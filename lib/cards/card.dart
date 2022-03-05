@@ -52,7 +52,7 @@ enum Rank { two, three, four, five, six, seven, eight, nine, ten, jack, queen, k
 extension RankExtension on Rank {
   // Returns number for non-face card, or jack=11, queen=12, king=13, ace=14.
   int get numericValue {
-    return this.index + 2;
+    return index + 2;
   }
 
   String get asciiChar {
@@ -68,12 +68,15 @@ extension RankExtension on Rank {
       case Rank.ten:
         return 'T';
       default:
-        return this.numericValue.toString();
+        return numericValue.toString();
     }
   }
 
-  bool isHigherThan(Rank other) => this.index > other.index;
-  bool isLowerThan(Rank other) => this.index < other.index;
+  bool isHigherThan(Rank other) => index > other.index;
+  bool isLowerThan(Rank other) => index < other.index;
+
+  Rank nextHigherRank() => Rank.values[index + 1];
+  Rank nextLowerRank() => Rank.values[index - 1];
 }
 
 Rank rankFromChar(String ch) {
