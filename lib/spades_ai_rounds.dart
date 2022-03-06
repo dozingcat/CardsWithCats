@@ -23,7 +23,7 @@ void main() {
   final rules = SpadesRuleSet();
   final teamMatchWins = List.filled(rules.numTeams, 0);
   final rng = Random();
-  const numMatchesToPlay = 5;
+  const numMatchesToPlay = 250;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {

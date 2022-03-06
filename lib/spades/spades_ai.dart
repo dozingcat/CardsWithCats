@@ -567,7 +567,10 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
 
 List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // For testing with and without this feature.
-  // if (req.currentPlayerIndex() % 2 == 0) return req.legalPlays();
+  // It possibly makes the AI slightly worse: with rounds=30, rollouts=30,
+  // the team that had this feature disabled won 517 out of 1000. Could be
+  // within random chance (stdev=sqrt(1000*.5*.5)=15.8).
+  if (req.currentPlayerIndex() % 2 == 0) return req.legalPlays();
 
   final legalPlays = req.legalPlays();
   // Choose one card at random from each group of identical cards.
