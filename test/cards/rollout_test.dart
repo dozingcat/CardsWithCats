@@ -6,8 +6,8 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/rollout.dart";
 
 void main() {
-  final c = PlayingCard.cardFromString;
-  final cs = PlayingCard.cardsFromString;
+  const c = PlayingCard.cardFromString;
+  const cs = PlayingCard.cardsFromString;
 
   test("Distribution with no constraints", () {
     final rng = Random(23);

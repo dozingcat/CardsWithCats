@@ -6,6 +6,12 @@ import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/hearts/hearts.dart';
 import 'package:cards_with_cats/hearts/hearts.dart' as hearts;
 
+const debugOutput = false;
+
+void printd(String msg) {
+  if (debugOutput) print(msg);
+}
+
 class CardsToPassRequest {
   final HeartsRuleSet rules;
   final List<int> scoresBeforeRound;
@@ -239,7 +245,7 @@ ChooseCardFn makeMixedRandomOrAvoidPoints(double randomProb) {
 CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
   final seenCards = Set.from(req.hand);
-  final voidedSuits = List.generate(numPlayers, (_n) => Set<Suit>());
+  final voidedSuits = List.generate(numPlayers, (_n) => <Suit>{});
 
   var heartsBroken = false;
 
@@ -342,7 +348,7 @@ List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   final groups = groupsOfEffectivelyIdenticalCards(cardsToGroup, req.previousTricks);
   result.addAll(groups.map((g) => g[rng.nextInt(g.length)]));
   if (legalPlays.length != result.length) {
-    print("Reduced ${legalPlays.length} choices to ${result.length}");
+    printd("Reduced ${legalPlays.length} choices to ${result.length}");
   }
   return result;
 }
