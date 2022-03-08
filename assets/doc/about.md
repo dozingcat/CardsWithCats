@@ -8,7 +8,6 @@ clockwise order. You must play a card of the same suit as the card that was led 
 you may play any card. Whoever plays the highest card of the suit that was led takes the cards in
 the trick and leads the next trick. (Unless a trump was played, as described in the Spades rules).
 
-
 ## Hearts
 
 ### Rules
@@ -55,7 +54,6 @@ wins the trick regardless of what other cards were played.
 A round starts with each player making a bid, which is a declaration of how many tricks they expect
 to win. Bids of zero (called "nil") are treated specially; see the Scoring section. After all
 players have made a bid, the first bidder (this rotates every round) leads the first trick.
-Spades cannot be led until a spade has been played on a previous trick.
 
 ### Scoring
 If you and your partner make your combined bid, you score 10 points for each trick that you bid.
@@ -63,12 +61,16 @@ If you and your partner make your combined bid, you score 10 points for each tri
 is at least the total bid). If you fail to make your combined bid, you lose 10 points for each
 trick that you bid.
 
-For each trick that a team takes over the bid amount, 1 point is scored. These points are called
-"bags", and if a team accumulates 10 or more bags they lose 110 points. (This encourages not being
-overly cautious when bidding).
-
 If a player bids nil and successfully takes no tricks, their team scores 100 points. But if the nil
 bidder takes one or more tricks, their team loses 100 points.
+
+### Optional rules
+These rules can be configured in the Preferences screen from the main menu.
+- Penalize sandbags: If enabled, then for each trick that a team takes over the bid amount, 1 point
+is scored. These points are called "bags" or "sandbags", and if a team accumulates 10 or more bags
+they lose 110 points. This discourages being overly cautious when bidding.
+- No leading spades until broken: If enabled, players cannot lead a spade until a spade has been
+played on a previous trick.
 
 
 ## License

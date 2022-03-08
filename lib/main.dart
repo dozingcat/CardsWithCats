@@ -16,7 +16,7 @@ import 'common_ui.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
-const appTitle = "Cards with Cats";
+const appTitle = "Cards With Cats";
 
 void main() {
   runApp(const MyApp());
@@ -29,11 +29,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // debugShowCheckedModeBanner: false,
       title: appTitle,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'CatTricks'),
+      home: const MyHomePage(title: 'Cards With Cats'),
     );
   }
 }
