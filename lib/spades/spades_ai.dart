@@ -6,6 +6,12 @@ import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/spades/spades.dart';
 import 'package:cards_with_cats/spades/spades.dart' as spades;
 
+const debugOutput = false;
+
+void printd(String msg) {
+  if (debugOutput) print(msg);
+}
+
 class BidRequest {
   final SpadesRuleSet rules;
   final List<int> scoresBeforeRound;
@@ -179,11 +185,6 @@ PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   return legalPlays[rng.nextInt(legalPlays.length)];
-}
-
-PlayingCard _topNonSpade(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
-  // TODO
-  return chooseCardRandom(req, rng);
 }
 
 PlayingCard _lowDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
@@ -577,7 +578,7 @@ List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   final groups = groupsOfEffectivelyIdenticalCards(legalPlays, req.previousTricks);
   final result = groups.map((g) => g[rng.nextInt(g.length)]).toList();
   if (legalPlays.length != result.length) {
-    print("Reduced ${legalPlays.length} choices to ${result.length}");
+    printd("Reduced ${legalPlays.length} choices to ${result.length}");
   }
   return result;
 }

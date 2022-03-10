@@ -16,7 +16,7 @@ import 'common_ui.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
-const appTitle = "Cards with Cats";
+const appTitle = "Cards With Cats";
 
 void main() {
   runApp(const MyApp());
@@ -29,11 +29,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // debugShowCheckedModeBanner: false,
       title: appTitle,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'CatTricks'),
+      home: const MyHomePage(title: 'Cards With Cats'),
     );
   }
 }
@@ -299,7 +300,7 @@ class _MyHomePageState extends State<MyHomePage> {
   TableRow _makeButtonRow(String title, void Function() onPressed) {
     return TableRow(children: [
       Padding(
-        padding: EdgeInsets.all(8),
+        padding: const EdgeInsets.all(8),
         child: ElevatedButton(onPressed: onPressed, child: Text(title)),
       ),
     ]);
@@ -368,7 +369,7 @@ class _MyHomePageState extends State<MyHomePage> {
         String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
-        title: Text(title, style: TextStyle(fontSize: optionFontSize)),
+        title: Text(title, style: const TextStyle(fontSize: optionFontSize)),
         isThreeLine: false,
         onChanged: (bool? checked) {
           updateHeartsRules((rules) => updateRulesFn(rules, checked == true));
@@ -381,7 +382,7 @@ class _MyHomePageState extends State<MyHomePage> {
         String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
-        title: Text(title, style: TextStyle(fontSize: optionFontSize)),
+        title: Text(title, style: const TextStyle(fontSize: optionFontSize)),
         isThreeLine: false,
         onChanged: (bool? checked) {
           updateSpadesRules((rules) => updateRulesFn(rules, checked == true));
@@ -393,75 +394,72 @@ class _MyHomePageState extends State<MyHomePage> {
     final dialogWidth = 0.8 * minDim;
     final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
 
-    return Container(
-        // width: double.infinity,
-        // height: double.infinity,
-        child: Dialog(
-            insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
-            backgroundColor: dialogBackgroundColor,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _paddingAll(
-                    20,
-                    Text(
-                      "Preferences",
-                      style: TextStyle(fontSize: min(minDim / 18, 40)),
-                    )),
-                Text("Changes take effect in the next match.",
-                    style: TextStyle(fontSize: baseFontSize * 0.65)),
-                ListTile(
-                    title: Text("Hearts",
-                        style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
-                makeHeartsRuleCheckboxRow(
-                  "J♦ is -10 points",
-                  heartsRulesFromPrefs.jdMinus10,
-                  (rules, checked) {
-                    rules.jdMinus10 = checked;
-                  },
-                ),
-                makeHeartsRuleCheckboxRow(
-                  "Q♠ breaks hearts",
-                  heartsRulesFromPrefs.queenBreaksHearts,
-                  (rules, checked) {
-                    rules.queenBreaksHearts = checked;
-                  },
-                ),
-                makeHeartsRuleCheckboxRow(
-                  "Allow points on first trick",
-                  heartsRulesFromPrefs.pointsOnFirstTrick,
-                  (rules, checked) {
-                    rules.pointsOnFirstTrick = checked;
-                  },
-                ),
-                ListTile(
-                    title: Text("Spades",
-                        style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
-                makeSpadesRuleCheckboxRow(
-                  "Penalize sandbags",
-                  spadesRulesFromPrefs.penalizeBags,
-                  (rules, checked) {
-                    rules.penalizeBags = checked;
-                  },
-                ),
-                makeSpadesRuleCheckboxRow(
-                  "No leading spades until broken",
-                  spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
-                  (rules, checked) {
-                    rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
-                  },
-                ),
-                _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: Text("OK"))),
-              ],
-            )));
+    return Dialog(
+        insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
+        backgroundColor: dialogBackgroundColor,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _paddingAll(
+                20,
+                Text(
+                  "Preferences",
+                  style: TextStyle(fontSize: min(minDim / 18, 40)),
+                )),
+            const Text("Changes take effect in the next match.",
+                style: TextStyle(fontSize: baseFontSize * 0.65)),
+            const ListTile(
+                title: Text("Hearts",
+                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+            makeHeartsRuleCheckboxRow(
+              "J♦ is -10 points",
+              heartsRulesFromPrefs.jdMinus10,
+              (rules, checked) {
+                rules.jdMinus10 = checked;
+              },
+            ),
+            makeHeartsRuleCheckboxRow(
+              "Q♠ breaks hearts",
+              heartsRulesFromPrefs.queenBreaksHearts,
+              (rules, checked) {
+                rules.queenBreaksHearts = checked;
+              },
+            ),
+            makeHeartsRuleCheckboxRow(
+              "Allow points on first trick",
+              heartsRulesFromPrefs.pointsOnFirstTrick,
+              (rules, checked) {
+                rules.pointsOnFirstTrick = checked;
+              },
+            ),
+            const ListTile(
+                title: Text("Spades",
+                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+            makeSpadesRuleCheckboxRow(
+              "Penalize sandbags",
+              spadesRulesFromPrefs.penalizeBags,
+              (rules, checked) {
+                rules.penalizeBags = checked;
+              },
+            ),
+            makeSpadesRuleCheckboxRow(
+              "No leading spades until broken",
+              spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
+              (rules, checked) {
+                rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
+              },
+            ),
+            _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: const Text("OK"))),
+          ],
+        ));
   }
 
   Widget _menuIcon() {
     return Padding(
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       child: FloatingActionButton(
         onPressed: _showMainMenu,
-        child: Icon(Icons.menu),
+        child: const Icon(Icons.menu),
       ),
     );
   }

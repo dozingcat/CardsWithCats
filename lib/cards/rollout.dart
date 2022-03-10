@@ -215,10 +215,7 @@ List<List<PlayingCard>>? possibleCardDistribution(CardDistributionRequest req, R
 List<List<PlayingCard>> groupsOfEffectivelyIdenticalCards(
     List<PlayingCard> cards, Iterable<Trick> previousTricks) {
   if (cards.isEmpty) return [];
-  if (cards.length == 1)
-    return [
-      [cards[0]]
-    ];
+  if (cards.length == 1) return [cards.toList()];
   List<List<PlayingCard>> groups = [];
   final remainingCards = Set.of(cards);
   final seenCards = <PlayingCard>{};

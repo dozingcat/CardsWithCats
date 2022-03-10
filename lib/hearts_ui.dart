@@ -10,10 +10,16 @@ import 'cards/rollout.dart';
 import 'hearts/hearts.dart';
 import 'hearts/hearts_ai.dart';
 
+const debugOutput = false;
+
+void printd(String msg) {
+  if (debugOutput) print(msg);
+}
+
 PlayingCard computeCard(final CardToPlayRequest req) {
   final mcParams = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50, maxTimeMillis: 2500);
   final result = chooseCardMonteCarlo(req, mcParams, chooseCardAvoidingPoints, Random());
-  print("Computed play: ${result.toString()}");
+  printd("Computed play: ${result.toString()}");
   return result.bestCard;
 }
 
@@ -44,7 +50,7 @@ class HeartsMatchDisplay extends StatefulWidget {
 class _HeartsMatchState extends State<HeartsMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
-  var aiMode = AiMode.human_player_0;
+  var aiMode = AiMode.humanPlayer0;
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
   Map<int, Mood> playerMoods = {};
@@ -110,7 +116,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
       final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
       final delayMillis = max(0, minDelayMillis - elapsed);
-      print("Delaying for $delayMillis ms");
+      printd("Delaying for $delayMillis ms");
       Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
     } catch (ex) {
       print("*** Exception in isolate: $ex");
@@ -122,7 +128,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     if (round.status == HeartsRoundStatus.playing) {
       setState(() {
         round.playCard(card);
-        animationMode = AnimationMode.moving_trick_card;
+        animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
     }
@@ -181,7 +187,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       _scheduleAiPlayIfNeeded();
     } else {
       setState(() {
-        animationMode = AnimationMode.moving_trick_to_winner;
+        animationMode = AnimationMode.movingTrickToWinner;
       });
       _updateMoodsAfterTrick();
     }
@@ -216,11 +222,11 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   void handleHandCardClicked(final PlayingCard card) {
-    print(
+    printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
-        print("Playing ${card.toString()}");
+        printd("Playing ${card.toString()}");
         _playCard(card);
       }
     } else if (round.status == HeartsRoundStatus.passing) {
@@ -259,7 +265,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   Widget _trickCards(final Layout layout) {
-    final humanHand = aiMode == AiMode.human_player_0 ? round.players[0].hand : null;
+    final humanHand = aiMode == AiMode.humanPlayer0 ? round.players[0].hand : null;
     return TrickCards(
       layout: layout,
       currentTrick: round.currentTrick,
@@ -329,7 +335,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   Widget scoreOverlayButton() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(10, 80, 10, 10),
+      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
       child: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -574,6 +580,5 @@ class EndOfRoundDialog extends StatelessWidget {
       child: dialog,
       builder: (context, val, child) => Opacity(opacity: val.clamp(0.0, 1.0), child: child),
     );
-    return dialog;
   }
 }
