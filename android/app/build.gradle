@@ -77,6 +77,11 @@ android {
         }
     }
 
+    // https://github.com/flutter/flutter/issues/58247
+    lintOptions {
+        checkReleaseBuilds false
+    }
+
     android.applicationVariants.all { variant ->
         if (variant.flavorName == "fdroid") {
             variant.outputs.all { output ->
