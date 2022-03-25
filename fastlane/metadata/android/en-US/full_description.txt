@@ -1,0 +1,1 @@
+Play Hearts and Spades card games against computer-controlled cats. In Hearts, pass your bad cards to opponents and avoid taking hearts and the queen of spades. In Spades, bid on how many tricks you can take, then work with your partner to make your bid and prevent your opponents from making theirs.

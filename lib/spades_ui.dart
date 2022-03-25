@@ -10,10 +10,16 @@ import 'cards/rollout.dart';
 import 'spades/spades.dart';
 import 'spades/spades_ai.dart';
 
+const debugOutput = false;
+
+void printd(String msg) {
+  if (debugOutput) print(msg);
+}
+
 PlayingCard computeCard(final CardToPlayRequest req) {
   final mcParams = MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
   final result = chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
-  print("Computed play: ${result.toString()}");
+  printd("Computed play: ${result.toString()}");
   return result.bestCard;
 }
 
@@ -45,7 +51,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
-  var aiMode = AiMode.human_player_0;
+  var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
   bool showScoreOverlay = false;
@@ -87,7 +93,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   bool hasHumanPlayer() {
-    return aiMode == AiMode.human_player_0;
+    return aiMode == AiMode.humanPlayer0;
   }
 
   void _handleBiddingDone() {
@@ -126,7 +132,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       otherBids: [],
       hand: round.players[playerIndex].hand,
     ));
-    print("P$playerIndex bids $bid");
+    printd("P$playerIndex bids $bid");
     setState(() {
       _setBidForPlayer(bid: bid, playerIndex: playerIndex);
     });
@@ -154,7 +160,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _scheduleNextAiPlayIfNeeded() {
     if (round.isOver()) {
-      print("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
+      printd("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
     } else if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
       _computeAiPlay(minDelayMillis: 750);
     }
@@ -165,11 +171,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     // several hundred milliseconds in debug mode, but not in release mode.
     final t1 = DateTime.now().millisecondsSinceEpoch;
     try {
-      print("Starting isolate");
+      printd("Starting isolate");
       final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
       final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
       final delayMillis = max(0, minDelayMillis - elapsed);
-      print("Delaying for $delayMillis ms");
+      printd("Delaying for $delayMillis ms");
       Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
     } catch (ex) {
       print("*** Exception in isolate: $ex");
@@ -183,7 +189,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     if (round.status == SpadesRoundStatus.playing) {
       setState(() {
         round.playCard(card);
-        animationMode = AnimationMode.moving_trick_card;
+        animationMode = AnimationMode.movingTrickCard;
       });
     }
     widget.saveMatchFn(match);
@@ -196,8 +202,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   void _updateMoodsAfterTrick() {
     // print(round.toJson());
     playerMoods.clear();
-    final lastTrick = round.previousTricks.last;
-    // playerMoods[lastTrick.winner] = Mood.happy;
     if (match.isMatchOver()) {
       // Winners happy, losers sad.
       var winner = match.winningTeam();
@@ -238,7 +242,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       _scheduleNextActionIfNeeded();
     } else {
       setState(() {
-        animationMode = AnimationMode.moving_trick_to_winner;
+        animationMode = AnimationMode.movingTrickToWinner;
         _updateMoodsAfterTrick();
       });
     }
@@ -252,11 +256,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void handleHandCardClicked(final PlayingCard card) {
-    print(
+    printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
-        print("Playing");
+        printd("Playing");
         _playCard(card);
       }
     }
@@ -287,7 +291,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   Widget _trickCards(final Layout layout) {
-    final humanHand = aiMode == AiMode.human_player_0 ? round.players[0].hand : null;
+    final humanHand = aiMode == AiMode.humanPlayer0 ? round.players[0].hand : null;
     return TrickCards(
       layout: layout,
       currentTrick: round.currentTrick,
@@ -327,7 +331,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   bool _isWaitingForHumanBid() {
     return (round.status == SpadesRoundStatus.bidding &&
-        aiMode == AiMode.human_player_0 &&
+        aiMode == AiMode.humanPlayer0 &&
         round.currentBidder() == 0);
   }
 
@@ -340,7 +344,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void makeBidForHuman(int bid) {
-    print("Human bids $bid");
+    printd("Human bids $bid");
     setState(() {
       _setBidForPlayer(bid: bid, playerIndex: 0);
     });
@@ -385,7 +389,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   Widget scoreOverlayButton() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(10, 80, 10, 10),
+      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
       child: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -722,6 +726,5 @@ class EndOfRoundDialog extends StatelessWidget {
       child: dialog,
       builder: (context, val, child) => Opacity(opacity: val.clamp(0.0, 1.0), child: child),
     );
-    return dialog;
   }
 }

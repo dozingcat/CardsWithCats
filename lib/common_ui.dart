@@ -1,8 +1,6 @@
 import 'dart:collection';
 import 'dart:math';
-import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'cards/card.dart';
@@ -10,14 +8,13 @@ import 'cards/trick.dart';
 
 enum AnimationMode {
   none,
-  moving_passed_cards,
-  moving_trick_card,
-  moving_trick_to_winner,
+  movingTrickCard,
+  movingTrickToWinner,
 }
 
 enum AiMode {
-  all_ai,
-  human_player_0,
+  allAi,
+  humanPlayer0,
 }
 
 class Layout {
@@ -84,7 +81,6 @@ class Layout {
   double dialogHeaderFontSize() {
     final baseSize = displaySize.shortestSide / 20;
     return baseSize.clamp(18, 50);
-    return max(26, displaySize.shortestSide / 20);
   }
 }
 
@@ -393,7 +389,6 @@ class PlayerMoods extends StatelessWidget {
       child: moodWidgets,
       builder: (context, double val, child) => Opacity(opacity: val, child: child),
     );
-    return moodWidgets;
   }
 }
 
@@ -431,7 +426,6 @@ class PlayerMessagesOverlay extends StatelessWidget {
     final approxContainerHeights = [...messageLineCounts.map((n) => 24 + 20 * n)];
     final p1Offset = Offset(0, layout.playerHeight * 0.75 + approxContainerHeights[1] / 2);
     final p3Offset = Offset(0, layout.playerHeight * 0.75 + approxContainerHeights[3] / 2);
-    final sidePushdownPx = layout.playerHeight * 0.75 + 32;
     final overlays = Column(children: [
       Row(children: [
         spacer,
@@ -490,12 +484,12 @@ class TrickCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (animationMode == AnimationMode.moving_trick_to_winner) {
+    if (animationMode == AnimationMode.movingTrickToWinner) {
       return _trickCardsAnimatingToWinner(layout, previousTricks.last);
     }
     List<Widget> cardWidgets = [];
     if (currentTrick.cards.isNotEmpty) {
-      if (animationMode == AnimationMode.moving_trick_card) {
+      if (animationMode == AnimationMode.movingTrickCard) {
         cardWidgets.addAll(_trickCardsWithLastAnimating(
             layout, currentTrick.leader, numPlayers, currentTrick.cards));
       } else {
@@ -504,7 +498,7 @@ class TrickCards extends StatelessWidget {
       }
     } else if (previousTricks.isNotEmpty) {
       final trick = previousTricks.last;
-      if (animationMode == AnimationMode.moving_trick_card) {
+      if (animationMode == AnimationMode.movingTrickCard) {
         cardWidgets
             .addAll(_trickCardsWithLastAnimating(layout, trick.leader, numPlayers, trick.cards));
       } else {
