@@ -22,10 +22,11 @@ enum AiMode {
 
 class Layout {
   late Size displaySize;
-  late double edgePx;
+  late double playerHeight;
 
   Rect cardArea() {
-    return Rect.fromLTRB(edgePx, edgePx, displaySize.width - edgePx, displaySize.height - edgePx);
+    final border = playerHeight * 0.9;
+    return Rect.fromLTRB(border, border, displaySize.width - border, displaySize.height - border);
   }
 
   Size baseCardSize() {
@@ -147,7 +148,7 @@ class AiPlayerImage extends StatelessWidget {
     final imagePath = catImageForIndex(imageIndex);
     const imageAspectRatio = 156 / 112;
     final displaySize = layout.displaySize;
-    final playerSize = layout.edgePx;
+    final playerSize = layout.playerHeight;
 
     final rect = (() {
       switch (playerIndex) {
@@ -209,7 +210,7 @@ class SpeechBubble extends StatelessWidget {
     var transform = Matrix4.identity();
     final dh = layout.displaySize.height;
     final dw = layout.displaySize.width;
-    final playerHeight = layout.edgePx;
+    final playerHeight = layout.playerHeight;
     final imageWidth = min(playerHeight * 1.5, widthFraction * dw);
     final imageHeight = imageWidth / imageAspectRatio;
     final fontSize = imageHeight / 2;
@@ -301,7 +302,7 @@ class MoodBubble extends StatelessWidget {
     var transform = Matrix4.identity();
     final dh = layout.displaySize.height;
     final dw = layout.displaySize.width;
-    final playerHeight = layout.edgePx;
+    final playerHeight = layout.playerHeight;
     final imageWidth = min(playerHeight * 1.5, widthFraction * dw);
     final imageHeight = imageWidth / bubbleImageAspectRatio;
     var top = 0.0;
@@ -428,13 +429,13 @@ class PlayerMessagesOverlay extends StatelessWidget {
     // Get approximate height of the containers so we can position them accurately.
     final messageLineCounts = [...messages.map((m) => m.split("\n").length)];
     final approxContainerHeights = [...messageLineCounts.map((n) => 24 + 20 * n)];
-    final p1Offset = Offset(0, layout.edgePx * 0.75 + approxContainerHeights[1] / 2);
-    final p3Offset = Offset(0, layout.edgePx * 0.75 + approxContainerHeights[3] / 2);
-    final sidePushdownPx = layout.edgePx * 0.75 + 32;
+    final p1Offset = Offset(0, layout.playerHeight * 0.75 + approxContainerHeights[1] / 2);
+    final p3Offset = Offset(0, layout.playerHeight * 0.75 + approxContainerHeights[3] / 2);
+    final sidePushdownPx = layout.playerHeight * 0.75 + 32;
     final overlays = Column(children: [
       Row(children: [
         spacer,
-        makeTextContainer(messages[2], Offset(0, layout.edgePx)),
+        makeTextContainer(messages[2], Offset(0, layout.playerHeight)),
         spacer,
       ]),
       Expanded(
@@ -447,7 +448,7 @@ class PlayerMessagesOverlay extends StatelessWidget {
       ])),
       Row(children: [
         spacer,
-        makeTextContainer(messages[0], Offset(0, -layout.edgePx / 2)),
+        makeTextContainer(messages[0], Offset(0, -layout.playerHeight / 2)),
         spacer,
       ]),
     ]);
@@ -651,5 +652,5 @@ Layout computeLayout(BuildContext context) {
   final ds = MediaQuery.of(context).size;
   return Layout()
     ..displaySize = ds
-    ..edgePx = ds.shortestSide * 0.125;
+    ..playerHeight = ds.shortestSide * 0.125;
 }
