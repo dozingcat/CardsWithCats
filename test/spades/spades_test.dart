@@ -214,7 +214,6 @@ void main() {
       expect(scores[1].overtrickPenalty, 0);
       expect(scores[1].totalRoundPoints, 50);
       expect(scores[1].endingMatchPoints, 250);
-
     });
   });
 }

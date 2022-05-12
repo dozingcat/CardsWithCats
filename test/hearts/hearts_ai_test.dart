@@ -104,7 +104,7 @@ void main() {
 
     final avoidPointsCard = chooseCardAvoidingPoints(req, rng);
     expect(avoidPointsCard, c("QS")[0]);
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(20, 50), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(20, 50), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("QS")));
   });
 
@@ -123,7 +123,7 @@ void main() {
     // final avoidPointsCard = chooseCardAvoidingPoints(req, rng);
     // expect(avoidPointsCard, c("KS")[0]);
     expect(req.currentPlayerIndex(), 0);
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("KS")));
   });
 
@@ -140,7 +140,7 @@ void main() {
         receivedCards: []);
     expect(req.currentPlayerIndex(), 2);
 
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("9S 2S")));
   });
 
@@ -156,7 +156,7 @@ void main() {
         passedCards: c("AS QS QD"),
         receivedCards: c("KH 9C 8C"));
 
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("KS")));
   });
 
@@ -174,7 +174,7 @@ void main() {
         passedCards: [],
         receivedCards: []);
 
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("AS")));
   });
 
@@ -183,7 +183,7 @@ void main() {
     final req = CardToPlayRequest(
         rules: HeartsRuleSet(),
         scoresBeforeRound: [0, 0, 0, 0],
-        hand: c("AS JS 6S AH JH 6H AD JD 3D 2D 4C 3C"),
+        hand: c("JS TS 6S AH JH 6H AD JD 3D 2D 4C 3C"),
         previousTricks: [Trick(0, c("2C QC KC AC"), 3)],
         currentTrick: TrickInProgress(3, c("4D 8D KH")),
         passDirection: 0,
@@ -191,12 +191,12 @@ void main() {
         receivedCards: []);
 
     final mcCardNoJD =
-        chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+        chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCardNoJD, isIn(c("AD")));
 
     req.rules.jdMinus10 = true;
     final mcCardWithJD =
-        chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+        chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCardWithJD, isIn(c("JD")));
   });
 
@@ -215,7 +215,7 @@ void main() {
 
     // Make sure that we don't model opponents as wanting to play JD
     // if we lead a higher diamond. A spade is the only reasonable lead.
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("JS TS 9S 8S")));
   });
 
@@ -250,7 +250,7 @@ void main() {
         passedCards: [],
         receivedCards: []);
 
-    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng);
+    final mcCard = chooseCardMonteCarlo(req, makeMCParams(50, 20), chooseCardAvoidingPoints, rng).bestCard;
     expect(mcCard, isIn(c("9C")));
   });
 }
