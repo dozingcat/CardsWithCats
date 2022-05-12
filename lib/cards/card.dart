@@ -1,55 +1,55 @@
-enum Suit { clubs, diamonds, hearts, spades }
+enum Suit {
+  clubs, diamonds, hearts, spades;
 
-extension SuitExtension on Suit {
   String get asciiChar {
     switch (this) {
-      case Suit.clubs:
+      case clubs:
         return 'C';
-      case Suit.diamonds:
+      case diamonds:
         return 'D';
-      case Suit.hearts:
+      case hearts:
         return 'H';
-      case Suit.spades:
+      case spades:
         return 'S';
     }
   }
 
   String get symbolChar {
     switch (this) {
-      case Suit.clubs:
+      case clubs:
         return '♣';
-      case Suit.diamonds:
+      case diamonds:
         return '♦';
-      case Suit.hearts:
+      case hearts:
         return '♥';
-      case Suit.spades:
+      case spades:
         return '♠';
+    }
+  }
+
+  static Suit fromChar(String ch) {
+    switch (ch) {
+      case 'C':
+      case '♣':
+        return clubs;
+      case 'D':
+      case '♦':
+        return diamonds;
+      case 'H':
+      case '♥':
+        return hearts;
+      case 'S':
+      case '♠':
+        return spades;
+      default:
+        throw FormatException("Unknown suit: ${ch}");
     }
   }
 }
 
-Suit suitFromChar(String ch) {
-  switch (ch) {
-    case 'C':
-    case '♣':
-      return Suit.clubs;
-    case 'D':
-    case '♦':
-      return Suit.diamonds;
-    case 'H':
-    case '♥':
-      return Suit.hearts;
-    case 'S':
-    case '♠':
-      return Suit.spades;
-    default:
-      throw FormatException("Unknown suit: ${ch}");
-  }
-}
+enum Rank {
+  two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, ace;
 
-enum Rank { two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, ace }
-
-extension RankExtension on Rank {
   // Returns number for non-face card, or jack=11, queen=12, king=13, ace=14.
   int get numericValue {
     return index + 2;
@@ -57,15 +57,15 @@ extension RankExtension on Rank {
 
   String get asciiChar {
     switch (this) {
-      case Rank.ace:
+      case ace:
         return 'A';
-      case Rank.king:
+      case king:
         return 'K';
-      case Rank.queen:
+      case queen:
         return 'Q';
-      case Rank.jack:
+      case jack:
         return 'J';
-      case Rank.ten:
+      case ten:
         return 'T';
       default:
         return numericValue.toString();
@@ -75,42 +75,42 @@ extension RankExtension on Rank {
   bool isHigherThan(Rank other) => index > other.index;
   bool isLowerThan(Rank other) => index < other.index;
 
-  Rank nextHigherRank() => Rank.values[index + 1];
-  Rank nextLowerRank() => Rank.values[index - 1];
-}
+  Rank nextHigherRank() => values[index + 1];
+  Rank nextLowerRank() => values[index - 1];
 
-Rank rankFromChar(String ch) {
-  switch (ch) {
-    case 'A':
-      return Rank.ace;
-    case 'K':
-      return Rank.king;
-    case 'Q':
-      return Rank.queen;
-    case 'J':
-      return Rank.jack;
-    case 'T':
-      return Rank.ten;
-    case '10':
-      return Rank.ten;
-    case '9':
-      return Rank.nine;
-    case '8':
-      return Rank.eight;
-    case '7':
-      return Rank.seven;
-    case '6':
-      return Rank.six;
-    case '5':
-      return Rank.five;
-    case '4':
-      return Rank.four;
-    case '3':
-      return Rank.three;
-    case '2':
-      return Rank.two;
-    default:
-      throw FormatException("Unknown rank: ${ch}");
+  static Rank fromChar(String ch) {
+    switch (ch) {
+      case 'A':
+        return ace;
+      case 'K':
+        return king;
+      case 'Q':
+        return queen;
+      case 'J':
+        return jack;
+      case 'T':
+        return ten;
+      case '10':
+        return ten;
+      case '9':
+        return nine;
+      case '8':
+        return eight;
+      case '7':
+        return seven;
+      case '6':
+        return six;
+      case '5':
+        return five;
+      case '4':
+        return four;
+      case '3':
+        return three;
+      case '2':
+        return two;
+      default:
+        throw FormatException("Unknown rank: ${ch}");
+    }
   }
 }
 
@@ -141,7 +141,7 @@ class PlayingCard {
   static PlayingCard cardFromString(String s) {
     final suitChar = s[s.length - 1];
     final rankChar = s.substring(0, s.length - 1);
-    return PlayingCard(rankFromChar(rankChar), suitFromChar(suitChar));
+    return PlayingCard(Rank.fromChar(rankChar), Suit.fromChar(suitChar));
   }
 
   static List<PlayingCard> cardsFromString(String s) {
