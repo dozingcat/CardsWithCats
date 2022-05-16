@@ -20,7 +20,7 @@ void main(List<String> args) {
   Random rng = Random(seed);
 
   final game = parsedArgs["game"];
-  final results = (game == "spades") ? runSpades(rng) : runHearts(rng);
+  final results = (game == "spades") ? runSpades(rng, 5) : runHearts(rng, 5);
 
   double totalSeconds = 0.0;
   int totalCards = 0;
@@ -41,7 +41,7 @@ void main(List<String> args) {
   print("Rounds/sec: ${roundsPerSecond.toStringAsFixed(1)}");
 }
 
-List<MonteCarloResult> runHearts(Random rng) {
+List<MonteCarloResult> runHearts(Random rng, int iterations) {
   HeartsRound round = HeartsRound.deal(HeartsRuleSet(), List.filled(4, 0), 0, rng);
   for (int i = 0; i < 4; i++) {
     print(descriptionWithSuitGroups(round.players[i].hand));
@@ -58,15 +58,16 @@ List<MonteCarloResult> runHearts(Random rng) {
   final req = hearts_ai.CardToPlayRequest.fromRound(round);
   final mcParams = MonteCarloParams(maxRounds: 100000, rolloutsPerRound: 20, maxTimeMillis: 2000);
   final results = <MonteCarloResult>[];
-  for (int i = 0; i < 5; i++) {
-    final result = hearts_ai.chooseCardMonteCarlo(req, mcParams, hearts_ai.chooseCardAvoidingPoints, rng);
+  final seeds = List.generate(iterations, (int _) => rng.nextInt(1 << 32));
+  for (int i = 0; i < iterations; i++) {
+    final result = hearts_ai.chooseCardMonteCarlo(req, mcParams, hearts_ai.chooseCardAvoidingPoints, Random(seeds[i]));
     print(result);
     results.add(result);
   }
   return results;
 }
 
-List<MonteCarloResult> runSpades(Random rng) {
+List<MonteCarloResult> runSpades(Random rng, int iterations) {
   final rules = SpadesRuleSet();
   SpadesRound round = SpadesRound.deal(SpadesRuleSet(), List.filled(2, 0), 0, rng);
   for (int i = 0; i < 4; i++) {
@@ -92,8 +93,9 @@ List<MonteCarloResult> runSpades(Random rng) {
   final req = spades_ai.CardToPlayRequest.fromRound(round);
   final mcParams = MonteCarloParams(maxRounds: 100000, rolloutsPerRound: 20, maxTimeMillis: 2000);
   final results = <MonteCarloResult>[];
-  for (int i = 0; i < 5; i++) {
-    final result = spades_ai.chooseCardMonteCarlo(req, mcParams, spades_ai.chooseCardRandom, rng);
+  final seeds = List.generate(iterations, (int _) => rng.nextInt(1 << 32));
+  for (int i = 0; i < iterations; i++) {
+    final result = spades_ai.chooseCardMonteCarlo(req, mcParams, spades_ai.chooseCardRandom, Random(seeds[i]));
     print(result);
     results.add(result);
   }
