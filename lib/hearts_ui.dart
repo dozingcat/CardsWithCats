@@ -429,10 +429,10 @@ class PassCardsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
+    const textStyle = TextStyle(fontSize: 14);
     final halfPadding = textStyle.fontSize! * 0.75;
     return Center(
-      child: Dialog(
+      child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
         backgroundColor: dialogBackgroundColor,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -442,14 +442,14 @@ class PassCardsDialog extends StatelessWidget {
             _paddingAll(
                 halfPadding,
                 ElevatedButton(
-                  child: Text(buttonLabel()),
                   onPressed: isButtonEnabled() ? onConfirm : null,
+                  child: Text(buttonLabel()),
                 )),
             SizedBox(height: halfPadding),
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -472,8 +472,8 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final headerFontSize = layout.dialogBaseFontSize();
-    final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
+    final headerFontSize = 14.0;
+    final pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
 
     Widget pointsCell(Object p) => _paddingAll(cellPad,
@@ -507,7 +507,7 @@ class EndOfRoundDialog extends StatelessWidget {
     }
 
     final dialog = Center(
-        child: Dialog(
+        child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -519,7 +519,7 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         10,
                         Text(matchOverMessage(),
-                            style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+                            style: TextStyle(fontSize: 26))),
                   ],
                 ),
               _paddingAll(
@@ -572,7 +572,7 @@ class EndOfRoundDialog extends StatelessWidget {
                         ))
                   ],
                 ),
-            ])));
+            ]))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),

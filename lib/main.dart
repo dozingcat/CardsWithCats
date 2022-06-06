@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -100,6 +101,8 @@ class _MyHomePageState extends State<MyHomePage> {
         dialogMode = DialogMode.mainMenu;
       }
     });
+    final dir = await getApplicationSupportDirectory();
+    print("Application support directory: $dir");
   }
 
   HeartsRuleSet _readHeartsRulesFromPrefs() {
@@ -326,22 +329,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
-    final minDim = layout.displaySize.shortestSide;
     return SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: Center(
-            child: Dialog(
+            child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
                 backgroundColor: dialogBackgroundColor,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(
-                        20,
-                        Text(appTitle,
-                            style: TextStyle(
-                              fontSize: min(minDim / 18, 40),
-                            ))),
+                        20, const Text(appTitle, style: TextStyle( fontSize: 26))),
                     _paddingAll(
                         10,
                         Table(
@@ -357,7 +355,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ],
                         )),
                   ],
-                ))));
+                )))));
   }
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
@@ -391,10 +389,10 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
-    final dialogWidth = 0.8 * minDim;
+    final dialogWidth = min(350, 0.8 * minDim / layout.dialogScale());
     final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
 
-    return Dialog(
+    return Transform.scale(scale: layout.dialogScale(), child: Dialog(
         insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
         backgroundColor: dialogBackgroundColor,
         child: Column(
@@ -402,10 +400,10 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             _paddingAll(
                 20,
-                Text(
+                const Text(
                   "Preferences",
-                  style: TextStyle(fontSize: min(minDim / 18, 40)),
-                )),
+                  style: TextStyle(fontSize: 24)),
+                ),
             const Text("Changes take effect in the next match.",
                 style: TextStyle(fontSize: baseFontSize * 0.65)),
             const ListTile(
@@ -451,7 +449,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: const Text("OK"))),
           ],
-        ));
+        )));
   }
 
   Widget _menuIcon() {
@@ -472,6 +470,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     return Scaffold(
       body: Stack(children: [
+        Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
         ...[
           1,
