@@ -282,7 +282,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (isMatchInProgress()) {
       showNewMatchConfirmationDialog(startNewSpadesMatch);
     } else {
-      startNewHeartsMatch();
+      startNewSpadesMatch();
     }
   }
 
