@@ -76,16 +76,6 @@ class Layout {
   double dialogScale() {
     return (displaySize.shortestSide / 350).clamp(1.0, 2.0);
   }
-
-  double dialogBaseFontSize() {
-    final baseSize = displaySize.shortestSide / 30;
-    return baseSize.clamp(14, 20);
-  }
-
-  double dialogHeaderFontSize() {
-    final baseSize = displaySize.shortestSide / 20;
-    return baseSize.clamp(18, 50);
-  }
 }
 
 class PositionedCard extends StatelessWidget {

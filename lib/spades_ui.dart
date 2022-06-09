@@ -475,32 +475,31 @@ class _BidDialogState extends State<BidDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final adjustBidTextStyle = TextStyle(fontSize: widget.layout.dialogHeaderFontSize());
-    final rowPadding = widget.layout.dialogBaseFontSize();
+    final adjustBidTextStyle = TextStyle(fontSize: 18);
+    final rowPadding = 15.0;
 
     return Center(
-        child: Dialog(
+        child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
             backgroundColor: dialogBackgroundColor,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _paddingAll(
                     15,
-                    Text("Choose your bid",
-                        style: TextStyle(fontSize: widget.layout.dialogHeaderFontSize()))),
+                    const Text("Choose your bid", style: TextStyle(fontSize: 18))),
                 Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       ElevatedButton(
-                        child: Text("–", style: adjustBidTextStyle),
                         onPressed: canDecrementBid() ? decrementBid : null,
+                        child: Text("–", style: adjustBidTextStyle),
                       ),
                       _paddingAll(
                           rowPadding, Text(bidAmount.toString(), style: adjustBidTextStyle)),
                       ElevatedButton(
-                        child: Text("+", style: adjustBidTextStyle),
                         onPressed: canIncrementBid() ? incrementBid : null,
+                        child: Text("+", style: adjustBidTextStyle),
                       ),
                     ]),
                 _paddingAll(
@@ -510,16 +509,12 @@ class _BidDialogState extends State<BidDialog> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ElevatedButton(
-                            child: _paddingAll(
-                                widget.layout.dialogBaseFontSize() * 0.3,
-                                Text("Bid ${bidAmount == 0 ? "Nil" : bidAmount.toString()}",
-                                    style:
-                                        TextStyle(fontSize: widget.layout.dialogBaseFontSize()))),
+                            child: Text("Bid ${bidAmount == 0 ? "Nil" : bidAmount.toString()}"),
                             onPressed: () => widget.onBid(bidAmount),
                           ),
                         ])),
               ],
-            )));
+            ))));
   }
 }
 
@@ -564,9 +559,9 @@ class PostBidDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
+    const textStyle = TextStyle(fontSize: 14);
     final halfPadding = textStyle.fontSize! * 0.75;
-    return Dialog(
+    return Transform.scale(scale: layout.dialogScale(), child: Dialog(
         backgroundColor: dialogBackgroundColor,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -579,12 +574,12 @@ class PostBidDialog extends StatelessWidget {
             _paddingAll(
                 halfPadding,
                 ElevatedButton(
-                  child: const Text("Start round"),
                   onPressed: onConfirm,
+                  child: const Text("Start round"),
                 )),
             SizedBox(height: halfPadding),
           ],
-        ));
+        )));
   }
 }
 
@@ -607,33 +602,33 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final headerFontSize = layout.dialogBaseFontSize();
-    final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
+    const headerFontSize = 14.0;
+    const pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
 
     Widget pointsCell(Object p) => _paddingAll(cellPad,
-        Text(p.toString(), textAlign: TextAlign.right, style: TextStyle(fontSize: pointsFontSize)));
+        Text(p.toString(), textAlign: TextAlign.right, style: const TextStyle(fontSize: pointsFontSize)));
 
     Widget headerCell(String msg) => _paddingAll(
         cellPad,
         Text(msg,
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
+            style: const TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
-    final catImageHeight = headerFontSize * 1.3;
+    const catImageHeight = headerFontSize * 1.3;
 
     Widget humanTeamHeaderCell() => Row(children: [
-          Text("You", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-          SizedBox(width: headerFontSize * 0.1),
-          Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+          const Text("You", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+          const SizedBox(width: headerFontSize * 0.1),
+          const Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
           Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
         ]);
 
     Widget opponentTeamHeaderCell() => Padding(
-        padding: EdgeInsets.only(left: headerFontSize * 1.25),
+        padding: const EdgeInsets.only(left: headerFontSize * 1.25),
         child: Row(children: [
           Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
-          Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
+          const Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
           Image.asset(catImageForIndex(catImageIndices[3]), height: catImageHeight),
         ]));
 
@@ -647,7 +642,7 @@ class EndOfRoundDialog extends StatelessWidget {
     bool anyNonzero(Iterable<int> xs) => xs.any((x) => x != 0);
 
     final dialog = Center(
-        child: Dialog(
+        child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -658,8 +653,7 @@ class EndOfRoundDialog extends StatelessWidget {
                   children: [
                     _paddingAll(
                         10,
-                        Text(matchOverMessage(),
-                            style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+                        Text(matchOverMessage(), style: const TextStyle(fontSize: 26))),
                   ],
                 ),
               _paddingAll(
@@ -694,14 +688,14 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("Rematch"),
                           onPressed: onContinue,
+                          child: const Text("Rematch"),
                         )),
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("Main Menu"),
                           onPressed: onMainMenu,
+                          child: const Text("Main Menu"),
                         )),
                   ],
                 ),
@@ -713,12 +707,12 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("Continue"),
                           onPressed: onContinue,
+                          child: const Text("Continue"),
                         ))
                   ],
                 ),
-            ])));
+            ]))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),
