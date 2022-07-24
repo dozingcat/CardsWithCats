@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cards_with_cats/soundeffects.dart';
+import 'package:cards_with_cats/stats/stats_json.dart';
+import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -70,21 +73,26 @@ class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
   var matchType = GameType.none;
   late final SharedPreferences preferences;
+  late final StatsStore statsStore;
   DialogMode dialogMode = DialogMode.none;
   var prefsGameType = GameType.hearts;
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
+  final soundPlayer = SoundEffectPlayer();
 
   @override
   void initState() {
     super.initState();
     catIndices = randomizedCatImageIndices(rng);
+    soundPlayer.init();
     _readPreferences();
   }
 
   void _readPreferences() async {
+    final statsDir = await getApplicationSupportDirectory();
+    print("Application support directory: $statsDir");
     preferences = await SharedPreferences.getInstance();
     // preferences.clear();
     // preferences.remove("matchType");
@@ -100,9 +108,8 @@ class _MyHomePageState extends State<MyHomePage> {
       } else {
         dialogMode = DialogMode.mainMenu;
       }
+      statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
-    final dir = await getApplicationSupportDirectory();
-    print("Application support directory: $dir");
   }
 
   HeartsRuleSet _readHeartsRulesFromPrefs() {
@@ -486,6 +493,8 @@ class _MyHomePageState extends State<MyHomePage> {
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
             catImageIndices: catIndices,
+            soundPlayer: soundPlayer,
+            statsStore: statsStore,
           ),
         if (matchType == GameType.spades)
           SpadesMatchDisplay(
@@ -496,6 +505,8 @@ class _MyHomePageState extends State<MyHomePage> {
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
             catImageIndices: catIndices,
+            soundPlayer: soundPlayer,
+            statsStore: statsStore,
           ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),

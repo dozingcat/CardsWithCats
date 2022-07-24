@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.dozingcatsoftware.cardswithcats">
    <application
+        android:name="${applicationName}"
         android:label="Cards With Cats"
         android:icon="@mipmap/ic_launcher">
         <activity

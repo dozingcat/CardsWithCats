@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/soundeffects.dart';
+import 'package:cards_with_cats/spades/spades_stats.dart';
+import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -31,6 +34,8 @@ class SpadesMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final Stream matchUpdateStream;
+  final SoundEffectPlayer soundPlayer;
+  final StatsStore statsStore;
 
   const SpadesMatchDisplay({
     Key? key,
@@ -41,6 +46,8 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.matchUpdateStream,
+    required this.soundPlayer,
+    required this.statsStore,
   }) : super(key: key);
 
   @override
@@ -191,8 +198,20 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         round.playCard(card);
         animationMode = AnimationMode.movingTrickCard;
       });
+      widget.saveMatchFn(match);
+      _updateStatsIfMatchOrRoundOver();
     }
-    widget.saveMatchFn(match);
+  }
+
+  void _updateStatsIfMatchOrRoundOver() async {
+    if (round.isOver()) {
+      final currentStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
+      var newStats = currentStats.updateFromRound(round);
+      if (match.isMatchOver()) {
+        newStats = newStats.updateFromMatch(match);
+      }
+      widget.statsStore.writeSpadesStats(newStats);
+    }
   }
 
   void _clearMoods() {
@@ -674,9 +693,12 @@ class EndOfRoundDialog extends StatelessWidget {
                         pointsRow("Bags", [...scores.map((s) => s.overtricks)]),
                       if (anyNonzero(scores.map((s) => s.overtrickPenalty)))
                         pointsRow("Bag penalty", [...scores.map((s) => s.overtrickPenalty)]),
-                      if (anyNonzero(scores.map((s) => s.successfulNilPoints + s.failedNilPoints)))
-                        pointsRow("Points from nil bids",
-                            [...scores.map((s) => s.successfulNilPoints + s.failedNilPoints)]),
+                      if (anyNonzero(scores.map((s) => s.successfulNilPoints)))
+                        pointsRow("Nil bid made",
+                            [...scores.map((s) => s.successfulNilPoints)]),
+                      if (anyNonzero(scores.map((s) => s.failedNilPoints)))
+                        pointsRow("Nil bid failed",
+                            [...scores.map((s) => s.failedNilPoints)]),
                       pointsRow("Total score", [...scores.map((s) => s.endingMatchPoints)]),
                     ],
                   )),

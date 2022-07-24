@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/soundeffects.dart';
+import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +11,7 @@ import 'cards/card.dart';
 import 'cards/rollout.dart';
 import 'hearts/hearts.dart';
 import 'hearts/hearts_ai.dart';
+import 'hearts/hearts_stats.dart';
 
 const debugOutput = false;
 
@@ -31,6 +34,8 @@ class HeartsMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final Stream matchUpdateStream;
+  final SoundEffectPlayer soundPlayer;
+  final StatsStore statsStore;
 
   const HeartsMatchDisplay({
     Key? key,
@@ -41,6 +46,8 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.matchUpdateStream,
+    required this.soundPlayer,
+    required this.statsStore,
   }) : super(key: key);
 
   @override
@@ -131,6 +138,18 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
+      _updateStatsIfMatchOrRoundOver();
+    }
+  }
+
+  void _updateStatsIfMatchOrRoundOver() async {
+    if (round.isOver()) {
+      final currentStats = (await widget.statsStore.readHeartsStats()) ?? HeartsStats.empty();
+      var newStats = currentStats.updateFromRound(round);
+      if (match.isMatchOver()) {
+        newStats = newStats.updateFromMatch(match);
+      }
+      widget.statsStore.writeHeartsStats(newStats);
     }
   }
 
@@ -172,6 +191,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         }
         if (otherPlayerHasHeart) {
           playerMoods[trick.winner] = Mood.mad;
+          widget.soundPlayer.playMadSound();
         }
       } else if (hasJD && !hasQS) {
         playerMoods[trick.winner] = Mood.happy;

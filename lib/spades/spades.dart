@@ -155,6 +155,7 @@ List<RoundScoreResult> pointsForTrickWinners(
     }
   }
   // +100 or -100 for making or failing nil bid.
+  // TODO: Special scoring for double nil? (e.g. +400 if successful, -200 if either takes a trick)
   for (int nb in nilBidders) {
     if (winnerCounts[nb] == 0) {
       results[nb % rules.numTeams].successfulNilPoints += 100;
