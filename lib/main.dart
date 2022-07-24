@@ -2,9 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cards_with_cats/soundeffects.dart';
+import 'package:cards_with_cats/stats/stats_json.dart';
+import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -69,21 +73,26 @@ class _MyHomePageState extends State<MyHomePage> {
   var loaded = false;
   var matchType = GameType.none;
   late final SharedPreferences preferences;
+  late final StatsStore statsStore;
   DialogMode dialogMode = DialogMode.none;
   var prefsGameType = GameType.hearts;
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
+  final soundPlayer = SoundEffectPlayer();
 
   @override
   void initState() {
     super.initState();
     catIndices = randomizedCatImageIndices(rng);
+    soundPlayer.init();
     _readPreferences();
   }
 
   void _readPreferences() async {
+    final statsDir = await getApplicationSupportDirectory();
+    print("Application support directory: $statsDir");
     preferences = await SharedPreferences.getInstance();
     // preferences.clear();
     // preferences.remove("matchType");
@@ -99,6 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
       } else {
         dialogMode = DialogMode.mainMenu;
       }
+      statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
   }
 
@@ -326,22 +336,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
-    final minDim = layout.displaySize.shortestSide;
     return SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: Center(
-            child: Dialog(
+            child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
                 backgroundColor: dialogBackgroundColor,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(
-                        20,
-                        Text(appTitle,
-                            style: TextStyle(
-                              fontSize: min(minDim / 18, 40),
-                            ))),
+                        20, const Text(appTitle, style: TextStyle( fontSize: 26))),
                     _paddingAll(
                         10,
                         Table(
@@ -357,7 +362,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ],
                         )),
                   ],
-                ))));
+                )))));
   }
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
@@ -391,10 +396,10 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
-    final dialogWidth = 0.8 * minDim;
+    final dialogWidth = min(350, 0.8 * minDim / layout.dialogScale());
     final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
 
-    return Dialog(
+    return Transform.scale(scale: layout.dialogScale(), child: Dialog(
         insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
         backgroundColor: dialogBackgroundColor,
         child: Column(
@@ -402,10 +407,10 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             _paddingAll(
                 20,
-                Text(
+                const Text(
                   "Preferences",
-                  style: TextStyle(fontSize: min(minDim / 18, 40)),
-                )),
+                  style: TextStyle(fontSize: 24)),
+                ),
             const Text("Changes take effect in the next match.",
                 style: TextStyle(fontSize: baseFontSize * 0.65)),
             const ListTile(
@@ -451,7 +456,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: const Text("OK"))),
           ],
-        ));
+        )));
   }
 
   Widget _menuIcon() {
@@ -472,6 +477,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     return Scaffold(
       body: Stack(children: [
+        Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
         ...[
           1,
@@ -487,6 +493,8 @@ class _MyHomePageState extends State<MyHomePage> {
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
             catImageIndices: catIndices,
+            soundPlayer: soundPlayer,
+            statsStore: statsStore,
           ),
         if (matchType == GameType.spades)
           SpadesMatchDisplay(
@@ -497,6 +505,8 @@ class _MyHomePageState extends State<MyHomePage> {
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
             catImageIndices: catIndices,
+            soundPlayer: soundPlayer,
+            statsStore: statsStore,
           ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),

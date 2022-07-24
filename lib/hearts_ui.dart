@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/soundeffects.dart';
+import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +11,7 @@ import 'cards/card.dart';
 import 'cards/rollout.dart';
 import 'hearts/hearts.dart';
 import 'hearts/hearts_ai.dart';
+import 'hearts/hearts_stats.dart';
 
 const debugOutput = false;
 
@@ -31,6 +34,8 @@ class HeartsMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final Stream matchUpdateStream;
+  final SoundEffectPlayer soundPlayer;
+  final StatsStore statsStore;
 
   const HeartsMatchDisplay({
     Key? key,
@@ -41,6 +46,8 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.matchUpdateStream,
+    required this.soundPlayer,
+    required this.statsStore,
   }) : super(key: key);
 
   @override
@@ -131,6 +138,18 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
+      _updateStatsIfMatchOrRoundOver();
+    }
+  }
+
+  void _updateStatsIfMatchOrRoundOver() async {
+    if (round.isOver()) {
+      final currentStats = (await widget.statsStore.readHeartsStats()) ?? HeartsStats.empty();
+      var newStats = currentStats.updateFromRound(round);
+      if (match.isMatchOver()) {
+        newStats = newStats.updateFromMatch(match);
+      }
+      widget.statsStore.writeHeartsStats(newStats);
     }
   }
 
@@ -172,6 +191,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         }
         if (otherPlayerHasHeart) {
           playerMoods[trick.winner] = Mood.mad;
+          widget.soundPlayer.playMadSound();
         }
       } else if (hasJD && !hasQS) {
         playerMoods[trick.winner] = Mood.happy;
@@ -429,10 +449,10 @@ class PassCardsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(fontSize: layout.dialogBaseFontSize());
+    const textStyle = TextStyle(fontSize: 14);
     final halfPadding = textStyle.fontSize! * 0.75;
     return Center(
-      child: Dialog(
+      child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
         backgroundColor: dialogBackgroundColor,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -442,14 +462,14 @@ class PassCardsDialog extends StatelessWidget {
             _paddingAll(
                 halfPadding,
                 ElevatedButton(
-                  child: Text(buttonLabel()),
                   onPressed: isButtonEnabled() ? onConfirm : null,
+                  child: Text(buttonLabel()),
                 )),
             SizedBox(height: halfPadding),
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -472,8 +492,8 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final headerFontSize = layout.dialogBaseFontSize();
-    final pointsFontSize = layout.dialogBaseFontSize() * 1.2;
+    final headerFontSize = 14.0;
+    final pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
 
     Widget pointsCell(Object p) => _paddingAll(cellPad,
@@ -507,7 +527,7 @@ class EndOfRoundDialog extends StatelessWidget {
     }
 
     final dialog = Center(
-        child: Dialog(
+        child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -519,7 +539,7 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         10,
                         Text(matchOverMessage(),
-                            style: TextStyle(fontSize: layout.dialogHeaderFontSize()))),
+                            style: TextStyle(fontSize: 26))),
                   ],
                 ),
               _paddingAll(
@@ -572,7 +592,7 @@ class EndOfRoundDialog extends StatelessWidget {
                         ))
                   ],
                 ),
-            ])));
+            ]))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),
