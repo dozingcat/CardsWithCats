@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_json.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
+import 'package:cards_with_cats/stats_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
 }
 
 const dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
+const dialogTableBackgroundColor = Color.fromARGB(0x80, 0xc0, 0xc0, 0xc0);
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
@@ -66,7 +68,7 @@ List<int> randomizedCatImageIndices(Random rng) {
 
 enum GameType { none, hearts, spades }
 
-enum DialogMode { none, mainMenu, preferences }
+enum DialogMode { none, mainMenu, preferences, statistics }
 
 class _MyHomePageState extends State<MyHomePage> {
   final rng = Random();
@@ -159,6 +161,12 @@ class _MyHomePageState extends State<MyHomePage> {
   void _showPreferences() {
     setState(() {
       dialogMode = DialogMode.preferences;
+    });
+  }
+
+  void _showStats() {
+    setState(() {
+      dialogMode = DialogMode.statistics;
     });
   }
 
@@ -358,6 +366,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             _makeButtonRow("New hearts match", handleNewHeartsMatchClicked),
                             _makeButtonRow("New spades match", handleNewSpadesMatchClicked),
                             _makeButtonRow('Preferences...', _showPreferences),
+                            _makeButtonRow('Statistics...', _showStats),
                             _makeButtonRow('About...', () => _showAboutDialog(context)),
                           ],
                         )),
@@ -398,11 +407,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final dialogWidth = min(350, 0.8 * minDim / layout.dialogScale());
     final dialogPadding = (layout.displaySize.width - dialogWidth) / 2;
+    final maxDialogHeight = layout.displaySize.height * 0.9 / layout.dialogScale();
 
     return Transform.scale(scale: layout.dialogScale(), child: Dialog(
         insetPadding: EdgeInsets.only(left: dialogPadding, right: dialogPadding),
         backgroundColor: dialogBackgroundColor,
-        child: Column(
+        child: ConstrainedBox(constraints: BoxConstraints(maxHeight: maxDialogHeight), child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _paddingAll(
@@ -413,50 +423,60 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
             const Text("Changes take effect in the next match.",
                 style: TextStyle(fontSize: baseFontSize * 0.65)),
-            const ListTile(
-                title: Text("Hearts",
-                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
-            makeHeartsRuleCheckboxRow(
-              "J♦ is -10 points",
-              heartsRulesFromPrefs.jdMinus10,
-              (rules, checked) {
-                rules.jdMinus10 = checked;
-              },
-            ),
-            makeHeartsRuleCheckboxRow(
-              "Q♠ breaks hearts",
-              heartsRulesFromPrefs.queenBreaksHearts,
-              (rules, checked) {
-                rules.queenBreaksHearts = checked;
-              },
-            ),
-            makeHeartsRuleCheckboxRow(
-              "Allow points on first trick",
-              heartsRulesFromPrefs.pointsOnFirstTrick,
-              (rules, checked) {
-                rules.pointsOnFirstTrick = checked;
-              },
-            ),
-            const ListTile(
-                title: Text("Spades",
-                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
-            makeSpadesRuleCheckboxRow(
-              "Penalize sandbags",
-              spadesRulesFromPrefs.penalizeBags,
-              (rules, checked) {
-                rules.penalizeBags = checked;
-              },
-            ),
-            makeSpadesRuleCheckboxRow(
-              "No leading spades until broken",
-              spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
-              (rules, checked) {
-                rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
-              },
-            ),
+
+            Flexible(child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                    primary: true,
+                    child: Container(
+                        color: dialogTableBackgroundColor,
+                        child: Column(children: [
+                            const ListTile(
+                                title: Text("Hearts",
+                                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+                            makeHeartsRuleCheckboxRow(
+                              "J♦ is -10 points",
+                              heartsRulesFromPrefs.jdMinus10,
+                              (rules, checked) {
+                                rules.jdMinus10 = checked;
+                              },
+                            ),
+                            makeHeartsRuleCheckboxRow(
+                              "Q♠ breaks hearts",
+                              heartsRulesFromPrefs.queenBreaksHearts,
+                              (rules, checked) {
+                                rules.queenBreaksHearts = checked;
+                              },
+                            ),
+                            makeHeartsRuleCheckboxRow(
+                              "Allow points on first trick",
+                              heartsRulesFromPrefs.pointsOnFirstTrick,
+                              (rules, checked) {
+                                rules.pointsOnFirstTrick = checked;
+                              },
+                            ),
+                            const ListTile(
+                                title: Text("Spades",
+                                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+                            makeSpadesRuleCheckboxRow(
+                              "Penalize sandbags",
+                              spadesRulesFromPrefs.penalizeBags,
+                              (rules, checked) {
+                                rules.penalizeBags = checked;
+                              },
+                            ),
+                            makeSpadesRuleCheckboxRow(
+                              "No leading spades until broken",
+                              spadesRulesFromPrefs.spadeLeading == SpadeLeading.after_broken,
+                              (rules, checked) {
+                                rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
+                              },
+                            ),
+                        ],
+            ))))),
             _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: const Text("OK"))),
           ],
-        )));
+        ))));
   }
 
   Widget _menuIcon() {
@@ -510,6 +530,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
+        if (dialogMode == DialogMode.statistics) StatsDialog(
+            layout: layout,
+            statsStore: statsStore,
+            onClose: _showMainMenu,
+        ),
         if (dialogMode == DialogMode.none) _menuIcon(),
       ]),
     );

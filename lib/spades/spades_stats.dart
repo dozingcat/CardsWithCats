@@ -7,6 +7,7 @@ class SpadesStats {
   final int totalMatchPoints;
   final int numBagPenalties;
   final int numRounds;
+  final int numRoundsWithBagsEnabled;
   final int totalRoundPoints;
   final int numBidsAttempted;
   final int numBidsMade;
@@ -30,6 +31,7 @@ class SpadesStats {
     required this.totalMatchPoints,
     required this.numBagPenalties,
     required this.numRounds,
+    required this.numRoundsWithBagsEnabled,
     required this.totalRoundPoints,
     required this.numBidsAttempted,
     required this.numBidsMade,
@@ -55,6 +57,7 @@ class SpadesStats {
         totalMatchPoints: 0,
         numBagPenalties: 0,
         numRounds: 0,
+        numRoundsWithBagsEnabled: 0,
         totalRoundPoints: 0,
         numBidsAttempted: 0,
         numBidsMade: 0,
@@ -91,6 +94,7 @@ class SpadesStats {
       totalMatchPoints: totalMatchPoints,
       numBagPenalties: numBagPenalties + (playerScore.overtrickPenalty < 0 ? 1 : 0),
       numRounds: numRounds + 1,
+      numRoundsWithBagsEnabled: round.rules.penalizeBags ? 1 : 0,
       totalRoundPoints: totalRoundPoints + playerScore.totalRoundPoints,
       numBidsAttempted: numBidsAttempted + (playerBid > 0 ? 1 : 0),
       numBidsMade: numBidsMade + (playerScore.successfulBidPoints > 0 ? 1 : 0),
@@ -122,6 +126,7 @@ class SpadesStats {
       totalMatchPoints: totalMatchPoints + scores[0],
       numBagPenalties: numBagPenalties,
       numRounds: numRounds,
+      numRoundsWithBagsEnabled: numRoundsWithBagsEnabled,
       totalRoundPoints: totalRoundPoints,
       numBidsAttempted: numBidsAttempted,
       numBidsMade: numBidsMade,
@@ -149,6 +154,7 @@ class SpadesStats {
       "totalMatchPoints": totalMatchPoints,
       "numBagPenalties": numBagPenalties,
       "numRounds": numRounds,
+      "numRoundsWithBagsEnabled": numRoundsWithBagsEnabled,
       "totalRoundPoints": totalRoundPoints,
       "numBidsAttempted": numBidsAttempted,
       "numBidsMade": numBidsMade,
@@ -175,6 +181,7 @@ class SpadesStats {
       totalMatchPoints: json["totalMatchPoints"],
       numBagPenalties: json["numBagPenalties"],
       numRounds: json["numRounds"],
+      numRoundsWithBagsEnabled: json["numRoundsWithBagsEnabled"],
       totalRoundPoints: json["totalRoundPoints"],
       numBidsAttempted: json["numBidsAttempted"],
       numBidsMade: json["numBidsMade"],
