@@ -30,7 +30,6 @@ class SoundEffectPlayer {
       return;
     }
     final index = rng.nextInt(players.length);
-    print("Playing sound $index");
     await players[index].seek(Duration.zero);
     await players[index].play();
   }

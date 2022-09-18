@@ -48,6 +48,7 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
   void _loadStats() async {
     heartsStats = (await widget.statsStore.readHeartsStats()) ?? HeartsStats.empty();
     spadesStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
+
     setState(() {loaded = true;});
   }
 
