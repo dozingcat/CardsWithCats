@@ -96,7 +96,8 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
                 ElevatedButton(
                   onPressed: widget.onClose,
                   child: const Text("OK"),
-                )),
+                )
+            ),
           ],
         ))));
   }

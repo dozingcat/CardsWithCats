@@ -102,6 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
       loaded = true;
       heartsRulesFromPrefs = _readHeartsRulesFromPrefs();
       spadesRulesFromPrefs = _readSpadesRulesFromPrefs();
+
       String? savedMatchType = preferences.getString("matchType") ?? "";
       if (savedMatchType == "hearts") {
         matchType = GameType.hearts;
@@ -110,6 +111,9 @@ class _MyHomePageState extends State<MyHomePage> {
       } else {
         dialogMode = DialogMode.mainMenu;
       }
+
+      soundPlayer.enabled = preferences.getBool("soundEnabled") ?? true;
+
       statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
   }
@@ -150,6 +154,14 @@ class _MyHomePageState extends State<MyHomePage> {
       updateRulesFn(spadesRulesFromPrefs);
     });
     preferences.setString("spadesRules", jsonEncode(spadesRulesFromPrefs.toJson()));
+  }
+
+  void setSoundEnabled(bool enabled) {
+    setState(() {
+      soundPlayer.enabled = enabled;
+    });
+    preferences.setBool("soundEnabled", enabled);
+    soundPlayer.playMadSound();
   }
 
   void _showMainMenu() {
@@ -377,13 +389,13 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {
     final minDim = layout.displaySize.shortestSide;
     const baseFontSize = 18.0;
-    const optionFontSize = 14.0;
+    const labelStyle = TextStyle(fontSize: 14.0);
 
     Widget makeHeartsRuleCheckboxRow(
         String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
-        title: Text(title, style: const TextStyle(fontSize: optionFontSize)),
+        title: Text(title, style: labelStyle),
         isThreeLine: false,
         onChanged: (bool? checked) {
           updateHeartsRules((rules) => updateRulesFn(rules, checked == true));
@@ -396,7 +408,7 @@ class _MyHomePageState extends State<MyHomePage> {
         String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
       return CheckboxListTile(
         dense: true,
-        title: Text(title, style: const TextStyle(fontSize: optionFontSize)),
+        title: Text(title, style: labelStyle),
         isThreeLine: false,
         onChanged: (bool? checked) {
           updateSpadesRules((rules) => updateRulesFn(rules, checked == true));
@@ -421,8 +433,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   "Preferences",
                   style: TextStyle(fontSize: 24)),
                 ),
-            const Text("Changes take effect in the next match.",
+            const Text("Rule changes take effect in the next match.",
                 style: TextStyle(fontSize: baseFontSize * 0.65)),
+            const SizedBox(height: baseFontSize),
 
             Flexible(child: Scrollbar(
                 thumbVisibility: true,
@@ -431,6 +444,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Container(
                         color: dialogTableBackgroundColor,
                         child: Column(children: [
+                          CheckboxListTile(
+                            dense: true,
+                            title: const Text("Enable sound", style: labelStyle),
+                            value: soundPlayer.enabled,
+                            onChanged: (bool? checked) {
+                              setSoundEnabled(checked == true);
+                            },
+                          ),
                             const ListTile(
                                 title: Text("Hearts",
                                     style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
