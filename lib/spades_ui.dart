@@ -253,6 +253,34 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  void _playSoundsForMoods() {
+    if (match.isMatchOver()) {
+      if (match.winningTeam() == 0) {
+        widget.soundPlayer.playHappySound();
+      }
+      else {
+        widget.soundPlayer.playMadSound();
+      }
+    }
+    else {
+      bool hasHappy = false;
+      bool hasMad = false;
+      for (int i = 1; i < match.rules.numPlayers; i++) {
+        if (playerMoods[i] == Mood.happy) {
+          hasHappy = true;
+        } else if (playerMoods[i] == Mood.mad) {
+          hasMad = true;
+        }
+      }
+      if (hasHappy) {
+        widget.soundPlayer.playHappySound();
+      }
+      if (hasMad) {
+        widget.soundPlayer.playMadSound();
+      }
+    }
+  }
+
   void _trickCardAnimationFinished() {
     if (!round.isOver() && round.currentTrick.cards.isNotEmpty) {
       setState(() {
@@ -263,6 +291,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       setState(() {
         animationMode = AnimationMode.movingTrickToWinner;
         _updateMoodsAfterTrick();
+        _playSoundsForMoods();
       });
     }
   }

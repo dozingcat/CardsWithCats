@@ -39,7 +39,7 @@ dependencies:
   url_launcher: ^6.0.2
   path: ^1.8.2
   path_provider: ^2.0.10
-  just_audio: ^0.9.27
+  just_audio: ^0.9.28
 
 dev_dependencies:
   flutter_test:

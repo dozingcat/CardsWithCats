@@ -177,25 +177,47 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     } else {
       // Mad when taking QS, happy when taking JD.
       final trick = round.previousTricks.last;
-      final hasQS = trick.cards.contains(queenOfSpades);
-      final hasJD = round.rules.jdMinus10 && trick.cards.contains(jackOfDiamonds);
-      if (hasQS && !hasJD) {
-        // Only mad if another player has taken a heart, otherwise might be trying to shoot.
-        bool otherPlayerHasHeart = false;
-        for (int i = 0; i < round.previousTricks.length - 1; i++) {
-          final pt = round.previousTricks[i];
-          if (pt.winner != trick.winner && pt.cards.any((c) => c.suit == Suit.hearts)) {
-            otherPlayerHasHeart = true;
-            break;
+      if (trick.winner != 0) {
+        final hasQS = trick.cards.contains(queenOfSpades);
+        final hasJD = round.rules.jdMinus10 &&
+            trick.cards.contains(jackOfDiamonds);
+        if (hasQS && !hasJD) {
+          // Only mad if another player has taken a heart, otherwise might be trying to shoot.
+          bool otherPlayerHasHeart = false;
+          for (int i = 0; i < round.previousTricks.length - 1; i++) {
+            final pt = round.previousTricks[i];
+            if (pt.winner != trick.winner &&
+                pt.cards.any((c) => c.suit == Suit.hearts)) {
+              otherPlayerHasHeart = true;
+              break;
+            }
           }
+          if (otherPlayerHasHeart) {
+            playerMoods[trick.winner] = Mood.mad;
+          }
+        } else if (hasJD && !hasQS) {
+          playerMoods[trick.winner] = Mood.happy;
         }
-        if (otherPlayerHasHeart) {
-          playerMoods[trick.winner] = Mood.mad;
-          widget.soundPlayer.playMadSound();
-        }
-      } else if (hasJD && !hasQS) {
-        playerMoods[trick.winner] = Mood.happy;
       }
+    }
+  }
+
+  void _playSoundsForMoods() {
+    bool hasHappy = false;
+    bool hasMad = false;
+    for (int i = 1; i < match.rules.numPlayers; i++) {
+      if (playerMoods[i] == Mood.happy) {
+        hasHappy = true;
+      } else if (playerMoods[i] == Mood.mad) {
+        hasMad = true;
+      }
+    }
+    if (hasHappy) {
+      widget.soundPlayer.playHappySound();
+    }
+    // Only happy sound if an AI player won the match.
+    if (hasMad && (!match.isMatchOver() || !hasHappy)) {
+      widget.soundPlayer.playMadSound();
     }
   }
 
@@ -210,6 +232,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         animationMode = AnimationMode.movingTrickToWinner;
       });
       _updateMoodsAfterTrick();
+      _playSoundsForMoods();
     }
   }
 
