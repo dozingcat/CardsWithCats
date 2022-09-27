@@ -341,14 +341,14 @@ class _MyHomePageState extends State<MyHomePage> {
     showAboutDialog(
       context: context,
       applicationName: appTitle,
-      applicationVersion: '1.0.0',
+      applicationVersion: '1.1.0b1',
       applicationLegalese: '© 2022 Brian Nenninger',
       children: [
         Container(height: 15),
         MarkdownBody(
           data: aboutText,
-          onTapLink: (text, href, title) => launch(href!),
-          // https://github.com/flutter/flutter_markdown/issues/311
+          onTapLink: (text, href, title) => launchUrl(Uri.parse(href!)),
+          // https://pub.dev/documentation/flutter_markdown/latest/flutter_markdown/MarkdownListItemCrossAxisAlignment.html
           listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
         ),
       ],
@@ -518,7 +518,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     return Scaffold(
       body: Stack(children: [
-        Text(layout.displaySize.shortestSide.toString()),
+        // Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
         ...[
           1,

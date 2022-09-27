@@ -85,3 +85,4 @@ available [here](https://github.com/dozingcat/CardsWithCats).
 - Thought bubble by [OpenClipart-Vectors on Pixabay](https://pixabay.com/vectors/balloon-bubble-speech-thought-150981/)
 - Cat emojis from [Noto Emoji by Google](https://github.com/googlefonts/noto-emoji/)
 - [Playing card images](https://code.google.com/archive/p/vector-playing-cards/)
+- Sounds by Boojie, Ginger, and Sauerkraut

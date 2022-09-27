@@ -17,6 +17,7 @@ class SoundEffectPlayer {
     madSoundPlayers.add(await _makePlayer('sauerkraut_mad_2.mp3'));
     madSoundPlayers.add(await _makePlayer('ginger_mad_1.mp3'));
     madSoundPlayers.add(await _makePlayer('ginger_mad_2.mp3'));
+    madSoundPlayers.add(await _makePlayer('ginger_mad_3.mp3'));
 
     happySoundPlayers.clear();
     happySoundPlayers.add(await _makePlayer('boojie_happy_1.mp3'));
