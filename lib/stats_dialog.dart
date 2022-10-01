@@ -23,8 +23,8 @@ class StatsDialog extends StatefulWidget {
 
 enum StatsMode {hearts, spades}
 
-const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
-const statsTableBackgroundColor = Color.fromARGB(0x80, 0xc0, 0xc0, 0xc0);
+const dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
+const statsTableBackgroundColor = Color.fromARGB(0xd0, 0xc0, 0xc0, 0xc0);
 
 class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStateMixin {
   late HeartsStats heartsStats;
