@@ -34,12 +34,9 @@ class SoundEffectPlayer {
     if (!enabled || !soundsLoaded) {
       return;
     }
-    // final index = rng.nextInt(players.length);
-    final index = loopIndex < players.length ? loopIndex : 0;
+    final index = rng.nextInt(players.length);
     await players[index].seek(Duration.zero);
     await players[index].play();
-
-    loopIndex = (loopIndex + 1) % players.length;
   }
 
   void playMadSound() async {
