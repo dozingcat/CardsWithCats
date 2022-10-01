@@ -15,24 +15,31 @@ class SoundEffectPlayer {
     madSoundPlayers.clear();
     madSoundPlayers.add(await _makePlayer('sauerkraut_mad_1.mp3'));
     madSoundPlayers.add(await _makePlayer('sauerkraut_mad_2.mp3'));
+    madSoundPlayers.add(await _makePlayer('sauerkraut_mad_3.mp3'));
     madSoundPlayers.add(await _makePlayer('ginger_mad_1.mp3'));
     madSoundPlayers.add(await _makePlayer('ginger_mad_2.mp3'));
-    madSoundPlayers.add(await _makePlayer('ginger_mad_3.mp3'));
 
     happySoundPlayers.clear();
     happySoundPlayers.add(await _makePlayer('boojie_happy_1.mp3'));
     happySoundPlayers.add(await _makePlayer('boojie_happy_2.mp3'));
+    happySoundPlayers.add(await _makePlayer('boojie_happy_3.mp3'));
+    happySoundPlayers.add(await _makePlayer('boojie_happy_4.mp3'));
 
     soundsLoaded = true;
   }
+
+  int loopIndex = 0;
 
   void _playRandomSoundFrom(final List<AudioPlayer> players) async {
     if (!enabled || !soundsLoaded) {
       return;
     }
-    final index = rng.nextInt(players.length);
+    // final index = rng.nextInt(players.length);
+    final index = loopIndex < players.length ? loopIndex : 0;
     await players[index].seek(Duration.zero);
     await players[index].play();
+
+    loopIndex = (loopIndex + 1) % players.length;
   }
 
   void playMadSound() async {
