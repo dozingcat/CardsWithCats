@@ -515,24 +515,24 @@ class EndOfRoundDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = match.currentRound.pointsTaken();
-    final headerFontSize = 14.0;
-    final pointsFontSize = headerFontSize * 1.2;
+    const headerFontSize = 14.0;
+    const pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
 
     Widget pointsCell(Object p) => _paddingAll(cellPad,
-        Text(p.toString(), textAlign: TextAlign.right, style: TextStyle(fontSize: pointsFontSize)));
+        Text(p.toString(), textAlign: TextAlign.right, style: const TextStyle(fontSize: pointsFontSize)));
 
     Widget headerCell(String msg) => _paddingAll(
         cellPad,
         Text(msg,
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
+            style: const TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
     Widget catImageCell(int imageIndex) {
-      final imageHeight = headerFontSize * 1.3;
-      final leftPadding = headerFontSize * 1.1;
+      const imageHeight = headerFontSize * 1.3;
+      const leftPadding = headerFontSize * 1.1;
       return Padding(
-          padding: EdgeInsets.only(left: leftPadding),
+          padding: const EdgeInsets.only(left: leftPadding),
           child: Image.asset(catImageForIndex(imageIndex), height: imageHeight));
     }
 
@@ -562,7 +562,7 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         10,
                         Text(matchOverMessage(),
-                            style: TextStyle(fontSize: 26))),
+                            style: const TextStyle(fontSize: 26))),
                   ],
                 ),
               _paddingAll(
@@ -591,14 +591,14 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("Rematch"),
                           onPressed: onContinue,
+                          child: const Text("Rematch"),
                         )),
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("Main Menu"),
                           onPressed: onMainMenu,
+                          child: const Text("Main Menu"),
                         )),
                   ],
                 ),
@@ -610,8 +610,8 @@ class EndOfRoundDialog extends StatelessWidget {
                     _paddingAll(
                         15,
                         ElevatedButton(
-                          child: const Text("Continue"),
                           onPressed: onContinue,
+                          child: const Text("Continue"),
                         ))
                   ],
                 ),
