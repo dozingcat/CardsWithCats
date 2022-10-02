@@ -1,0 +1,3 @@
+- Added sound effects.
+- Added statistics tracking.
+- UI improvements and bug fixes.
