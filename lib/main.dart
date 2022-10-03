@@ -22,6 +22,8 @@ import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
+const appVersion = "1.1.0";
+const appLegalese = "© 2022 Brian Nenninger";
 
 void main() {
   runApp(const MyApp());
@@ -341,8 +343,8 @@ class _MyHomePageState extends State<MyHomePage> {
     showAboutDialog(
       context: context,
       applicationName: appTitle,
-      applicationVersion: '1.1.0b1',
-      applicationLegalese: '© 2022 Brian Nenninger',
+      applicationVersion: appVersion,
+      applicationLegalese: appLegalese,
       children: [
         Container(height: 15),
         MarkdownBody(
