@@ -77,7 +77,7 @@ class HeartsStats {
       throw Exception("Hearts match is not over");
     }
     final winners = match.winningPlayers();
-    bool won = (winners == [0]);
+    bool won = (winners.length == 1 && winners[0] == 0);
     bool tied = (winners.length > 1 && winners.contains(0));
     final scores = match.scores;
 
