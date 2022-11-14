@@ -314,28 +314,50 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
-  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder);
+  // Duplicated from hearts_ui, might be worth a common function.
+  PlayingCard? _lastCardPlayedByHuman() {
+    final ct = round.currentTrick;
+    if (ct.cards.isNotEmpty && ct.leader == 0) {
+      return ct.cards[0];
+    }
+    else if (ct.cards.length + ct.leader > 4) {
+      return ct.cards[4 - ct.leader];
+    }
+    else if (round.previousTricks.isNotEmpty) {
+      final lt = round.previousTricks.last;
+      return lt.cards[(4 - lt.leader) % 4];
+    }
+    return null;
+  }
 
+  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
     bool isHumanTurn = round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0;
+    bool isBidding = round.status == SpadesRoundStatus.bidding;
     List<PlayingCard> highlightedCards = [];
-    if (isHumanTurn) {
+    if (isBidding) {
+      highlightedCards = cards;
+    }
+    else if (isHumanTurn) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    bool isBidding = round.status == SpadesRoundStatus.bidding;
-
-    final List<Widget> cardImages = [];
-    for (final entry in rects.entries) {
-      final card = entry.key;
-      cardImages.add(PositionedCard(
-        rect: entry.value,
-        card: card,
-        opacity: isBidding || highlightedCards.contains(card) ? 1.0 : 0.5,
-        onCardClicked: (card) => handleHandCardClicked(card),
-      ));
+    final playerTrickCard = _lastCardPlayedByHuman();
+    final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
+    // Flutter needs a key property to determine whether the PlayerHandCards
+    // component has changed between renders.
+    var key = "H${cards.map((c) => c.toString()).join()}";
+    if (playerTrickCard != null) {
+      key += ":${playerTrickCard.toString()}";
     }
-    return Stack(children: cardImages);
+
+    return PlayerHandCards(
+        key: Key(key),
+        layout: layout,
+        suitDisplayOrder: suitDisplayOrder,
+        cards: cards,
+        animateFromCards: previousPlayerCards,
+        highlightedCards: highlightedCards,
+        onCardClicked: handleHandCardClicked);
   }
 
   Widget _trickCards(final Layout layout) {
