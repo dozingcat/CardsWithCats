@@ -1,0 +1,2 @@
+- Fixed statistics bug.
+- Improved card animations.
