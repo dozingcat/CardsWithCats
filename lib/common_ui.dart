@@ -570,6 +570,64 @@ class TrickCards extends StatelessWidget {
   }
 }
 
+class PlayerHandCards extends StatelessWidget {
+  final Layout layout;
+  final List<Suit> suitDisplayOrder;
+  final List<PlayingCard> cards;
+  final Iterable<PlayingCard> highlightedCards;
+  final void Function(PlayingCard) onCardClicked;
+  final List<PlayingCard>? animateFromCards;
+
+  const PlayerHandCards({
+    Key? key,
+    required this.layout,
+    required this.suitDisplayOrder,
+    required this.cards,
+    required this.highlightedCards,
+    this.animateFromCards,
+    required this.onCardClicked,
+  }): super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder);
+
+    if (animateFromCards != null) {
+      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder);
+      return TweenAnimationBuilder(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 200),
+          builder: (BuildContext context, double fraction, Widget? child) {
+            final List<Widget> cardImages = [];
+            for (final entry in rects.entries) {
+              final card = entry.key;
+              final startRect = previousRects[card]!;
+              final endRect = entry.value;
+              cardImages.add(PositionedCard(
+                rect: Rect.lerp(startRect, endRect, fraction)!,
+                card: card,
+                opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
+                onCardClicked: onCardClicked,
+              ));
+            }
+            return Stack(children: cardImages);
+          });
+    }
+
+    final List<Widget> cardImages = [];
+    for (final entry in rects.entries) {
+      final card = entry.key;
+      cardImages.add(PositionedCard(
+        rect: entry.value,
+        card: card,
+        opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
+        onCardClicked: onCardClicked,
+      ));
+    }
+    return Stack(children: cardImages);
+  }
+}
+
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     Layout layout, List<PlayingCard> cards, List<Suit> suitOrder) {
   final rects = LinkedHashMap<PlayingCard, Rect>();

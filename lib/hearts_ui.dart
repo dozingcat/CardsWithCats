@@ -283,9 +283,22 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
-  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder);
+  PlayingCard? _lastCardPlayedByHuman() {
+    final ct = round.currentTrick;
+    if (ct.cards.isNotEmpty && ct.leader == 0) {
+      return ct.cards[0];
+    }
+    else if (ct.cards.length + ct.leader > 4) {
+      return ct.cards[4 - ct.leader];
+    }
+    else if (round.previousTricks.isNotEmpty) {
+      final lt = round.previousTricks.last;
+      return lt.cards[(4 - lt.leader) % 4];
+    }
+    return null;
+  }
 
+  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
     bool isHumanTurn = round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0;
     List<PlayingCard> highlightedCards = [];
     if (isHumanTurn) {
@@ -294,17 +307,22 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       highlightedCards = cards.where((c) => !selectedCardsToPass.contains(c)).toList();
     }
 
-    final List<Widget> cardImages = [];
-    for (final entry in rects.entries) {
-      final card = entry.key;
-      cardImages.add(PositionedCard(
-        rect: entry.value,
-        card: card,
-        opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
-        onCardClicked: (card) => handleHandCardClicked(card),
-      ));
+    final playerTrickCard = _lastCardPlayedByHuman();
+    final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
+    // Flutter needs a key property to determine whether the PlayerHandCards
+    // component has changed between renders.
+    var key = "H${cards.map((c) => c.toString()).join()}";
+    if (playerTrickCard != null) {
+      key += ":${playerTrickCard.toString()}";
     }
-    return Stack(children: cardImages);
+    return PlayerHandCards(
+        key: Key(key),
+        layout: layout,
+        suitDisplayOrder: suitDisplayOrder,
+        cards: cards,
+        animateFromCards: previousPlayerCards,
+        highlightedCards: highlightedCards,
+        onCardClicked: handleHandCardClicked);
   }
 
   Widget _trickCards(final Layout layout) {
