@@ -22,7 +22,7 @@ import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "1.1.0";
+const appVersion = "1.1.1";
 const appLegalese = "© 2022 Brian Nenninger";
 
 void main() {
