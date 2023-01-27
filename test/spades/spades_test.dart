@@ -140,7 +140,7 @@ void main() {
       expect(scores[1].endingMatchPoints, 141);
     });
 
-    test("Nil bid succeded", () {
+    test("Nil bid succeeded", () {
       round.players[1].bid = 4;
       round.players[3].bid = 0;
       // Make player 1 take the 8th trick so that player 3 makes nil.
