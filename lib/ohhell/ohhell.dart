@@ -145,6 +145,7 @@ List<OhHellRoundScoreResult> pointsForTricks(
     if (rules.trickScoring == TrickScoring.onePointPerTrickAlways || (madeBid && rules.trickScoring == TrickScoring.onePointPerTrickSuccessfulBidOnly)) {
       result.trickPoints = winnerCounts[i];
     }
+    results.add(result);
   }
   return results;
 }
@@ -174,7 +175,6 @@ class OhHellRound {
     List<PlayingCard> cards = List.from(standardDeckCards(), growable: true);
     cards.shuffle(rng);
     List<OhHellPlayer> players = [];
-    int numCardsPerPlayer = cards.length ~/ rules.numPlayers;
     for (int i = 0; i < rules.numPlayers; i++) {
       final playerCards = cards.sublist(
           i * numCardsPerPlayer, (i + 1) * numCardsPerPlayer);
@@ -354,12 +354,14 @@ class OhHellMatch {
       }
     }
     int nextNumTricks = prevTricks + tricksDelta;
+    print("Match scores: $scores");
     currentRound = OhHellRound.deal(
         rules: rules,
         scores: scores,
         dealer: nextDealer,
         numCardsPerPlayer: nextNumTricks,
         rng: rng);
+    print("New round initial scores: ${currentRound.initialScores}");
   }
 
   void finishRound() {
@@ -374,7 +376,8 @@ class OhHellMatch {
 
   List<int> get scores {
     if (currentRound.isOver()) {
-      return [...currentRound.pointsTaken().map((p) => p.totalRoundPoints)];
+      final roundPoints = currentRound.pointsTaken().map((s) => s.totalRoundPoints).toList();
+      return List.generate(rules.numPlayers, (p) => currentRound.initialScores[p] + roundPoints[p]);
     } else {
       return currentRound.initialScores;
     }
@@ -382,9 +385,7 @@ class OhHellMatch {
 
   bool isMatchOver() {
     if (rules.numRoundsInMatch != null) {
-      if (previousRounds.length >= rules.numRoundsInMatch!) {
-        return true;
-      }
+      return previousRounds.length >= rules.numRoundsInMatch!;
     }
     int high = scores.reduce(max);
     if (high >= rules.pointLimit!) {

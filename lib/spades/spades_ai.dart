@@ -494,7 +494,7 @@ typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
 CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
   final seenCards = Set.from(req.hand);
-  final voidedSuits = List.generate(numPlayers, (_n) => Set<Suit>());
+  final voidedSuits = List.generate(numPlayers, (_) => Set<Suit>());
 
   var spadesBroken = false;
 
