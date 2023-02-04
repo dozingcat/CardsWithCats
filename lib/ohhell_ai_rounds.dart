@@ -10,7 +10,7 @@ void main() {
   final rules = OhHellRuleSet();
   final victoryPoints = List.filled(rules.numPlayers, 0);
   final rng = Random();
-  const numMatchesToPlay = 250;
+  const numMatchesToPlay = 1;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -32,10 +32,11 @@ void main() {
         final bidReq = BidRequest(
           rules: round.rules,
           scoresBeforeRound: round.initialScores,
+          trumpCard: round.trumpCard,
           otherBids: otherBids,
           hand: round.players[pnum].hand,
         );
-        final bid = chooseBid(bidReq);
+        final bid = chooseBid(bidReq, rng);
         otherBids.add(bid);
         print("P$pnum bids $bid");
         round.setBidForPlayer(bid: bid, playerIndex: pnum);
