@@ -211,6 +211,8 @@ class OhHellRound {
 
   Suit get trumpSuit => trumpCard.suit;
 
+  bool dealerHasTrumpCard() => players[dealer].hand.contains(trumpCard);
+
   bool isOver() {
     return players.every((p) => p.hand.isEmpty);
   }

@@ -10,7 +10,7 @@ void main() {
   final rules = OhHellRuleSet();
   final victoryPoints = List.filled(rules.numPlayers, 0);
   final rng = Random();
-  const numMatchesToPlay = 1;
+  const numMatchesToPlay = 100;
   int totalRounds = 0;
 
   for (int matchNum = 1; matchNum <= numMatchesToPlay; matchNum++) {
@@ -33,6 +33,7 @@ void main() {
           rules: round.rules,
           scoresBeforeRound: round.initialScores,
           trumpCard: round.trumpCard,
+          dealerHasTrumpCard: round.dealerHasTrumpCard(),
           otherBids: otherBids,
           hand: round.players[pnum].hand,
         );
@@ -66,26 +67,28 @@ void main() {
   }
 }
 
+final mcParams20 = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 20);
+final mcParams30 = MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30);
+final mcParams50 = MonteCarloParams(maxRounds: 50, rolloutsPerRound: 50);
+
 MonteCarloResult computeCardToPlay(final OhHellRound round, Random rng) {
   final req = CardToPlayRequest.fromRound(round);
-  final card = chooseCardRandom(req, rng);
-  return MonteCarloResult.rolloutNotNeeded(bestCard: card);
-  /*
+  // return MonteCarloResult.rolloutNotNeeded(bestCard: card);
   switch (round.currentPlayerIndex()) {
     case 0:
+    case 1:
     case 2:
     // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardRandom(cardReq, rng));
     // return chooseCardMonteCarlo(cardReq, mcParams20, chooseCardToMakeBids, rng);
-      return chooseCardRandom(cardReq, rng);
-    case 1:
+      return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardRandom(req, rng));
+    // case 1:
     case 3:
-      return chooseCardMonteCarlo(cardReq, mcParams30, chooseCardRandom, rng);
+      return chooseCardMonteCarlo(req, mcParams30, chooseCardRandom, rng);
   // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
   }
-   */
 }
 
 List<int> getVictoryPoints(OhHellMatch match) {
