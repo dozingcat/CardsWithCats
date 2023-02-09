@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:cards_with_cats/cards/card.dart';
@@ -105,7 +104,7 @@ class SpadesPlayer {
   SpadesPlayer copy() => SpadesPlayer.from(this);
   static List<SpadesPlayer> copyAll(Iterable<SpadesPlayer> ps) => [...ps.map((p) => p.copy())];
 
-  Map<String, dynamic?> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       "hand": PlayingCard.stringFromCards(hand),
       "bid": bid,
