@@ -232,7 +232,7 @@ class OhHellRound {
   }
 
   int currentBidder() {
-    var fb = firstBidder();
+    final fb = firstBidder();
     var p = fb;
     while (true) {
       if (players[p].bid == null) {
@@ -243,6 +243,21 @@ class OhHellRound {
         throw Exception("All players have bid");
       }
     }
+  }
+
+  int? unavailableBidForCurrentBidder() {
+    if (!rules.bidTotalCantEqualTricks) {
+      return null;
+    }
+    if (players.where((p) => p.bid == null).length != 1) {
+      return null;
+    }
+    int sumOfBids = 0;
+    for (final p in players) {
+      sumOfBids += p.bid ?? 0;
+    }
+    final tricksRemaining = numCardsPerPlayer - sumOfBids;
+    return (tricksRemaining >= 0) ? tricksRemaining : null;
   }
 
   List<PlayingCard> legalPlaysForCurrentPlayer() {

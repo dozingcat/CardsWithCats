@@ -13,6 +13,7 @@ class BidRequest {
   final PlayingCard trumpCard;
   final bool dealerHasTrumpCard;
   final List<PlayingCard> hand;
+  final int playerIndex;
 
   BidRequest(
       {required this.rules,
@@ -20,7 +21,9 @@ class BidRequest {
         required this.otherBids,
         required this.trumpCard,
         required this.dealerHasTrumpCard,
-        required this.hand});
+        required this.hand,
+        required this.playerIndex,
+      });
 }
 
 class CardToPlayRequest {
@@ -165,7 +168,25 @@ int chooseBid(BidRequest req, Random rng) {
     }
   }
   final avgTricksWon = 1.0 * totalTricksWon / numRounds;
-  return avgTricksWon.round();
+  int bid = avgTricksWon.round();
+  // If desired bid isn't allowed because the sum of bids can't equal the number of tricks,
+  // adjust up or down.
+  if (req.rules.bidTotalCantEqualTricks && req.otherBids.length == req.rules.numPlayers - 1) {
+    int sumOfBids = req.otherBids.reduce((a, b) => a + b);
+    int forbiddenBid = req.hand.length - sumOfBids;
+    if (bid == forbiddenBid) {
+      if (bid == 0) {
+        bid = 1;
+      }
+      else if (bid == req.hand.length) {
+        bid = req.hand.length - 1;
+      }
+      else {
+        bid = (avgTricksWon >= bid) ? bid + 1 : bid - 1;
+      }
+    }
+  }
+  return bid;
 }
 
 // Returns the estimated probability of the player at `playerIndex` eventually

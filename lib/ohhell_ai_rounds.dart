@@ -7,7 +7,8 @@ import 'package:cards_with_cats/ohhell/ohhell_ai.dart';
 import 'cards/card.dart';
 
 void main() {
-  final rules = OhHellRuleSet();
+  final rules = OhHellRuleSet()
+    ..bidTotalCantEqualTricks=true;
   final victoryPoints = List.filled(rules.numPlayers, 0);
   final rng = Random();
   const numMatchesToPlay = 100;
@@ -36,6 +37,7 @@ void main() {
           dealerHasTrumpCard: round.dealerHasTrumpCard(),
           otherBids: otherBids,
           hand: round.players[pnum].hand,
+          playerIndex: pnum,
         );
         final bid = chooseBid(bidReq, rng);
         otherBids.add(bid);
@@ -71,20 +73,22 @@ final mcParams20 = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 20);
 final mcParams30 = MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30);
 final mcParams50 = MonteCarloParams(maxRounds: 50, rolloutsPerRound: 50);
 
+// 20/30/50 all seem roughly equal
+
 MonteCarloResult computeCardToPlay(final OhHellRound round, Random rng) {
   final req = CardToPlayRequest.fromRound(round);
   // return MonteCarloResult.rolloutNotNeeded(bestCard: card);
   switch (round.currentPlayerIndex()) {
     case 0:
-    case 1:
     case 2:
     // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardRandom(cardReq, rng));
     // return chooseCardMonteCarlo(cardReq, mcParams20, chooseCardToMakeBids, rng);
       return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardRandom(req, rng));
-    // case 1:
+    case 1:
+      return chooseCardMonteCarlo(req, mcParams20, chooseCardRandom, rng);
     case 3:
-      return chooseCardMonteCarlo(req, mcParams30, chooseCardRandom, rng);
+      return chooseCardMonteCarlo(req, mcParams20, chooseCardRandom, rng);
   // return MonteCarloResult.rolloutNotNeeded(bestCard: chooseCardToMakeBids(cardReq, rng));
     default:
       throw Exception("Bad player index: ${round.currentPlayerIndex()}");
