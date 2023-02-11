@@ -401,10 +401,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     });
   }
 
-  int maxPlayerBid() {
-    return round.numCardsPerPlayer;
-  }
-
   bool _shouldShowEndOfRoundDialog() {
     return !widget.dialogVisible && round.isOver();
   }
@@ -460,7 +456,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
         if (_shouldShowHumanBidDialog())
-          BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
+          BidDialog(layout: layout, round: round, onBid: makeBidForHuman),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
         if (_shouldShowEndOfRoundDialog())
@@ -490,13 +486,13 @@ Widget _paddingAll(final double paddingPx, final Widget child) {
 
 class BidDialog extends StatefulWidget {
   final Layout layout;
-  final int maxBid;
+  final OhHellRound round;
   final void Function(int) onBid;
 
   const BidDialog({
     Key? key,
     required this.layout,
-    required this.maxBid,
+    required this.round,
     required this.onBid,
   }) : super(key: key);
 
@@ -508,11 +504,11 @@ class BidDialog extends StatefulWidget {
 class _BidDialogState extends State<BidDialog> {
   int bidAmount = 1;
 
-  bool canIncrementBid() => (bidAmount < widget.maxBid);
+  bool canIncrementBid() => (bidAmount < widget.round.numCardsPerPlayer);
 
   void incrementBid() {
     setState(() {
-      bidAmount = min(bidAmount + 1, widget.maxBid);
+      bidAmount = min(bidAmount + 1, widget.round.numCardsPerPlayer);
     });
   }
 
@@ -538,7 +534,9 @@ class _BidDialogState extends State<BidDialog> {
               children: [
                 _paddingAll(
                     15,
-                    const Text("Choose your bid", style: TextStyle(fontSize: 18))),
+                    Text("Trump is ${widget.round.trumpCard.symbolString()}", style: TextStyle(fontSize: 18))),
+                const Text("Choose your bid", style: TextStyle(fontSize: 18)),
+                SizedBox(height: 10),
                 Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,

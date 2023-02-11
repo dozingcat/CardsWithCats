@@ -414,6 +414,7 @@ class OhHellMatch {
 
   bool isMatchOver() {
     if (rules.numRoundsInMatch != null) {
+      print("isMatchOver: ${previousRounds.length} ${rules.numRoundsInMatch}");
       return previousRounds.length >= rules.numRoundsInMatch!;
     }
     int high = scores.reduce(max);
