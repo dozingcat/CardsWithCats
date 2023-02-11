@@ -27,7 +27,6 @@ void main() {
       for (int i = 0; i < rules.numPlayers; i++) {
         print("P$i: ${descriptionWithSuitGroups(round.players[i].hand)}");
       }
-      List<int> otherBids = [];
       for (int notPlayerIndex = 0; notPlayerIndex < rules.numPlayers; notPlayerIndex++) {
         int pnum = (round.dealer + 1 + notPlayerIndex) % rules.numPlayers;
         final bidReq = BidRequest(
@@ -35,12 +34,10 @@ void main() {
           scoresBeforeRound: round.initialScores,
           trumpCard: round.trumpCard,
           dealerHasTrumpCard: round.dealerHasTrumpCard(),
-          otherBids: otherBids,
+          otherBids: round.bidsInOrderMade(),
           hand: round.players[pnum].hand,
-          playerIndex: pnum,
         );
         final bid = chooseBid(bidReq, rng);
-        otherBids.add(bid);
         print("P$pnum bids $bid");
         round.setBidForPlayer(bid: bid, playerIndex: pnum);
       }

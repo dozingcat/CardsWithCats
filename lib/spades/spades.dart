@@ -266,6 +266,18 @@ class SpadesRound {
     }
   }
 
+  List<int> bidsInOrderMade() {
+    final bids = <int>[];
+    final fb = firstBidder();
+    for (int i = 0; i < rules.numPlayers; i++) {
+      int pnum = (fb + i) % rules.numPlayers;
+      if (players[pnum].bid != null) {
+        bids.add(players[pnum].bid!);
+      }
+    }
+    return bids;
+  }
+
   List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }

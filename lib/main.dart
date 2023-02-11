@@ -15,6 +15,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'hearts/hearts.dart';
+import 'ohhell/ohhell.dart';
+import 'ohhell_ui.dart';
 import 'spades/spades.dart';
 
 import 'common_ui.dart';
@@ -68,7 +70,7 @@ List<int> randomizedCatImageIndices(Random rng) {
   return indices;
 }
 
-enum GameType { none, hearts, spades }
+enum GameType { none, hearts, spades, ohHell }
 
 enum DialogMode { none, mainMenu, preferences, statistics }
 
@@ -82,6 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var prefsGameType = GameType.hearts;
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
+  late OhHellRuleSet ohHellRulesFromPrefs;
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
   final soundPlayer = SoundEffectPlayer();
@@ -104,6 +107,7 @@ class _MyHomePageState extends State<MyHomePage> {
       loaded = true;
       heartsRulesFromPrefs = _readHeartsRulesFromPrefs();
       spadesRulesFromPrefs = _readSpadesRulesFromPrefs();
+      ohHellRulesFromPrefs = _readOhHellRulesFromPrefs();
 
       String? savedMatchType = preferences.getString("matchType") ?? "";
       if (savedMatchType == "hearts") {
@@ -158,6 +162,18 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.setString("spadesRules", jsonEncode(spadesRulesFromPrefs.toJson()));
   }
 
+  OhHellRuleSet _readOhHellRulesFromPrefs() {
+    String? json = preferences.getString("ohHellRules");
+    if (json != null) {
+      try {
+        return OhHellRuleSet.fromJson(jsonDecode(json));
+      } catch (ex) {
+        print("Failed to read Oh Hell rules from JSON: $ex");
+      }
+    }
+    return OhHellRuleSet();
+  }
+
   void setSoundEnabled(bool enabled) {
     setState(() {
       soundPlayer.enabled = enabled;
@@ -208,6 +224,18 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _saveOhHellMatch(final OhHellMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "ohHell");
+      preferences.setString("ohHellMatch", jsonEncode(match.toJson()));
+    } else {
+      preferences.remove("matchType");
+      preferences.remove("ohHellMatch");
+      matchType = GameType.none;
+      dialogMode = DialogMode.mainMenu;
+    }
+  }
+
   HeartsMatch _initialHeartsMatch() {
     if (preferences.getString("matchType") == "hearts") {
       String? json = preferences.getString("heartsMatch");
@@ -228,6 +256,16 @@ class _MyHomePageState extends State<MyHomePage> {
     return _createSpadesMatch();
   }
 
+  OhHellMatch _initialOhHellMatch() {
+    if (preferences.getString("matchType") == "ohHell") {
+      String? json = preferences.getString("ohHellMatch");
+      if (json != null) {
+        return OhHellMatch.fromJson(jsonDecode(json), rng);
+      }
+    }
+    return _createOhHellMatch();
+  }
+
   HeartsMatch _createHeartsMatch() {
     catIndices = randomizedCatImageIndices(rng);
     return HeartsMatch(heartsRulesFromPrefs, rng);
@@ -236,6 +274,11 @@ class _MyHomePageState extends State<MyHomePage> {
   SpadesMatch _createSpadesMatch() {
     catIndices = randomizedCatImageIndices(rng);
     return SpadesMatch(spadesRulesFromPrefs, Random());
+  }
+
+  OhHellMatch _createOhHellMatch() {
+    catIndices = randomizedCatImageIndices(rng);
+    return OhHellMatch(ohHellRulesFromPrefs, Random());
   }
 
   void _continueGame() {
@@ -273,6 +316,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.spades;
+    });
+  }
+
+  void startNewOhHellMatch() {
+    preferences.remove("ohHellMatch");
+    final newMatch = _createOhHellMatch();
+    _saveOhHellMatch(newMatch);
+    matchUpdateNotifier.sink.add(newMatch);
+    setState(() {
+      dialogMode = DialogMode.none;
+      matchType = GameType.ohHell;
     });
   }
 
@@ -315,6 +369,14 @@ class _MyHomePageState extends State<MyHomePage> {
       showNewMatchConfirmationDialog(startNewSpadesMatch);
     } else {
       startNewSpadesMatch();
+    }
+  }
+
+  void handleNewOhHellMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewOhHellMatch);
+    } else {
+      startNewOhHellMatch();
     }
   }
 
@@ -377,8 +439,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           children: [
                             if (matchType != GameType.none)
                               _makeButtonRow("Continue match", _continueGame),
-                            _makeButtonRow("New hearts match", handleNewHeartsMatchClicked),
-                            _makeButtonRow("New spades match", handleNewSpadesMatchClicked),
+                            _makeButtonRow("New Hearts match", handleNewHeartsMatchClicked),
+                            _makeButtonRow("New Spades match", handleNewSpadesMatchClicked),
+                            _makeButtonRow("New Oh Hell match", handleNewOhHellMatchClicked),
                             _makeButtonRow('Preferences...', _showPreferences),
                             _makeButtonRow('Statistics...', _showStats),
                             _makeButtonRow('About...', () => _showAboutDialog(context)),
@@ -544,6 +607,18 @@ class _MyHomePageState extends State<MyHomePage> {
             initialMatchFn: _initialSpadesMatch,
             createMatchFn: _createSpadesMatch,
             saveMatchFn: _saveSpadesMatch,
+            mainMenuFn: _showMainMenu,
+            matchUpdateStream: matchUpdateNotifier.stream,
+            dialogVisible: dialogMode != DialogMode.none,
+            catImageIndices: catIndices,
+            soundPlayer: soundPlayer,
+            statsStore: statsStore,
+          ),
+        if (matchType == GameType.ohHell)
+          OhHellMatchDisplay(
+            initialMatchFn: _initialOhHellMatch,
+            createMatchFn: _createOhHellMatch,
+            saveMatchFn: _saveOhHellMatch,
             mainMenuFn: _showMainMenu,
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,

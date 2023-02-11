@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cards_with_cats/soundeffects.dart';
-import 'package:cards_with_cats/spades/spades_stats.dart';
+// import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
-import 'spades/spades.dart';
-import 'spades/spades_ai.dart';
+import 'ohhell/ohhell.dart';
+import 'ohhell/ohhell_ai.dart';
 
 const debugOutput = false;
 
@@ -26,10 +26,10 @@ PlayingCard computeCard(final CardToPlayRequest req) {
   return result.bestCard;
 }
 
-class SpadesMatchDisplay extends StatefulWidget {
-  final SpadesMatch Function() initialMatchFn;
-  final SpadesMatch Function() createMatchFn;
-  final void Function(SpadesMatch?) saveMatchFn;
+class OhHellMatchDisplay extends StatefulWidget {
+  final OhHellMatch Function() initialMatchFn;
+  final OhHellMatch Function() createMatchFn;
+  final void Function(OhHellMatch?) saveMatchFn;
   final void Function() mainMenuFn;
   final bool dialogVisible;
   final List<int> catImageIndices;
@@ -37,7 +37,7 @@ class SpadesMatchDisplay extends StatefulWidget {
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
 
-  const SpadesMatchDisplay({
+  const OhHellMatchDisplay({
     Key? key,
     required this.initialMatchFn,
     required this.createMatchFn,
@@ -51,10 +51,12 @@ class SpadesMatchDisplay extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _SpadesMatchState createState() => _SpadesMatchState();
+  OhHellMatchState createState() => OhHellMatchState();
 }
 
-class _SpadesMatchState extends State<SpadesMatchDisplay> {
+final baseSuitDisplayOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
+
+class OhHellMatchState extends State<OhHellMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
@@ -62,18 +64,17 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
   bool showScoreOverlay = false;
-  late SpadesMatch match;
+  late OhHellMatch match;
   late StreamSubscription matchUpdateSubscription;
 
-  SpadesRound get round => match.currentRound;
-  final suitDisplayOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
+  OhHellRound get round => match.currentRound;
 
   @override
   void initState() {
     super.initState();
     match = widget.initialMatchFn();
     matchUpdateSubscription = widget.matchUpdateStream.listen((event) {
-      if (event is SpadesMatch) {
+      if (event is OhHellMatch) {
         _updateMatch(event);
       }
     });
@@ -86,7 +87,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     matchUpdateSubscription.cancel();
   }
 
-  void _updateMatch(SpadesMatch newMatch) {
+  void _updateMatch(OhHellMatch newMatch) {
     setState(() {
       match = newMatch;
       showPostBidDialog = false;
@@ -124,7 +125,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _setBidForPlayer({required int bid, required int playerIndex}) {
     round.setBidForPlayer(bid: bid, playerIndex: playerIndex);
-    if (round.status == SpadesRoundStatus.playing) {
+    if (round.status == OhHellRoundStatus.playing) {
       _handleBiddingDone();
     } else {
       _scheduleNextActionIfNeeded();
@@ -134,11 +135,13 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _makeBidForAiPlayer(int playerIndex) {
     int bid = chooseBid(BidRequest(
-      scoresBeforeRound: round.initialScores,
       rules: round.rules,
+      scoresBeforeRound: round.initialScores,
       otherBids: round.bidsInOrderMade(),
+      trumpCard: round.trumpCard,
+      dealerHasTrumpCard: round.dealerHasTrumpCard(),
       hand: round.players[playerIndex].hand,
-    ));
+    ), rng);
     printd("P$playerIndex bids $bid");
     setState(() {
       _setBidForPlayer(bid: bid, playerIndex: playerIndex);
@@ -146,7 +149,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   void _scheduleNextAiBidIfNeeded() {
-    if (round.status == SpadesRoundStatus.bidding && !_isWaitingForHumanBid()) {
+    if (round.status == OhHellRoundStatus.bidding && !_isWaitingForHumanBid()) {
       Future.delayed(const Duration(milliseconds: 1000), () {
         _makeBidForAiPlayer(round.currentBidder());
       });
@@ -168,7 +171,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   void _scheduleNextAiPlayIfNeeded() {
     if (round.isOver()) {
       printd("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
-    } else if (round.currentPlayerIndex() != 0 && round.status == SpadesRoundStatus.playing) {
+    } else if (round.currentPlayerIndex() != 0 && round.status == OhHellRoundStatus.playing) {
       _computeAiPlay(minDelayMillis: 750);
     }
   }
@@ -193,7 +196,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _playCard(final PlayingCard card) {
     _clearMoods();
-    if (round.status == SpadesRoundStatus.playing) {
+    if (round.status == OhHellRoundStatus.playing) {
       setState(() {
         round.playCard(card);
         animationMode = AnimationMode.movingTrickCard;
@@ -203,7 +206,9 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  // TODO
   void _updateStatsIfMatchOrRoundOver() async {
+    /*
     if (round.isOver()) {
       final currentStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
       var newStats = currentStats.updateFromRound(round);
@@ -212,72 +217,44 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       }
       widget.statsStore.writeSpadesStats(newStats);
     }
+     */
   }
 
   void _clearMoods() {
     playerMoods.clear();
   }
 
+  // TODO
   void _updateMoodsAfterTrick() {
     // print(round.toJson());
     playerMoods.clear();
     if (match.isMatchOver()) {
       // Winners happy, losers sad.
-      var winner = match.winningTeam();
-      if (winner != null) {
-        playerMoods[1] = playerMoods[3] = (winner == 1) ? Mood.veryHappy : Mood.mad;
-        playerMoods[0] = playerMoods[2] = (winner == 1) ? Mood.mad : Mood.veryHappy;
-      }
     } else if (round.isOver()) {
-      // Happy if >=100 points, sad if <0.
+      // Happy if made bid, sad if not.
       final scores = round.pointsTaken();
-      if (scores[0].totalRoundPoints >= 100) {
-        playerMoods[0] = playerMoods[2] = Mood.happy;
-      }
-      if (scores[0].totalRoundPoints < 0) {
-        playerMoods[0] = playerMoods[2] = Mood.mad;
-      }
-      if (scores[1].totalRoundPoints >= 100) {
-        playerMoods[1] = playerMoods[3] = Mood.happy;
-      }
-      if (scores[1].totalRoundPoints < 0) {
-        playerMoods[1] = playerMoods[3] = Mood.mad;
-      }
     } else {
-      // Sad if took a trick after bidding nil.
-      final tw = round.previousTricks.last.winner;
-      if (round.players[tw].bid == 0 &&
-          round.previousTricks.where((t) => t.winner == tw).toList().length == 1) {
-        playerMoods[tw] = Mood.mad;
-      }
+      // Sad if took the first trick over the bid.
     }
   }
 
   void _playSoundsForMoods() {
-    if (match.isMatchOver()) {
-      if (match.winningTeam() == 0) {
-        widget.soundPlayer.playHappySound();
-      }
-      else {
-        widget.soundPlayer.playMadSound();
+    // No sounds on round end because there will probably be both happy and mad?
+    bool hasHappy = false;
+    bool hasMad = false;
+    for (int i = 1; i < match.rules.numPlayers; i++) {
+      if (playerMoods[i] == Mood.happy) {
+        hasHappy = true;
+      } else if (playerMoods[i] == Mood.mad) {
+        hasMad = true;
       }
     }
-    else {
-      bool hasHappy = false;
-      bool hasMad = false;
-      for (int i = 1; i < match.rules.numPlayers; i++) {
-        if (playerMoods[i] == Mood.happy) {
-          hasHappy = true;
-        } else if (playerMoods[i] == Mood.mad) {
-          hasMad = true;
-        }
-      }
-      if (hasHappy) {
-        widget.soundPlayer.playHappySound();
-      }
-      if (hasMad) {
-        widget.soundPlayer.playMadSound();
-      }
+    if (hasHappy) {
+      widget.soundPlayer.playHappySound();
+    }
+    // Only happy sound if an AI player won the match.
+    if (hasMad && (!match.isMatchOver() || !hasHappy)) {
+      widget.soundPlayer.playMadSound();
     }
   }
 
@@ -306,7 +283,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
-    if (round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0) {
+    if (round.status == OhHellRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
@@ -330,9 +307,17 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return null;
   }
 
+  List<Suit> _suitDisplayOrder() {
+    // Trump suit first.
+    final suits = [...baseSuitDisplayOrder];
+    suits.remove(round.trumpSuit);
+    suits.insert(0, round.trumpSuit);
+    return suits;
+  }
+
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
-    bool isHumanTurn = round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0;
-    bool isBidding = round.status == SpadesRoundStatus.bidding;
+    bool isHumanTurn = round.status == OhHellRoundStatus.playing && round.currentPlayerIndex() == 0;
+    bool isBidding = round.status == OhHellRoundStatus.bidding;
     List<PlayingCard> highlightedCards = [];
     if (isBidding) {
       highlightedCards = cards;
@@ -353,7 +338,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return PlayerHandCards(
         key: Key(key),
         layout: layout,
-        suitDisplayOrder: suitDisplayOrder,
+        suitDisplayOrder: _suitDisplayOrder(),
         cards: cards,
         animateFromCards: previousPlayerCards,
         highlightedCards: highlightedCards,
@@ -369,24 +354,20 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       humanPlayerHand: humanHand,
-      humanPlayerSuitOrder: suitDisplayOrder,
+      humanPlayerSuitOrder: _suitDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );
   }
 
   List<String> _currentRoundScoreMessages() {
-    int teamScore(int p) {
-      return round.initialScores[p % round.rules.numTeams];
-    }
-
-    if (round.status == SpadesRoundStatus.bidding) {
-      return List.generate(round.rules.numPlayers, (i) => "Score: ${teamScore(i)}");
+    if (round.status == OhHellRoundStatus.bidding) {
+      return List.generate(round.rules.numPlayers, (i) => "Score: ${round.initialScores[i]}");
     }
     final messages = <String>[];
     for (int i = 0; i < round.rules.numPlayers; i++) {
       final tricksTaken = round.previousTricks.where((t) => t.winner == i).length;
-      messages.add("Score: ${teamScore(i)}\nBid ${round.players[i].bid}, Took $tricksTaken");
+      messages.add("Score: ${round.initialScores[i]}\nBid ${round.players[i].bid}, Took $tricksTaken");
     }
     return messages;
   }
@@ -400,7 +381,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   bool _isWaitingForHumanBid() {
-    return (round.status == SpadesRoundStatus.bidding &&
+    return (round.status == OhHellRoundStatus.bidding &&
         aiMode == AiMode.humanPlayer0 &&
         round.currentBidder() == 0);
   }
@@ -421,8 +402,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   int maxPlayerBid() {
-    final numTricks = round.rules.numberOfCardsPerPlayer;
-    return max(1, numTricks - (round.players[2].bid ?? 0));
+    return round.numCardsPerPlayer;
   }
 
   bool _shouldShowEndOfRoundDialog() {
@@ -430,7 +410,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   List<Widget> bidSpeechBubbles(final Layout layout) {
-    if (round.status != SpadesRoundStatus.bidding && !showPostBidDialog) return [];
+    if (round.status != OhHellRoundStatus.bidding && !showPostBidDialog) return [];
     final bubbles = <Widget>[];
     for (int i = 0; i < round.rules.numPlayers; i++) {
       final bid = round.players[i].bid;
@@ -524,6 +504,7 @@ class BidDialog extends StatefulWidget {
   _BidDialogState createState() => _BidDialogState();
 }
 
+// TODO: Handle disallowed bids.
 class _BidDialogState extends State<BidDialog> {
   int bidAmount = 1;
 
@@ -543,10 +524,11 @@ class _BidDialogState extends State<BidDialog> {
     });
   }
 
+  // TODO: Show trump card and owner if applicable.
   @override
   Widget build(BuildContext context) {
-    final adjustBidTextStyle = TextStyle(fontSize: 18);
-    final rowPadding = 15.0;
+    const adjustBidTextStyle = TextStyle(fontSize: 18);
+    const rowPadding = 15.0;
 
     return Center(
         child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
@@ -563,13 +545,13 @@ class _BidDialogState extends State<BidDialog> {
                     children: [
                       ElevatedButton(
                         onPressed: canDecrementBid() ? decrementBid : null,
-                        child: Text("–", style: adjustBidTextStyle),
+                        child: const Text("–", style: adjustBidTextStyle),
                       ),
                       _paddingAll(
                           rowPadding, Text(bidAmount.toString(), style: adjustBidTextStyle)),
                       ElevatedButton(
                         onPressed: canIncrementBid() ? incrementBid : null,
-                        child: Text("+", style: adjustBidTextStyle),
+                        child: const Text("+", style: adjustBidTextStyle),
                       ),
                     ]),
                 _paddingAll(
@@ -579,7 +561,7 @@ class _BidDialogState extends State<BidDialog> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ElevatedButton(
-                            child: Text("Bid ${bidAmount == 0 ? "Nil" : bidAmount.toString()}"),
+                            child: Text("Bid ${bidAmount.toString()}"),
                             onPressed: () => widget.onBid(bidAmount),
                           ),
                         ])),
@@ -590,41 +572,17 @@ class _BidDialogState extends State<BidDialog> {
 
 class PostBidDialog extends StatelessWidget {
   final Layout layout;
-  final SpadesRound round;
+  final OhHellRound round;
   final Function() onConfirm;
 
   const PostBidDialog(
       {Key? key, required this.layout, required this.round, required this.onConfirm})
       : super(key: key);
 
-  String playerBidMessage() {
+  String bidMessage() {
     final playerBid = round.players[0].bid!;
-    final partnerBid = round.players[2].bid!;
-    final totalBid = playerBid + partnerBid;
-    if (totalBid == 0) {
-      return "You and your partner have both bid nil.";
-    } else if (playerBid == 0) {
-      return "Your team has bid $totalBid.\nYou bid nil.";
-    } else if (partnerBid == 0) {
-      return "Your team has bid $totalBid.\nYour partner bid nil.";
-    } else {
-      return "Your team has bid $totalBid.";
-    }
-  }
-
-  String opponentBidMessage() {
-    final westBid = round.players[1].bid!;
-    final eastBid = round.players[3].bid!;
-    final totalBid = westBid + eastBid;
-    if (totalBid == 0) {
-      return "Your opponents have both bid nil.";
-    } else if (westBid == 0) {
-      return "Your opponents have bid $totalBid.\nThe left opponent bid nil.";
-    } else if (eastBid == 0) {
-      return "Your opponents have bid $totalBid.\nThe right opponent bid nil.";
-    } else {
-      return "Your opponents have bid $totalBid.";
-    }
+    final totalBids = round.bidsInOrderMade().reduce((a, b) => a + b);
+    return "You bid $playerBid. The total of all bids is $totalBids, for ${round.numCardsPerPlayer} tricks.";
   }
 
   @override
@@ -638,9 +596,7 @@ class PostBidDialog extends StatelessWidget {
           children: [
             SizedBox(height: halfPadding),
             _paddingAll(
-                halfPadding, Text(playerBidMessage(), style: textStyle, textAlign: TextAlign.left)),
-            _paddingAll(halfPadding,
-                Text(opponentBidMessage(), style: textStyle, textAlign: TextAlign.left)),
+                halfPadding, Text(bidMessage(), style: textStyle, textAlign: TextAlign.left)),
             _paddingAll(
                 halfPadding,
                 ElevatedButton(
@@ -655,7 +611,7 @@ class PostBidDialog extends StatelessWidget {
 
 class EndOfRoundDialog extends StatelessWidget {
   final Layout layout;
-  final SpadesMatch match;
+  final OhHellMatch match;
   final Function() onContinue;
   final Function() onMainMenu;
   final List<int> catImageIndices;
@@ -671,7 +627,7 @@ class EndOfRoundDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scores = match.currentRound.pointsTaken();
+    final scores = match.currentRound.pointsTaken().map((p) => p.totalRoundPoints).toList();
     const headerFontSize = 14.0;
     const pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
@@ -685,31 +641,26 @@ class EndOfRoundDialog extends StatelessWidget {
             textAlign: TextAlign.right,
             style: const TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
-    const catImageHeight = headerFontSize * 1.3;
-
-    Widget humanTeamHeaderCell() => Row(children: [
-          const Text("You", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-          const SizedBox(width: headerFontSize * 0.1),
-          const Text("/", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-          Image.asset(catImageForIndex(catImageIndices[2]), height: catImageHeight),
-        ]);
-
-    Widget opponentTeamHeaderCell() => Padding(
-        padding: const EdgeInsets.only(left: headerFontSize * 1.25),
-        child: Row(children: [
-          Image.asset(catImageForIndex(catImageIndices[1]), height: catImageHeight),
-          const Text(" /", style: TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)),
-          Image.asset(catImageForIndex(catImageIndices[3]), height: catImageHeight),
-        ]));
+    Widget catImageCell(int imageIndex) {
+      const imageHeight = headerFontSize * 1.3;
+      const leftPadding = headerFontSize * 1.1;
+      return Padding(
+          padding: const EdgeInsets.only(left: leftPadding),
+          child: Image.asset(catImageForIndex(imageIndex), height: imageHeight));
+    }
 
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
-          _paddingAll(cellPad, headerCell(title)),
-          ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
-        ]);
+      _paddingAll(cellPad, headerCell(title)),
+      ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
+    ]);
 
-    String matchOverMessage() => match.winningTeam() == 0 ? "You win!" : "You lose :(";
-
-    bool anyNonzero(Iterable<int> xs) => xs.any((x) => x != 0);
+    String matchOverMessage() {
+      final p = match.winningPlayers();
+      if (p.contains(0)) {
+        return (p.length == 1) ? "You win!" : "You tied for the win!";
+      }
+      return "You lose :(";
+    }
 
     final dialog = Center(
         child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
@@ -723,7 +674,8 @@ class EndOfRoundDialog extends StatelessWidget {
                   children: [
                     _paddingAll(
                         10,
-                        Text(matchOverMessage(), style: const TextStyle(fontSize: 26))),
+                        Text(matchOverMessage(),
+                            style: const TextStyle(fontSize: 26))),
                   ],
                 ),
               _paddingAll(
@@ -733,24 +685,15 @@ class EndOfRoundDialog extends StatelessWidget {
                     defaultColumnWidth: const IntrinsicColumnWidth(),
                     children: [
                       TableRow(children: [
-                        _paddingAll(cellPad, const SizedBox()),
-                        _paddingAll(cellPad, humanTeamHeaderCell()),
-                        _paddingAll(cellPad, opponentTeamHeaderCell()),
+                        _paddingAll(cellPad, headerCell("")),
+                        _paddingAll(cellPad, headerCell("You")),
+                        _paddingAll(cellPad, catImageCell(catImageIndices[1])),
+                        _paddingAll(cellPad, catImageCell(catImageIndices[2])),
+                        _paddingAll(cellPad, catImageCell(catImageIndices[3])),
                       ]),
-                      pointsRow("Previous score", match.currentRound.initialScores),
-                      pointsRow("Points from tricks",
-                          [...scores.map((s) => s.successfulBidPoints + s.failedBidPoints)]),
-                      if (match.rules.penalizeBags)
-                        pointsRow("Bags", [...scores.map((s) => s.overtricks)]),
-                      if (anyNonzero(scores.map((s) => s.overtrickPenalty)))
-                        pointsRow("Bag penalty", [...scores.map((s) => s.overtrickPenalty)]),
-                      if (anyNonzero(scores.map((s) => s.successfulNilPoints)))
-                        pointsRow("Nil bid made",
-                            [...scores.map((s) => s.successfulNilPoints)]),
-                      if (anyNonzero(scores.map((s) => s.failedNilPoints)))
-                        pointsRow("Nil bid failed",
-                            [...scores.map((s) => s.failedNilPoints)]),
-                      pointsRow("Total score", [...scores.map((s) => s.endingMatchPoints)]),
+                      pointsRow("Previous", match.currentRound.initialScores),
+                      pointsRow("Round score", scores),
+                      pointsRow("Total score", match.scores),
                     ],
                   )),
               if (match.isMatchOver())
