@@ -525,6 +525,7 @@ class _BidDialogState extends State<BidDialog> {
   Widget build(BuildContext context) {
     const adjustBidTextStyle = TextStyle(fontSize: 18);
     const rowPadding = 15.0;
+    int? disallowedBid = widget.round.disallowedBidForCurrentBidder();
 
     return Center(
         child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
@@ -534,9 +535,10 @@ class _BidDialogState extends State<BidDialog> {
               children: [
                 _paddingAll(
                     15,
-                    Text("Trump is ${widget.round.trumpCard.symbolString()}", style: TextStyle(fontSize: 18))),
-                const Text("Choose your bid", style: TextStyle(fontSize: 18)),
-                SizedBox(height: 10),
+                    Text("Trump is ${widget.round.trumpCard.symbolString()}", style: adjustBidTextStyle)),
+                const Text("Choose your bid", style: adjustBidTextStyle),
+                if (disallowedBid != null) _paddingAll(5, Text("You may not bid $disallowedBid", style: TextStyle(fontSize: 14))),
+                const SizedBox(height: 10),
                 Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -560,7 +562,7 @@ class _BidDialogState extends State<BidDialog> {
                         children: [
                           ElevatedButton(
                             child: Text("Bid ${bidAmount.toString()}"),
-                            onPressed: () => widget.onBid(bidAmount),
+                            onPressed: (bidAmount == disallowedBid) ? null :  () => widget.onBid(bidAmount),
                           ),
                         ])),
               ],
@@ -676,6 +678,11 @@ class EndOfRoundDialog extends StatelessWidget {
                             style: const TextStyle(fontSize: 26))),
                   ],
                 ),
+              if (match.rules.numRoundsInMatch != null && !match.isMatchOver())
+                ...[
+                  const SizedBox(height: 15),
+                  Text("Round ${match.previousRounds.length + 1} of ${match.rules.numRoundsInMatch}"),
+                ],
               _paddingAll(
                   10,
                   Table(

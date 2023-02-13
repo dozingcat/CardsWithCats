@@ -257,7 +257,7 @@ class OhHellRound {
     return bids;
   }
 
-  int? unavailableBidForCurrentBidder() {
+  int? disallowedBidForCurrentBidder() {
     if (!rules.bidTotalCantEqualTricks) {
       return null;
     }
@@ -397,8 +397,8 @@ class OhHellMatch {
     if (!currentRound.isOver()) {
       throw Exception("Current round is not over");
     }
-    previousRounds.add(currentRound);
     if (!isMatchOver()) {
+      previousRounds.add(currentRound);
       _addNewRound();
     }
   }
@@ -414,8 +414,8 @@ class OhHellMatch {
 
   bool isMatchOver() {
     if (rules.numRoundsInMatch != null) {
-      print("isMatchOver: ${previousRounds.length} ${rules.numRoundsInMatch}");
-      return previousRounds.length >= rules.numRoundsInMatch!;
+      int completedRounds = previousRounds.length + (currentRound.isOver() ? 1 : 0);
+      return completedRounds >= rules.numRoundsInMatch!;
     }
     int high = scores.reduce(max);
     if (high >= rules.pointLimit!) {

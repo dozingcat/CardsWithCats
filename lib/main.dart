@@ -166,6 +166,7 @@ class _MyHomePageState extends State<MyHomePage> {
     String? json = preferences.getString("ohHellRules");
     if (json != null) {
       try {
+        print("Got json: $json");
         return OhHellRuleSet.fromJson(jsonDecode(json));
       } catch (ex) {
         print("Failed to read Oh Hell rules from JSON: $ex");
