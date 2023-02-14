@@ -139,6 +139,7 @@ double _estimatedTricksForSpades(List<Rank> ranks) {
             : (gaps == 2)
                 ? 0.8
                 : 1;
+    previousTopRankIndex = ranks[i].index;
   }
   return ranks.length - gapPenalty;
 }
