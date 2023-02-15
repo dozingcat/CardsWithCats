@@ -655,11 +655,6 @@ MonteCarloResult chooseCardMonteCarlo(
 void doRollout(SpadesRound round, ChooseCardFn chooseFn, Random rng) {
   final bids = [...round.players.map((p) => p.bid!)];
   while (!round.isOver()) {
-    final legalPlays = round.legalPlaysForCurrentPlayer();
-    if (legalPlays.isEmpty) {
-      final msg = "No legal plays for ${round.currentPlayerIndex()}";
-      throw Exception(msg);
-    }
     // CardToPlayRequest.fromRound makes deep copies of HeartsRound fields,
     // which is safe but expensive. Here we can just copy the references,
     // because we know the round won't be modified during the lifetime of `req`.
