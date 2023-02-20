@@ -13,7 +13,6 @@ class BidRequest {
   final PlayingCard trumpCard;
   final bool dealerHasTrumpCard;
   final List<PlayingCard> hand;
-  final int playerIndex;
 
   BidRequest(
       {required this.rules,
@@ -22,7 +21,6 @@ class BidRequest {
         required this.trumpCard,
         required this.dealerHasTrumpCard,
         required this.hand,
-        required this.playerIndex,
       });
 }
 

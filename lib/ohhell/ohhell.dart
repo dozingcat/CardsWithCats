@@ -61,7 +61,7 @@ class OhHellRuleSet {
       "bidTotalCantEqualTricks": bidTotalCantEqualTricks,
       "tricksPerRoundSequenceStart": tricksPerRoundSequenceStart,
       "tricksPerRoundSequenceEnd": tricksPerRoundSequenceEnd,
-      "numRoundSequences": numRoundsInMatch,
+      "numRoundsInMatch": numRoundsInMatch,
       "pointLimit": pointLimit,
       "trickScoring": trickScoring.name,
       "pointsForSuccessfulBid": pointsForSuccessfulBid,
@@ -75,8 +75,8 @@ class OhHellRuleSet {
       bidTotalCantEqualTricks: json["bidTotalCantEqualTricks"] as bool,
       tricksPerRoundSequenceStart: json["tricksPerRoundSequenceStart"] as int,
       tricksPerRoundSequenceEnd: json["tricksPerRoundSequenceEnd"] as int,
-      numRoundsInMatch: json["numRoundsInMatch"] as int,
-      pointLimit: json["pointLimit"] as int,
+      numRoundsInMatch: json["numRoundsInMatch"] as int?,
+      pointLimit: json["pointLimit"] as int?,
       trickScoring: TrickScoring.values.firstWhere((v) => v.name == json["trickScoring"]),
       pointsForSuccessfulBid: json["pointsForSuccessfulBid"] as int,
       trumpMethod: TrumpMethod.values.firstWhere((v) => v.name == json["trumpMethod"]),
@@ -245,7 +245,19 @@ class OhHellRound {
     }
   }
 
-  int? unavailableBidForCurrentBidder() {
+  List<int> bidsInOrderMade() {
+    final bids = <int>[];
+    final fb = firstBidder();
+    for (int i = 0; i < rules.numPlayers; i++) {
+      int pnum = (fb + i) % rules.numPlayers;
+      if (players[pnum].bid != null) {
+        bids.add(players[pnum].bid!);
+      }
+    }
+    return bids;
+  }
+
+  int? disallowedBidForCurrentBidder() {
     if (!rules.bidTotalCantEqualTricks) {
       return null;
     }
@@ -385,8 +397,8 @@ class OhHellMatch {
     if (!currentRound.isOver()) {
       throw Exception("Current round is not over");
     }
-    previousRounds.add(currentRound);
     if (!isMatchOver()) {
+      previousRounds.add(currentRound);
       _addNewRound();
     }
   }
@@ -402,7 +414,8 @@ class OhHellMatch {
 
   bool isMatchOver() {
     if (rules.numRoundsInMatch != null) {
-      return previousRounds.length >= rules.numRoundsInMatch!;
+      int completedRounds = previousRounds.length + (currentRound.isOver() ? 1 : 0);
+      return completedRounds >= rules.numRoundsInMatch!;
     }
     int high = scores.reduce(max);
     if (high >= rules.pointLimit!) {
