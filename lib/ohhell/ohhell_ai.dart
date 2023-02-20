@@ -346,11 +346,6 @@ MonteCarloResult chooseCardMonteCarlo(
 
 void doRollout(OhHellRound round, ChooseCardFn chooseFn, Random rng) {
   while (!round.isOver()) {
-    final legalPlays = round.legalPlaysForCurrentPlayer();
-    if (legalPlays.isEmpty) {
-      final msg = "No legal plays for ${round.currentPlayerIndex()}";
-      throw Exception(msg);
-    }
     final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
     final cardToPlay = chooseFn(req, rng);
     round.playCard(cardToPlay);
