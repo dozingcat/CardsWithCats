@@ -18,38 +18,79 @@ enum TrumpMethod {
   firstCardAfterDeal,
 }
 
+enum OhHellRoundSequenceVariation {
+  tenToOneToTen,
+  oneToThirteen,
+  alwaysThirteen,
+}
+
 class OhHellRuleSet {
   int numPlayers;
+  OhHellRoundSequenceVariation roundSequenceVariation;
   bool bidTotalCantEqualTricks;
-  int tricksPerRoundSequenceStart;
-  int tricksPerRoundSequenceEnd;
-  int? numRoundsInMatch;
-  int? pointLimit;
   TrickScoring trickScoring;
   int pointsForSuccessfulBid;
   TrumpMethod trumpMethod;
 
   OhHellRuleSet({
     this.numPlayers = 4,
+    this.roundSequenceVariation = OhHellRoundSequenceVariation.tenToOneToTen,
     this.bidTotalCantEqualTricks = false,
-    this.tricksPerRoundSequenceStart = 10,
-    this.tricksPerRoundSequenceEnd = 1,
-    this.numRoundsInMatch = 19,
-    this.pointLimit,
     this.trickScoring = TrickScoring.onePointPerTrickAlways,
     this.pointsForSuccessfulBid = 10,
     this.trumpMethod = TrumpMethod.firstCardAfterDeal,
   });
+
+  int get tricksPerRoundSequenceStart {
+    switch (roundSequenceVariation) {
+      case OhHellRoundSequenceVariation.tenToOneToTen:
+        return 10;
+      case OhHellRoundSequenceVariation.oneToThirteen:
+        return 1;
+      case OhHellRoundSequenceVariation.alwaysThirteen:
+        return 13;
+    }
+  }
+
+  int get tricksPerRoundSequenceEnd {
+    switch (roundSequenceVariation) {
+      case OhHellRoundSequenceVariation.tenToOneToTen:
+        return 1;
+      case OhHellRoundSequenceVariation.oneToThirteen:
+        return 13;
+      case OhHellRoundSequenceVariation.alwaysThirteen:
+        return 13;
+    }
+  }
+
+  int? get numRoundsInMatch {
+    switch (roundSequenceVariation) {
+      case OhHellRoundSequenceVariation.tenToOneToTen:
+        return 19;
+      case OhHellRoundSequenceVariation.oneToThirteen:
+        return 13;
+      case OhHellRoundSequenceVariation.alwaysThirteen:
+        return null;
+    }
+  }
+
+  int? get pointLimit {
+    switch (roundSequenceVariation) {
+      case OhHellRoundSequenceVariation.tenToOneToTen:
+        return null;
+      case OhHellRoundSequenceVariation.oneToThirteen:
+        return null;
+      case OhHellRoundSequenceVariation.alwaysThirteen:
+        return 100;
+    }
+  }
 
   OhHellRuleSet copy() => OhHellRuleSet.from(this);
 
   static OhHellRuleSet from(OhHellRuleSet src) => OhHellRuleSet(
     numPlayers: src.numPlayers,
     bidTotalCantEqualTricks: src.bidTotalCantEqualTricks,
-    tricksPerRoundSequenceStart: src.tricksPerRoundSequenceStart,
-    tricksPerRoundSequenceEnd: src.tricksPerRoundSequenceEnd,
-    numRoundsInMatch: src.numRoundsInMatch,
-    pointLimit: src.pointLimit,
+    roundSequenceVariation: src.roundSequenceVariation,
     trickScoring: src.trickScoring,
     pointsForSuccessfulBid: src.pointsForSuccessfulBid,
     trumpMethod: src.trumpMethod,
@@ -59,10 +100,7 @@ class OhHellRuleSet {
     return {
       "numPlayers": numPlayers,
       "bidTotalCantEqualTricks": bidTotalCantEqualTricks,
-      "tricksPerRoundSequenceStart": tricksPerRoundSequenceStart,
-      "tricksPerRoundSequenceEnd": tricksPerRoundSequenceEnd,
-      "numRoundsInMatch": numRoundsInMatch,
-      "pointLimit": pointLimit,
+      "roundSequenceVariation": roundSequenceVariation.name,
       "trickScoring": trickScoring.name,
       "pointsForSuccessfulBid": pointsForSuccessfulBid,
       "trumpMethod": trumpMethod.name,
@@ -73,10 +111,7 @@ class OhHellRuleSet {
     return OhHellRuleSet(
       numPlayers: json["numPlayers"] as int,
       bidTotalCantEqualTricks: json["bidTotalCantEqualTricks"] as bool,
-      tricksPerRoundSequenceStart: json["tricksPerRoundSequenceStart"] as int,
-      tricksPerRoundSequenceEnd: json["tricksPerRoundSequenceEnd"] as int,
-      numRoundsInMatch: json["numRoundsInMatch"] as int?,
-      pointLimit: json["pointLimit"] as int?,
+      roundSequenceVariation: OhHellRoundSequenceVariation.values.byName(json["roundSequenceVariation"]),
       trickScoring: TrickScoring.values.firstWhere((v) => v.name == json["trickScoring"]),
       pointsForSuccessfulBid: json["pointsForSuccessfulBid"] as int,
       trumpMethod: TrumpMethod.values.firstWhere((v) => v.name == json["trumpMethod"]),

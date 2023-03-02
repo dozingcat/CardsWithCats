@@ -456,7 +456,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
         if (_shouldShowHumanBidDialog())
-          BidDialog(layout: layout, round: round, onBid: makeBidForHuman),
+          BidDialog(layout: layout, round: round, onBid: makeBidForHuman, catImageIndices: widget.catImageIndices),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
         if (_shouldShowEndOfRoundDialog())
@@ -488,12 +488,14 @@ class BidDialog extends StatefulWidget {
   final Layout layout;
   final OhHellRound round;
   final void Function(int) onBid;
+  final List<int> catImageIndices;
 
   const BidDialog({
     Key? key,
     required this.layout,
     required this.round,
     required this.onBid,
+    required this.catImageIndices,
   }) : super(key: key);
 
   @override
@@ -527,16 +529,30 @@ class _BidDialogState extends State<BidDialog> {
     const rowPadding = 15.0;
     int? disallowedBid = widget.round.disallowedBidForCurrentBidder();
 
+    Widget dealerTrumpMessage() {
+      final trumpStr = widget.round.trumpCard.symbolString();
+      if (widget.round.dealer == 0) {
+        return const SizedBox();
+      }
+      return Opacity(opacity: 0.7, child: Padding(padding: EdgeInsets.only(top: 5), child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+        Image.asset(catImageForIndex(widget.catImageIndices[widget.round.dealer]), height: 12),
+        Text(" has the trump card $trumpStr", style: TextStyle(fontSize: 10)),
+      ])));
+    }
+
     return Center(
         child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
             backgroundColor: dialogBackgroundColor,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _paddingAll(
-                    15,
-                    Text("Trump is ${widget.round.trumpCard.symbolString()}", style: adjustBidTextStyle)),
-                const Text("Choose your bid", style: adjustBidTextStyle),
+                Padding(padding: EdgeInsets.only(top: 15), child: Text("Trump is ${widget.round.trumpSuit.symbolChar}", style: adjustBidTextStyle)),
+                if (widget.round.dealerHasTrumpCard()) dealerTrumpMessage(),
+
+                Padding(padding: EdgeInsets.only(top: 15), child: const Text("Choose your bid", style: adjustBidTextStyle)),
                 if (disallowedBid != null) _paddingAll(5, Text("You may not bid $disallowedBid", style: TextStyle(fontSize: 14))),
                 const SizedBox(height: 10),
                 Row(
@@ -561,8 +577,8 @@ class _BidDialogState extends State<BidDialog> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ElevatedButton(
-                            child: Text("Bid ${bidAmount.toString()}"),
                             onPressed: (bidAmount == disallowedBid) ? null :  () => widget.onBid(bidAmount),
+                            child: Text("Bid ${bidAmount.toString()}"),
                           ),
                         ])),
               ],

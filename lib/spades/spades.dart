@@ -54,7 +54,7 @@ class SpadesRuleSet {
       numTeams: json["numTeams"] as int,
       removedCards: PlayingCard.cardsFromString(json["removedCards"] as String),
       pointLimit: json["pointLimit"] as int,
-      spadeLeading: SpadeLeading.values.firstWhere((v) => v.name == json["spadeLeading"]),
+      spadeLeading: SpadeLeading.values.byName(json["spadeLeading"]),
       penalizeBags: json["penalizeBags"] as bool,
     );
   }
@@ -316,7 +316,7 @@ class SpadesRound {
   static SpadesRound fromJson(final Map<String, dynamic> json) {
     return SpadesRound()
       ..rules = SpadesRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
-      ..status = SpadesRoundStatus.values.firstWhere((s) => s.name == json["status"])
+      ..status = SpadesRoundStatus.values.byName(json["status"])
       ..players = [...json["players"].map((p) => SpadesPlayer.fromJson(p as Map<String, dynamic>))]
       ..initialScores = List<int>.from(json["initialScores"])
       ..dealer = json["dealer"] as int

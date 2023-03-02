@@ -175,6 +175,13 @@ class _MyHomePageState extends State<MyHomePage> {
     return OhHellRuleSet();
   }
 
+  void updateOhHellRules(Function(OhHellRuleSet) updateRulesFn) {
+    setState(() {
+      updateRulesFn(ohHellRulesFromPrefs);
+    });
+    preferences.setString("ohHellRules", jsonEncode(ohHellRulesFromPrefs.toJson()));
+  }
+
   void setSoundEnabled(bool enabled) {
     setState(() {
       soundPlayer.enabled = enabled;
@@ -457,29 +464,52 @@ class _MyHomePageState extends State<MyHomePage> {
     const baseFontSize = 18.0;
     const labelStyle = TextStyle(fontSize: 14.0);
 
-    Widget makeHeartsRuleCheckboxRow(
-        String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
+    Widget makeCheckboxRow(String title, bool isChecked, Function(bool) updateFn) {
       return CheckboxListTile(
         dense: true,
         title: Text(title, style: labelStyle),
         isThreeLine: false,
-        onChanged: (bool? checked) {
-          updateHeartsRules((rules) => updateRulesFn(rules, checked == true));
-        },
+        onChanged: (checked) => updateFn(checked == true),
         value: isChecked,
       );
     }
 
+    Widget makeHeartsRuleCheckboxRow(
+        String title, bool isChecked, Function(HeartsRuleSet, bool) updateRulesFn) {
+      return makeCheckboxRow(title, isChecked, (bool checked) {
+        updateHeartsRules((rules) => updateRulesFn(rules, checked));
+      });
+    }
+
     Widget makeSpadesRuleCheckboxRow(
         String title, bool isChecked, Function(SpadesRuleSet, bool) updateRulesFn) {
-      return CheckboxListTile(
-        dense: true,
-        title: Text(title, style: labelStyle),
-        isThreeLine: false,
-        onChanged: (bool? checked) {
-          updateSpadesRules((rules) => updateRulesFn(rules, checked == true));
-        },
-        value: isChecked,
+      return makeCheckboxRow(title, isChecked, (bool checked) {
+        updateSpadesRules((rules) => updateRulesFn(rules, checked));
+      });
+    }
+
+    Widget makeOhHellRuleCheckboxRow(
+        String title, bool isChecked, Function(OhHellRuleSet, bool) updateRulesFn) {
+      return makeCheckboxRow(title, isChecked, (bool checked) {
+        updateOhHellRules((rules) => updateRulesFn(rules, checked));
+      });
+    }
+
+    Widget makeOhHellRuleDropdown<T>(
+        List<String> titles, List<T> values, T selectedValue, Function(OhHellRuleSet, T) updateRulesFn) {
+      const menuItemStyle = TextStyle(fontSize: baseFontSize * 0.8, color: Colors.blue, fontWeight: FontWeight.bold);
+      final items = [for (int i = 0; i < titles.length; i++) DropdownMenuItem(
+        value: values[i],
+        child: Text(titles[i], style: menuItemStyle),
+      )];
+      return DropdownButton(
+          items: items,
+          value: selectedValue,
+          onChanged: (T? value) {
+            if (value != null) {
+              updateOhHellRules((rules) => updateRulesFn(rules, value));
+            }
+          }
       );
     }
 
@@ -542,6 +572,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 rules.pointsOnFirstTrick = checked;
                               },
                             ),
+
                             const ListTile(
                                 title: Text("Spades",
                                     style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
@@ -559,6 +590,50 @@ class _MyHomePageState extends State<MyHomePage> {
                                 rules.spadeLeading = checked ? SpadeLeading.after_broken : SpadeLeading.always;
                               },
                             ),
+
+                            const ListTile(
+                                title: Text("Oh Hell",
+                                    style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+
+                            makeOhHellRuleCheckboxRow(
+                              "Total bids can't equal tricks",
+                              ohHellRulesFromPrefs.bidTotalCantEqualTricks,
+                                  (rules, checked) {
+                                rules.bidTotalCantEqualTricks = checked;
+                              },
+                            ),
+
+                            makeOhHellRuleCheckboxRow(
+                              "Dealer's last card is trump",
+                              ohHellRulesFromPrefs.trumpMethod == TrumpMethod.dealerLastCard,
+                                  (rules, checked) {
+                                rules.trumpMethod = checked ? TrumpMethod.dealerLastCard : TrumpMethod.firstCardAfterDeal;
+                              },
+                            ),
+
+                          const ListTile(
+                              title: Text("Number of tricks sequence:",
+                                  style: TextStyle(fontSize: baseFontSize * 0.8))),
+                          Padding(padding: EdgeInsets.only(left: 32), child: Row(children: [makeOhHellRuleDropdown<OhHellRoundSequenceVariation>(
+                            ["10 to 1 to 10 (19 rounds)", "1 to 13 (13 rounds)", "Always 13 (100 points)"],
+                            [OhHellRoundSequenceVariation.tenToOneToTen, OhHellRoundSequenceVariation.oneToThirteen, OhHellRoundSequenceVariation.alwaysThirteen],
+                            ohHellRulesFromPrefs.roundSequenceVariation,
+                            (rules, roundSequence) {
+                              rules.roundSequenceVariation = roundSequence;
+                            }
+                          )])),
+
+                          const ListTile(
+                              title: Text("Score 1 point per trick:",
+                                  style: TextStyle(fontSize: baseFontSize * 0.8))),
+                          Padding(padding: EdgeInsets.only(left: 32), child: Row(children: [makeOhHellRuleDropdown<TrickScoring>(
+                              ["Always", "If bid is successful", "Never"],
+                              [TrickScoring.onePointPerTrickAlways, TrickScoring.onePointPerTrickSuccessfulBidOnly, TrickScoring.noPointsPerTrick],
+                              ohHellRulesFromPrefs.trickScoring,
+                                  (rules, scoring) {
+                                rules.trickScoring = scoring;
+                              }
+                          )])),
                         ],
             ))))),
             _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: const Text("OK"))),

@@ -59,7 +59,7 @@ class HeartsRuleSet {
       ..pointsOnFirstTrick = json["pointsOnFirstTrick"] as bool
       ..queenBreaksHearts = json["queenBreaksHearts"] as bool
       ..jdMinus10 = json["jdMinus10"] as bool
-      ..moonShooting = MoonShooting.values.firstWhere((v) => v.name == json["moonShooting"]);
+      ..moonShooting = MoonShooting.values.byName(json["moonShooting"]);
   }
 
   int get numberOfUsedCards => (52 - removedCards.length);
@@ -282,7 +282,7 @@ class HeartsRound {
   static HeartsRound fromJson(final Map<String, dynamic> json) {
     return HeartsRound()
       ..rules = HeartsRuleSet.fromJson(json["rules"] as Map<String, dynamic>)
-      ..status = HeartsRoundStatus.values.firstWhere((v) => v.name == json["status"])
+      ..status = HeartsRoundStatus.values.byName(json["status"])
       ..players = [...json["players"].map((p) => HeartsPlayer.fromJson(p as Map<String, dynamic>))]
       ..initialScores = List<int>.from(json["initialScores"])
       ..passDirection = json["passDirection"] as int
