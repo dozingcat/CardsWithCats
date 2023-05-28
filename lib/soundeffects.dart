@@ -40,10 +40,12 @@ class SoundEffectPlayer {
   }
 
   void playMadSound() async {
+    print("SOUND: mad");
     _playRandomSoundFrom(madSoundPlayers);
   }
 
   void playHappySound() async {
+    print("SOUND: happy");
     _playRandomSoundFrom(happySoundPlayers);
   }
 }

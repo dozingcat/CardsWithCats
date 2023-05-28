@@ -229,26 +229,33 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     // print(round.toJson());
     playerMoods.clear();
     if (match.isMatchOver()) {
-      // Winners happy, losers sad.
+      final winners = match.winningPlayers();
+      for (int i = 1; i < match.rules.numPlayers; i++) {
+        playerMoods[i] = (winners.contains(i)) ? Mood.veryHappy : Mood.mad;
+      }
     } else if (round.isOver()) {
       // Happy if made bid, sad if not.
       final scores = round.pointsTaken();
+      for (int i = 1; i < match.rules.numPlayers; i++) {
+        playerMoods[i] = (scores[i].totalRoundPoints >= round.rules.pointsForSuccessfulBid) ? Mood.happy : Mood.mad;
+      }
     } else {
-      // Sad if took the first trick over the bid.
+      // Mad if took the first trick over the bid.
+      if (round.previousTricks.isNotEmpty) {
+        int lastTrickWinner = round.previousTricks.last.winner;
+        if (lastTrickWinner > 0) {
+          int wonTricks = round.previousTricks.where((t) => t.winner == lastTrickWinner).length;
+          if (wonTricks == round.players[lastTrickWinner].bid! + 1) {
+            playerMoods[lastTrickWinner] = Mood.mad;
+          }
+        }
+      }
     }
   }
 
   void _playSoundsForMoods() {
-    // No sounds on round end because there will probably be both happy and mad?
-    bool hasHappy = false;
-    bool hasMad = false;
-    for (int i = 1; i < match.rules.numPlayers; i++) {
-      if (playerMoods[i] == Mood.happy) {
-        hasHappy = true;
-      } else if (playerMoods[i] == Mood.mad) {
-        hasMad = true;
-      }
-    }
+    bool hasHappy = playerMoods.containsValue(Mood.happy) || playerMoods.containsValue(Mood.veryHappy);
+    bool hasMad = playerMoods.containsValue(Mood.mad);
     if (hasHappy) {
       widget.soundPlayer.playHappySound();
     }

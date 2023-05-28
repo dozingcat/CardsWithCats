@@ -263,15 +263,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       }
     }
     else {
-      bool hasHappy = false;
-      bool hasMad = false;
-      for (int i = 1; i < match.rules.numPlayers; i++) {
-        if (playerMoods[i] == Mood.happy) {
-          hasHappy = true;
-        } else if (playerMoods[i] == Mood.mad) {
-          hasMad = true;
-        }
-      }
+      bool hasHappy = playerMoods.containsValue(Mood.happy) || playerMoods.containsValue(Mood.veryHappy);
+      bool hasMad = playerMoods.containsValue(Mood.mad);
       if (hasHappy) {
         widget.soundPlayer.playHappySound();
       }
