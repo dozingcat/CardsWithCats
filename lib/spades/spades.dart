@@ -111,7 +111,7 @@ class SpadesPlayer {
     };
   }
 
-  static SpadesPlayer fromJson(Map<String, dynamic?> json) {
+  static SpadesPlayer fromJson(Map<String, dynamic> json) {
     return SpadesPlayer(PlayingCard.cardsFromString(json["hand"] as String),
         bid: json["bid"] as int?);
   }

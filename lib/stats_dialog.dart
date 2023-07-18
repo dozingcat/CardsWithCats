@@ -55,10 +55,9 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final ds = widget.layout.displaySize;
-    final paddingPx = 12.0;
+    const paddingPx = 12.0;
     final scale = widget.layout.dialogScale();
     final maxDialogHeight = ds.height * 0.9 / scale;
-    final maxDialogWidth = ds.width * 0.9 / scale;
 
     return Transform.scale(scale: scale, child: Dialog(
         backgroundColor: dialogBackgroundColor,

@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'common.dart';
 import 'hearts/hearts.dart';
 import 'ohhell/ohhell.dart';
 import 'ohhell_ui.dart';
@@ -70,18 +71,16 @@ List<int> randomizedCatImageIndices(Random rng) {
   return indices;
 }
 
-enum GameType { none, hearts, spades, ohHell }
-
-enum DialogMode { none, mainMenu, preferences, statistics }
+enum DialogMode { none, mainMenu, startMatch, preferences, statistics }
 
 class _MyHomePageState extends State<MyHomePage> {
   final rng = Random();
   var loaded = false;
-  var matchType = GameType.none;
+  MatchType? matchType;
   late final SharedPreferences preferences;
   late final StatsStore statsStore;
   DialogMode dialogMode = DialogMode.none;
-  var prefsGameType = GameType.hearts;
+  var prefsGameType = MatchType.hearts;
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   late OhHellRuleSet ohHellRulesFromPrefs;
@@ -110,11 +109,8 @@ class _MyHomePageState extends State<MyHomePage> {
       ohHellRulesFromPrefs = _readOhHellRulesFromPrefs();
 
       String? savedMatchType = preferences.getString("matchType") ?? "";
-      if (savedMatchType == "hearts") {
-        matchType = GameType.hearts;
-      } else if (savedMatchType == "spades") {
-        matchType = GameType.spades;
-      } else {
+      matchType = MatchType.fromString(savedMatchType);
+      if (matchType == null) {
         dialogMode = DialogMode.mainMenu;
       }
 
@@ -208,15 +204,23 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _clearMatch() {
+    // TODO: Store match JSON in a single key.
+    preferences.remove("heartsMatch");
+    preferences.remove("spadesMatch");
+    preferences.remove("ohHellMatch");
+
+    preferences.remove("matchType");
+    matchType = null;
+    dialogMode = DialogMode.mainMenu;
+  }
+
   void _saveHeartsMatch(final HeartsMatch? match) {
     if (match != null) {
       preferences.setString("matchType", "hearts");
       preferences.setString("heartsMatch", jsonEncode(match.toJson()));
     } else {
-      preferences.remove("matchType");
-      preferences.remove("heartsMatch");
-      matchType = GameType.none;
-      dialogMode = DialogMode.mainMenu;
+      _clearMatch();
     }
   }
 
@@ -225,10 +229,7 @@ class _MyHomePageState extends State<MyHomePage> {
       preferences.setString("matchType", "spades");
       preferences.setString("spadesMatch", jsonEncode(match.toJson()));
     } else {
-      preferences.remove("matchType");
-      preferences.remove("spadesMatch");
-      matchType = GameType.none;
-      dialogMode = DialogMode.mainMenu;
+      _clearMatch();
     }
   }
 
@@ -237,10 +238,7 @@ class _MyHomePageState extends State<MyHomePage> {
       preferences.setString("matchType", "ohHell");
       preferences.setString("ohHellMatch", jsonEncode(match.toJson()));
     } else {
-      preferences.remove("matchType");
-      preferences.remove("ohHellMatch");
-      matchType = GameType.none;
-      dialogMode = DialogMode.mainMenu;
+      _clearMatch();
     }
   }
 
@@ -296,11 +294,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool isMatchInProgress() {
-    if (matchType == GameType.hearts) {
+    if (matchType == MatchType.hearts) {
       return preferences.getString("heartsMatch") != null;
     }
-    if (matchType == GameType.spades) {
+    if (matchType == MatchType.spades) {
       return preferences.getString("spadesMatch") != null;
+    }
+    if (matchType == MatchType.ohHell) {
+      return preferences.getString("ohHellMatch") != null;
     }
     return false;
   }
@@ -312,7 +313,7 @@ class _MyHomePageState extends State<MyHomePage> {
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = GameType.hearts;
+      matchType = MatchType.hearts;
     });
   }
 
@@ -323,7 +324,7 @@ class _MyHomePageState extends State<MyHomePage> {
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = GameType.spades;
+      matchType = MatchType.spades;
     });
   }
 
@@ -334,7 +335,7 @@ class _MyHomePageState extends State<MyHomePage> {
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = GameType.ohHell;
+      matchType = MatchType.ohHell;
     });
   }
 
@@ -388,6 +389,24 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void handleNewMatchClicked() {
+    setState(() {dialogMode = DialogMode.startMatch;});
+  }
+
+  void startNewMatch(MatchType newMatchType) {
+    switch (newMatchType) {
+      case MatchType.hearts:
+        handleNewHeartsMatchClicked();
+        break;
+      case MatchType.spades:
+        handleNewSpadesMatchClicked();
+        break;
+      case MatchType.ohHell:
+        handleNewOhHellMatchClicked();
+        break;
+    }
+  }
+
   static const gameBackgroundColor = Color.fromRGBO(32, 160, 32, 0.3);
   static const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
 
@@ -396,15 +415,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return Stack(children: [
       Positioned.fromRect(rect: rect, child: Container(color: gameBackgroundColor)),
       Positioned.fromRect(rect: layout.cardArea(), child: Container(color: gameTableColor)),
-    ]);
-  }
-
-  TableRow _makeButtonRow(String title, void Function() onPressed) {
-    return TableRow(children: [
-      Padding(
-        padding: const EdgeInsets.all(8),
-        child: ElevatedButton(onPressed: onPressed, child: Text(title)),
-      ),
     ]);
   }
 
@@ -445,11 +455,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                           defaultColumnWidth: const IntrinsicColumnWidth(),
                           children: [
-                            if (matchType != GameType.none)
+                            if (matchType != null)
                               _makeButtonRow("Continue match", _continueGame),
-                            _makeButtonRow("New Hearts match", handleNewHeartsMatchClicked),
-                            _makeButtonRow("New Spades match", handleNewSpadesMatchClicked),
-                            _makeButtonRow("New Oh Hell match", handleNewOhHellMatchClicked),
+                            _makeButtonRow("New match", handleNewMatchClicked),
                             _makeButtonRow('Preferences...', _showPreferences),
                             _makeButtonRow('Statistics...', _showStats),
                             _makeButtonRow('About...', () => _showAboutDialog(context)),
@@ -657,16 +665,13 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!loaded) {
       return Scaffold(body: Container());
     }
+    const aiIndices = [1, 2, 3];
     return Scaffold(
       body: Stack(children: [
         // Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
-        ...[
-          1,
-          2,
-          3
-        ].map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
-        if (matchType == GameType.hearts)
+        ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
+        if (matchType == MatchType.hearts)
           HeartsMatchDisplay(
             initialMatchFn: _initialHeartsMatch,
             createMatchFn: _createHeartsMatch,
@@ -678,7 +683,7 @@ class _MyHomePageState extends State<MyHomePage> {
             soundPlayer: soundPlayer,
             statsStore: statsStore,
           ),
-        if (matchType == GameType.spades)
+        if (matchType == MatchType.spades)
           SpadesMatchDisplay(
             initialMatchFn: _initialSpadesMatch,
             createMatchFn: _createSpadesMatch,
@@ -690,7 +695,7 @@ class _MyHomePageState extends State<MyHomePage> {
             soundPlayer: soundPlayer,
             statsStore: statsStore,
           ),
-        if (matchType == GameType.ohHell)
+        if (matchType == MatchType.ohHell)
           OhHellMatchDisplay(
             initialMatchFn: _initialOhHellMatch,
             createMatchFn: _createOhHellMatch,
@@ -704,6 +709,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
+        if (dialogMode == DialogMode.startMatch) NewGameDialog(
+            matchType: matchType,
+            newGameFn: startNewMatch,
+            cancelFn: () {setState(() {dialogMode = DialogMode.mainMenu;});},
+            layout: layout),
         if (dialogMode == DialogMode.statistics) StatsDialog(
             layout: layout,
             statsStore: statsStore,
@@ -713,4 +723,92 @@ class _MyHomePageState extends State<MyHomePage> {
       ]),
     );
   }
+}
+
+TableRow _makeButtonRow(String title, void Function() onPressed) {
+  return TableRow(children: [
+    Padding(
+      padding: const EdgeInsets.all(8),
+      child: ElevatedButton(onPressed: onPressed, child: Text(title)),
+    ),
+  ]);
+}
+
+class NewGameDialog extends StatefulWidget {
+  const NewGameDialog({
+    Key? key,
+    required this.matchType,
+    required this.newGameFn,
+    required this.cancelFn,
+    required this.layout,
+  }) : super(key: key);
+
+  final MatchType? matchType;
+  final Function(MatchType) newGameFn;
+  final Function() cancelFn;
+  final Layout layout;
+
+  @override
+  State<NewGameDialog> createState() => _NewGameDialogState();
+}
+
+class _NewGameDialogState extends State<NewGameDialog> {
+  MatchType selectedMatchType = MatchType.hearts;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedMatchType = widget.matchType ?? MatchType.hearts;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const labelStyle = TextStyle(fontSize: 16);
+    const menuItemStyle = TextStyle(fontSize: 16, color: Colors.blue, fontWeight: FontWeight.normal);
+    return SizedBox(
+        width: double.infinity,
+        height: double.infinity,
+        child: Center(
+            child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    _paddingAll(
+                        10, const Text("New Match", style: TextStyle( fontSize: 22))),
+                    _paddingAll(
+                        10,
+                        Table(
+                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          defaultColumnWidth: const IntrinsicColumnWidth(),
+                          children: [
+                            TableRow(children: [Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Padding(padding: EdgeInsets.only(right: 5), child: Text("Game: ", style: labelStyle)),
+                              MatchTypeDropdown(
+                                matchType: selectedMatchType,
+                                onChanged: (matchType) {
+                                  setState(() {selectedMatchType = matchType!;});
+                                },
+                                textStyle: menuItemStyle,
+                              )]),
+
+                            ]),
+                            TableRow(children: [Row(children: [
+                              _paddingAll(20, ElevatedButton(
+                                  onPressed: () => widget.newGameFn(selectedMatchType),
+                                  child: const Text("Start match"))),
+                              _paddingAll(20, ElevatedButton(
+                                  onPressed: widget.cancelFn,
+                                  child: const Text("Cancel"))),
+                            ])]),
+                          ],
+                        )),
+                  ],
+                )))));
+  }
+
 }

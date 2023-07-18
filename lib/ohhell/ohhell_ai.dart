@@ -268,7 +268,7 @@ OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
   if (dist == null) {
     return null;
   }
-  final resultPlayers = List.generate(dist.length, (pnum) => OhHellPlayer(dist[pnum], bid: cardReq.bids[pnum]!));
+  final resultPlayers = List.generate(dist.length, (pnum) => OhHellPlayer(dist[pnum], bid: cardReq.bids[pnum]));
   return OhHellRound()
     ..rules = cardReq.rules.copy()
     ..status = OhHellRoundStatus.playing

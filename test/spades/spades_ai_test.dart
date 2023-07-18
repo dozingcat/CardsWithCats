@@ -1,9 +1,5 @@
-import 'dart:math';
-
 import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
-import 'package:cards_with_cats/cards/rollout.dart';
-import 'package:cards_with_cats/cards/trick.dart';
 import "package:cards_with_cats/spades/spades.dart";
 import "package:cards_with_cats/spades/spades_ai.dart";
 
