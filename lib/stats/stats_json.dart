@@ -6,12 +6,15 @@ import 'package:cards_with_cats/hearts/hearts_stats.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 
+import '../ohhell/ohhell_stats.dart';
+
 class JsonFileStatsStore implements StatsStore {
 
   final Directory baseDirectory;
 
   String heartsPath() => Path.join(baseDirectory.path, "hearts.json");
   String spadesPath() => Path.join(baseDirectory.path, "spades.json");
+  String ohHellPath() => Path.join(baseDirectory.path, "ohhell.json");
 
   JsonFileStatsStore({required this.baseDirectory});
 
@@ -34,6 +37,15 @@ class JsonFileStatsStore implements StatsStore {
   }
 
   @override
+  Future<OhHellStats?> readOhHellStats() async {
+    final json = await readJsonFromFile(ohHellPath());
+    if (json != null) {
+      return OhHellStats.fromJson(json);
+    }
+    return null;
+  }
+
+  @override
   Future<void> writeHeartsStats(HeartsStats stats) async {
     final file = File(heartsPath());
     print("Writing hearts stats to $file");
@@ -44,6 +56,13 @@ class JsonFileStatsStore implements StatsStore {
   Future<void> writeSpadesStats(SpadesStats stats) async {
     final file = File(spadesPath());
     print("Writing spades stats to $file");
+    await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
+  }
+
+  @override
+  Future<void> writeOhHellStats(OhHellStats stats) async {
+    final file = File(ohHellPath());
+    print("Writing Oh Hell stats to $file");
     await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
   }
 }
