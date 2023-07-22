@@ -76,11 +76,11 @@ enum DialogMode { none, mainMenu, startMatch, preferences, statistics }
 class _MyHomePageState extends State<MyHomePage> {
   final rng = Random();
   var loaded = false;
-  MatchType? matchType;
+  GameType? matchType;
   late final SharedPreferences preferences;
   late final StatsStore statsStore;
   DialogMode dialogMode = DialogMode.none;
-  var prefsGameType = MatchType.hearts;
+  var prefsGameType = GameType.hearts;
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   late OhHellRuleSet ohHellRulesFromPrefs;
@@ -109,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ohHellRulesFromPrefs = _readOhHellRulesFromPrefs();
 
       String? savedMatchType = preferences.getString("matchType") ?? "";
-      matchType = MatchType.fromString(savedMatchType);
+      matchType = GameType.fromString(savedMatchType);
       if (matchType == null) {
         dialogMode = DialogMode.mainMenu;
       }
@@ -294,13 +294,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool isMatchInProgress() {
-    if (matchType == MatchType.hearts) {
+    if (matchType == GameType.hearts) {
       return preferences.getString("heartsMatch") != null;
     }
-    if (matchType == MatchType.spades) {
+    if (matchType == GameType.spades) {
       return preferences.getString("spadesMatch") != null;
     }
-    if (matchType == MatchType.ohHell) {
+    if (matchType == GameType.ohHell) {
       return preferences.getString("ohHellMatch") != null;
     }
     return false;
@@ -313,7 +313,7 @@ class _MyHomePageState extends State<MyHomePage> {
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = MatchType.hearts;
+      matchType = GameType.hearts;
     });
   }
 
@@ -324,7 +324,7 @@ class _MyHomePageState extends State<MyHomePage> {
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = MatchType.spades;
+      matchType = GameType.spades;
     });
   }
 
@@ -335,7 +335,7 @@ class _MyHomePageState extends State<MyHomePage> {
     matchUpdateNotifier.sink.add(newMatch);
     setState(() {
       dialogMode = DialogMode.none;
-      matchType = MatchType.ohHell;
+      matchType = GameType.ohHell;
     });
   }
 
@@ -393,15 +393,15 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {dialogMode = DialogMode.startMatch;});
   }
 
-  void startNewMatch(MatchType newMatchType) {
+  void startNewMatch(GameType newMatchType) {
     switch (newMatchType) {
-      case MatchType.hearts:
+      case GameType.hearts:
         handleNewHeartsMatchClicked();
         break;
-      case MatchType.spades:
+      case GameType.spades:
         handleNewSpadesMatchClicked();
         break;
-      case MatchType.ohHell:
+      case GameType.ohHell:
         handleNewOhHellMatchClicked();
         break;
     }
@@ -671,7 +671,7 @@ class _MyHomePageState extends State<MyHomePage> {
         // Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
         ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
-        if (matchType == MatchType.hearts)
+        if (matchType == GameType.hearts)
           HeartsMatchDisplay(
             initialMatchFn: _initialHeartsMatch,
             createMatchFn: _createHeartsMatch,
@@ -683,7 +683,7 @@ class _MyHomePageState extends State<MyHomePage> {
             soundPlayer: soundPlayer,
             statsStore: statsStore,
           ),
-        if (matchType == MatchType.spades)
+        if (matchType == GameType.spades)
           SpadesMatchDisplay(
             initialMatchFn: _initialSpadesMatch,
             createMatchFn: _createSpadesMatch,
@@ -695,7 +695,7 @@ class _MyHomePageState extends State<MyHomePage> {
             soundPlayer: soundPlayer,
             statsStore: statsStore,
           ),
-        if (matchType == MatchType.ohHell)
+        if (matchType == GameType.ohHell)
           OhHellMatchDisplay(
             initialMatchFn: _initialOhHellMatch,
             createMatchFn: _createOhHellMatch,
@@ -710,7 +710,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
         if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
         if (dialogMode == DialogMode.startMatch) NewGameDialog(
-            matchType: matchType,
+            gameType: matchType,
             newGameFn: startNewMatch,
             cancelFn: () {setState(() {dialogMode = DialogMode.mainMenu;});},
             layout: layout),
@@ -737,14 +737,14 @@ TableRow _makeButtonRow(String title, void Function() onPressed) {
 class NewGameDialog extends StatefulWidget {
   const NewGameDialog({
     Key? key,
-    required this.matchType,
+    required this.gameType,
     required this.newGameFn,
     required this.cancelFn,
     required this.layout,
   }) : super(key: key);
 
-  final MatchType? matchType;
-  final Function(MatchType) newGameFn;
+  final GameType? gameType;
+  final Function(GameType) newGameFn;
   final Function() cancelFn;
   final Layout layout;
 
@@ -753,12 +753,12 @@ class NewGameDialog extends StatefulWidget {
 }
 
 class _NewGameDialogState extends State<NewGameDialog> {
-  MatchType selectedMatchType = MatchType.hearts;
+  GameType selectedGameType = GameType.hearts;
 
   @override
   void initState() {
     super.initState();
-    selectedMatchType = widget.matchType ?? MatchType.hearts;
+    selectedGameType = widget.gameType ?? GameType.hearts;
   }
 
   @override
@@ -788,10 +788,10 @@ class _NewGameDialogState extends State<NewGameDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   const Padding(padding: EdgeInsets.only(right: 5), child: Text("Game: ", style: labelStyle)),
-                              MatchTypeDropdown(
-                                matchType: selectedMatchType,
+                              GameTypeDropdown(
+                                gameType: selectedGameType,
                                 onChanged: (matchType) {
-                                  setState(() {selectedMatchType = matchType!;});
+                                  setState(() {selectedGameType = matchType!;});
                                 },
                                 textStyle: menuItemStyle,
                               )]),
@@ -799,7 +799,7 @@ class _NewGameDialogState extends State<NewGameDialog> {
                             ]),
                             TableRow(children: [Row(children: [
                               _paddingAll(20, ElevatedButton(
-                                  onPressed: () => widget.newGameFn(selectedMatchType),
+                                  onPressed: () => widget.newGameFn(selectedGameType),
                                   child: const Text("Start match"))),
                               _paddingAll(20, ElevatedButton(
                                   onPressed: widget.cancelFn,

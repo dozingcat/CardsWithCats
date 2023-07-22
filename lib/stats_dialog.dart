@@ -30,7 +30,7 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
   late HeartsStats heartsStats;
   late SpadesStats spadesStats;
   late OhHellStats ohHellStats;
-  MatchType selectedMatchType = MatchType.hearts;
+  GameType selectedMatchType = GameType.hearts;
   var loaded = false;
 
   @override
@@ -70,8 +70,8 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                      MatchTypeDropdown(
-                        matchType: selectedMatchType,
+                      GameTypeDropdown(
+                        gameType: selectedMatchType,
                         onChanged: (matchType) {
                           setState(() {selectedMatchType = matchType!;});
                         },
@@ -87,11 +87,11 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
                 child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: paddingPx),
                     child:
-                        selectedMatchType == MatchType.hearts ?
+                        selectedMatchType == GameType.hearts ?
                             heartsStatsTable(heartsStats, widget.layout) :
-                        selectedMatchType == MatchType.spades ?
+                        selectedMatchType == GameType.spades ?
                             spadesStatsTable(spadesStats, widget.layout) :
-                        selectedMatchType == MatchType.ohHell ?
+                        selectedMatchType == GameType.ohHell ?
                             ohHellStatsTable(ohHellStats, widget.layout) :
                         const SizedBox(),
               ))))),

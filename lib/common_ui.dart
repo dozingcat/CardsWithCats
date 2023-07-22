@@ -571,14 +571,14 @@ class TrickCards extends StatelessWidget {
   }
 }
 
-class MatchTypeDropdown extends StatelessWidget {
-  final MatchType matchType;
-  final Function(MatchType?) onChanged;
+class GameTypeDropdown extends StatelessWidget {
+  final GameType gameType;
+  final Function(GameType?) onChanged;
   final TextStyle textStyle;
 
-  const MatchTypeDropdown({
+  const GameTypeDropdown({
     Key? key,
-    required this.matchType,
+    required this.gameType,
     required this.onChanged,
     required this.textStyle,
   }) : super(key: key);
@@ -586,11 +586,11 @@ class MatchTypeDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButton(
-      value: matchType,
+      value: gameType,
       items: [
-        DropdownMenuItem(value: MatchType.hearts, child: Text('Hearts', style: textStyle)),
-        DropdownMenuItem(value: MatchType.spades, child: Text('Spades', style: textStyle)),
-        DropdownMenuItem(value: MatchType.ohHell, child: Text('Oh Hell', style: textStyle)),
+        DropdownMenuItem(value: GameType.hearts, child: Text('Hearts', style: textStyle)),
+        DropdownMenuItem(value: GameType.spades, child: Text('Spades', style: textStyle)),
+        DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
       ],
       onChanged: onChanged,
     );

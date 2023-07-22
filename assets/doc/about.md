@@ -73,6 +73,8 @@ played on a previous trick.
 
 
 ## Oh Hell
+
+### Rules
 The goal is to bid on how many tricks you will take, and take **exactly** that number. A match
 consists of a fixed number of rounds, and in each round players receive a number of cards according
 to a sequence (by default, starting at ten, decreasing to one, and increasing back up to ten).
