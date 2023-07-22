@@ -1,4 +1,4 @@
-import './card.dart' show PlayingCard, Suit, Rank, RankExtension;
+import './card.dart' show PlayingCard, Suit, Rank;
 
 int trickWinnerIndex(final List<PlayingCard> cards, {Suit? trump}) {
   Suit leadSuit = cards[0].suit;

@@ -1,7 +1,9 @@
+import 'package:cards_with_cats/ohhell/ohhell_stats.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/material.dart';
 
+import 'common.dart';
 import 'common_ui.dart';
 import 'hearts/hearts_stats.dart';
 
@@ -21,44 +23,35 @@ class StatsDialog extends StatefulWidget {
   _StatsDialogState createState() => _StatsDialogState();
 }
 
-enum StatsMode {hearts, spades}
-
 const dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
 const statsTableBackgroundColor = Color.fromARGB(0xd0, 0xc0, 0xc0, 0xc0);
 
 class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStateMixin {
   late HeartsStats heartsStats;
   late SpadesStats spadesStats;
-  late TabController tabController;
-  var mode = StatsMode.hearts;
+  late OhHellStats ohHellStats;
+  GameType selectedMatchType = GameType.hearts;
   var loaded = false;
 
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 2, vsync: this);
-    tabController.addListener(() {
-      setState(() {
-        mode = tabController.index == 0 ? StatsMode.hearts : StatsMode.spades;
-      });
-    });
     _loadStats();
   }
 
   void _loadStats() async {
     heartsStats = (await widget.statsStore.readHeartsStats()) ?? HeartsStats.empty();
     spadesStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
-
+    ohHellStats = (await widget.statsStore.readOhHellStats()) ?? OhHellStats.empty();
     setState(() {loaded = true;});
   }
 
   @override
   Widget build(BuildContext context) {
     final ds = widget.layout.displaySize;
-    final paddingPx = 12.0;
+    const paddingPx = 12.0;
     final scale = widget.layout.dialogScale();
     final maxDialogHeight = ds.height * 0.9 / scale;
-    final maxDialogWidth = ds.width * 0.9 / scale;
 
     return Transform.scale(scale: scale, child: Dialog(
         backgroundColor: dialogBackgroundColor,
@@ -71,14 +64,20 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
                   style: TextStyle(fontSize: 20)),
             ),
 
-            // If there's not a max width, TabBar will take all available width.
-            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 250), child: TabBar(
-              controller: tabController,
-              tabs: [
-                _paddingAll(10, const Text("Hearts")),
-                _paddingAll(10, const Text("Spades")),
-              ],
-            )),
+            ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 250),
+                child:
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                      GameTypeDropdown(
+                        gameType: selectedMatchType,
+                        onChanged: (matchType) {
+                          setState(() {selectedMatchType = matchType!;});
+                        },
+                        textStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                      )
+                    ])),
 
             // Flexible can grow to max allowed size, but (unlike Expanded) doesn't have to.
             if (loaded) Flexible(child: Scrollbar(
@@ -86,10 +85,15 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
               child: SingleChildScrollView(primary: true, child: Container(
                 color: statsTableBackgroundColor,
                 child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: paddingPx),
-                    child: mode == StatsMode.hearts ?
-                        heartsStatsTable(heartsStats, widget.layout) :
-                        spadesStatsTable(spadesStats, widget.layout)
+                    padding: const EdgeInsets.symmetric(horizontal: paddingPx),
+                    child:
+                        selectedMatchType == GameType.hearts ?
+                            heartsStatsTable(heartsStats, widget.layout) :
+                        selectedMatchType == GameType.spades ?
+                            spadesStatsTable(spadesStats, widget.layout) :
+                        selectedMatchType == GameType.ohHell ?
+                            ohHellStatsTable(ohHellStats, widget.layout) :
+                        const SizedBox(),
               ))))),
 
             _paddingAll(
@@ -174,4 +178,18 @@ Widget spadesStatsTable(SpadesStats stats, Layout layout) {
         statsTableRow("Opp. nil made/attempted", oppNilBids),
         statsTableRow("Opp. average bags", oppAvgBags?.toStringAsFixed(2) ?? "--"),
       ]);
+}
+
+Widget ohHellStatsTable(OhHellStats stats, Layout layout) {
+  final bids = "${stats.numBidsMade}/${stats.numRounds}";
+
+  return Table(
+    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+    defaultColumnWidth: const IntrinsicColumnWidth(),
+    children: [
+      statsTableRow("Matches played", stats.numMatches.toString()),
+      statsTableRow("Matches won", stats.matchesWon.toString()),
+      statsTableRow("Matches tied", stats.matchesTied.toString()),
+      statsTableRow("Bids made/attempted", bids),
+    ]);
 }

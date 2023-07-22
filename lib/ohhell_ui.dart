@@ -12,6 +12,7 @@ import 'cards/card.dart';
 import 'cards/rollout.dart';
 import 'ohhell/ohhell.dart';
 import 'ohhell/ohhell_ai.dart';
+import 'ohhell/ohhell_stats.dart';
 
 const debugOutput = false;
 
@@ -206,18 +207,15 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
   }
 
-  // TODO
   void _updateStatsIfMatchOrRoundOver() async {
-    /*
     if (round.isOver()) {
-      final currentStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
+      final currentStats = (await widget.statsStore.readOhHellStats()) ?? OhHellStats.empty();
       var newStats = currentStats.updateFromRound(round);
       if (match.isMatchOver()) {
         newStats = newStats.updateFromMatch(match);
       }
-      widget.statsStore.writeSpadesStats(newStats);
+      widget.statsStore.writeOhHellStats(newStats);
     }
-     */
   }
 
   void _clearMoods() {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'cards/card.dart';
 import 'cards/trick.dart';
+import 'common.dart';
 
 enum AnimationMode {
   none,
@@ -567,6 +568,32 @@ class TrickCards extends StatelessWidget {
           }
           return Stack(children: cardWidgets);
         });
+  }
+}
+
+class GameTypeDropdown extends StatelessWidget {
+  final GameType gameType;
+  final Function(GameType?) onChanged;
+  final TextStyle textStyle;
+
+  const GameTypeDropdown({
+    Key? key,
+    required this.gameType,
+    required this.onChanged,
+    required this.textStyle,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButton(
+      value: gameType,
+      items: [
+        DropdownMenuItem(value: GameType.hearts, child: Text('Hearts', style: textStyle)),
+        DropdownMenuItem(value: GameType.spades, child: Text('Spades', style: textStyle)),
+        DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
+      ],
+      onChanged: onChanged,
+    );
   }
 }
 

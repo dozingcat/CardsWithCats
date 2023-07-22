@@ -6,7 +6,8 @@ In both Hearts and Spades, each player is dealt 13 cards and plays them in a ser
 In each trick, one player leads by playing a card. Each other player then plays a card, in
 clockwise order. You must play a card of the same suit as the card that was led if possible; if not
 you may play any card. Whoever plays the highest card of the suit that was led takes the cards in
-the trick and leads the next trick. (Unless a trump was played, as described in the Spades rules).
+the trick and leads the next trick. If there is a trump suit, as in Spades and Oh Hell, then the
+highest card in the trump suit wins the trick regardless of what other cards were played.
 
 ## Hearts
 
@@ -32,12 +33,12 @@ player score zero points and all their opponents score 26. This is called "shoot
 
 ### Optional rules
 These rules can be configured in the Preferences screen from the main menu.
-- J♦ is -10 points: If enabled, the player who takes the jack of diamonds scores -10 points at the
+- **J♦ is -10 points**: If enabled, the player who takes the jack of diamonds scores -10 points at the
 end of the round.
-- Q♠ breaks hearts: Normally, you cannot lead a heart to start a trick unless hearts have been
+- **Q♠ breaks hearts**: Normally, you cannot lead a heart to start a trick unless hearts have been
 "broken" by being played on a previous trick. If this option is enabled, playing the queen of spades
 also allows hearts to be led in subsequent tricks.
-- Allow points on first trick: Normally, points (hearts and the queen of spades) cannot be played on
+- **Allow points on first trick**: Normally, points (hearts and the queen of spades) cannot be played on
 the first trick of a round. If this option is enabled, they can be.
 
 
@@ -46,10 +47,8 @@ the first trick of a round. If this option is enabled, they can be.
 ### Rules
 There are two teams in spades. Your partner is at the top of the screen, and your opponents are on
 the sides. The goal is to reach 500 points by bidding on how many tricks you will take in each
-round, and then taking that many while preventing your opponents from doing the same.
-
-Spades are the "trump" suit, meaning that if a spade is played in a trick, then the highest spade
-wins the trick regardless of what other cards were played.
+round, and then taking that many while preventing your opponents from doing the same. Spades are
+always the trump suit.
 
 A round starts with each player making a bid, which is a declaration of how many tricks they expect
 to win. Bids of zero (called "nil") are treated specially; see the Scoring section. After all
@@ -66,12 +65,43 @@ bidder takes one or more tricks, their team loses 100 points.
 
 ### Optional rules
 These rules can be configured in the Preferences screen from the main menu.
-- Penalize sandbags: If enabled, then for each trick that a team takes over the bid amount, 1 point
+- **Penalize sandbags**: If enabled, then for each trick that a team takes over the bid amount, 1 point
 is scored. These points are called "bags" or "sandbags", and if a team accumulates 10 or more bags
 they lose 110 points. This discourages being overly cautious when bidding.
-- No leading spades until broken: If enabled, players cannot lead a spade until a spade has been
+- **No leading spades until broken**: If enabled, players cannot lead a spade until a spade has been
 played on a previous trick.
 
+
+## Oh Hell
+
+### Rules
+The goal is to bid on how many tricks you will take, and take **exactly** that number. A match
+consists of a fixed number of rounds, and in each round players receive a number of cards according
+to a sequence (by default, starting at ten, decreasing to one, and increasing back up to ten).
+After hands are dealt, a trump suit is chosen; by default the suit of the last card dealt is trump.
+
+Each player then makes a bid of how many tricks they intend to take. After all players have bid,
+the first bidder leads the first trick.
+
+### Scoring
+If you take exactly the number of tricks that you bid, you score 10 points. By default you also
+score 1 point for each trick you take, whether or not you make your bid. For example, if you bid
+2 and successfully take 2 tricks, you would score 12 points; if you instead take 3 tricks you would
+score only 3.
+
+### Optional rules
+These rules can be configured in the Preferences screen from the main menu.
+- **Total bids can't equal tricks**: If enabled, then the last player to bid may not choose the number
+that causes the total bids to equal the total number of tricks. This ensures that not all players
+will be able to make their bids exactly.
+- **Dealer's last card is trump**: If enabled, the last card the dealer receives is the trump suit.
+If not enabled, the trump suit is determined by the next card after all players have received
+their hands.
+- **Number of tricks sequence**: Sets the sequence of how many cards each player receives in each round.
+If "Always 13", the match lasts until one player reaches 100 points rather than a fixed number
+of rounds.
+- **Score 1 point per trick**: Can be set to have players score 1 point per trick always, never, or
+only when they make their exact bid.
 
 ## License
 
