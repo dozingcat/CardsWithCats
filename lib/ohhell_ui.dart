@@ -34,6 +34,7 @@ class OhHellMatchDisplay extends StatefulWidget {
   final void Function() mainMenuFn;
   final bool dialogVisible;
   final List<int> catImageIndices;
+  final bool tintTrumpCards;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -46,6 +47,7 @@ class OhHellMatchDisplay extends StatefulWidget {
     required this.mainMenuFn,
     required this.dialogVisible,
     required this.catImageIndices,
+    required this.tintTrumpCards,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -314,10 +316,16 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   List<Suit> _suitDisplayOrder() {
     // Trump suit first.
-    final suits = [...baseSuitDisplayOrder];
-    suits.remove(round.trumpSuit);
-    suits.insert(0, round.trumpSuit);
-    return suits;
+    switch (round.trumpSuit) {
+      case Suit.spades:
+        return [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
+      case Suit.hearts:
+        return [Suit.hearts, Suit.spades, Suit.diamonds, Suit.clubs];
+      case Suit.diamonds:
+        return [Suit.diamonds, Suit.spades, Suit.hearts, Suit.clubs];
+      case Suit.clubs:
+        return [Suit.clubs, Suit.hearts, Suit.spades, Suit.diamonds];
+    }
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
@@ -345,6 +353,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
         layout: layout,
         suitDisplayOrder: _suitDisplayOrder(),
         cards: cards,
+        trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
         animateFromCards: previousPlayerCards,
         highlightedCards: highlightedCards,
         onCardClicked: handleHandCardClicked);
@@ -356,6 +365,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
+      trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       humanPlayerHand: humanHand,
