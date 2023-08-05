@@ -87,6 +87,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
   final soundPlayer = SoundEffectPlayer();
+  bool useTintedTrumpCards = false;
 
   @override
   void initState() {
@@ -115,6 +116,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       soundPlayer.enabled = preferences.getBool("soundEnabled") ?? true;
+      useTintedTrumpCards = preferences.getBool("tintedTrumpCards") ?? true;
 
       statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
@@ -184,6 +186,17 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     preferences.setBool("soundEnabled", enabled);
     soundPlayer.playMadSound();
+  }
+
+  void setTintedTrumpCardsEnabled(bool enabled) {
+    setState(() {
+      useTintedTrumpCards = enabled;
+    });
+    preferences.setBool("tintedTrumpCards", enabled);
+  }
+
+  bool tintedTrumpCardsEnabled() {
+    return useTintedTrumpCards;
   }
 
   void _showMainMenu() {
@@ -548,14 +561,22 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Container(
                         color: dialogTableBackgroundColor,
                         child: Column(children: [
-                          CheckboxListTile(
-                            dense: true,
-                            title: const Text("Enable sound", style: labelStyle),
-                            value: soundPlayer.enabled,
-                            onChanged: (bool? checked) {
-                              setSoundEnabled(checked == true);
-                            },
-                          ),
+                            CheckboxListTile(
+                              dense: true,
+                              title: const Text("Enable sound", style: labelStyle),
+                              value: soundPlayer.enabled,
+                              onChanged: (bool? checked) {
+                                setSoundEnabled(checked == true);
+                              },
+                            ),
+                            CheckboxListTile(
+                              dense: true,
+                              title: const Text("Tint trump cards", style: labelStyle),
+                              value: useTintedTrumpCards,
+                              onChanged: (bool? checked) {
+                                setTintedTrumpCardsEnabled(checked == true);
+                              },
+                            ),
                             const ListTile(
                                 title: Text("Hearts",
                                     style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
@@ -692,6 +713,7 @@ class _MyHomePageState extends State<MyHomePage> {
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
             catImageIndices: catIndices,
+            tintTrumpCards: useTintedTrumpCards,
             soundPlayer: soundPlayer,
             statsStore: statsStore,
           ),
@@ -704,6 +726,7 @@ class _MyHomePageState extends State<MyHomePage> {
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
             catImageIndices: catIndices,
+            tintTrumpCards: useTintedTrumpCards,
             soundPlayer: soundPlayer,
             statsStore: statsStore,
           ),

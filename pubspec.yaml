@@ -70,6 +70,8 @@ flutter:
   assets:
     - assets/audio/
     - assets/cards/
+    - assets/cards/solid/
+    - assets/cards/transparent/
     - assets/cats/
     - assets/doc/
     - assets/misc/

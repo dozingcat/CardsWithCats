@@ -33,6 +33,7 @@ class SpadesMatchDisplay extends StatefulWidget {
   final void Function() mainMenuFn;
   final bool dialogVisible;
   final List<int> catImageIndices;
+  final bool tintTrumpCards;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -45,6 +46,7 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.mainMenuFn,
     required this.dialogVisible,
     required this.catImageIndices,
+    required this.tintTrumpCards,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -347,6 +349,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
         key: Key(key),
         layout: layout,
         suitDisplayOrder: suitDisplayOrder,
+        trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
         cards: cards,
         animateFromCards: previousPlayerCards,
         highlightedCards: highlightedCards,
@@ -359,6 +362,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
+      trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       humanPlayerHand: humanHand,

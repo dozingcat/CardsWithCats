@@ -83,6 +83,7 @@ class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
   final double opacity;
+  final bool isTrump;
   final void Function(PlayingCard) onCardClicked;
 
   const PositionedCard({
@@ -91,31 +92,46 @@ class PositionedCard extends StatelessWidget {
     required this.card,
     required this.onCardClicked,
     this.opacity = 1.0,
+    this.isTrump = false,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final cardImagePath = "assets/cards/${card.toString()}.webp";
+    final cardImagePath = isTrump && opacity == 1 ?
+        "assets/cards/transparent/${card.toString()}.webp" :
+        "assets/cards/solid/${card.toString()}.webp";
     const backgroundImagePath = "assets/cards/black.webp";
+    const trumpOverlayImagePath = "assets/cards/gold.webp";
+
+    final cardStack = <Widget>[];
+    if (opacity < 1) {
+      cardStack.add(const Center(
+          child: Image(
+            image: AssetImage(backgroundImagePath),
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+          )));
+    }
+    else if (isTrump) {
+      cardStack.add(const Center(
+          child: Image(
+            image: AssetImage(trumpOverlayImagePath),
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+          )));
+    }
+    cardStack.add(Center(
+        child: Image(
+          color: Color.fromRGBO(255, 255, 255, opacity),
+          colorBlendMode: BlendMode.modulate,
+          image: AssetImage(cardImagePath),
+        )));
+
     return Positioned.fromRect(
         rect: rect,
         child: GestureDetector(
             onTapDown: (tap) => onCardClicked(card),
-            child: Stack(children: [
-              if (opacity < 1)
-                const Center(
-                    child: Image(
-                  image: AssetImage(backgroundImagePath),
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                )),
-              Center(
-                  child: Image(
-                color: Color.fromRGBO(255, 255, 255, opacity),
-                colorBlendMode: BlendMode.modulate,
-                image: AssetImage(cardImagePath),
-              )),
-            ])));
+            child: Stack(children: cardStack)));
   }
 }
 
@@ -463,6 +479,7 @@ class TrickCards extends StatelessWidget {
   final void Function() onTrickToWinnerAnimationFinished;
   final List<PlayingCard>? humanPlayerHand;
   final List<Suit>? humanPlayerSuitOrder;
+  final Suit? trumpSuit;
 
   const TrickCards({
     Key? key,
@@ -475,6 +492,7 @@ class TrickCards extends StatelessWidget {
     required this.onTrickToWinnerAnimationFinished,
     this.humanPlayerHand,
     this.humanPlayerSuitOrder,
+    this.trumpSuit,
   }) : super(key: key);
 
   @override
@@ -505,7 +523,12 @@ class TrickCards extends StatelessWidget {
 
   Widget _trickCardForPlayer(final Layout layout, final PlayingCard card, int playerIndex) {
     final cardRect = layout.trickCardAreaForPlayer(playerIndex);
-    return PositionedCard(rect: cardRect, card: card, onCardClicked: (_) => {});
+    return PositionedCard(
+        rect: cardRect,
+        card: card,
+        isTrump: card.suit == trumpSuit,
+        onCardClicked: (_) => {},
+    );
   }
 
   List<Widget> _staticTrickCards(
@@ -540,7 +563,12 @@ class TrickCards extends StatelessWidget {
         onEnd: onTrickCardAnimationFinished,
         builder: (BuildContext context, double frac, Widget? child) {
           final animRect = Rect.lerp(startRect, endRect, frac)!;
-          return PositionedCard(rect: animRect, card: cards.last, onCardClicked: (_) => {});
+          return PositionedCard(
+              rect: animRect,
+              card: cards.last,
+              isTrump: cards.last.suit == trumpSuit,
+              onCardClicked: (_) => {},
+          );
         }));
 
     return cardWidgets;
@@ -564,7 +592,12 @@ class TrickCards extends StatelessWidget {
             Rect animRect =
                 Rect.fromCenter(center: center, width: endRect.width, height: endRect.height);
             cardWidgets.add(
-                PositionedCard(rect: animRect, card: trick.cards[i], onCardClicked: (_) => {}));
+                PositionedCard(
+                    rect: animRect,
+                    card: trick.cards[i],
+                    isTrump: trick.cards[i].suit == trumpSuit,
+                    onCardClicked: (_) => {},
+                ));
           }
           return Stack(children: cardWidgets);
         });
@@ -604,6 +637,7 @@ class PlayerHandCards extends StatelessWidget {
   final Iterable<PlayingCard> highlightedCards;
   final void Function(PlayingCard) onCardClicked;
   final List<PlayingCard>? animateFromCards;
+  final Suit? trumpSuit;
 
   const PlayerHandCards({
     Key? key,
@@ -612,6 +646,7 @@ class PlayerHandCards extends StatelessWidget {
     required this.cards,
     required this.highlightedCards,
     this.animateFromCards,
+    this.trumpSuit,
     required this.onCardClicked,
   }): super(key: key);
 
@@ -633,6 +668,7 @@ class PlayerHandCards extends StatelessWidget {
               cardImages.add(PositionedCard(
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
+                isTrump: card.suit == trumpSuit,
                 opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
                 onCardClicked: onCardClicked,
               ));
@@ -647,6 +683,7 @@ class PlayerHandCards extends StatelessWidget {
       cardImages.add(PositionedCard(
         rect: entry.value,
         card: card,
+        isTrump: card.suit == trumpSuit,
         opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
         onCardClicked: onCardClicked,
       ));
