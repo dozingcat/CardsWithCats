@@ -18,11 +18,12 @@ class BidRequest {
   final List<int> otherBids;
   final List<PlayingCard> hand;
 
-  BidRequest(
-      {required this.rules,
-      required this.scoresBeforeRound,
-      required this.otherBids,
-      required this.hand});
+  BidRequest({
+    required this.rules,
+    required this.scoresBeforeRound,
+    required this.otherBids,
+    required this.hand,
+  });
 }
 
 class CardToPlayRequest {
@@ -144,16 +145,94 @@ double _estimatedTricksForSpades(List<Rank> ranks) {
   return ranks.length - gapPenalty;
 }
 
-// match equity, bidding, playing.
+bool _canBidNilSpades(List<Rank> ranks) {
+  if (ranks.isEmpty) {
+    return true;
+  }
+  if (ranks.length > 3) {
+    return false;
+  }
+  if (ranks[0].index > Rank.ten.index) {
+    return false;
+  }
+  return true;
+}
+
+bool _canBidNilNonSpades(List<Rank> ranks) {
+  if (ranks.isEmpty) {
+    return true;
+  }
+  if (ranks[0].index < Rank.ten.index) {
+    return true;
+  }
+  int rankCount = ranks.length;
+  /* The goal is to determine whether, even if the suit could potentially take
+    one or more tricks, it is reasonably safe to bid nil anyhow. The thought
+    being that gaining 100 points from a nil bid is better than only gaining 10
+    or 20 points by not bidding nil. If a hand does have one or more high cards
+    (Jack or higher) but there are enough low-enough rank cards in the suit to
+    run the other players out of the suit before needing to play the high card(s)
+    then bidding nil should be a safe, and even desirable, course of action. */
+
+  // If there are any high cards then there needs to be at least 4 cards of the suit.
+  if (ranks[0].index > Rank.ten.index && rankCount < 4) {
+    return false;
+  }
+  // If there are multiple high cards then there needs to be at least 5 cards of the suit.
+  if (rankCount > 1 && ranks[1].index > Rank.ten.index && rankCount < 5) {
+    return false;
+  }
+  // If there is an ace then there needs to be at least 5 cards of the suit
+  if (ranks[0].index == Rank.ace.index && rankCount < 5) {
+    return false;
+  }
+
+  double rankSum = 0;
+  for (int i = 0; i < rankCount; i++) {
+    rankSum += ranks[i].index + 2;
+  }
+  double aveRank = rankSum / rankCount ;
+  /* 8.0 seems to be a sweet spot. Setting the average too low and the player
+    will almost never make an intentional nil bid and setting the average too
+    high results in more instances of failing to realize the nil bid. */
+  if (aveRank < 8.0) {
+    return true;
+  }
+
+  return false;
+}
+
 int chooseBid(BidRequest req) {
-  double estimatedTricks = _estimatedTricksForSpades(sortedRanksInSuit(req.hand, Suit.spades)) +
-      _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.hearts)) +
-      _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.diamonds)) +
-      _estimatedTricksForNonspades(sortedRanksInSuit(req.hand, Suit.clubs));
-  int bid = estimatedTricks.round();
-  if (bid == 0) {
+  List<Rank> srSpades = sortedRanksInSuit(req.hand, Suit.spades);
+  List<Rank> srHearts = sortedRanksInSuit(req.hand, Suit.hearts);
+  List<Rank> srDiamonds = sortedRanksInSuit(req.hand, Suit.diamonds);
+  List<Rank> srClubs = sortedRanksInSuit(req.hand, Suit.clubs);
+
+  // Check first to see if the player can safely bid nil.
+  bool cbnS = _canBidNilSpades(srSpades);
+  bool canBidNil = cbnS
+      && _canBidNilNonSpades(srHearts)
+      && _canBidNilNonSpades(srDiamonds)
+      && _canBidNilNonSpades(srClubs);
+  if ( canBidNil ) {
     return 0;
   }
+
+  // Get the estimated tricks for each suit.
+  double estimatedTricks = _estimatedTricksForSpades(srSpades)
+      + _estimatedTricksForNonspades(srHearts)
+      + _estimatedTricksForNonspades(srDiamonds)
+      + _estimatedTricksForNonspades(srClubs);
+  int bid = estimatedTricks.round();
+
+  if (bid == 0) {
+    // If it isn't considered safe to bid nil for spades then bid 1.
+    if (!cbnS) {
+      return 1;
+    }
+    return 0;
+  }
+
   // If this is the last bid and sum of bids is low, increase bid by up to 2.
   if (req.otherBids.length == req.rules.numPlayers - 1) {
     final sumOfBids = bid + req.otherBids.reduce((a, b) => a + b);
