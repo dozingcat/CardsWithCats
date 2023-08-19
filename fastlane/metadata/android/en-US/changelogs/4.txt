@@ -1,0 +1,3 @@
+- Added Oh Hell game.
+- Added option to tint trump cards.
+- Improved Spades bidding AI.
