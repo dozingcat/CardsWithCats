@@ -557,7 +557,7 @@ class _BidDialogState extends State<BidDialog> {
         }
       }
       else {
-        children.add(Text("After the deal, the trump card is $trumpStr", style: textStyle));
+        children.add(Text("After dealing, the trump card is $trumpStr", style: textStyle));
       }
       return Opacity(opacity: 0.7, child: Padding(padding: const EdgeInsets.only(top: 5), child: Row(
           mainAxisSize: MainAxisSize.min,
