@@ -537,25 +537,33 @@ class _BidDialogState extends State<BidDialog> {
     });
   }
 
-  // TODO: Show trump card and owner if applicable.
   @override
   Widget build(BuildContext context) {
     const adjustBidTextStyle = TextStyle(fontSize: 18);
     const rowPadding = 15.0;
     int? disallowedBid = widget.round.disallowedBidForCurrentBidder();
 
-    Widget dealerTrumpMessage() {
+    Widget trumpCardMessage() {
       final trumpStr = widget.round.trumpCard.symbolString();
-      if (widget.round.dealer == 0) {
-        return const SizedBox();
+      const textStyle = TextStyle(fontSize: 10);
+      final children = <Widget>[];
+      if (widget.round.dealerHasTrumpCard()) {
+        if (widget.round.dealer == 0) {
+          children.add(Text("You have the trump card $trumpStr", style: textStyle));
+        }
+        else {
+          children.add(Image.asset(catImageForIndex(widget.catImageIndices[widget.round.dealer]), height: 12));
+          children.add(Text(" has the trump card $trumpStr", style: textStyle));
+        }
       }
-      return Opacity(opacity: 0.7, child: Padding(padding: EdgeInsets.only(top: 5), child: Row(
+      else {
+        children.add(Text("After dealing, the trump card is $trumpStr", style: textStyle));
+      }
+      return Opacity(opacity: 0.7, child: Padding(padding: const EdgeInsets.only(top: 5), child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-        Image.asset(catImageForIndex(widget.catImageIndices[widget.round.dealer]), height: 12),
-        Text(" has the trump card $trumpStr", style: TextStyle(fontSize: 10)),
-      ])));
+          children: children
+      )));
     }
 
     return Center(
@@ -564,11 +572,11 @@ class _BidDialogState extends State<BidDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(padding: EdgeInsets.only(top: 15), child: Text("Trump is ${widget.round.trumpSuit.symbolChar}", style: adjustBidTextStyle)),
-                if (widget.round.dealerHasTrumpCard()) dealerTrumpMessage(),
+                Padding(padding: const EdgeInsets.only(top: 15), child: Text("Trump is ${widget.round.trumpSuit.symbolChar}", style: adjustBidTextStyle)),
+                trumpCardMessage(),
 
-                Padding(padding: EdgeInsets.only(top: 15), child: const Text("Choose your bid", style: adjustBidTextStyle)),
-                if (disallowedBid != null) _paddingAll(5, Text("You may not bid $disallowedBid", style: TextStyle(fontSize: 14))),
+                const Padding(padding: EdgeInsets.only(top: 15), child: Text("Choose your bid", style: adjustBidTextStyle)),
+                if (disallowedBid != null) _paddingAll(5, Text("You may not bid $disallowedBid", style: const TextStyle(fontSize: 14))),
                 const SizedBox(height: 10),
                 Row(
                     mainAxisSize: MainAxisSize.min,
