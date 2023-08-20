@@ -418,14 +418,14 @@ class OhHellMatch {
       }
     }
     int nextNumTricks = prevTricks + tricksDelta;
-    print("Match scores: $scores");
+    // print("Match scores: $scores");
     currentRound = OhHellRound.deal(
         rules: rules,
         scores: scores,
         dealer: nextDealer,
         numCardsPerPlayer: nextNumTricks,
         rng: rng);
-    print("New round initial scores: ${currentRound.initialScores}");
+    // print("New round initial scores: ${currentRound.initialScores}");
   }
 
   void finishRound() {
