@@ -119,6 +119,20 @@ class PositionedCard extends StatelessWidget {
             fit: BoxFit.contain,
             alignment: Alignment.center,
           )));
+
+      // cardStack.add(TweenAnimationBuilder(
+      //   tween: Tween(begin: Colors.pink, end: Colors.blue),
+      //   duration:
+      //   builder: (context, Color color, child) {
+      //
+      //   },
+      // ));
+      // cardStack.add(Container(
+      //   decoration: BoxDecoration(
+      //     color: Colors.amber,
+      //       borderRadius: BorderRadius.all(Radius.circular(5))
+      //   ),
+      // ));
     }
     cardStack.add(Center(
         child: Image(

@@ -19,12 +19,23 @@ enum DoubledType {
 }
 
 enum Vulnerability {
-  no,
-  yes,
+  neither, nsOnly, ewOnly, both;
+
+  bool isPlayerVulnerable(int playerIndex) {
+    if (playerIndex == 0 || playerIndex == 2) {
+      return this == nsOnly || this == both;
+    }
+    else if (playerIndex == 1 || playerIndex == 3) {
+      return this == ewOnly || this == both;
+    }
+    throw AssertionError("Bad playerIndex $playerIndex");
+  }
 }
 
 bool isMinorSuit(Suit? s) => s == Suit.clubs || s == Suit.diamonds;
 bool isMajorSuit(Suit? s) => s == Suit.hearts || s == Suit.spades;
+
+int dummyIndexForDeclarer(int d) => (d + 2) % 4;
 
 class ContractBid {
   final int count;
@@ -78,16 +89,16 @@ class Contract {
   ContractBid bid;
   DoubledType doubled;
   int declarer;
-  Vulnerability vulnerability;
+  bool isVulnerable;
 
   Contract({
     required this.bid,
-    required this.vulnerability,
+    required this.isVulnerable,
     required this.declarer,
     this.doubled = DoubledType.none,
   });
 
-  bool get isVulnerable => vulnerability == Vulnerability.yes;
+  int get dummy => (declarer + 2) % 4;
 
   int scoreForTricksTaken(int numTricks) {
     final delta = numTricks - bid.numTricksRequired;
@@ -143,10 +154,10 @@ class Contract {
 
   int _slamBonus() {
     if (bid.isGrandSlam) {
-      return vulnerability == Vulnerability.yes ? 1500 : 1000;
+      return isVulnerable ? 1500 : 1000;
     }
     else if (bid.isSlam) {
-      return vulnerability == Vulnerability.yes ? 750 : 500;
+      return isVulnerable ? 750 : 500;
     }
     return 0;
   }
@@ -162,6 +173,8 @@ class BridgePlayer {
   List<PlayingCard> hand;
 
   BridgePlayer(this.hand);
+
+  BridgePlayer copy() => BridgePlayer(List.from(hand));
 }
 
 List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick) {
@@ -179,8 +192,7 @@ class BridgeRound {
   late TrickInProgress currentTrick;
   List<Trick> previousTricks = [];
   late Contract contract;
-  Vulnerability northSouthVulnerable = Vulnerability.no;
-  Vulnerability eastWestVulnerable = Vulnerability.no;
+  Vulnerability vulnerability = Vulnerability.neither;
   // Include "current" match points?
 
   static BridgeRound deal(int dealer, Random rng) {
@@ -198,6 +210,19 @@ class BridgeRound {
         ..dealer = dealer
         ..currentTrick = TrickInProgress(0)  // placeholder
         ;
+  }
+
+  BridgeRound copy() {
+    return BridgeRound()
+      ..status = status
+      ..players = players.map((p) => p.copy()).toList()
+      ..dealer = dealer
+      ..bidHistory = List.from(bidHistory)
+      ..currentTrick = currentTrick.copy()
+      ..previousTricks = Trick.copyAll(previousTricks)
+      ..contract = contract
+      ..vulnerability = vulnerability
+    ;
   }
 
   bool isOver() {
@@ -242,8 +267,7 @@ class BridgeRound {
     if (isPassedOut()) return;
     contract = contractFromBids(
         bids: bidHistory,
-        northSouthVulnerable: northSouthVulnerable,
-        eastWestVulnerable: eastWestVulnerable,
+        vulnerability: vulnerability,
     );
   }
 
@@ -255,6 +279,30 @@ class BridgeRound {
 
   List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick);
+  }
+
+  int numTricksWonByDeclarer() {
+    if (contract == null) {
+      return 0;
+    }
+    int declarer = contract.declarer;
+    int dummy = contract.dummy;
+    return previousTricks.where((t) => t.winner == declarer || t.winner == dummy).length;
+  }
+
+  int contractScoreForDeclarer() {
+    if (!isOver()) {
+      throw Exception("Round is not over");
+    }
+    if (isPassedOut()) {
+      return 0;
+    }
+    return contract.scoreForTricksTaken(numTricksWonByDeclarer());
+  }
+
+  int contractScoreForPlayer(int pnum) {
+    int score = contractScoreForDeclarer();
+    return (pnum == contract.declarer || pnum == contract.dummy) ? score : -score;
   }
 }
 
@@ -281,7 +329,7 @@ bool isBiddingOver(List<PlayerBid> bids) {
   return true;
 }
 
-bool canNextBidderDouble(List<PlayerBid> bids) {
+bool canCurrentBidderDouble(List<PlayerBid> bids) {
   if (bids.isEmpty) {
     return false;
   }
@@ -299,14 +347,14 @@ bool canNextBidderDouble(List<PlayerBid> bids) {
   return false;
 }
 
-bool canNextBidderRedouble(List<PlayerBid> bids) {
+bool canCurrentBidderRedouble(List<PlayerBid> bids) {
   if (bids.isEmpty) {
     return false;
   }
   int previousBidder = bids.last.player;
   bool hasDouble = false;
   // Find last contract bid. Redouble is allowed if there is a double but not
-  // a redouble, and if the bid was made by an opponent.
+  // a redouble, and if the bid was made by the current bidder or partner.
   for (final bid in bids.reversed) {
     if (bid.bidType == BidType.redouble) {
       return false;
@@ -315,7 +363,7 @@ bool canNextBidderRedouble(List<PlayerBid> bids) {
       hasDouble = true;
     }
     if (bid.bidType == BidType.contract) {
-      return hasDouble && (bid.player % 2 == previousBidder % 2);
+      return hasDouble && (bid.player % 2 != previousBidder % 2);
     }
   }
   return false;
@@ -323,8 +371,7 @@ bool canNextBidderRedouble(List<PlayerBid> bids) {
 
 Contract contractFromBids({
   required List<PlayerBid> bids,
-  required Vulnerability northSouthVulnerable,
-  required Vulnerability eastWestVulnerable,
+  required Vulnerability vulnerability,
 }) {
   // Go backwards to find last bid and double/redouble.
   DoubledType doubled = DoubledType.none;
@@ -345,12 +392,11 @@ Contract contractFromBids({
   PlayerBid firstBidOfSuit = bids.firstWhere(
           (b) => b.contractBid != null && b.contractBid!.trump == lastBid.trump);
   int declarer = firstBidOfSuit.player;
-  final vul = (declarer == 0 || declarer == 2) ? northSouthVulnerable : eastWestVulnerable;
   return Contract(
     bid: lastBid,
     doubled: doubled,
     declarer: declarer,
-    vulnerability: vul,
+    isVulnerable: vulnerability.isPlayerVulnerable(declarer),
   );
 }
 

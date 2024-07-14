@@ -43,6 +43,9 @@ class MyApp extends StatelessWidget {
       title: appTitle,
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        // TODO: remove this
+        useMaterial3: false,
+        // colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
       home: const MyHomePage(title: 'Cards With Cats'),
     );

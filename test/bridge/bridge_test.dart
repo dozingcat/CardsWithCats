@@ -1,6 +1,5 @@
 import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
-import "package:cards_with_cats/cards/trick.dart";
 import "package:cards_with_cats/bridge/bridge.dart";
 
 void main() {
@@ -10,7 +9,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(2, Suit.hearts),
-          vulnerability: Vulnerability.no);
+          isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(8), 110);
       expect(contract.scoreForTricksTaken(9), 140);
@@ -26,7 +25,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(4, Suit.clubs),
-          vulnerability: Vulnerability.yes);
+          isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(10), 130);
       expect(contract.scoreForTricksTaken(11), 150);
@@ -42,7 +41,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(1, null),
-          vulnerability: Vulnerability.no);
+          isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(7), 90);
       expect(contract.scoreForTricksTaken(8), 120);
@@ -58,7 +57,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(4, Suit.spades),
-          vulnerability: Vulnerability.yes);
+          isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(10), 620);
       expect(contract.scoreForTricksTaken(11), 650);
@@ -71,7 +70,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(5, Suit.diamonds),
-          vulnerability: Vulnerability.no);
+          isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(11), 400);
       expect(contract.scoreForTricksTaken(12), 420);
@@ -84,7 +83,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(3, null),
-          vulnerability: Vulnerability.yes);
+          isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(9), 600);
       expect(contract.scoreForTricksTaken(10), 630);
@@ -98,7 +97,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(6, Suit.spades),
-          vulnerability: Vulnerability.no);
+          isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(12), 980);
       expect(contract.scoreForTricksTaken(13), 1010);
@@ -111,7 +110,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(7, Suit.diamonds),
-          vulnerability: Vulnerability.yes);
+          isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(13), 2140);
 
@@ -123,7 +122,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(1, Suit.hearts),
-          vulnerability: Vulnerability.no,
+          isVulnerable: false,
           doubled: DoubledType.doubled);
 
       expect(contract.scoreForTricksTaken(7), 160);
@@ -140,7 +139,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(2, Suit.clubs),
-          vulnerability: Vulnerability.yes,
+          isVulnerable: true,
           doubled: DoubledType.doubled);
 
       expect(contract.scoreForTricksTaken(8), 180);
@@ -157,7 +156,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(2, Suit.clubs),
-          vulnerability: Vulnerability.yes,
+          isVulnerable: true,
           doubled: DoubledType.doubled);
 
       expect(contract.scoreForTricksTaken(8), 180);
@@ -174,7 +173,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(2, Suit.spades),
-          vulnerability: Vulnerability.yes,
+          isVulnerable: true,
           doubled: DoubledType.doubled);
 
       expect(contract.scoreForTricksTaken(8), 670);
@@ -191,7 +190,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(6, Suit.clubs),
-          vulnerability: Vulnerability.no,
+          isVulnerable: false,
           doubled: DoubledType.doubled);
 
       expect(contract.scoreForTricksTaken(12), 1090);
@@ -207,7 +206,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(1, Suit.clubs),
-          vulnerability: Vulnerability.no,
+          isVulnerable: false,
           doubled: DoubledType.redoubled);
 
       expect(contract.scoreForTricksTaken(7), 230);
@@ -224,7 +223,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(1, null),
-          vulnerability: Vulnerability.yes,
+          isVulnerable: true,
           doubled: DoubledType.redoubled);
 
       expect(contract.scoreForTricksTaken(7), 760);
@@ -241,7 +240,7 @@ void main() {
       final contract = Contract(
           declarer: 0,
           bid: ContractBid(7, null),
-          vulnerability: Vulnerability.yes,
+          isVulnerable: true,
           doubled: DoubledType.redoubled);
 
       expect(contract.scoreForTricksTaken(13), 2980);
@@ -267,12 +266,11 @@ void main() {
       expect(isBiddingOver(bids), true);
       final contract = contractFromBids(
           bids: bids,
-          northSouthVulnerable: Vulnerability.no,
-          eastWestVulnerable: Vulnerability.yes,
+          vulnerability: Vulnerability.ewOnly,
       );
       expect(contract.declarer, 2);
       expect(contract.bid, ContractBid(1, Suit.hearts));
-      expect(contract.vulnerability, Vulnerability.no);
+      expect(contract.isVulnerable, false);
     });
 
     test("Competitive bids", () {
@@ -291,12 +289,11 @@ void main() {
       expect(isBiddingOver(bids), true);
       final contract = contractFromBids(
         bids: bids,
-        northSouthVulnerable: Vulnerability.no,
-        eastWestVulnerable: Vulnerability.yes,
+        vulnerability: Vulnerability.ewOnly,
       );
       expect(contract.declarer, 1);
       expect(contract.bid, ContractBid(3, Suit.diamonds));
-      expect(contract.vulnerability, Vulnerability.yes);
+      expect(contract.isVulnerable, true);
     });
 
     test("Doubled", () {
@@ -309,23 +306,38 @@ void main() {
         PlayerBid.contract(1, ContractBid(4, Suit.spades)),
         PlayerBid.pass(2),
         PlayerBid.pass(3),
-        PlayerBid.double(0),
-        PlayerBid.pass(1),
-        PlayerBid.pass(2),
       ];
+
+      expect(isBiddingOver(bids), false);
+      expect(canCurrentBidderDouble(bids), true);
+      expect(canCurrentBidderRedouble(bids), false);
+
+      bids.add(PlayerBid.double(0));
+      expect(isBiddingOver(bids), false);
+      expect(canCurrentBidderDouble(bids), false);
+      expect(canCurrentBidderRedouble(bids), true);
+
+      bids.add(PlayerBid.pass(1));
+      expect(isBiddingOver(bids), false);
+      expect(canCurrentBidderDouble(bids), false);
+      expect(canCurrentBidderRedouble(bids), false);
+
+      bids.add(PlayerBid.pass(2));
+      expect(isBiddingOver(bids), false);
+      expect(canCurrentBidderDouble(bids), false);
+      expect(canCurrentBidderRedouble(bids), true);
 
       expect(isBiddingOver(bids), false);
       bids.add(PlayerBid.pass(3));
       expect(isBiddingOver(bids), true);
       final contract = contractFromBids(
         bids: bids,
-        northSouthVulnerable: Vulnerability.no,
-        eastWestVulnerable: Vulnerability.yes,
+        vulnerability: Vulnerability.ewOnly,
       );
       expect(contract.declarer, 3);
       expect(contract.bid, ContractBid(4, Suit.spades));
       expect(contract.doubled, DoubledType.doubled);
-      expect(contract.vulnerability, Vulnerability.yes);
+      expect(contract.isVulnerable, true);
     });
   });
 }
