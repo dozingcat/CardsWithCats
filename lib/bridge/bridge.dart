@@ -43,6 +43,8 @@ class ContractBid {
 
   ContractBid(this.count, this.trump);
 
+  static ContractBid noTrump(int count) => ContractBid(count, null);
+
   @override
   int get hashCode => count << 8 + (trump != null ? trump!.index + 1 : 0);
 
@@ -54,6 +56,20 @@ class ContractBid {
   @override
   String toString() {
     return "${count}${trump != null ? trump!.asciiChar : 'NT'}";
+  }
+
+  static ContractBid fromString(String s) {
+    int count = int.parse(s.substring(0, 1));
+    if (!(count >= 1 && count <= 7)) {
+      throw Exception("Invalid bid amount: $count");
+    }
+    if (s.length == 2) {
+      return ContractBid(count, Suit.fromChar(s[1]));
+    }
+    else if (s.length == 3 && s.substring(1) == "NT") {
+      return noTrump(count);
+    }
+    throw Exception("Invalid bid string");
   }
 
   int get numTricksRequired => count + 6;
@@ -181,7 +197,11 @@ List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTric
   if (currentTrick.cards.isEmpty) {
     return hand;
   }
-  return hand.where((c) => c.suit == currentTrick.cards[0].suit).toList();
+  final matchingSuit = hand.where((c) => c.suit == currentTrick.cards[0].suit).toList();
+  if (matchingSuit.isNotEmpty) {
+    return matchingSuit;
+  }
+  return hand;
 }
 
 class BridgeRound {
@@ -281,6 +301,13 @@ class BridgeRound {
     return legalPlays(currentPlayer().hand, currentTrick);
   }
 
+  Suit? trumpSuit() {
+    if (contract == null) {
+      return null;
+    }
+    return contract.bid.trump;
+  }
+
   int numTricksWonByDeclarer() {
     if (contract == null) {
       return 0;
@@ -375,7 +402,7 @@ Contract contractFromBids({
 }) {
   // Go backwards to find last bid and double/redouble.
   DoubledType doubled = DoubledType.none;
-  late ContractBid lastBid;
+  late PlayerBid lastBid;
   for (PlayerBid bid in bids.reversed) {
     if (doubled == DoubledType.none) {
       doubled = switch (bid.bidType) {
@@ -385,19 +412,25 @@ Contract contractFromBids({
       };
     }
     if (bid.contractBid != null) {
-      lastBid = bid.contractBid!;
+      lastBid = bid;
       break;
     }
   }
-  PlayerBid firstBidOfSuit = bids.firstWhere(
-          (b) => b.contractBid != null && b.contractBid!.trump == lastBid.trump);
-  int declarer = firstBidOfSuit.player;
-  return Contract(
-    bid: lastBid,
-    doubled: doubled,
-    declarer: declarer,
-    isVulnerable: vulnerability.isPlayerVulnerable(declarer),
-  );
+  // Find first player on declaring side to bid the contract suit.
+  int lastBidPartner = (lastBid.player + 2) % 4;
+  for (final b in bids) {
+    if (b.player == lastBid.player || b.player == lastBidPartner) {
+      if (b.contractBid != null && b.contractBid!.trump == lastBid.contractBid!.trump) {
+        return Contract(
+          bid: lastBid.contractBid!,
+          doubled: doubled,
+          declarer: b.player,
+          isVulnerable: vulnerability.isPlayerVulnerable(b.player),
+        );
+      }
+    }
+  }
+  throw AssertionError("Couldn't find declarer bid, this shouldn't happen");
 }
 
 class BridgeMatch {
@@ -407,5 +440,14 @@ class BridgeMatch {
 
   BridgeMatch(this.rng) {
     currentRound = BridgeRound.deal(0, rng);
+  }
+
+  void finishRound() {
+    // TODO
+  }
+
+  bool isMatchOver() {
+    // TODO
+    return currentRound.isOver();
   }
 }

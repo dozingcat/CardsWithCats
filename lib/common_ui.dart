@@ -157,11 +157,11 @@ class AiPlayerImage extends StatelessWidget {
   final int? catImageIndex;
 
   const AiPlayerImage({
-    Key? key,
+    super.key,
     required this.layout,
     required this.playerIndex,
     this.catImageIndex,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -219,12 +219,12 @@ class SpeechBubble extends StatelessWidget {
   static const imagePath = "assets/misc/speech_bubble.png";
 
   const SpeechBubble({
-    Key? key,
+    super.key,
     required this.layout,
     required this.playerIndex,
     required this.message,
     this.widthFraction = 0.2,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -777,4 +777,8 @@ Layout computeLayout(BuildContext context) {
   return Layout()
     ..displaySize = ds
     ..playerHeight = ds.shortestSide * 0.125;
+}
+
+Widget paddingAll(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
 }

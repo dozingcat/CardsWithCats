@@ -2,6 +2,8 @@ import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/bridge/bridge.dart";
 
+const cb = ContractBid.fromString;
+
 void main() {
   group("Contract scoring", () {
     // Complete scoring table: https://web2.acbl.org/documentLibrary/play/InstantScorer.pdf
@@ -338,6 +340,29 @@ void main() {
       expect(contract.bid, ContractBid(4, Suit.spades));
       expect(contract.doubled, DoubledType.doubled);
       expect(contract.isVulnerable, true);
+    });
+
+    test("Contract in opponent's opened suit", () {
+      final bids = [
+        PlayerBid.contract(0, cb("1C")),
+        PlayerBid.double(1),
+        PlayerBid.pass(2),
+        PlayerBid.contract(3, cb("1S")),
+        PlayerBid.pass(0),
+        PlayerBid.contract(1, cb("2C")),
+        PlayerBid.pass(2),
+        PlayerBid.pass(3),
+        PlayerBid.pass(0),
+      ];
+
+      final contract = contractFromBids(
+        bids: bids,
+        vulnerability: Vulnerability.neither,
+      );
+      expect(contract.declarer, 1);
+      expect(contract.bid, cb("2C"));
+      expect(contract.doubled, DoubledType.none);
+      expect(contract.isVulnerable, false);
     });
   });
 }

@@ -49,7 +49,10 @@ class HandEstimate {
 
 class CardToPlayRequest {
   final List<PlayingCard> hand;
-  final List<PlayingCard> dummyHand;
+  // dummyHand is set for all players except the dummy.
+  // declarerHand is set only for the dummy.
+  final List<PlayingCard>? dummyHand;
+  final List<PlayingCard>? declarerHand;
   final List<Trick> previousTricks;
   final TrickInProgress currentTrick;
   final List<PlayerBid> bidHistory;
@@ -58,7 +61,8 @@ class CardToPlayRequest {
 
   CardToPlayRequest({
     required this.hand,
-    required this.dummyHand,
+    this.dummyHand,
+    this.declarerHand,
     required this.previousTricks,
     required this.currentTrick,
     required this.bidHistory,
@@ -71,18 +75,47 @@ class CardToPlayRequest {
     return (currentTrick.leader + currentTrick.cards.length) % 4;
   }
 
+  Suit? trump() => contract.bid.trump;
+
   List<PlayingCard> legalPlays() {
     return bridge.legalPlays(hand, currentTrick);
   }
 
-  static CardToPlayRequest fromRoundWithSharedReferences(final BridgeRound round) => CardToPlayRequest(
-    hand: round.currentPlayer().hand,
-    dummyHand: round.players[round.contract.dummy].hand,
-    previousTricks: round.previousTricks,
-    currentTrick: round.currentTrick,
-    bidHistory: round.bidHistory,
-    vulnerability: round.vulnerability,
-  );
+  static CardToPlayRequest fromRound(final BridgeRound round) {
+    bool isDummy = (round.currentPlayerIndex() == round.contract.dummy);
+    final dummyHand = isDummy ? null : round.players[round.contract.dummy].hand;
+    final declarerHand = isDummy
+        ? round.players[round.contract.declarer].hand
+        : null;
+    return CardToPlayRequest(
+      hand: List.from(round.currentPlayer().hand),
+      dummyHand: dummyHand != null ? List.from(dummyHand) : null,
+      declarerHand: declarerHand != null ? List.from(declarerHand) : null,
+      previousTricks: Trick.copyAll(round.previousTricks),
+      currentTrick: round.currentTrick.copy(),
+      bidHistory: List.from(round.bidHistory),
+      vulnerability: round.vulnerability,
+    );
+  }
+
+  static CardToPlayRequest fromRoundWithSharedReferences(final BridgeRound round) {
+    bool isDummy = (round.currentPlayerIndex() == round.contract.dummy);
+    final dummyHand = isDummy ? null : round.players[round.contract.dummy].hand;
+    final declarerHand = isDummy
+        ? round.players[round.contract.declarer].hand
+        : null;
+    return CardToPlayRequest(
+      hand: round
+          .currentPlayer()
+          .hand,
+      dummyHand: dummyHand,
+      declarerHand: declarerHand,
+      previousTricks: round.previousTricks,
+      currentTrick: round.currentTrick,
+      bidHistory: round.bidHistory,
+      vulnerability: round.vulnerability,
+    );
+  }
 }
 
 typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
@@ -98,6 +131,82 @@ PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   return legalPlays[rng.nextInt(legalPlays.length)];
 }
 
+PlayingCard _lowDiscard(final CardToPlayRequest req, Random rng) {
+  final legalPlays = req.legalPlays();
+  Suit? trump = req.trump();
+  if (trump == null) {
+    return minCardByRank(legalPlays);
+  }
+  final nonTrumps = legalPlays.where((c) => c.suit != trump).toList();
+  if (nonTrumps.isNotEmpty) {
+    return minCardByRank(nonTrumps);
+  }
+  else {
+    return minCardByRank(legalPlays);
+  }
+}
+
+PlayingCard _lowestWinnerOrLowest(final CardToPlayRequest req, PlayingCard highCard, Random rng) {
+  final legalPlays = req.legalPlays();
+  // Play a higher card of the same suit if possible.
+  final sameSuitWinners = legalPlays.where((c) => c.suit == highCard.suit && c.rank.isHigherThan(highCard.rank)).toList();
+  if (sameSuitWinners.isNotEmpty) {
+    return minCardByRank(sameSuitWinners);
+  }
+  // Trump if possible.
+  Suit? trump = req.trump();
+  if (trump != null && highCard.suit != trump) {
+    final trumpCards = legalPlays.where((c) => c.suit == trump).toList();
+    if (trumpCards.isNotEmpty) {
+      return minCardByRank(trumpCards);
+    }
+  }
+  // Can't win.
+  return _lowDiscard(req, rng);
+}
+
+bool _canPlayHigherInTrick(final CardToPlayRequest req) {
+  final tc = req.currentTrick.cards;
+  if (tc.isEmpty) {
+    return true;
+  }
+  final trump = req.contract.bid.trump;
+  final legalPlays = req.legalPlays();
+  final highCard = tc[trickWinnerIndex(tc, trump: trump)];
+  if (legalPlays.any((c) => c.suit == highCard.suit && c.rank.isHigherThan(highCard.rank))) {
+    return true;
+  }
+  if (trump != null && highCard.suit != trump && legalPlays.any((c) => c.suit == trump)) {
+    return true;
+  }
+  return false;
+}
+
+PlayingCard _maximizeTricksCard4(final CardToPlayRequest req, Random rng) {
+  final tc = req.currentTrick.cards;
+  final trump = req.contract.bid.trump;
+  int leader = trickWinnerIndex(tc, trump: trump);
+  if (leader == 1) {
+    // Partner is winning.
+    return _lowDiscard(req, rng);
+  } else {
+    return _lowestWinnerOrLowest(req, tc[leader], rng);
+  }
+}
+
+PlayingCard chooseCardToMaximizeTricks(final CardToPlayRequest req, Random rng) {
+  switch (req.currentTrick.cards.length) {
+    case 3:
+      return _maximizeTricksCard4(req, rng);
+    default:
+      // TODO
+      if (!_canPlayHigherInTrick(req)) {
+        return _lowDiscard(req, rng);
+      }
+      return chooseCardRandom(req, rng);
+  }
+}
+
 CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
   // If this is the first lead, the dummy isn't revealed.
   if (req.previousTricks.isEmpty && req.currentTrick.cards.isEmpty) {
@@ -109,7 +218,6 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
         cardsToAssign: standardDeckCards(),
         constraints: constraints);
   }
-
 
   final seenCards = <PlayingCard>{};
   final voidedSuits = List.generate(numPlayers, (i) => <Suit>{});
@@ -150,7 +258,13 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
         fixedCards: pnum == currentPlayerIndex ? req.hand : [],
       ));
 
-  constraints[req.contract.dummy].fixedCards = req.dummyHand;
+  if (req.dummyHand != null) {
+    constraints[req.contract.dummy].fixedCards = req.dummyHand!;
+  }
+  if (req.declarerHand != null) {
+    constraints[req.contract.declarer].fixedCards = req.declarerHand!;
+  }
+
   final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
   cardsToAssign.removeAll(seenCards);
   return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
@@ -167,8 +281,10 @@ BridgeRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..players = resultPlayers
     ..currentTrick = cardReq.currentTrick.copy()
     ..previousTricks = Trick.copyAll(cardReq.previousTricks)
+    ..bidHistory = cardReq.bidHistory
     ..contract = cardReq.contract
     ..vulnerability = cardReq.vulnerability
+    ..dealer = cardReq.bidHistory[0].player
   ;
 }
 
