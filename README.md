@@ -17,4 +17,7 @@ If you're building on Android, you'll need to specify the "std" [build flavor](h
 - Cats by [AnnaliseArt on Pixabay](https://pixabay.com/illustrations/cats-hanging-cats-kitty-cat-paw-3611310/)
 - Cat emojis from [Noto Emoji by Google](https://github.com/googlefonts/noto-emoji/)
 - Thought bubble by [OpenClipart-Vectors on Pixabay](https://pixabay.com/vectors/balloon-bubble-speech-thought-150981/)
-- [Playing card images](https://code.google.com/archive/p/vector-playing-cards/)
+- Playing cards: \
+https://totalnonsense.com/open-source-vector-playing-cards/ \
+Copyright 2011,2024 – Chris Aguilar – conjurenation@gmail.com \
+Licensed under: LGPL 3.0 – https://www.gnu.org/licenses/lgpl-3.0.html
