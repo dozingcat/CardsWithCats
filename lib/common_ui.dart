@@ -144,6 +144,8 @@ class PositionedCard extends StatelessWidget {
           image: AssetImage(cardImagePath),
         )));
 
+    // The card images don't have an edge border so we draw it manually.
+    // Width of 0 makes the border one physical pixel.
     cardStack.add(Container(
       decoration: BoxDecoration(
         border: Border.all(
