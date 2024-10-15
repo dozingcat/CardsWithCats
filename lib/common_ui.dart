@@ -219,8 +219,6 @@ class AiPlayerImage extends StatelessWidget {
               child: Image.asset(imagePath, fit: BoxFit.contain),
             )),
       ),
-
-      // child: Text("Hello $playerNum"),
     );
   }
 }
@@ -292,11 +290,15 @@ class SpeechBubble extends StatelessWidget {
                     alignment: Alignment.center,
                   )),
             ),
-            Center(
-                child: Column(children: [
-              SizedBox(height: imageHeight * (playerIndex == 2 ? 0.33 : 0.06)),
-              Text(message, style: TextStyle(fontSize: fontSize)),
-            ])),
+            // Center the message in the content part of the bubble, which is
+            // the upper ~73%. Except for player 2 where it's the lower 73%.
+            Positioned(
+                width: imageWidth,
+                height: imageHeight * 0.73,
+                top: (playerIndex == 2) ? 0.27 * imageHeight : 0,
+                child: Center(child:
+                  Text(message, style: TextStyle(fontSize: fontSize, height: 1)))
+            ),
           ],
         ));
   }
