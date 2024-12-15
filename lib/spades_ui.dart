@@ -438,17 +438,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return bubbles;
   }
 
-  List<Widget> moodBubbles(final Layout layout) {
-    final bubbles = <Widget>[];
-    for (int i = 0; i < round.rules.numPlayers; i++) {
-      if (playerMoods.containsKey(i)) {
-        // Animate opacity?
-        bubbles.add(MoodBubble(layout: layout, playerIndex: i, mood: playerMoods[i]!));
-      }
-    }
-    return bubbles;
-  }
-
   void _showMainMenuAfterMatch() {
     widget.saveMatchFn(null);
     widget.mainMenuFn();

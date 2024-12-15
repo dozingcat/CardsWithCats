@@ -58,6 +58,10 @@ class ContractBid {
     return "${count}${trump != null ? trump!.asciiChar : 'NT'}";
   }
 
+  String symbolString() {
+    return "${count}${trump != null ? trump!.symbolChar : 'NT'}";
+  }
+
   static ContractBid fromString(String s) {
     int count = int.parse(s.substring(0, 1));
     if (!(count >= 1 && count <= 7)) {
@@ -93,6 +97,15 @@ class PlayerBid {
       BidType.contract => contractBid.toString(),
     };
     return "Player ${player}: ${desc}";
+  }
+
+  String symbolString() {
+    return switch (bidType) {
+      BidType.pass => "-",
+      BidType.double => "X",
+      BidType.redouble => "XX",
+      BidType.contract => contractBid!.symbolString(),
+    };
   }
 
   static PlayerBid pass(int player) => PlayerBid._(player, BidType.pass, null);

@@ -18,6 +18,8 @@ enum AiMode {
   humanPlayer0,
 }
 
+const cardAspectRatio = 521.0 / 726;
+
 class Layout {
   late Size displaySize;
   late double playerHeight;
@@ -79,6 +81,20 @@ class Layout {
   }
 }
 
+Rect centeredSubrectWithAspectRatio(Rect parentRect, double aspectRatio) {
+  final parentAspect = parentRect.width / parentRect.height;
+  if (parentAspect > aspectRatio) {
+    // Parent is wider, move in from left and right.
+    final subrectWidth = parentRect.height * aspectRatio;
+    return Rect.fromCenter(center: parentRect.center, width: subrectWidth, height: parentRect.height);
+  }
+  else {
+    // Parent is taller, move in from top and bottom.
+    final subrectHeight = parentRect.width / aspectRatio;
+    return Rect.fromCenter(center: parentRect.center, width: parentRect.width, height: subrectHeight);
+  }
+}
+
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
@@ -102,6 +118,7 @@ class PositionedCard extends StatelessWidget {
         "assets/cards/solid/${card.toString()}.webp";
     const backgroundImagePath = "assets/cards/black.webp";
     const trumpOverlayImagePath = "assets/cards/gold.webp";
+    final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
 
     final cardStack = <Widget>[];
     if (opacity < 1) {
@@ -141,8 +158,20 @@ class PositionedCard extends StatelessWidget {
           image: AssetImage(cardImagePath),
         )));
 
+    // The card images don't have an edge border so we draw it manually.
+    // Width of 0 makes the border one physical pixel.
+    cardStack.add(Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: const Color.fromRGBO(64, 64, 64, 1),
+          width: 0,
+        ),
+        borderRadius: BorderRadius.circular(cardRect.width * 0.05),
+      ),
+    ));
+
     return Positioned.fromRect(
-        rect: rect,
+        rect: cardRect,
         child: GestureDetector(
             onTapDown: (tap) => onCardClicked(card),
             child: Stack(children: cardStack)));
@@ -204,8 +233,6 @@ class AiPlayerImage extends StatelessWidget {
               child: Image.asset(imagePath, fit: BoxFit.contain),
             )),
       ),
-
-      // child: Text("Hello $playerNum"),
     );
   }
 }
@@ -277,11 +304,15 @@ class SpeechBubble extends StatelessWidget {
                     alignment: Alignment.center,
                   )),
             ),
-            Center(
-                child: Column(children: [
-              SizedBox(height: imageHeight * (playerIndex == 2 ? 0.33 : 0.06)),
-              Text(message, style: TextStyle(fontSize: fontSize)),
-            ])),
+            // Center the message in the content part of the bubble, which is
+            // the upper ~73%. Except for player 2 where it's the lower 73%.
+            Positioned(
+                width: imageWidth,
+                height: imageHeight * 0.73,
+                top: (playerIndex == 2) ? 0.27 * imageHeight : 0,
+                child: Center(child:
+                  Text(message, style: TextStyle(fontSize: fontSize, height: 1)))
+            ),
           ],
         ));
   }
@@ -576,7 +607,13 @@ class TrickCards extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         onEnd: onTrickCardAnimationFinished,
         builder: (BuildContext context, double frac, Widget? child) {
-          final animRect = Rect.lerp(startRect, endRect, frac)!;
+          Rect animRect = Rect.lerp(startRect, endRect, frac)!;
+          // Starting size for human player is determined by where the card was shown before.
+          // For AI players make the card grow as it comes from their card origin.
+          if (animPlayer != 0) {
+            final scale = 0.25 + (0.75 * frac);
+            animRect = Rect.fromCenter(center: animRect.center, width: startRect.width * scale, height: startRect.height * scale);
+          }
           return PositionedCard(
               rect: animRect,
               card: cards.last,
@@ -603,8 +640,9 @@ class TrickCards extends StatelessWidget {
             int p = (trick.leader + i) % trick.cards.length;
             final startRect = layout.trickCardAreaForPlayer(p);
             final center = startRect.center + (endRect.center - startRect.center) * max(0, t);
+            final scale = (t < 0) ? 1 : 1 - 0.75 * t;
             Rect animRect =
-                Rect.fromCenter(center: center, width: endRect.width, height: endRect.height);
+                Rect.fromCenter(center: center, width: endRect.width * scale, height: endRect.height * scale);
             cardWidgets.add(
                 PositionedCard(
                     rect: animRect,
@@ -709,7 +747,6 @@ class PlayerHandCards extends StatelessWidget {
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     Layout layout, List<PlayingCard> cards, List<Suit> suitOrder) {
   final rects = LinkedHashMap<PlayingCard, Rect>();
-  const cardAspectRatio = 500.0 / 726;
   const cardHeightFrac = 0.2;
   const cardOverlapFraction = 1.0 / 3;
   const upperRowHeightFracStart = 0.69;

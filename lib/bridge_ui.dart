@@ -391,13 +391,20 @@ class _BidDialogState extends State<BidDialog> {
     }
 
     final bidHistory = widget.round.bidHistory;
+    final dealer = widget.round.dealer;
 
     final numHumanBids = bidHistory.where((pb) => pb.player == 0).length;
     final numBidRows = numHumanBids + (bidHistory.isNotEmpty && bidHistory[0].player != 0 ? 1 : 0);
 
     Widget bidCell({required int rowIndex, required int playerIndex}) {
-
+      int bidIndex = 4 * rowIndex + playerIndex - dealer;
+      if (bidIndex < 0 || bidIndex >= bidHistory.length) {
+        return const SizedBox();
+      }
+      return Text(bidHistory[bidIndex].symbolString());
     }
+
+    final numberOfBidRows = (dealer + bidHistory.length / 4).ceil();
 
     return Center(
       child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
@@ -413,7 +420,12 @@ class _BidDialogState extends State<BidDialog> {
                 paddingAll(cellPad, catImageCell(widget.catImageIndices[2])),
                 paddingAll(cellPad, catImageCell(widget.catImageIndices[3])),
               ]),
-
+              ...[for(var row = 0; row < numberOfBidRows; row += 1) TableRow(children: [
+                bidCell(rowIndex: row, playerIndex: 0),
+                bidCell(rowIndex: row, playerIndex: 1),
+                bidCell(rowIndex: row, playerIndex: 2),
+                bidCell(rowIndex: row, playerIndex: 3),
+              ])]
             ]
           ))
         ])
