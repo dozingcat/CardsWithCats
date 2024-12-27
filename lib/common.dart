@@ -1,7 +1,9 @@
 enum GameType {
   hearts,
   spades,
-  ohHell;
+  ohHell,
+  bridge,
+  ;
 
   static GameType? fromString(String s) {
     for (final e in values) {

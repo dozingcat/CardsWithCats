@@ -39,7 +39,7 @@ class BridgeMatchDisplay extends StatefulWidget {
   final StatsStore statsStore;
 
   const BridgeMatchDisplay({
-    Key? key,
+    super.key,
     required this.initialMatchFn,
     required this.createMatchFn,
     required this.saveMatchFn,
@@ -50,7 +50,7 @@ class BridgeMatchDisplay extends StatefulWidget {
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
-  }) : super(key: key);
+  });
 
   @override
   BridgeMatchState createState() => BridgeMatchState();
@@ -393,9 +393,6 @@ class _BidDialogState extends State<BidDialog> {
     final bidHistory = widget.round.bidHistory;
     final dealer = widget.round.dealer;
 
-    final numHumanBids = bidHistory.where((pb) => pb.player == 0).length;
-    final numBidRows = numHumanBids + (bidHistory.isNotEmpty && bidHistory[0].player != 0 ? 1 : 0);
-
     Widget bidCell({required int rowIndex, required int playerIndex}) {
       int bidIndex = 4 * rowIndex + playerIndex - dealer;
       if (bidIndex < 0 || bidIndex >= bidHistory.length) {
@@ -404,7 +401,7 @@ class _BidDialogState extends State<BidDialog> {
       return Text(bidHistory[bidIndex].symbolString());
     }
 
-    final numberOfBidRows = (dealer + bidHistory.length / 4).ceil();
+    final numberOfBidRows = ((dealer + bidHistory.length + 1) / 4).ceil();
 
     return Center(
       child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(

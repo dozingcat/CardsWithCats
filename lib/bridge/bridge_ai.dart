@@ -82,10 +82,14 @@ class CardToPlayRequest {
   }
 
   static CardToPlayRequest fromRound(final BridgeRound round) {
-    bool isDummy = (round.currentPlayerIndex() == round.contract.dummy);
-    final dummyHand = isDummy ? null : round.players[round.contract.dummy].hand;
+    final contract = round.contract;
+    if (contract == null) {
+      throw Exception("Contract is null");
+    }
+    bool isDummy = (round.currentPlayerIndex() == contract.dummy);
+    final dummyHand = isDummy ? null : round.players[contract.dummy].hand;
     final declarerHand = isDummy
-        ? round.players[round.contract.declarer].hand
+        ? round.players[contract.declarer].hand
         : null;
     return CardToPlayRequest(
       hand: List.from(round.currentPlayer().hand),
@@ -99,10 +103,14 @@ class CardToPlayRequest {
   }
 
   static CardToPlayRequest fromRoundWithSharedReferences(final BridgeRound round) {
-    bool isDummy = (round.currentPlayerIndex() == round.contract.dummy);
-    final dummyHand = isDummy ? null : round.players[round.contract.dummy].hand;
+    final contract = round.contract;
+    if (contract == null) {
+      throw Exception("Contract is null");
+    }
+    bool isDummy = (round.currentPlayerIndex() == contract.dummy);
+    final dummyHand = isDummy ? null : round.players[contract.dummy].hand;
     final declarerHand = isDummy
-        ? round.players[round.contract.declarer].hand
+        ? round.players[contract.declarer].hand
         : null;
     return CardToPlayRequest(
       hand: round

@@ -88,6 +88,25 @@ class PlayerBid {
 
   PlayerBid._(this.player, this.bidType, this.contractBid);
 
+  Map<String, dynamic> toJson() {
+    return {
+      "player": player,
+      "bidType": bidType.name,
+      "contractBid": contractBid?.toString(),
+    };
+  }
+
+  static PlayerBid fromJson(Map<String, dynamic> json) {
+    int pnum = json["player"];
+    BidType type = BidType.values.firstWhere((t) => t.name == json["bidType"]);
+    return switch (type) {
+      BidType.pass => pass(pnum),
+      BidType.double => double(pnum),
+      BidType.redouble => redouble(pnum),
+      BidType.contract => contract(pnum, ContractBid.fromString(json["contractBid"])),
+    };
+  }
+
   @override
   String toString() {
     String desc = switch (bidType) {
@@ -126,6 +145,24 @@ class Contract {
     required this.declarer,
     this.doubled = DoubledType.none,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "bid": bid.toString(),
+      "doubled": doubled.name,
+      "declarer": declarer,
+      "isVulnerable": isVulnerable,
+    };
+  }
+
+  static Contract fromJson(Map<String, dynamic> json) {
+    return Contract(
+      bid: json["bid"],
+      doubled: DoubledType.values.firstWhere((t) => t.name == json["doubled"]),
+      declarer: json["declarer"],
+      isVulnerable: json["isVulnerable"],
+    );
+  }
 
   int get dummy => (declarer + 2) % 4;
 
@@ -204,6 +241,16 @@ class BridgePlayer {
   BridgePlayer(this.hand);
 
   BridgePlayer copy() => BridgePlayer(List.from(hand));
+
+  Map<String, dynamic> toJson() {
+    return {
+      "hand": PlayingCard.stringFromCards(hand),
+    };
+  }
+
+  static BridgePlayer fromJson(Map<String, dynamic> json) {
+    return BridgePlayer(PlayingCard.cardsFromString(json["hand"] as String));
+  }
 }
 
 List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick) {
@@ -224,7 +271,7 @@ class BridgeRound {
   List<PlayerBid> bidHistory = [];
   late TrickInProgress currentTrick;
   List<Trick> previousTricks = [];
-  late Contract contract;
+  Contract? contract;
   Vulnerability vulnerability = Vulnerability.neither;
   // Include "current" match points?
 
@@ -255,6 +302,32 @@ class BridgeRound {
       ..previousTricks = Trick.copyAll(previousTricks)
       ..contract = contract
       ..vulnerability = vulnerability
+    ;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "status": status.name,
+      "players": [...players.map((p) => p.toJson())],
+      "dealer": dealer,
+      "bidHistory": [...bidHistory.map((b) => b.toJson())],
+      "currentTrick": currentTrick.toJson(),
+      "previousTricks": [...previousTricks.map((t) => t.toJson())],
+      "contract": contract?.toJson(),
+    };
+  }
+
+  static BridgeRound fromJson(final Map<String, dynamic> json) {
+    return BridgeRound()
+      ..status = BridgeRoundStatus.values.firstWhere((s) => s.name == json["status"])
+      ..players = [...json["players"].map((p) => BridgePlayer.fromJson(p as Map<String, dynamic>))]
+      ..dealer = json["dealer"] as int
+      ..bidHistory = [...json["bidHistory"].map((b) => PlayerBid.fromJson(b as Map<String, dynamic>))]
+      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+      ..previousTricks = [
+        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))
+      ]
+      ..contract = (json["contract"] != null) ? Contract.fromJson(json["contract"]) : null
     ;
   }
 
@@ -289,7 +362,7 @@ class BridgeRound {
     p.hand.removeAt(cardIndex);
     currentTrick.cards.add(card);
     if (currentTrick.cards.length == numPlayers) {
-      final lastTrick = currentTrick.finish(trump: contract.bid.trump);
+      final lastTrick = currentTrick.finish(trump: contract!.bid.trump);
       previousTricks.add(lastTrick);
       currentTrick = TrickInProgress(lastTrick.winner);
     }
@@ -318,15 +391,15 @@ class BridgeRound {
     if (contract == null) {
       return null;
     }
-    return contract.bid.trump;
+    return contract!.bid.trump;
   }
 
   int numTricksWonByDeclarer() {
     if (contract == null) {
       return 0;
     }
-    int declarer = contract.declarer;
-    int dummy = contract.dummy;
+    int declarer = contract!.declarer;
+    int dummy = contract!.dummy;
     return previousTricks.where((t) => t.winner == declarer || t.winner == dummy).length;
   }
 
@@ -337,12 +410,12 @@ class BridgeRound {
     if (isPassedOut()) {
       return 0;
     }
-    return contract.scoreForTricksTaken(numTricksWonByDeclarer());
+    return contract!.scoreForTricksTaken(numTricksWonByDeclarer());
   }
 
   int contractScoreForPlayer(int pnum) {
     int score = contractScoreForDeclarer();
-    return (pnum == contract.declarer || pnum == contract.dummy) ? score : -score;
+    return (pnum == contract!.declarer || pnum == contract!.dummy) ? score : -score;
   }
 }
 
@@ -453,6 +526,21 @@ class BridgeMatch {
 
   BridgeMatch(this.rng) {
     currentRound = BridgeRound.deal(0, rng);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "previousRounds": [...previousRounds.map((r) => r.toJson())],
+      "currentRound": currentRound.toJson(),
+    };
+  }
+
+  static BridgeMatch fromJson(final Map<String, dynamic> json, Random rng) {
+    return BridgeMatch(rng)
+      ..previousRounds = [
+        ...json["previousRounds"].map((r) => BridgeRound.fromJson(r as Map<String, dynamic>))
+      ]
+      ..currentRound = BridgeRound.fromJson(json["currentRound"] as Map<String, dynamic>);
   }
 
   void finishRound() {

@@ -14,6 +14,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'bridge/bridge.dart';
+import 'bridge_ui.dart';
 import 'common.dart';
 import 'hearts/hearts.dart';
 import 'ohhell/ohhell.dart';
@@ -225,6 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("heartsMatch");
     preferences.remove("spadesMatch");
     preferences.remove("ohHellMatch");
+    preferences.remove("bridgeMatch");
 
     preferences.remove("matchType");
     matchType = null;
@@ -253,6 +256,15 @@ class _MyHomePageState extends State<MyHomePage> {
     if (match != null) {
       preferences.setString("matchType", "ohHell");
       preferences.setString("ohHellMatch", jsonEncode(match.toJson()));
+    } else {
+      _clearMatch();
+    }
+  }
+
+  void _saveBridgeMatch(final BridgeMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "bridge");
+      preferences.setString("bridgeMatch", jsonEncode(match.toJson()));
     } else {
       _clearMatch();
     }
@@ -288,6 +300,16 @@ class _MyHomePageState extends State<MyHomePage> {
     return _createOhHellMatch();
   }
 
+  BridgeMatch _initialBridgeMatch() {
+    if (preferences.getString("matchType") == "bridge") {
+      String? json = preferences.getString("bridgeMatch");
+      if (json != null) {
+        return BridgeMatch.fromJson(jsonDecode(json), rng);
+      }
+    }
+    return _createBridgeMatch();
+  }
+
   HeartsMatch _createHeartsMatch() {
     catIndices = randomizedCatImageIndices(rng);
     return HeartsMatch(heartsRulesFromPrefs, rng);
@@ -303,6 +325,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return OhHellMatch(ohHellRulesFromPrefs, Random());
   }
 
+  BridgeMatch _createBridgeMatch() {
+    catIndices = randomizedCatImageIndices(rng);
+    return BridgeMatch(Random());
+  }
+
   void _continueGame() {
     setState(() {
       dialogMode = DialogMode.none;
@@ -310,16 +337,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool isMatchInProgress() {
-    if (matchType == GameType.hearts) {
-      return preferences.getString("heartsMatch") != null;
-    }
-    if (matchType == GameType.spades) {
-      return preferences.getString("spadesMatch") != null;
-    }
-    if (matchType == GameType.ohHell) {
-      return preferences.getString("ohHellMatch") != null;
-    }
-    return false;
+    return switch (matchType) {
+      GameType.hearts => preferences.getString("heartsMatch") != null,
+      GameType.spades => preferences.getString("spadesMatch") != null,
+      GameType.ohHell => preferences.getString("ohHellMatch") != null,
+      GameType.bridge => preferences.getString("bridgeMatch") != null,
+      null => false,
+    };
   }
 
   void startNewHeartsMatch() {
@@ -352,6 +376,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.ohHell;
+    });
+  }
+
+  void startNewBridgeMatch() {
+    preferences.remove("bridgeMatch");
+    final newMatch = _createBridgeMatch();
+    _saveBridgeMatch(newMatch);
+    matchUpdateNotifier.sink.add(newMatch);
+    setState(() {
+      dialogMode = DialogMode.none;
+      matchType = GameType.bridge;
     });
   }
 
@@ -405,6 +440,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void handleNewBridgeMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewBridgeMatch);
+    } else {
+      startNewBridgeMatch();
+    }
+  }
+
   void handleNewMatchClicked() {
     setState(() {dialogMode = DialogMode.startMatch;});
   }
@@ -419,6 +462,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case GameType.ohHell:
         handleNewOhHellMatchClicked();
+        break;
+      case GameType.bridge:
+        handleNewBridgeMatchClicked();
         break;
     }
   }
@@ -436,21 +482,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _showAboutDialog(BuildContext context) async {
     final aboutText = await DefaultAssetBundle.of(context).loadString('assets/doc/about.md');
-    showAboutDialog(
-      context: context,
-      applicationName: appTitle,
-      applicationVersion: appVersion,
-      applicationLegalese: appLegalese,
-      children: [
-        Container(height: 15),
-        MarkdownBody(
-          data: aboutText,
-          onTapLink: (text, href, title) => launchUrl(Uri.parse(href!)),
-          // https://pub.dev/documentation/flutter_markdown/latest/flutter_markdown/MarkdownListItemCrossAxisAlignment.html
-          listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
-        ),
-      ],
-    );
+    if (context.mounted) {
+      showAboutDialog(
+        context: context,
+        applicationName: appTitle,
+        applicationVersion: appVersion,
+        applicationLegalese: appLegalese,
+        children: [
+          Container(height: 15),
+          MarkdownBody(
+            data: aboutText,
+            onTapLink: (text, href, title) => launchUrl(Uri.parse(href!)),
+            // https://pub.dev/documentation/flutter_markdown/latest/flutter_markdown/MarkdownListItemCrossAxisAlignment.html
+            listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
+          ),
+        ],
+      );
+    }
   }
 
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
@@ -725,6 +773,19 @@ class _MyHomePageState extends State<MyHomePage> {
             initialMatchFn: _initialOhHellMatch,
             createMatchFn: _createOhHellMatch,
             saveMatchFn: _saveOhHellMatch,
+            mainMenuFn: _showMainMenu,
+            matchUpdateStream: matchUpdateNotifier.stream,
+            dialogVisible: dialogMode != DialogMode.none,
+            catImageIndices: catIndices,
+            tintTrumpCards: useTintedTrumpCards,
+            soundPlayer: soundPlayer,
+            statsStore: statsStore,
+          ),
+        if (matchType == GameType.bridge)
+          BridgeMatchDisplay(
+            initialMatchFn: _initialBridgeMatch,
+            createMatchFn: _createBridgeMatch,
+            saveMatchFn: _saveBridgeMatch,
             mainMenuFn: _showMainMenu,
             matchUpdateStream: matchUpdateNotifier.stream,
             dialogVisible: dialogMode != DialogMode.none,
