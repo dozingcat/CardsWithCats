@@ -820,3 +820,7 @@ Layout computeLayout(BuildContext context) {
 Widget paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
 }
+
+Widget paddingHorizontal(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.only(left: paddingPx, right: paddingPx), child: child);
+}

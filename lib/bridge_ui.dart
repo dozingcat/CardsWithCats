@@ -136,6 +136,12 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     });
   }
 
+  void makeBidForHuman(PlayerBid bid) {
+    setState(() {
+      _addBid(bid);
+    });
+  }
+
   bool _isWaitingForHumanBid() {
     return (round.status == BridgeRoundStatus.bidding &&
         aiMode == AiMode.humanPlayer0 &&
@@ -338,6 +344,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     );
   }
 
+  bool _shouldShowBidDialog() {
+    return round.status == BridgeRoundStatus.bidding;
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -346,6 +356,13 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         children: [
           _handCards(layout, round.players[0].hand),
           _trickCards(layout),
+          if (_shouldShowBidDialog())
+            BidDialog(
+                layout: layout,
+                round: round,
+                onBid: makeBidForHuman,
+                catImageIndices: widget.catImageIndices,
+            )
         ],
     );
   }
@@ -356,12 +373,14 @@ const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 class BidDialog extends StatefulWidget {
   final Layout layout;
   final BridgeRound round;
+  final void Function(PlayerBid) onBid;
   final List<int> catImageIndices;
 
   const BidDialog({
     super.key,
     required this.layout,
     required this.round,
+    required this.onBid,
     required this.catImageIndices,
   });
 
@@ -370,11 +389,14 @@ class BidDialog extends StatefulWidget {
 }
 
 class _BidDialogState extends State<BidDialog> {
+  ContractBid contractBid = ContractBid(1, Suit.clubs);
 
   @override
   Widget build(BuildContext context) {
+    const adjustBidTextStyle = TextStyle(fontSize: 18);
     const headerFontSize = 14.0;
     const cellPad = 4.0;
+    const rowPadding = 15.0;
 
     Widget headerCell(String msg) => paddingAll(
         cellPad,
@@ -384,10 +406,8 @@ class _BidDialogState extends State<BidDialog> {
 
     Widget catImageCell(int imageIndex) {
       const imageHeight = headerFontSize * 1.3;
-      const leftPadding = headerFontSize * 1.1;
-      return Padding(
-          padding: const EdgeInsets.only(left: leftPadding),
-          child: Image.asset(catImageForIndex(imageIndex), height: imageHeight));
+      const padding = headerFontSize * 0.85;
+      return paddingHorizontal(padding, Image.asset(catImageForIndex(imageIndex), height: imageHeight));
     }
 
     final bidHistory = widget.round.bidHistory;
@@ -398,10 +418,92 @@ class _BidDialogState extends State<BidDialog> {
       if (bidIndex < 0 || bidIndex >= bidHistory.length) {
         return const SizedBox();
       }
-      return Text(bidHistory[bidIndex].symbolString());
+      return Text(bidHistory[bidIndex].symbolString(), textAlign: TextAlign.center);
     }
 
     final numberOfBidRows = ((dealer + bidHistory.length + 1) / 4).ceil();
+
+    bool canDecrementBid() {
+      return contractBid.count > 1;
+    }
+
+    bool canIncrementBid() {
+      return contractBid.count < 7;
+    }
+
+    void decrementBid() {
+      if (contractBid.count <= 1) {
+        return;
+      }
+      setState(() {
+        contractBid = ContractBid(contractBid.count - 1, contractBid.trump);
+      });
+    }
+
+    void incrementBid() {
+      if (contractBid.count >= 7) {
+        return;
+      }
+      setState(() {
+        contractBid = ContractBid(contractBid.count + 1, contractBid.trump);
+      });
+    }
+
+    bool isHumanBidding = widget.round.currentBidder() == 0;
+
+    bool canBid() {
+      if (!isHumanBidding) {
+        return false;
+      }
+      final lastBid = lastContractBid(widget.round.bidHistory);
+      if (lastBid == null) {
+        return true;
+      }
+      return contractBid.isHigherThan(lastBid.contractBid!);
+    }
+
+    void doBid() {
+      final bid = PlayerBid.contract(0, contractBid);
+      setState(() {
+        widget.onBid(bid);
+      });
+    }
+
+    bool canPass() {
+      return isHumanBidding;
+    }
+
+    void doPass() {
+      setState(() {
+        widget.onBid(PlayerBid.pass(0));
+      });
+    }
+
+    bool canDouble() {
+      if (!isHumanBidding) {
+        return false;
+      }
+      return canCurrentBidderDouble(widget.round.bidHistory);
+    }
+
+    void doDouble() {
+      setState(() {
+        widget.onBid(PlayerBid.double(0));
+      });
+    }
+
+    bool canRedouble() {
+      if (!isHumanBidding) {
+        return false;
+      }
+      return canCurrentBidderRedouble(widget.round.bidHistory);
+    }
+
+    void doRedouble() {
+      setState(() {
+        widget.onBid(PlayerBid.redouble(0));
+      });
+    }
 
     return Center(
       child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
@@ -412,10 +514,10 @@ class _BidDialogState extends State<BidDialog> {
             defaultColumnWidth: const IntrinsicColumnWidth(),
             children: [
               TableRow(children: [
-                paddingAll(cellPad, headerCell("You")),
-                paddingAll(cellPad, catImageCell(widget.catImageIndices[1])),
-                paddingAll(cellPad, catImageCell(widget.catImageIndices[2])),
-                paddingAll(cellPad, catImageCell(widget.catImageIndices[3])),
+                paddingHorizontal(cellPad, headerCell("You")),
+                catImageCell(widget.catImageIndices[1]),
+                catImageCell(widget.catImageIndices[2]),
+                catImageCell(widget.catImageIndices[3]),
               ]),
               ...[for(var row = 0; row < numberOfBidRows; row += 1) TableRow(children: [
                 bidCell(rowIndex: row, playerIndex: 0),
@@ -423,8 +525,64 @@ class _BidDialogState extends State<BidDialog> {
                 bidCell(rowIndex: row, playerIndex: 2),
                 bidCell(rowIndex: row, playerIndex: 3),
               ])]
+            ],
+          )),
+          Row(
+            spacing: 12,
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: canDecrementBid() ? decrementBid : null,
+                child: const Text("–", style: adjustBidTextStyle),
+              ),
+              Text(contractBid.count.toString(), style: adjustBidTextStyle),
+              ElevatedButton(
+                onPressed: canIncrementBid() ? incrementBid : null,
+                child: const Text("+", style: adjustBidTextStyle),
+              ),
             ]
-          ))
+          ),
+          paddingAll(rowPadding, SegmentedButton<Suit?>(
+            segments: const [
+              ButtonSegment(value: Suit.clubs, label: Text("♣")),
+              ButtonSegment(value: Suit.diamonds, label: Text("♦")),
+              ButtonSegment(value: Suit.hearts, label: Text("♥")),
+              ButtonSegment(value: Suit.spades, label: Text("♠")),
+              ButtonSegment(value: null, label: Text("NT")),
+            ],
+            showSelectedIcon: false,
+            selected: {contractBid.trump},
+            onSelectionChanged: (Set<Suit?> selectedSuits) {
+              setState(() {
+                contractBid = ContractBid(contractBid.count, selectedSuits.first);
+              });
+            },
+          )),
+          Row(
+              spacing: 8,
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: canBid() ? doBid : null,
+                  child: Text("Bid ${contractBid.symbolString()}"),
+                ),
+                ElevatedButton(
+                  onPressed: canPass() ? doPass : null,
+                  child: const Text("Pass"),
+                ),
+                if (!canRedouble()) ElevatedButton(
+                    onPressed: canDouble() ? doDouble : null,
+                    child: const Text("Double"),
+                ),
+                if (canRedouble()) ElevatedButton(
+                  onPressed: doRedouble,
+                  child: const Text("Redouble"),
+                ),
+              ],
+          ),
+          const SizedBox(height: 12),
         ])
       ))
     );

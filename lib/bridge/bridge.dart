@@ -37,6 +37,16 @@ bool isMajorSuit(Suit? s) => s == Suit.hearts || s == Suit.spades;
 
 int dummyIndexForDeclarer(int d) => (d + 2) % 4;
 
+int _rankIndexForSuit(Suit? suit) {
+  return switch (suit) {
+    Suit.clubs => 0,
+    Suit.diamonds => 1,
+    Suit.hearts => 2,
+    Suit.spades => 3,
+    null => 4,
+  };
+}
+
 class ContractBid {
   final int count;
   final Suit? trump;  // null=notrump
@@ -60,6 +70,10 @@ class ContractBid {
 
   String symbolString() {
     return "${count}${trump != null ? trump!.symbolChar : 'NT'}";
+  }
+
+  bool isHigherThan(ContractBid other) {
+    return (count > other.count || (count == other.count && _rankIndexForSuit(trump) > _rankIndexForSuit(other.trump)));
   }
 
   static ContractBid fromString(String s) {
@@ -525,7 +539,7 @@ class BridgeMatch {
   late BridgeRound currentRound;
 
   BridgeMatch(this.rng) {
-    currentRound = BridgeRound.deal(0, rng);
+    currentRound = BridgeRound.deal(2, rng);
   }
 
   Map<String, dynamic> toJson() {

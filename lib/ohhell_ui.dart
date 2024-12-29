@@ -609,8 +609,7 @@ class PostBidDialog extends StatelessWidget {
   final Function() onConfirm;
 
   const PostBidDialog(
-      {Key? key, required this.layout, required this.round, required this.onConfirm})
-      : super(key: key);
+      {super.key, required this.layout, required this.round, required this.onConfirm});
 
   String bidMessage() {
     final playerBid = round.players[0].bid!;
