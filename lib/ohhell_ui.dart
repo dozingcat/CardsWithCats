@@ -358,7 +358,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   }
 
   Widget _trickCards(final Layout layout) {
-    final humanHand = aiMode == AiMode.humanPlayer0 ? round.players[0].hand : null;
     return TrickCards(
       layout: layout,
       currentTrick: round.currentTrick,
@@ -366,8 +365,8 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
-      humanPlayerHand: humanHand,
-      humanPlayerSuitOrder: _suitDisplayOrder(),
+      displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
+      suitOrder: _suitDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );

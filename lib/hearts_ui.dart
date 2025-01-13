@@ -319,15 +319,14 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   Widget _trickCards(final Layout layout) {
-    final humanHand = aiMode == AiMode.humanPlayer0 ? round.players[0].hand : null;
     return TrickCards(
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
-      humanPlayerHand: humanHand,
-      humanPlayerSuitOrder: suitDisplayOrder,
+      displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
+      suitOrder: suitDisplayOrder,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );

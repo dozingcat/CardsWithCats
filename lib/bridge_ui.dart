@@ -155,7 +155,11 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _handleBiddingDone() {
     if (hasHumanPlayer()) {
       setState(() {
-        showPostBidDialog = true;
+        // showPostBidDialog = true;
+        // TODO: Remove when post-bid dialog exists.
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          _scheduleNextActionIfNeeded();
+        });
       });
     } else {
       Future.delayed(const Duration(milliseconds: 1000), () {
@@ -175,7 +179,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _scheduleNextAiPlayIfNeeded() {
     if (round.isOver()) {
       // printd("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
-    } else if (round.currentPlayerIndex() != 0 && round.status == BridgeRoundStatus.playing) {
+    } else if (round.status == BridgeRoundStatus.playing && !_isCurrentPlayerControlledByHuman()) {
       _computeAiPlay(minDelayMillis: 750);
     }
   }
@@ -266,10 +270,19 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     _scheduleNextActionIfNeeded();
   }
 
+  bool _isPlayerControlledByHuman(int pnum) {
+    int? declarer = round.contract?.declarer;
+    return (pnum == 0 || (pnum == 2 && (declarer == 0 || declarer == 2)));
+  }
+
+  bool _isCurrentPlayerControlledByHuman() {
+    return _isPlayerControlledByHuman(round.currentPlayerIndex());
+  }
+
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
-    if (round.status == BridgeRoundStatus.playing && round.currentPlayerIndex() == 0) {
+    if (round.status == BridgeRoundStatus.playing && _isCurrentPlayerControlledByHuman()) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
@@ -277,38 +290,44 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     }
   }
 
-  void handleDummyCardClicked(final PlayingCard card) {
-    // TODO
-  }
-
   // Duplicated from hearts_ui, might be worth a common function.
-  PlayingCard? _lastCardPlayedByHuman() {
+  PlayingCard? _lastCardPlayedByPlayer(int pnum) {
     final ct = round.currentTrick;
-    if (ct.cards.isNotEmpty && ct.leader == 0) {
-      return ct.cards[0];
-    }
-    else if (ct.cards.length + ct.leader > 4) {
-      return ct.cards[4 - ct.leader];
+    if (ct.cards.isNotEmpty) {
+      int targetIndex = pnum - ct.leader;
+      if (targetIndex < 0) {
+        targetIndex += 4;
+      }
+      if (ct.cards.length > targetIndex) {
+        return ct.cards[targetIndex];
+      }
     }
     else if (round.previousTricks.isNotEmpty) {
       final lt = round.previousTricks.last;
-      return lt.cards[(4 - lt.leader) % 4];
+      int targetIndex = pnum - lt.leader;
+      if (targetIndex < 0) {
+        targetIndex += 4;
+      }
+      return lt.cards[targetIndex];
     }
-    return null;
   }
 
-  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
-    bool isHumanTurn = round.status == BridgeRoundStatus.playing && round.currentPlayerIndex() == 0;
+  Widget _humanNonDummyHand(final Layout layout) {
+    final declarer = round.contract?.declarer;
+    int playerIndex = declarer == 2 ? 2 : 0;
+    bool isPlayingNextCard = round.status == BridgeRoundStatus.playing && round.currentPlayerIndex() == playerIndex;
     bool isBidding = round.status == BridgeRoundStatus.bidding;
+    final cards = round.players[playerIndex].hand;
     List<PlayingCard> highlightedCards = [];
     if (isBidding) {
       highlightedCards = cards;
     }
-    else if (isHumanTurn) {
+    else if (isPlayingNextCard) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    final playerTrickCard = _lastCardPlayedByHuman();
+    final playerTrickCard = _lastCardPlayedByPlayer(playerIndex);
+
     final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
@@ -320,6 +339,41 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return PlayerHandCards(
         key: Key(key),
         layout: layout,
+        playerIndex: playerIndex,
+        suitDisplayOrder: _suitDisplayOrder(),
+        cards: cards,
+        trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+        animateFromCards: previousPlayerCards,
+        highlightedCards: highlightedCards,
+        onCardClicked: handleHandCardClicked);
+  }
+
+  Widget _dummyHand(final Layout layout) {
+    int? dummyPlayer = round.visibleDummy();
+    if (dummyPlayer == null) {
+      return Container();
+    }
+    assert(round.status == BridgeRoundStatus.playing);
+
+    bool isPlayingNextCard = round.currentPlayerIndex() == dummyPlayer;
+    final cards = round.players[dummyPlayer].hand;
+    List<PlayingCard> highlightedCards = [];
+    if (isPlayingNextCard) {
+      highlightedCards = round.legalPlaysForCurrentPlayer();
+    }
+
+    final lastPlayedCard = _lastCardPlayedByPlayer(dummyPlayer);
+    final previousPlayerCards = (lastPlayedCard != null) ? [...cards, lastPlayedCard] : null;
+    var key = "H${cards.map((c) => c.toString()).join()}";
+    if (lastPlayedCard != null) {
+      key += ":${lastPlayedCard.toString()}";
+    }
+
+    return PlayerHandCards(
+        key: Key(key),
+        layout: layout,
+        playerIndex: dummyPlayer,
+        displayStyle: HandDisplayStyle.dummy,
         suitDisplayOrder: _suitDisplayOrder(),
         cards: cards,
         trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
@@ -329,16 +383,25 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   Widget _trickCards(final Layout layout) {
-    final humanHand = aiMode == AiMode.humanPlayer0 ? round.players[0].hand : null;
+    List<DisplayedHand> displayedHands = [];
+    final declarer = round.contract?.declarer;
+    if (declarer == 0 || declarer == 2) {
+      displayedHands.add(DisplayedHand(playerIndex: declarer!, cards: round.players[declarer].hand));
+    }
+    final dummyIndex = round.visibleDummy();
+    if (dummyIndex != null) {
+      displayedHands.add(DisplayedHand(playerIndex: dummyIndex, cards: round.players[dummyIndex].hand, displayStyle: HandDisplayStyle.dummy));
+    }
+
     return TrickCards(
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
+      displayedHands: displayedHands,
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
       animationMode: animationMode,
       numPlayers: 4,
-      humanPlayerHand: humanHand,
-      humanPlayerSuitOrder: _suitDisplayOrder(),
+      suitOrder: _suitDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );
@@ -354,7 +417,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     // TODO
     return Stack(
         children: [
-          _handCards(layout, round.players[0].hand),
+          _humanNonDummyHand(layout),
+          _dummyHand(layout),
           _trickCards(layout),
           if (_shouldShowBidDialog())
             BidDialog(
@@ -393,7 +457,7 @@ class _BidDialogState extends State<BidDialog> {
 
   @override
   Widget build(BuildContext context) {
-    const adjustBidTextStyle = TextStyle(fontSize: 18);
+    const adjustBidTextStyle = TextStyle(fontSize: 18, height: 0);
     const headerFontSize = 14.0;
     const cellPad = 4.0;
     const rowPadding = 15.0;

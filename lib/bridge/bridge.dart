@@ -171,7 +171,7 @@ class Contract {
 
   static Contract fromJson(Map<String, dynamic> json) {
     return Contract(
-      bid: json["bid"],
+      bid: ContractBid.fromString(json["bid"]),
       doubled: DoubledType.values.firstWhere((t) => t.name == json["doubled"]),
       declarer: json["declarer"],
       isVulnerable: json["isVulnerable"],
@@ -384,11 +384,14 @@ class BridgeRound {
 
   void _endBidding() {
     status = BridgeRoundStatus.playing;
-    if (isPassedOut()) return;
+    if (isPassedOut()) {
+      return;
+    }
     contract = contractFromBids(
-        bids: bidHistory,
-        vulnerability: vulnerability,
+      bids: bidHistory,
+      vulnerability: vulnerability,
     );
+    currentTrick = TrickInProgress((contract!.declarer + 1) % 4);
   }
 
   int currentPlayerIndex() {
@@ -406,6 +409,17 @@ class BridgeRound {
       return null;
     }
     return contract!.bid.trump;
+  }
+
+  int? visibleDummy() {
+    if (contract == null) {
+      return null;
+    }
+    // Dummy is revealed only after first card of first trick is played.
+    if (previousTricks.isEmpty && currentTrick.cards.isEmpty) {
+      return null;
+    }
+    return contract!.dummy;
   }
 
   int numTricksWonByDeclarer() {

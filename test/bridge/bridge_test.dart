@@ -1,3 +1,6 @@
+import "dart:convert";
+import "dart:math";
+
 import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/bridge/bridge.dart";
@@ -5,6 +8,17 @@ import "package:cards_with_cats/bridge/bridge.dart";
 const cb = ContractBid.fromString;
 
 void main() {
+  group("Serialization", () {
+    test("Converts initial match to and from JSON", () {
+      final rng = Random(17);
+      final match = BridgeMatch(rng);
+      final json = match.toJson();
+      print(jsonEncode(json));
+      final parsedMatch = BridgeMatch.fromJson(json, rng);
+      expect(parsedMatch != null, true);
+    });
+  });
+
   group("Contract scoring", () {
     // Complete scoring table: https://web2.acbl.org/documentLibrary/play/InstantScorer.pdf
     test("2H nonvul", () {
