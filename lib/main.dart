@@ -724,10 +724,10 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _menuIcon() {
     return Padding(
       padding: const EdgeInsets.all(10),
-      child: FloatingActionButton(
+      child: Opacity(opacity: 0.6, child: FloatingActionButton(
         onPressed: _showMainMenu,
         child: const Icon(Icons.menu),
-      ),
+      )),
     );
   }
 

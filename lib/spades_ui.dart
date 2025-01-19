@@ -646,13 +646,13 @@ class EndOfRoundDialog extends StatelessWidget {
   final List<int> catImageIndices;
 
   const EndOfRoundDialog({
-    Key? key,
+    super.key,
     required this.layout,
     required this.match,
     required this.onContinue,
     required this.onMainMenu,
     required this.catImageIndices,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

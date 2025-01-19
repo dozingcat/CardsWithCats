@@ -443,7 +443,18 @@ class BridgeRound {
 
   int contractScoreForPlayer(int pnum) {
     int score = contractScoreForDeclarer();
+    if (score == 0) {
+      return 0;
+    }
     return (pnum == contract!.declarer || pnum == contract!.dummy) ? score : -score;
+  }
+
+  int tricksTakenByDeclarerOverContract() {
+    if (contract == null) {
+      throw Exception("Bidding is not over");
+    }
+    int tricksWon = numTricksWonByDeclarer();
+    return tricksWon - contract!.bid.numTricksRequired;
   }
 }
 

@@ -727,6 +727,12 @@ class PlayerHandCards extends StatelessWidget {
   Widget build(BuildContext context) {
     final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle);
 
+    double rotation = (playerIndex == 1)
+        ? pi / 2
+        : (playerIndex == 3)
+        ? -pi / 2
+        : 0;
+
     if (animateFromCards != null) {
       final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle);
       return TweenAnimationBuilder(
@@ -744,7 +750,7 @@ class PlayerHandCards extends StatelessWidget {
                 isTrump: card.suit == trumpSuit,
                 opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
                 onCardClicked: onCardClicked,
-                rotation: 0,
+                rotation: rotation,
               ));
             }
             return Stack(children: cardImages);
@@ -760,7 +766,7 @@ class PlayerHandCards extends StatelessWidget {
         isTrump: card.suit == trumpSuit,
         opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
         onCardClicked: onCardClicked,
-        rotation: 0,
+        rotation: rotation,
       ));
     }
     return Stack(children: cardImages);
@@ -904,14 +910,52 @@ LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
     ];
 
     final firstYCenter = (playerIndex == 0)
-        ? 0.92 * ds.height - actualCardHeight / 2
-        : 0.08 * ds.height + actualCardHeight / 2;
+        ? 0.975 * ds.height - actualCardHeight / 2
+        : 0.025 * ds.height + actualCardHeight / 2;
     final centerYDelta = (playerIndex == 0) ? -actualOverlap : actualOverlap;
 
     for (int i = 0; i < 4; i++) {
       final cardsInColumn = cardsBySuit[i];
       for (int j = 0; j < cardsInColumn.length; j++) {
-        final center = Offset(xCenters[i], firstYCenter + (j - 1) * centerYDelta);
+        final center = Offset(xCenters[i], firstYCenter + j * centerYDelta);
+        Rect rect = Rect.fromCenter(center: center, width: actualCardWidth, height: actualCardHeight);
+        rects[cardsInColumn[j]] = rect;
+      }
+    }
+  }
+  else {
+    assert(playerIndex == 1 || playerIndex == 3);
+    final availableHeight = ds.height * 0.5;
+    final availableWidth = ds.width * 0.5;
+    // Rotated, so card "width" and column gap are the height.
+    final requiredHeight = (4 + 3 * cardColumnGapFraction) * preferredCardWidth;
+    final requiredWidth = (1 + ((numCardsInLongestSuit - 1) * cardOverlapFraction)) * preferredCardHeight;
+
+    double scale = 1.0;
+    scale = min(scale, availableWidth / requiredWidth);
+    scale = min(scale, availableHeight / requiredHeight);
+    final actualCardWidth = preferredCardWidth * scale;
+    final actualCardHeight = preferredCardHeight * scale;
+    final actualOverlap = cardOverlapFraction * actualCardHeight;
+    final actualGap = cardColumnGapFraction * actualCardWidth;
+
+    final firstXCenter = (playerIndex == 1)
+        ? 0.025 * ds.width + actualCardHeight / 2
+        : 0.975 * ds.width - actualCardHeight / 2;
+    final cy = ds.height * 0.4;
+    final yDir = (playerIndex == 1) ? -1 : 1;
+    final yCenters = [
+      cy - yDir * (1.5 * actualCardWidth + 1.5 * actualGap),
+      cy - yDir * (0.5 * actualCardWidth + 0.5 * actualGap),
+      cy + yDir * (0.5 * actualCardWidth + 0.5 * actualGap),
+      cy + yDir * (1.5 * actualCardWidth + 1.5 * actualGap),
+    ];
+    final centerXDelta = (playerIndex == 1) ? actualOverlap : -actualOverlap;
+
+    for (int i = 0; i < 4; i++) {
+      final cardsInColumn = cardsBySuit[i];
+      for (int j = 0; j < cardsInColumn.length; j++) {
+        final center = Offset(firstXCenter + j * centerXDelta, yCenters[i]);
         Rect rect = Rect.fromCenter(center: center, width: actualCardWidth, height: actualCardHeight);
         rects[cardsInColumn[j]] = rect;
       }
@@ -943,318 +987,6 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex),
   };
 }
-
-// // Qwen 2.5 coder
-// LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
-//     Layout layout, List<PlayingCard> cards, List<Suit> suitOrder, {int playerIndex = 0}) {
-//
-//   final rects = LinkedHashMap<PlayingCard, Rect>();
-//   const cardHeightFrac = 0.2;
-//   const cardOverlapFraction = 1.0 / 3;
-//   const upperRowHeightFracStart = 0.69; // For bottom and top players
-//   const lowerRowHeightFracStart = 0.79; // For bottom and top players
-//   const singleRowHeightFracStart = 0.74; // For bottom and top players
-//
-//   const leftColumnWidthFracStart = 0.1; // For left player
-//   const rightColumnWidthFracStart = 0.85; // For right player
-//
-//   final ds = layout.displaySize;
-//   final cardHeight = ds.height * cardHeightFrac;
-//   final cardWidth = cardHeight * cardAspectRatio;
-//   final pxBetweenCards = cardWidth * (1 - cardOverlapFraction);
-//   final maxAllowedTotalWidth = 0.95 * ds.width;
-//
-//   double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
-//
-//   List<PlayingCard> sortedCards = [];
-//   for (Suit suit in suitOrder) {
-//     sortedCards.addAll(sortedCardsInSuit(cards, suit));
-//   }
-//
-//   final oneRowWidth = widthOfNCards(sortedCards.length);
-//
-//   switch (playerIndex) {
-//     case 0: // Bottom Player
-//       if (oneRowWidth < maxAllowedTotalWidth) {
-//         final startX = (ds.width - oneRowWidth) / 2;
-//         final startY = singleRowHeightFracStart * ds.height;
-//         for (int i = 0; i < sortedCards.length; i++) {
-//           final x = startX + i * pxBetweenCards;
-//           final r = Rect.fromLTWH(x, startY, cardWidth, cardHeight);
-//           rects[sortedCards[i]] = r;
-//         }
-//       } else {
-//         final numLowerCards = sortedCards.length ~/ 2;
-//         final numUpperCards = sortedCards.length - numLowerCards;
-//         double twoRowWidth = widthOfNCards(numUpperCards);
-//         if (numLowerCards == numUpperCards) {
-//           twoRowWidth += pxBetweenCards / 2;
-//         }
-//         final topStartX = (ds.width - twoRowWidth) / 2;
-//         final bottomStartX = topStartX + pxBetweenCards / 2;
-//
-//         final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth);
-//         final scaledCardWidth = scale * cardWidth;
-//         final scaledCardHeight = scale * cardHeight;
-//
-//         final topStartY = upperRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight);
-//         final bottomStartY = lowerRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight) / 2;
-//
-//         final midX = ds.width / 2;
-//         for (int i = 0; i < numUpperCards; i++) {
-//           double baseLeft = topStartX + i * pxBetweenCards;
-//           double scaledLeft = midX + (baseLeft - midX) * scale;
-//           final r = Rect.fromLTWH(scaledLeft, topStartY, scaledCardWidth, scaledCardHeight);
-//           rects[sortedCards[i]] = r;
-//         }
-//         for (int i = 0; i < numLowerCards; i++) {
-//           double baseLeft = bottomStartX + i * pxBetweenCards;
-//           double scaledLeft = midX + (baseLeft - midX) * scale;
-//           final r = Rect.fromLTWH(scaledLeft, bottomStartY, scaledCardWidth, scaledCardHeight);
-//           rects[sortedCards[numUpperCards + i]] = r;
-//         }
-//       }
-//       break;
-//
-//     case 1: // Left Player
-//       if (oneRowWidth < maxAllowedTotalWidth || true) {
-//         final startY = (ds.height - oneRowWidth) / 2;
-//         final startX = leftColumnWidthFracStart * ds.width;
-//         for (int i = 0; i < sortedCards.length; i++) {
-//           final y = startY + i * pxBetweenCards;
-//           final r = Rect.fromLTWH(startX, y, cardHeight, cardWidth); // Note: width and height are swapped here to accommodate vertical layout
-//           rects[sortedCards[i]] = r;
-//         }
-//       } else {
-//         // Handle multi-row logic for left player if necessary (can be added similarly to bottom player)
-//       }
-//       break;
-//
-//     case 2: // Top Player
-//       if (oneRowWidth < maxAllowedTotalWidth || true) {
-//         final startX = (ds.width - oneRowWidth) / 2;
-//         final startY = ds.height * singleRowHeightFracStart; // Adjusted for top player
-//         for (int i = 0; i < sortedCards.length; i++) {
-//           final x = startX + i * pxBetweenCards;
-//           final r = Rect.fromLTWH(x, startY - cardHeight, cardWidth, cardHeight); // Adjusted to start from the bottom of the screen
-//           rects[sortedCards[i]] = r;
-//         }
-//       } else {
-//         // Handle multi-row logic for top player if necessary (can be added similarly to bottom player)
-//       }
-//       break;
-//
-//     case 3: // Right Player
-//       if (oneRowWidth < maxAllowedTotalWidth) {
-//         final startY = (ds.height - oneRowWidth) / 2;
-//         final startX = ds.width * rightColumnWidthFracStart; // Adjusted for right player
-//         for (int i = 0; i < sortedCards.length; i++) {
-//           final y = startY + i * pxBetweenCards;
-//           final r = Rect.fromLTWH(startX - cardHeight, y, cardHeight, cardWidth); // Note: width and height are swapped here to accommodate vertical layout
-//           rects[sortedCards[i]] = r;
-//         }
-//       } else {
-//         // Handle multi-row logic for right player if necessary (can be added similarly to bottom player)
-//       }
-//       break;
-//
-//     default:
-//       throw ArgumentError('Invalid playerIndex. Expected 0, 1, 2, or 3.');
-//   }
-//
-//   return rects;
-// }
-
-// Llama 3.3
-// LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
-//     Layout layout, List<PlayingCard> cards, List<Suit> suitOrder, int playerIndex) {
-//   final rects = LinkedHashMap<PlayingCard, Rect>();
-//   const cardHeightFrac = 0.2;
-//   const cardOverlapFraction = 1.0 / 3;
-//   const upperRowHeightFracStart = 0.69;
-//   const lowerRowHeightFracStart = 0.79;
-//   const singleRowHeightFracStart = 0.74;
-//   final ds = layout.displaySize;
-//   var cardHeight = ds.height * cardHeightFrac;
-//   var cardWidth = cardHeight * cardAspectRatio;
-//   final pxBetweenCards = cardWidth * (1 - cardOverlapFraction);
-//   final maxAllowedTotalWidth = 0.95 * ds.width;
-//
-//   double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
-//
-//   List<PlayingCard> sortedCards = [];
-//   for (Suit suit in suitOrder) {
-//     sortedCards.addAll(sortedCardsInSuit(cards, suit));
-//   }
-//   final oneRowWidth = widthOfNCards(sortedCards.length);
-//   if (oneRowWidth < maxAllowedTotalWidth) {
-//     // Show all cards in a single row.
-//     double startX;
-//     double startY;
-//
-//     switch (playerIndex) {
-//       case 0:
-//       // Draw at the bottom of the screen
-//         startX = (ds.width - oneRowWidth) / 2;
-//         startY = singleRowHeightFracStart * ds.height;
-//         break;
-//       case 1:
-//       // Draw on the left side of the screen
-//         startX = cardWidth / 2;
-//         startY = (ds.height - oneRowWidth) / 2;
-//         break;
-//       case 2:
-//       // Draw at the top of the screen
-//         startX = (ds.width - oneRowWidth) / 2;
-//         startY = ds.height * 0.1; // Changed from singleRowHeightFracStart to a fixed fraction
-//         break;
-//       case 3:
-//       // Draw on the right side of the screen
-//         startX = ds.width - cardWidth / 2 - oneRowWidth;
-//         startY = (ds.height - oneRowWidth) / 2;
-//         break;
-//       default:
-//         throw ArgumentError('Invalid playerIndex');
-//     }
-//
-//     for (int i = 0; i < sortedCards.length; i++) {
-//       final x = startX + i * pxBetweenCards;
-//       double rX = x;
-//       double rY = startY;
-//
-//       // Rotate the cards when drawing on the sides
-//       if (playerIndex == 1 || playerIndex == 3) {
-//         final temp = cardWidth;
-//         cardWidth = cardHeight;
-//         cardHeight = temp;
-//
-//         rX = startX + i * pxBetweenCards;
-//         rY = startY;
-//       }
-//
-//       final r = Rect.fromLTWH(rX, rY, cardWidth, cardHeight);
-//       rects[sortedCards[i]] = r;
-//     }
-//     return rects;
-//   }
-//   final numLowerCards = sortedCards.length ~/ 2;
-//   final numUpperCards = sortedCards.length - numLowerCards;
-//   double twoRowWidth = widthOfNCards(numUpperCards);
-//   // Lower row is offset by half of cardOverlapFraction, so if it has the same
-//   // number of cards as the top row it extends the total width.
-//   if (numLowerCards == numUpperCards) {
-//     twoRowWidth += pxBetweenCards / 2;
-//   }
-//   double topStartX;
-//   double bottomStartX;
-//   double topStartY;
-//   double bottomStartY;
-//
-//   switch (playerIndex) {
-//     case 0:
-//     // Draw at the bottom of the screen
-//       topStartX = (ds.width - twoRowWidth) / 2;
-//       bottomStartX = topStartX + pxBetweenCards / 2;
-//       topStartY = upperRowHeightFracStart * ds.height + (cardHeight - cardHeight);
-//       bottomStartY = lowerRowHeightFracStart * ds.height + (cardHeight - cardHeight) / 2;
-//       break;
-//     case 1:
-//     // Draw on the left side of the screen
-//       topStartX = cardWidth / 2;
-//       bottomStartX = cardWidth / 2;
-//       topStartY = (ds.height - twoRowWidth) / 2;
-//       bottomStartY = (ds.height + twoRowWidth) / 2 - pxBetweenCards;
-//       break;
-//     case 2:
-//     // Draw at the top of the screen
-//       topStartX = (ds.width - twoRowWidth) / 2;
-//       bottomStartX = topStartX + pxBetweenCards / 2;
-//       topStartY = ds.height * 0.1; // Changed from upperRowHeightFracStart to a fixed fraction
-//       bottomStartY = ds.height * 0.2; // Changed from lowerRowHeightFracStart to a fixed fraction
-//       break;
-//     case 3:
-//     // Draw on the right side of the screen
-//       topStartX = ds.width - cardWidth / 2 - twoRowWidth;
-//       bottomStartX = ds.width - cardWidth / 2 - twoRowWidth + pxBetweenCards / 2;
-//       topStartY = (ds.height - twoRowWidth) / 2;
-//       bottomStartY = (ds.height + twoRowWidth) / 2 - pxBetweenCards;
-//       break;
-//     default:
-//       throw ArgumentError('Invalid playerIndex');
-//   }
-//
-//   final scale = min(1, maxAllowedTotalWidth / twoRowWidth);
-//   var scaledCardHeight = cardHeight * scale;
-//   var scaledCardWidth = cardWidth * scale;
-//
-//   for (int i = 0; i < numUpperCards; i++) {
-//     double rX = 0;
-//     double rY = 0;
-//
-//     if (playerIndex == 1 || playerIndex == 3) {
-//       // Rotate the cards when drawing on the sides
-//       final temp = scaledCardHeight;
-//       scaledCardHeight = scaledCardWidth;
-//       scaledCardWidth = temp;
-//     }
-//
-//     switch (playerIndex) {
-//       case 0:
-//         rX = topStartX + i * pxBetweenCards * scale;
-//         rY = topStartY;
-//         break;
-//       case 1:
-//         rX = topStartX;
-//         rY = topStartY + i * pxBetweenCards * scale;
-//         break;
-//       case 2:
-//         rX = topStartX + i * pxBetweenCards * scale;
-//         rY = topStartY;
-//         break;
-//       case 3:
-//         rX = bottomStartX - (i + 1) * pxBetweenCards * scale;
-//         rY = topStartY + i * pxBetweenCards * scale;
-//         break;
-//     }
-//
-//     final r = Rect.fromLTWH(rX, rY, scaledCardWidth, scaledCardHeight);
-//     rects[sortedCards[i]] = r;
-//   }
-//   for (int i = numUpperCards; i < sortedCards.length; i++) {
-//     double rX = 0;
-//     double rY = 0;
-//
-//     if (playerIndex == 1 || playerIndex == 3) {
-//       // Rotate the cards when drawing on the sides
-//       final temp = scaledCardHeight;
-//       scaledCardHeight = scaledCardWidth;
-//       scaledCardWidth = temp;
-//     }
-//
-//     switch (playerIndex) {
-//       case 0:
-//         rX = bottomStartX + (i - numUpperCards) * pxBetweenCards * scale;
-//         rY = bottomStartY;
-//         break;
-//       case 1:
-//         rX = topStartX;
-//         rY = bottomStartY + (i - numUpperCards) * pxBetweenCards * scale;
-//         break;
-//       case 2:
-//         rX = bottomStartX + (i - numUpperCards) * pxBetweenCards * scale;
-//         rY = bottomStartY;
-//         break;
-//       case 3:
-//         rX = bottomStartX - (i - numUpperCards + 1) * pxBetweenCards * scale;
-//         rY = bottomStartY + (i - numUpperCards) * pxBetweenCards * scale;
-//         break;
-//     }
-//
-//     final r = Rect.fromLTWH(rX, rY, scaledCardWidth, scaledCardHeight);
-//     rects[sortedCards[i]] = r;
-//   }
-//   return rects;
-// }
 
 Layout computeLayout(BuildContext context) {
   final ds = MediaQuery.of(context).size;
