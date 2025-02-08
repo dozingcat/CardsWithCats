@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
@@ -60,6 +61,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
+  bool isClaimingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -157,6 +159,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
+    isClaimingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -291,11 +294,62 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    if (round.isOver()) {
+      return false;
+    }
+    if (round.currentTrick.cards.isNotEmpty) {
+      return false;
+    }
+    int leader = round.currentTrick.leader;
+    if (round.players[leader].hand.length < 2) {
+      return false;
+    }
+    List<PlayingCard> remainingCards = [];
+    for (int i = 0; i < round.players.length; i++) {
+      if (i != leader) {
+        remainingCards.addAll(round.players[i].hand);
+      }
+    }
+    return willLeadingPlayerWinAllRemainingTricks(
+        leadingPlayerCards: round.players[leader].hand,
+        remainingCards: remainingCards,
+        trump: Suit.spades,
+    );
+  }
+
+  void _claimRemainingTricks() {
+    assert(_shouldLeaderClaimRemainingTricks());
+    assert(round.currentTrick.cards.isEmpty);
+    int claimer = round.currentTrick.leader;
+    while (!round.isOver()) {
+      final legalPlays = round.legalPlaysForCurrentPlayer();
+      round.playCard(legalPlays[0]);
+      if (round.currentTrick.cards.isEmpty) {
+        assert(round.previousTricks.last.winner == claimer);
+      }
+    }
+  }
+
+  void _handleClaimTricksDialogOk() {
+    _claimRemainingTricks();
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+  }
+
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    }
+    else {
+      _scheduleNextActionIfNeeded();
+    }
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -410,6 +464,10 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return !widget.dialogVisible && showPostBidDialog;
   }
 
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
+  }
+
   void makeBidForHuman(int bid) {
     printd("Human bids $bid");
     setState(() {
@@ -469,6 +527,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
           BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,

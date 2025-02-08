@@ -83,3 +83,29 @@ class TrickInProgress {
     return Trick(leader, cards, winner);
   }
 }
+
+// Returns true if the current player is guaranteed to win all remaining tricks.
+// It's assumed that there is no trick in progress.
+bool willLeadingPlayerWinAllRemainingTricks({
+  required List<PlayingCard> leadingPlayerCards,
+  required List<PlayingCard> remainingCards,
+  Suit? trump,
+}) {
+  // If trump, either leading player must have only trumps
+  // *or* no other players can have any.
+  if (trump != null) {
+    bool playerHasOnlyTrumps = leadingPlayerCards.every((c) => c.suit == trump);
+    if (!playerHasOnlyTrumps) {
+      if (remainingCards.any((c) => c.suit == trump)) {
+        return false;
+      }
+    }
+  }
+  // No other player can have a card higher than any in `playerCards`.
+  for (final pc in leadingPlayerCards) {
+    if (remainingCards.any((c) => c.suit == pc.suit && c.rank.isHigherThan(pc.rank))) {
+      return false;
+    }
+  }
+  return true;
+}
