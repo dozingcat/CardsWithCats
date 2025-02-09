@@ -703,6 +703,10 @@ Widget paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
 }
 
+Widget paddingHorizontal(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.only(left: paddingPx, right: paddingPx), child: child);
+}
+
 class ClaimRemainingTricksDialog extends StatelessWidget {
   final Function() onOk;
   final bool isHuman;
@@ -1034,12 +1038,4 @@ Layout computeLayout(BuildContext context) {
   return Layout()
     ..displaySize = ds
     ..playerHeight = ds.shortestSide * 0.125;
-}
-
-Widget paddingAll(final double paddingPx, final Widget child) {
-  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
-}
-
-Widget paddingHorizontal(final double paddingPx, final Widget child) {
-  return Padding(padding: EdgeInsets.only(left: paddingPx, right: paddingPx), child: child);
 }
