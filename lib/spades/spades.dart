@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
+import '../cards/round.dart';
+
 enum SpadeLeading {
   always,
   after_first_trick,
@@ -193,14 +195,17 @@ enum SpadesRoundStatus {
   playing,
 }
 
-class SpadesRound {
+class SpadesRound extends BaseTrickRound {
   SpadesRoundStatus status = SpadesRoundStatus.bidding;
   late SpadesRuleSet rules;
   late List<SpadesPlayer> players;
   late List<int> initialScores;
   late int dealer;
-  late TrickInProgress currentTrick;
-  List<Trick> previousTricks = [];
+  @override late TrickInProgress currentTrick;
+  @override List<Trick> previousTricks = [];
+
+  @override int get numberOfPlayers => rules.numPlayers;
+  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
 
   static SpadesRound deal(SpadesRuleSet rules, List<int> scores, int dealer, Random rng) {
     List<PlayingCard> cards = List.from(standardDeckCards(), growable: true);
@@ -234,7 +239,7 @@ class SpadesRound {
       ..previousTricks = Trick.copyAll(previousTricks);
   }
 
-  bool isOver() {
+  @override bool isOver() {
     return players.every((p) => p.hand.isEmpty);
   }
 
@@ -242,7 +247,7 @@ class SpadesRound {
     return pointsForTricks(previousTricks, [...players.map((p) => p.bid!)], initialScores, rules);
   }
 
-  int currentPlayerIndex() {
+  @override int currentPlayerIndex() {
     return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
   }
 
@@ -278,7 +283,7 @@ class SpadesRound {
     return bids;
   }
 
-  List<PlayingCard> legalPlaysForCurrentPlayer() {
+  @override List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }
 
@@ -289,7 +294,7 @@ class SpadesRound {
     }
   }
 
-  void playCard(PlayingCard card) {
+  @override void playCard(PlayingCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);
