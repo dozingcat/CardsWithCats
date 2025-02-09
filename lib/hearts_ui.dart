@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'cards/round.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -57,6 +59,7 @@ class HeartsMatchDisplay extends StatefulWidget {
 class _HeartsMatchState extends State<HeartsMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
+  bool isClaimingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
@@ -95,6 +98,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   void _startRound() {
     setState(() {
       _clearMoods();
+      isClaimingRemainingTricks = false;
       if (round.isOver()) {
         match.finishRound();
       }
@@ -233,7 +237,14 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleAiPlayIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    }
+    else {
+      _scheduleAiPlayIfNeeded();
+    }
   }
 
   void _passCards() {
@@ -257,6 +268,17 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     _scheduleAiPlayIfNeeded();
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    return shouldLeaderClaimRemainingTricks(round);
+  }
+
+  void _handleClaimTricksDialogOk() {
+    claimRemainingTricks(round);
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+  }
+
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
@@ -277,18 +299,12 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   PlayingCard? _lastCardPlayedByHuman() {
-    final ct = round.currentTrick;
-    if (ct.cards.isNotEmpty && ct.leader == 0) {
-      return ct.cards[0];
-    }
-    else if (ct.cards.length + ct.leader > 4) {
-      return ct.cards[4 - ct.leader];
-    }
-    else if (round.previousTricks.isNotEmpty) {
-      final lt = round.previousTricks.last;
-      return lt.cards[(4 - lt.leader) % 4];
-    }
-    return null;
+    return lastCardPlayedByPlayer(
+        playerIndex: 0,
+        numberOfPlayers: round.numberOfPlayers,
+        currentTrick: round.currentTrick,
+        previousTricks: round.previousTricks,
+    );
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
@@ -377,6 +393,10 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         (round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage());
   }
 
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
+  }
+
   bool _shouldShowEndOfRoundDialog() {
     return !widget.dialogVisible && round.isOver();
   }
@@ -415,6 +435,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             selectedCards: selectedCardsToPass,
             onConfirm: _passCards,
           ),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,

@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
+import '../cards/round.dart';
+
 enum MoonShooting {
   disabled,
   opponentsPlus26,
@@ -224,14 +226,17 @@ enum HeartsRoundStatus {
   playing,
 }
 
-class HeartsRound {
+class HeartsRound extends BaseTrickRound {
   HeartsRoundStatus status = HeartsRoundStatus.passing;
   late HeartsRuleSet rules;
   late List<HeartsPlayer> players;
   late List<int> initialScores;
   late int passDirection;
-  late TrickInProgress currentTrick;
-  List<Trick> previousTricks = [];
+  @override late TrickInProgress currentTrick;
+  @override List<Trick> previousTricks = [];
+
+  @override int get numberOfPlayers => rules.numPlayers;
+  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
 
   static HeartsRound deal(HeartsRuleSet rules, List<int> scores, int passDirection, Random rng) {
     List<PlayingCard> cards = List.from(standardDeckCards(), growable: true);
@@ -292,7 +297,7 @@ class HeartsRound {
       ];
   }
 
-  bool isOver() {
+  @override bool isOver() {
     return players.every((p) => p.hand.isEmpty);
   }
 
@@ -300,13 +305,13 @@ class HeartsRound {
     return pointsForTricks(previousTricks, rules);
   }
 
-  int currentPlayerIndex() {
+  @override int currentPlayerIndex() {
     return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
   }
 
   HeartsPlayer currentPlayer() => players[currentPlayerIndex()];
 
-  List<PlayingCard> legalPlaysForCurrentPlayer() {
+  @override List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }
 
@@ -359,7 +364,7 @@ class HeartsRound {
     status = HeartsRoundStatus.playing;
   }
 
-  void playCard(PlayingCard card) {
+  @override void playCard(PlayingCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);

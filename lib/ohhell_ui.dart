@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
@@ -298,18 +299,12 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   // Duplicated from hearts_ui, might be worth a common function.
   PlayingCard? _lastCardPlayedByHuman() {
-    final ct = round.currentTrick;
-    if (ct.cards.isNotEmpty && ct.leader == 0) {
-      return ct.cards[0];
-    }
-    else if (ct.cards.length + ct.leader > 4) {
-      return ct.cards[4 - ct.leader];
-    }
-    else if (round.previousTricks.isNotEmpty) {
-      final lt = round.previousTricks.last;
-      return lt.cards[(4 - lt.leader) % 4];
-    }
-    return null;
+    return lastCardPlayedByPlayer(
+        playerIndex: 0,
+        numberOfPlayers: round.numberOfPlayers,
+        currentTrick: round.currentTrick,
+        previousTricks: round.previousTricks,
+    );
   }
 
   List<Suit> _suitDisplayOrder() {

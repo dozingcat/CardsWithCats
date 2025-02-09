@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/cards/round.dart';
+import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
@@ -60,6 +62,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
+  bool isClaimingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -157,6 +160,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
+    isClaimingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -291,11 +295,29 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    return shouldLeaderClaimRemainingTricks(round, trump: Suit.spades);
+  }
+
+  void _handleClaimTricksDialogOk() {
+    claimRemainingTricks(round);
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+  }
+
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    }
+    else {
+      _scheduleNextActionIfNeeded();
+    }
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -311,18 +333,12 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   // Duplicated from hearts_ui, might be worth a common function.
   PlayingCard? _lastCardPlayedByHuman() {
-    final ct = round.currentTrick;
-    if (ct.cards.isNotEmpty && ct.leader == 0) {
-      return ct.cards[0];
-    }
-    else if (ct.cards.length + ct.leader > 4) {
-      return ct.cards[4 - ct.leader];
-    }
-    else if (round.previousTricks.isNotEmpty) {
-      final lt = round.previousTricks.last;
-      return lt.cards[(4 - lt.leader) % 4];
-    }
-    return null;
+    return lastCardPlayedByPlayer(
+        playerIndex: 0,
+        numberOfPlayers: round.numberOfPlayers,
+        currentTrick: round.currentTrick,
+        previousTricks: round.previousTricks,
+    );
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
@@ -409,6 +425,10 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return !widget.dialogVisible && showPostBidDialog;
   }
 
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
+  }
+
   void makeBidForHuman(int bid) {
     printd("Human bids $bid");
     setState(() {
@@ -468,6 +488,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
           BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,

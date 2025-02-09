@@ -678,11 +678,11 @@ class GameTypeDropdown extends StatelessWidget {
   final TextStyle textStyle;
 
   const GameTypeDropdown({
-    Key? key,
+    super.key,
     required this.gameType,
     required this.onChanged,
     required this.textStyle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -696,6 +696,47 @@ class GameTypeDropdown extends StatelessWidget {
       ],
       onChanged: onChanged,
     );
+  }
+}
+
+Widget paddingAll(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
+}
+
+class ClaimRemainingTricksDialog extends StatelessWidget {
+  final Function() onOk;
+  final bool isHuman;
+  final int? catImageIndex;
+
+  const ClaimRemainingTricksDialog({
+    super.key,
+    required this.onOk,
+    this.isHuman = false,
+    this.catImageIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Layout layout = computeLayout(context);
+    const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+
+    final dialog = Center(
+        child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
+          insetPadding: EdgeInsets.zero,
+          backgroundColor: dialogBackgroundColor,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            paddingAll(15, Text("Remaining tricks claimed")),
+            paddingAll(
+                15,
+                ElevatedButton(
+                  onPressed: onOk,
+                  child: const Text("OK"),
+                )),
+          ])
+        ))
+    );
+
+    return dialog;
   }
 }
 
