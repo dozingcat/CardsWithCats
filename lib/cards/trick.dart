@@ -109,3 +109,27 @@ bool willLeadingPlayerWinAllRemainingTricks({
   }
   return true;
 }
+
+PlayingCard? lastCardPlayedByPlayer({
+  required int playerIndex,
+  required int numberOfPlayers,
+  required TrickInProgress currentTrick,
+  required List<Trick> previousTricks,
+}) {
+  if (currentTrick.cards.isNotEmpty) {
+    int cardIndex = playerIndex >= currentTrick.leader
+        ? playerIndex - currentTrick.leader
+        : numberOfPlayers + playerIndex - currentTrick.leader;
+    if (cardIndex < currentTrick.cards.length) {
+      return currentTrick.cards[cardIndex];
+    }
+  }
+  if (previousTricks.isNotEmpty) {
+    final lt = previousTricks.last;
+    int cardIndex = playerIndex >= lt.leader
+        ? playerIndex - lt.leader
+        : numberOfPlayers + playerIndex - lt.leader;
+    return lt.cards[cardIndex];
+  }
+  return null;
+}

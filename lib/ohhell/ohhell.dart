@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
+import '../cards/round.dart';
+
 // Always score 10 points for a successful bid. Points may also be scored
 // for each trick taken either always or for successful bids.
 enum TrickScoring {
@@ -190,7 +192,7 @@ enum OhHellRoundStatus {
   playing,
 }
 
-class OhHellRound {
+class OhHellRound extends BaseTrickRound {
   OhHellRoundStatus status = OhHellRoundStatus.bidding;
   late OhHellRuleSet rules;
   late List<OhHellPlayer> players;
@@ -198,8 +200,11 @@ class OhHellRound {
   late PlayingCard trumpCard;
   late List<int> initialScores;
   late int dealer;
-  late TrickInProgress currentTrick;
-  List<Trick> previousTricks = [];
+  @override late TrickInProgress currentTrick;
+  @override List<Trick> previousTricks = [];
+
+  @override int get numberOfPlayers => rules.numPlayers;
+  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
 
   static OhHellRound deal({
       required OhHellRuleSet rules,
@@ -248,7 +253,7 @@ class OhHellRound {
 
   bool dealerHasTrumpCard() => players[dealer].hand.contains(trumpCard);
 
-  bool isOver() {
+  @override bool isOver() {
     return players.every((p) => p.hand.isEmpty);
   }
 
@@ -256,7 +261,7 @@ class OhHellRound {
     return pointsForTricks(previousTricks, [...players.map((p) => p.bid!)], initialScores, rules);
   }
 
-  int currentPlayerIndex() {
+  @override int currentPlayerIndex() {
     return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
   }
 
@@ -307,7 +312,7 @@ class OhHellRound {
     return (tricksRemaining >= 0) ? tricksRemaining : null;
   }
 
-  List<PlayingCard> legalPlaysForCurrentPlayer() {
+  @override List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }
 
