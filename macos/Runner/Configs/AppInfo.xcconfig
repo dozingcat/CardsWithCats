@@ -11,4 +11,4 @@ PRODUCT_NAME = cards_with_cats
 PRODUCT_BUNDLE_IDENTIFIER = com.dozingcatsoftware.cardsWithCats
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.dozingcatsoftware. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2024 com.dozingcatsoftware. All rights reserved.
