@@ -12,6 +12,9 @@ abstract class BaseTrickRound {
   List<PlayingCard> legalPlaysForCurrentPlayer();
 }
 
+
+// Returns true if the leading player is guaranteed to win all remaining tricks,
+// and there are at least `minRequiredTricks` remaining.
 bool shouldLeaderClaimRemainingTricks(BaseTrickRound round, {Suit? trump, int minRequiredTricks = 2}) {
   if (round.isOver()) {
     return false;
@@ -36,6 +39,9 @@ bool shouldLeaderClaimRemainingTricks(BaseTrickRound round, {Suit? trump, int mi
   );
 }
 
+// Repeatedly calls `round.playCard` with legal plays until the round is over,
+// with the precondition that the leading player is guaranteed to take all of
+// the tricks.
 void claimRemainingTricks(BaseTrickRound round) {
   assert(shouldLeaderClaimRemainingTricks(round));
   assert(round.currentTrick.cards.isEmpty);
