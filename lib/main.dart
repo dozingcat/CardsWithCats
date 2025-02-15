@@ -30,6 +30,9 @@ const appTitle = "Cards With Cats";
 const appVersion = "1.2.0";
 const appLegalese = "© 2022-2023 Brian Nenninger";
 
+const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
+const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
+
 void main() {
   runApp(const MyApp());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
@@ -49,7 +52,11 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         // colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
-      home: const MyHomePage(title: 'Cards With Cats'),
+      home: Stack(children: [
+        Container(color: gameBackgroundColor),
+        // Container(color: Color.fromRGBO(180, 216, 182, 1)),
+        const SafeArea(child: MyHomePage(title: 'Cards With Cats')),
+      ]),
     );
   }
 }
@@ -469,9 +476,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  static const gameBackgroundColor = Color.fromRGBO(32, 160, 32, 0.3);
-  static const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
-
   Widget _gameTable(final Layout layout) {
     final rect = Rect.fromLTWH(0, 0, layout.displaySize.width, layout.displaySize.height);
     return Stack(children: [
@@ -739,7 +743,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     const aiIndices = [1, 2, 3];
     return Scaffold(
-      body: SafeArea(child: Stack(children: [
+      body: Stack(children: [
         // Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
         ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
@@ -808,7 +812,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         if (dialogMode == DialogMode.none) _menuIcon(),
       ]),
-    ));
+    );
   }
 }
 
