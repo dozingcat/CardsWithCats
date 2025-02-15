@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -1096,8 +1097,25 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
 }
 
 Layout computeLayout(BuildContext context) {
-  final ds = MediaQuery.of(context).size;
+  final baseSize = MediaQuery.sizeOf(context);
+  final displayFeatures = MediaQuery.displayFeaturesOf(context);
+  // Adjust for display cutouts.
+  // Assuming we'll only reduce the height for cutouts, not the width.
+  // https://api.flutter.dev/flutter/dart-ui/DisplayFeature-class.html
+  double yTop = 0;
+  double yBottom = baseSize.height;
+  for (final f in displayFeatures) {
+    if (f.type == DisplayFeatureType.cutout || f.type == DisplayFeatureType.hinge) {
+      bool isBottom = f.bounds.top > baseSize.height / 2;
+      if (isBottom) {
+        yBottom = min(yBottom, f.bounds.top);
+      }
+      else {
+        yTop = max(yTop, f.bounds.bottom);
+      }
+    }
+  }
   return Layout()
-    ..displaySize = ds
-    ..playerHeight = ds.shortestSide * 0.125;
+    ..displaySize = Size(baseSize.width, yBottom - yTop)
+    ..playerHeight = baseSize.shortestSide * 0.125;
 }

@@ -739,7 +739,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     const aiIndices = [1, 2, 3];
     return Scaffold(
-      body: Stack(children: [
+      body: SafeArea(child: Stack(children: [
         // Text(layout.displaySize.shortestSide.toString()),
         _gameTable(layout),
         ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
@@ -808,7 +808,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         if (dialogMode == DialogMode.none) _menuIcon(),
       ]),
-    );
+    ));
   }
 }
 
@@ -823,12 +823,12 @@ TableRow _makeButtonRow(String title, void Function() onPressed) {
 
 class NewGameDialog extends StatefulWidget {
   const NewGameDialog({
-    Key? key,
+    super.key,
     required this.gameType,
     required this.newGameFn,
     required this.cancelFn,
     required this.layout,
-  }) : super(key: key);
+  });
 
   final GameType? gameType;
   final Function(GameType) newGameFn;
