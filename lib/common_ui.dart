@@ -903,6 +903,65 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
   return rects;
 }
 
+LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
+    Layout layout,
+    List<PlayingCard> cards,
+    List<Suit> suitOrder,
+    {required int playerIndex}
+    ) {
+  if (!(playerIndex == 1 || playerIndex == 3)) {
+    throw Exception("invalid playerIndex: $playerIndex");
+  }
+  List<PlayingCard> sortedCards = [];
+  for (Suit suit in suitOrder) {
+    sortedCards.addAll(sortedCardsInSuit(cards, suit));
+  }
+
+  final rects = LinkedHashMap<PlayingCard, Rect>();
+  final ds = layout.displaySize;
+
+  final preferredCardWidth = 0.2 * ds.height;
+  final preferredCardHeight = preferredCardWidth * layout.cardAspectRatio;
+
+  final availableHeight = 0.6 * ds.height;
+  final availableWidth = 0.4 * ds.width;
+
+  const cardOverlapFraction = 0.4;
+  final preferredTotalHeight = (1 + (cards.length - 1) * cardOverlapFraction) * preferredCardHeight;
+
+  double scale = 1.0;
+  scale = min(scale, availableWidth / preferredCardWidth);
+  scale = min(scale, availableHeight / preferredTotalHeight);
+
+  final actualCardWidth = scale * preferredCardWidth;
+  final actualCardHeight = scale * preferredCardHeight;
+
+  final xCenter = 0.05 * ds.width + actualCardWidth / 2;
+  final yDistanceBetweenCenters = cardOverlapFraction * actualCardHeight;
+
+  if (playerIndex == 1) {
+    // Left side, start at bottom and go up.
+    final yCenterStart = ds.height / 2 + (sortedCards.length - 1) * yDistanceBetweenCenters / 2;
+    for (int i = 0; i < sortedCards.length; i++) {
+      final yCenter = yCenterStart - i * yDistanceBetweenCenters;
+      // Because the card images get rotated 90 degrees, we need to swap width and height.
+      Rect r = Rect.fromCenter(center: Offset(xCenter, yCenter), width: actualCardHeight, height: actualCardWidth);
+      rects[sortedCards[i]] = r;
+    }
+  }
+  else {
+    // Right side, start at top and go down.
+    final yCenterStart = ds.height / 2 - (sortedCards.length - 1) * yDistanceBetweenCenters / 2;
+    for (int i = 0; i < sortedCards.length; i++) {
+      final yCenter = yCenterStart + i * yDistanceBetweenCenters;
+      Rect r = Rect.fromCenter(center: Offset(ds.width - xCenter, yCenter), width: actualCardHeight, height: actualCardWidth);
+      rects[sortedCards[i]] = r;
+    }
+  }
+
+  return rects;
+}
+
 LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
   required Layout layout,
   required List<PlayingCard> cards,
@@ -1018,6 +1077,9 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
 ) {
   if (playerIndex == 0 || playerIndex == 2) {
     return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex);
+  }
+  else {
+    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex);
   }
   throw Exception();
 }

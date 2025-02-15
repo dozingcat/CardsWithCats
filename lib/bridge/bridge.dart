@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
+import '../cards/round.dart';
+
 const int numPlayers = 4;
 
 enum BidType {
@@ -278,16 +280,19 @@ List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTric
   return hand;
 }
 
-class BridgeRound {
+class BridgeRound extends BaseTrickRound {
   BridgeRoundStatus status = BridgeRoundStatus.bidding;
   late List<BridgePlayer> players;
   late int dealer;
   List<PlayerBid> bidHistory = [];
-  late TrickInProgress currentTrick;
-  List<Trick> previousTricks = [];
+  @override late TrickInProgress currentTrick;
+  @override List<Trick> previousTricks = [];
   Contract? contract;
   Vulnerability vulnerability = Vulnerability.neither;
   // Include "current" match points?
+
+  @override int get numberOfPlayers => 4;
+  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
 
   static BridgeRound deal(int dealer, Random rng) {
     List<PlayingCard> cards = List.from(standardDeckCards());
@@ -345,7 +350,7 @@ class BridgeRound {
     ;
   }
 
-  bool isOver() {
+  @override bool isOver() {
     return isPassedOut() ||  players.every((p) => p.hand.isEmpty);
   }
 
@@ -370,7 +375,7 @@ class BridgeRound {
     }
   }
 
-  void playCard(PlayingCard card) {
+  @override void playCard(PlayingCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);
@@ -394,7 +399,7 @@ class BridgeRound {
     currentTrick = TrickInProgress((contract!.declarer + 1) % 4);
   }
 
-  int currentPlayerIndex() {
+  @override int currentPlayerIndex() {
     return (currentTrick.leader + currentTrick.cards.length) % 4;
   }
 

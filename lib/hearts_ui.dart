@@ -279,9 +279,16 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     });
   }
 
+  bool _shouldIgnoreCardClick() {
+    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
+  }
+
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
+    if (_shouldIgnoreCardClick()) {
+      return;
+    }
     if (round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing ${card.toString()}");
@@ -298,15 +305,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
-  PlayingCard? _lastCardPlayedByHuman() {
-    return lastCardPlayedByPlayer(
-        playerIndex: 0,
-        numberOfPlayers: round.numberOfPlayers,
-        currentTrick: round.currentTrick,
-        previousTricks: round.previousTricks,
-    );
-  }
-
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
     bool isHumanTurn = round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0;
     List<PlayingCard> highlightedCards = [];
@@ -316,7 +314,12 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       highlightedCards = cards.where((c) => !selectedCardsToPass.contains(c)).toList();
     }
 
-    final playerTrickCard = _lastCardPlayedByHuman();
+    final playerTrickCard = lastCardPlayedByPlayer(
+      playerIndex: 0,
+      numberOfPlayers: round.numberOfPlayers,
+      currentTrick: round.currentTrick,
+      previousTricks: round.previousTricks,
+    );
     final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
@@ -424,10 +427,26 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
+    List<Widget> handsToShowForClaim() {
+      if (!_shouldShowClaimTricksDialog()) {
+        return [];
+      }
+      return (const [1, 2, 3]).map((p) =>
+          PlayerHandCards(
+            layout: layout,
+            playerIndex: p,
+            suitDisplayOrder: suitDisplayOrder,
+            cards: round.players[p].hand,
+            highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+          )).toList();
+    }
+
     return Stack(
       children: <Widget>[
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        ...handsToShowForClaim(),
+
         if (_shouldShowPassDialog())
           PassCardsDialog(
             layout: layout,

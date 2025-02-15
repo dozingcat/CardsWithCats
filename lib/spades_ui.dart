@@ -320,25 +320,22 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
+  bool _shouldIgnoreCardClick() {
+    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
+  }
+
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
+    if (_shouldIgnoreCardClick()) {
+      return;
+    }
     if (round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
       }
     }
-  }
-
-  // Duplicated from hearts_ui, might be worth a common function.
-  PlayingCard? _lastCardPlayedByHuman() {
-    return lastCardPlayedByPlayer(
-        playerIndex: 0,
-        numberOfPlayers: round.numberOfPlayers,
-        currentTrick: round.currentTrick,
-        previousTricks: round.previousTricks,
-    );
   }
 
   Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
@@ -352,7 +349,12 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    final playerTrickCard = _lastCardPlayedByHuman();
+    final playerTrickCard = lastCardPlayedByPlayer(
+      playerIndex: 0,
+      numberOfPlayers: round.numberOfPlayers,
+      currentTrick: round.currentTrick,
+      previousTricks: round.previousTricks,
+    );
     final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
@@ -480,10 +482,27 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
+    List<Widget> handsToShowForClaim() {
+      if (!_shouldShowClaimTricksDialog()) {
+        return [];
+      }
+      return (const [1, 2, 3]).map((p) =>
+          PlayerHandCards(
+            layout: layout,
+            playerIndex: p,
+            suitDisplayOrder: suitDisplayOrder,
+            cards: round.players[p].hand,
+            trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
+            highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+          )).toList();
+    }
+
     return Stack(
       children: <Widget>[
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        ...handsToShowForClaim(),
+
         if (_shouldShowHumanBidDialog())
           BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         if (_shouldShowPostBidDialog())
@@ -552,8 +571,8 @@ class _BidDialogState extends State<BidDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final adjustBidTextStyle = TextStyle(fontSize: 18);
-    final rowPadding = 15.0;
+    const adjustBidTextStyle = TextStyle(fontSize: 18);
+    const rowPadding = 15.0;
 
     return Center(
         child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(

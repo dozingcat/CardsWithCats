@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'bridge/bridge_bidding.dart';
+import 'cards/round.dart';
+import 'cards/trick.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -61,6 +63,7 @@ final baseSuitDisplayOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamond
 class BridgeMatchState extends State<BridgeMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
+  bool isClaimingRemainingTricks = false;
   bool showPostBidDialog = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
@@ -104,6 +107,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
+    isClaimingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -267,7 +271,25 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    }
+    else {
+      _scheduleNextActionIfNeeded();
+    }
+  }
+
+  bool _shouldLeaderClaimRemainingTricks() {
+    return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit());
+  }
+
+  void _handleClaimTricksDialogOk() {
+    claimRemainingTricks(round);
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
   }
 
   bool _isPlayerControlledByHuman(int pnum) {
@@ -279,38 +301,22 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return _isPlayerControlledByHuman(round.currentPlayerIndex());
   }
 
+  bool _shouldIgnoreCardClick() {
+    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
+  }
+
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
+    if (_shouldIgnoreCardClick()) {
+      return;
+    }
     if (round.status == BridgeRoundStatus.playing && _isCurrentPlayerControlledByHuman()) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
       }
     }
-  }
-
-  // Duplicated from hearts_ui, might be worth a common function.
-  PlayingCard? _lastCardPlayedByPlayer(int pnum) {
-    final ct = round.currentTrick;
-    if (ct.cards.isNotEmpty) {
-      int targetIndex = pnum - ct.leader;
-      if (targetIndex < 0) {
-        targetIndex += 4;
-      }
-      if (ct.cards.length > targetIndex) {
-        return ct.cards[targetIndex];
-      }
-    }
-    else if (round.previousTricks.isNotEmpty) {
-      final lt = round.previousTricks.last;
-      int targetIndex = pnum - lt.leader;
-      if (targetIndex < 0) {
-        targetIndex += 4;
-      }
-      return lt.cards[targetIndex];
-    }
-    return null;
   }
 
   Widget _humanNonDummyHand(final Layout layout) {
@@ -327,7 +333,12 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    final playerTrickCard = _lastCardPlayedByPlayer(playerIndex);
+    final playerTrickCard = lastCardPlayedByPlayer(
+      playerIndex: playerIndex,
+      numberOfPlayers: round.numberOfPlayers,
+      currentTrick: round.currentTrick,
+      previousTricks: round.previousTricks,
+    );
 
     final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
@@ -363,7 +374,12 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    final lastPlayedCard = _lastCardPlayedByPlayer(dummyPlayer);
+    final lastPlayedCard = lastCardPlayedByPlayer(
+      playerIndex: dummyPlayer,
+      numberOfPlayers: round.numberOfPlayers,
+      currentTrick: round.currentTrick,
+      previousTricks: round.previousTricks,
+    );
     final previousPlayerCards = (lastPlayedCard != null) ? [...cards, lastPlayedCard] : null;
     var key = "H${cards.map((c) => c.toString()).join()}";
     if (lastPlayedCard != null) {
@@ -408,11 +424,15 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldShowBidDialog() {
-    return round.status == BridgeRoundStatus.bidding;
+    return !widget.dialogVisible && round.status == BridgeRoundStatus.bidding;
+  }
+
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return round.isOver();
+    return !widget.dialogVisible && round.isOver();
   }
 
   void _showMainMenuAfterMatch() {
@@ -423,12 +443,35 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
-    // TODO
+
+    List<Widget> handsToShowForClaim() {
+      if (!_shouldShowClaimTricksDialog() || round.contract == null) {
+        return [];
+      }
+      List<int> playersToShow = switch (round.contract!.declarer) {
+        0 => [1, 3],
+        1 => [2],
+        2 => [1, 3],
+        3 => [2],
+        _ => [],
+      };
+      return playersToShow.map((p) => PlayerHandCards(
+        layout: layout,
+        playerIndex: p,
+        suitDisplayOrder: _suitDisplayOrder(),
+        cards: round.players[p].hand,
+        trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+      )).toList();
+    }
+
     return Stack(
         children: [
           _humanNonDummyHand(layout),
           _dummyHand(layout),
           _trickCards(layout),
+          ...handsToShowForClaim(),
+
           if (_shouldShowBidDialog())
             BidDialog(
                 layout: layout,
@@ -436,6 +479,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
                 onBid: makeBidForHuman,
                 catImageIndices: widget.catImageIndices,
             ),
+          if (_shouldShowClaimTricksDialog())
+            ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
           if (_shouldShowEndOfRoundDialog())
             EndOfRoundDialog(
               layout: layout,
@@ -586,7 +631,7 @@ class _BidDialogState extends State<BidDialog> {
     }
 
     return Center(
-      child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
+      child: Transform.translate(offset: Offset(0, -widget.layout.displaySize.height * 0.1), child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
         backgroundColor: dialogBackgroundColor,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           paddingAll(10, Table(
@@ -665,7 +710,7 @@ class _BidDialogState extends State<BidDialog> {
           const SizedBox(height: 12),
         ])
       ))
-    );
+    ));
   }
 }
 

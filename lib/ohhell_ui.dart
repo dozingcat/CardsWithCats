@@ -7,6 +7,7 @@ import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'cards/round.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -63,6 +64,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
+  bool isClaimingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -161,6 +163,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
+    isClaimingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -279,32 +282,50 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    if (round.numCardsPerPlayer <= 5) {
+      return false;
+    }
+    return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit);
+  }
+
+  void _handleClaimTricksDialogOk() {
+    claimRemainingTricks(round);
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+  }
+
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    }
+    else {
+      _scheduleNextActionIfNeeded();
+    }
+  }
+
+  bool _shouldIgnoreCardClick() {
+    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
   }
 
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
+    if (_shouldIgnoreCardClick()) {
+      return;
+    }
     if (round.status == OhHellRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
       }
     }
-  }
-
-  // Duplicated from hearts_ui, might be worth a common function.
-  PlayingCard? _lastCardPlayedByHuman() {
-    return lastCardPlayedByPlayer(
-        playerIndex: 0,
-        numberOfPlayers: round.numberOfPlayers,
-        currentTrick: round.currentTrick,
-        previousTricks: round.previousTricks,
-    );
   }
 
   List<Suit> _suitDisplayOrder() {
@@ -332,7 +353,12 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    final playerTrickCard = _lastCardPlayedByHuman();
+    final playerTrickCard = lastCardPlayedByPlayer(
+      playerIndex: 0,
+      numberOfPlayers: round.numberOfPlayers,
+      currentTrick: round.currentTrick,
+      previousTricks: round.previousTricks,
+    );
     final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
@@ -401,6 +427,10 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     return !widget.dialogVisible && showPostBidDialog;
   }
 
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
+  }
+
   void makeBidForHuman(int bid) {
     printd("Human bids $bid");
     setState(() {
@@ -458,14 +488,32 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
+    List<Widget> handsToShowForClaim() {
+      if (!_shouldShowClaimTricksDialog()) {
+        return [];
+      }
+      return (const [1, 2, 3]).map((p) =>
+        PlayerHandCards(
+          layout: layout,
+          playerIndex: p,
+          suitDisplayOrder: _suitDisplayOrder(),
+          cards: round.players[p].hand,
+          trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
+          highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+        )).toList();
+    }
+
     return Stack(
       children: <Widget>[
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        ...handsToShowForClaim(),
         if (_shouldShowHumanBidDialog())
           BidDialog(layout: layout, round: round, onBid: makeBidForHuman, catImageIndices: widget.catImageIndices),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,
