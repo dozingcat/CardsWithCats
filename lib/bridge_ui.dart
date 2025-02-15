@@ -450,9 +450,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       }
       List<int> playersToShow = switch (round.contract!.declarer) {
         0 => [1, 3],
-        1 => [2],
+        1 => [1, 2],
         2 => [1, 3],
-        3 => [2],
+        3 => [2, 3],
         _ => [],
       };
       return playersToShow.map((p) => PlayerHandCards(
