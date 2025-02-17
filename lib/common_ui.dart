@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -18,11 +19,13 @@ enum AiMode {
   humanPlayer0,
 }
 
-const cardAspectRatio = 521.0 / 726;
+const defaultCardAspectRatio = 521.0 / 726;
 
 class Layout {
   late Size displaySize;
   late double playerHeight;
+  late EdgeInsets padding;
+  double cardAspectRatio = defaultCardAspectRatio;
 
   Rect cardArea() {
     final border = playerHeight * 0.9;
@@ -98,16 +101,20 @@ Rect centeredSubrectWithAspectRatio(Rect parentRect, double aspectRatio) {
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
+  final double cardAspectRatio;
   final double opacity;
+  final double rotation;
   final bool isTrump;
-  final void Function(PlayingCard) onCardClicked;
+  final void Function(PlayingCard)? onCardClicked;
 
   const PositionedCard({
     Key? key,
     required this.rect,
     required this.card,
-    required this.onCardClicked,
+    this.cardAspectRatio = defaultCardAspectRatio,
+    this.onCardClicked,
     this.opacity = 1.0,
+    this.rotation = 0.0,
     this.isTrump = false,
   }) : super(key: key);
 
@@ -136,6 +143,20 @@ class PositionedCard extends StatelessWidget {
             fit: BoxFit.contain,
             alignment: Alignment.center,
           )));
+
+      // cardStack.add(TweenAnimationBuilder(
+      //   tween: Tween(begin: Colors.pink, end: Colors.blue),
+      //   duration:
+      //   builder: (context, Color color, child) {
+      //
+      //   },
+      // ));
+      // cardStack.add(Container(
+      //   decoration: BoxDecoration(
+      //     color: Colors.amber,
+      //       borderRadius: BorderRadius.all(Radius.circular(5))
+      //   ),
+      // ));
     }
     cardStack.add(Center(
         child: Image(
@@ -158,9 +179,9 @@ class PositionedCard extends StatelessWidget {
 
     return Positioned.fromRect(
         rect: cardRect,
-        child: GestureDetector(
-            onTapDown: (tap) => onCardClicked(card),
-            child: Stack(children: cardStack)));
+        child: Transform.rotate(angle: rotation, child: GestureDetector(
+            onTapDown: onCardClicked != null ? ((tap) => onCardClicked!(card)) : null,
+            child: Stack(children: cardStack))));
   }
 }
 
@@ -172,11 +193,11 @@ class AiPlayerImage extends StatelessWidget {
   final int? catImageIndex;
 
   const AiPlayerImage({
-    Key? key,
+    super.key,
     required this.layout,
     required this.playerIndex,
     this.catImageIndex,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -232,12 +253,12 @@ class SpeechBubble extends StatelessWidget {
   static const imagePath = "assets/misc/speech_bubble.png";
 
   const SpeechBubble({
-    Key? key,
+    super.key,
     required this.layout,
     required this.playerIndex,
     required this.message,
     this.widthFraction = 0.2,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -500,6 +521,18 @@ class PlayerMessagesOverlay extends StatelessWidget {
   }
 }
 
+class DisplayedHand {
+  int playerIndex;
+  List<PlayingCard> cards;
+  HandDisplayStyle displayStyle;
+
+  DisplayedHand({
+    required this.playerIndex,
+    required this.cards,
+    this.displayStyle = HandDisplayStyle.normal,
+  });
+}
+
 class TrickCards extends StatelessWidget {
   final Layout layout;
   final TrickInProgress currentTrick;
@@ -508,12 +541,12 @@ class TrickCards extends StatelessWidget {
   final int numPlayers;
   final void Function() onTrickCardAnimationFinished;
   final void Function() onTrickToWinnerAnimationFinished;
-  final List<PlayingCard>? humanPlayerHand;
-  final List<Suit>? humanPlayerSuitOrder;
+  final List<DisplayedHand>? displayedHands;
+  final List<Suit>? suitOrder;
   final Suit? trumpSuit;
 
   const TrickCards({
-    Key? key,
+    super.key,
     required this.layout,
     required this.currentTrick,
     required this.previousTricks,
@@ -521,10 +554,10 @@ class TrickCards extends StatelessWidget {
     required this.numPlayers,
     required this.onTrickCardAnimationFinished,
     required this.onTrickToWinnerAnimationFinished,
-    this.humanPlayerHand,
-    this.humanPlayerSuitOrder,
+    this.displayedHands,
+    this.suitOrder,
     this.trumpSuit,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -558,7 +591,6 @@ class TrickCards extends StatelessWidget {
         rect: cardRect,
         card: card,
         isTrump: card.suit == trumpSuit,
-        onCardClicked: (_) => {},
     );
   }
 
@@ -580,12 +612,14 @@ class TrickCards extends StatelessWidget {
     final animPlayer = (leader + cards.length - 1) % numPlayers;
     final endRect = layout.trickCardAreaForPlayer(animPlayer);
     var startRect = layout.cardOriginAreaForPlayer(animPlayer);
-    if (animPlayer == 0 && humanPlayerHand != null) {
+    List<DisplayedHand> matchingDisplayedHands = displayedHands != null ? displayedHands!.where((d) => d.playerIndex == animPlayer).toList() : [];
+    if (matchingDisplayedHands.isNotEmpty) {
+      final dh = matchingDisplayedHands[0];
       // We want to know where the card was drawn in the player's hand. It's not
       // there now, so we have to compute the card rects as if it were.
-      final previousHandCards = [...humanPlayerHand!, cards.last];
+      final previousHandCards = [...dh.cards, cards.last];
       startRect =
-          playerHandCardRects(layout, previousHandCards, humanPlayerSuitOrder!)[cards.last]!;
+          playerHandCardRects(layout, previousHandCards, suitOrder!, playerIndex: animPlayer, displayStyle: dh.displayStyle)[cards.last]!;
     }
 
     cardWidgets.add(TweenAnimationBuilder(
@@ -604,7 +638,6 @@ class TrickCards extends StatelessWidget {
               rect: animRect,
               card: cards.last,
               isTrump: cards.last.suit == trumpSuit,
-              onCardClicked: (_) => {},
           );
         }));
 
@@ -634,7 +667,6 @@ class TrickCards extends StatelessWidget {
                     rect: animRect,
                     card: trick.cards[i],
                     isTrump: trick.cards[i].suit == trumpSuit,
-                    onCardClicked: (_) => {},
                 ));
           }
           return Stack(children: cardWidgets);
@@ -662,6 +694,8 @@ class GameTypeDropdown extends StatelessWidget {
         DropdownMenuItem(value: GameType.hearts, child: Text('Hearts', style: textStyle)),
         DropdownMenuItem(value: GameType.spades, child: Text('Spades', style: textStyle)),
         DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
+        // Bridge isn't enabled for release yet.
+        // DropdownMenuItem(value: GameType.bridge, child: Text('Bridge', style: textStyle)),
       ],
       onChanged: onChanged,
     );
@@ -670,6 +704,10 @@ class GameTypeDropdown extends StatelessWidget {
 
 Widget paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
+}
+
+Widget paddingHorizontal(final double paddingPx, final Widget child) {
+  return Padding(padding: EdgeInsets.only(left: paddingPx, right: paddingPx), child: child);
 }
 
 class ClaimRemainingTricksDialog extends StatelessWidget {
@@ -714,27 +752,37 @@ class PlayerHandCards extends StatelessWidget {
   final List<Suit> suitDisplayOrder;
   final List<PlayingCard> cards;
   final Iterable<PlayingCard> highlightedCards;
-  final void Function(PlayingCard) onCardClicked;
+  final void Function(PlayingCard)? onCardClicked;
   final List<PlayingCard>? animateFromCards;
   final Suit? trumpSuit;
+  final int playerIndex;
+  final HandDisplayStyle displayStyle;
 
   const PlayerHandCards({
-    Key? key,
+    super.key,
     required this.layout,
     required this.suitDisplayOrder,
     required this.cards,
     required this.highlightedCards,
     this.animateFromCards,
     this.trumpSuit,
-    required this.onCardClicked,
-  }): super(key: key);
+    this.onCardClicked,
+    this.playerIndex = 0,
+    this.displayStyle = HandDisplayStyle.normal,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder);
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle);
+
+    double rotation = (playerIndex == 1)
+        ? pi / 2
+        : (playerIndex == 3)
+        ? -pi / 2
+        : 0;
 
     if (animateFromCards != null) {
-      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder);
+      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle);
       return TweenAnimationBuilder(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 200),
@@ -750,6 +798,7 @@ class PlayerHandCards extends StatelessWidget {
                 isTrump: card.suit == trumpSuit,
                 opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
                 onCardClicked: onCardClicked,
+                rotation: rotation,
               ));
             }
             return Stack(children: cardImages);
@@ -765,14 +814,27 @@ class PlayerHandCards extends StatelessWidget {
         isTrump: card.suit == trumpSuit,
         opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
         onCardClicked: onCardClicked,
+        rotation: rotation,
       ));
     }
     return Stack(children: cardImages);
   }
 }
 
-LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
-    Layout layout, List<PlayingCard> cards, List<Suit> suitOrder) {
+enum HandDisplayStyle {
+  normal,
+  dummy,
+}
+
+LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
+    Layout layout,
+    List<PlayingCard> cards,
+    List<Suit> suitOrder,
+    {required int playerIndex}
+) {
+  if (!(playerIndex == 0 || playerIndex == 2)) {
+    throw Exception("invalid playerIndex: $playerIndex");
+  }
   final rects = LinkedHashMap<PlayingCard, Rect>();
   const cardHeightFrac = 0.2;
   const cardOverlapFraction = 1.0 / 3;
@@ -781,7 +843,7 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
   const singleRowHeightFracStart = 0.74;
   final ds = layout.displaySize;
   final cardHeight = ds.height * cardHeightFrac;
-  final cardWidth = cardHeight * cardAspectRatio;
+  final cardWidth = cardHeight * layout.cardAspectRatio;
   final pxBetweenCards = cardWidth * (1 - cardOverlapFraction);
   final maxAllowedTotalWidth = 0.95 * ds.width;
 
@@ -794,8 +856,11 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
   final oneRowWidth = widthOfNCards(sortedCards.length);
   if (oneRowWidth < maxAllowedTotalWidth) {
     // Show all cards in a single row.
-    final startX = (ds.width - oneRowWidth) / 2;
-    final startY = singleRowHeightFracStart * ds.height;
+    var startX = (ds.width - oneRowWidth) / 2;
+    var startY = singleRowHeightFracStart * ds.height;
+    if (playerIndex == 2) {
+      startY = ds.height - startY - cardHeight;
+    }
     for (int i = 0; i < sortedCards.length; i++) {
       final x = startX + i * pxBetweenCards;
       final r = Rect.fromLTWH(x, startY, cardWidth, cardHeight);
@@ -803,42 +868,247 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     }
     return rects;
   }
-  final numLowerCards = sortedCards.length ~/ 2;
-  final numUpperCards = sortedCards.length - numLowerCards;
-  double twoRowWidth = widthOfNCards(numUpperCards);
+  final numUpperCards = sortedCards.length ~/ 2;
+  final numLowerCards = sortedCards.length - numUpperCards;
+  double twoRowWidth = widthOfNCards(numLowerCards);
   // Lower row is offset by half of cardOverlapFraction, so if it has the same
   // number of cards as the top row it extends the total width.
-  if (numLowerCards == numUpperCards) {
+  if (numUpperCards == numLowerCards) {
     twoRowWidth += pxBetweenCards / 2;
   }
-  final topStartX = (ds.width - twoRowWidth) / 2;
-  final bottomStartX = topStartX + pxBetweenCards / 2;
+  final upperStartX = (ds.width - twoRowWidth) / 2;
+  final lowerStartX = upperStartX + pxBetweenCards / 2;
   final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth);
   final scaledCardWidth = scale * cardWidth;
   final scaledCardHeight = scale * cardHeight;
-  final topStartY = upperRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight);
-  final bottomStartY = lowerRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight) / 2;
+  var upperStartY = upperRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight);
+  var lowerStartY = lowerRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight) / 2;
+  if (playerIndex == 2) {
+    double diff = lowerStartY - upperStartY;
+    upperStartY = ds.height - (lowerStartY + scaledCardHeight);
+    lowerStartY = upperStartY + diff;
+  }
   final midX = ds.width / 2;
-  for (int i = 0; i < numUpperCards; i++) {
-    double baseLeft = topStartX + i * pxBetweenCards;
+  for (int i = 0; i < numLowerCards; i++) {
+    double baseLeft = upperStartX + i * pxBetweenCards;
     double scaledLeft = midX + (baseLeft - midX) * scale;
     // adjust Y for scale?
-    final r = Rect.fromLTWH(scaledLeft, topStartY, scaledCardWidth, scaledCardHeight);
+    final r = Rect.fromLTWH(scaledLeft, upperStartY, scaledCardWidth, scaledCardHeight);
     rects[sortedCards[i]] = r;
   }
-  for (int i = 0; i < numLowerCards; i++) {
-    double baseLeft = bottomStartX + i * pxBetweenCards;
+  for (int i = 0; i < numUpperCards; i++) {
+    double baseLeft = lowerStartX + i * pxBetweenCards;
     double scaledLeft = midX + (baseLeft - midX) * scale;
     // adjust Y for scale?
-    final r = Rect.fromLTWH(scaledLeft, bottomStartY, scaledCardWidth, scaledCardHeight);
-    rects[sortedCards[numUpperCards + i]] = r;
+    final r = Rect.fromLTWH(scaledLeft, lowerStartY, scaledCardWidth, scaledCardHeight);
+    rects[sortedCards[numLowerCards + i]] = r;
   }
   return rects;
 }
 
+LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
+    Layout layout,
+    List<PlayingCard> cards,
+    List<Suit> suitOrder,
+    {required int playerIndex}
+    ) {
+  if (!(playerIndex == 1 || playerIndex == 3)) {
+    throw Exception("invalid playerIndex: $playerIndex");
+  }
+  List<PlayingCard> sortedCards = [];
+  for (Suit suit in suitOrder) {
+    sortedCards.addAll(sortedCardsInSuit(cards, suit));
+  }
+
+  final rects = LinkedHashMap<PlayingCard, Rect>();
+  final ds = layout.displaySize;
+
+  final preferredCardWidth = 0.2 * ds.height;
+  final preferredCardHeight = preferredCardWidth * layout.cardAspectRatio;
+
+  final availableHeight = 0.6 * ds.height;
+  final availableWidth = 0.4 * ds.width;
+
+  const cardOverlapFraction = 0.4;
+  final preferredTotalHeight = (1 + (cards.length - 1) * cardOverlapFraction) * preferredCardHeight;
+
+  double scale = 1.0;
+  scale = min(scale, availableWidth / preferredCardWidth);
+  scale = min(scale, availableHeight / preferredTotalHeight);
+
+  final actualCardWidth = scale * preferredCardWidth;
+  final actualCardHeight = scale * preferredCardHeight;
+
+  final xCenter = 0.05 * ds.width + actualCardWidth / 2;
+  final yDistanceBetweenCenters = cardOverlapFraction * actualCardHeight;
+
+  if (playerIndex == 1) {
+    // Left side, start at bottom and go up.
+    final yCenterStart = ds.height / 2 + (sortedCards.length - 1) * yDistanceBetweenCenters / 2;
+    for (int i = 0; i < sortedCards.length; i++) {
+      final yCenter = yCenterStart - i * yDistanceBetweenCenters;
+      // Because the card images get rotated 90 degrees, we need to swap width and height.
+      Rect r = Rect.fromCenter(center: Offset(xCenter, yCenter), width: actualCardHeight, height: actualCardWidth);
+      rects[sortedCards[i]] = r;
+    }
+  }
+  else {
+    // Right side, start at top and go down.
+    final yCenterStart = ds.height / 2 - (sortedCards.length - 1) * yDistanceBetweenCenters / 2;
+    for (int i = 0; i < sortedCards.length; i++) {
+      final yCenter = yCenterStart + i * yDistanceBetweenCenters;
+      Rect r = Rect.fromCenter(center: Offset(ds.width - xCenter, yCenter), width: actualCardHeight, height: actualCardWidth);
+      rects[sortedCards[i]] = r;
+    }
+  }
+
+  return rects;
+}
+
+LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
+  required Layout layout,
+  required List<PlayingCard> cards,
+  required List<Suit> suitOrder,
+  required int playerIndex,
+}) {
+  final rects = LinkedHashMap<PlayingCard, Rect>();
+  if (cards.isEmpty) {
+    return rects;
+  }
+
+  const preferredCardHeightFraction = 0.2;
+  const cardOverlapFraction = 0.25;
+  const cardColumnGapFraction = 0.1;
+
+  final ds = layout.displaySize;
+  final preferredCardHeight = ds.height * preferredCardHeightFraction;
+  final preferredCardWidth = preferredCardHeight * layout.cardAspectRatio;
+
+  List<List<PlayingCard>> cardsBySuit = [];
+  int numCardsInLongestSuit = 0;
+  for (final suit in suitOrder) {
+    cardsBySuit.add(sortedCardsInSuit(cards, suit));
+    if (cardsBySuit.last.length > numCardsInLongestSuit) {
+      numCardsInLongestSuit = cardsBySuit.last.length;
+    }
+  }
+
+  if (playerIndex == 0 || playerIndex == 2) {
+    // 4 columns, 3 gaps.
+    final requiredWidth = (4 + 3 * cardColumnGapFraction) * preferredCardWidth;
+    final requiredHeight = (1 + ((numCardsInLongestSuit - 1) * cardOverlapFraction)) * preferredCardHeight;
+    final availableWidth = ds.width * 0.95;
+    final availableHeight = ds.height * 0.6;
+
+    double scale = 1.0;
+    scale = min(scale, availableWidth / requiredWidth);
+    scale = min(scale, availableHeight / requiredHeight);
+    final actualCardWidth = preferredCardWidth * scale;
+    final actualCardHeight = preferredCardHeight * scale;
+    final actualOverlap = cardOverlapFraction * actualCardHeight;
+    final actualGap = cardColumnGapFraction * actualCardWidth;
+
+    final cx = ds.width / 2;
+    final xCenters = [
+      cx - 1.5 * actualCardWidth - 1.5 * actualGap,
+      cx - 0.5 * actualCardWidth - 0.5 * actualGap,
+      cx + 0.5 * actualCardWidth + 0.5 * actualGap,
+      cx + 1.5 * actualCardWidth + 1.5 * actualGap,
+    ];
+
+    final firstYCenter = (playerIndex == 0)
+        ? 0.975 * ds.height - actualCardHeight / 2
+        : 0.025 * ds.height + actualCardHeight / 2;
+    final centerYDelta = (playerIndex == 0) ? -actualOverlap : actualOverlap;
+
+    for (int i = 0; i < 4; i++) {
+      final cardsInColumn = cardsBySuit[i];
+      for (int j = 0; j < cardsInColumn.length; j++) {
+        final center = Offset(xCenters[i], firstYCenter + j * centerYDelta);
+        Rect rect = Rect.fromCenter(center: center, width: actualCardWidth, height: actualCardHeight);
+        rects[cardsInColumn[j]] = rect;
+      }
+    }
+  }
+  else {
+    assert(playerIndex == 1 || playerIndex == 3);
+    final availableHeight = ds.height * 0.5;
+    final availableWidth = ds.width * 0.5;
+    // Rotated, so card "width" and column gap are the height.
+    final requiredHeight = (4 + 3 * cardColumnGapFraction) * preferredCardWidth;
+    final requiredWidth = (1 + ((numCardsInLongestSuit - 1) * cardOverlapFraction)) * preferredCardHeight;
+
+    double scale = 1.0;
+    scale = min(scale, availableWidth / requiredWidth);
+    scale = min(scale, availableHeight / requiredHeight);
+    final actualCardWidth = preferredCardWidth * scale;
+    final actualCardHeight = preferredCardHeight * scale;
+    final actualOverlap = cardOverlapFraction * actualCardHeight;
+    final actualGap = cardColumnGapFraction * actualCardWidth;
+
+    final firstXCenter = (playerIndex == 1)
+        ? 0.025 * ds.width + actualCardHeight / 2
+        : 0.975 * ds.width - actualCardHeight / 2;
+    final cy = ds.height * 0.4;
+    final yDir = (playerIndex == 1) ? -1 : 1;
+    final yCenters = [
+      cy - yDir * (1.5 * actualCardWidth + 1.5 * actualGap),
+      cy - yDir * (0.5 * actualCardWidth + 0.5 * actualGap),
+      cy + yDir * (0.5 * actualCardWidth + 0.5 * actualGap),
+      cy + yDir * (1.5 * actualCardWidth + 1.5 * actualGap),
+    ];
+    final centerXDelta = (playerIndex == 1) ? actualOverlap : -actualOverlap;
+
+    for (int i = 0; i < 4; i++) {
+      final cardsInColumn = cardsBySuit[i];
+      for (int j = 0; j < cardsInColumn.length; j++) {
+        final center = Offset(firstXCenter + j * centerXDelta, yCenters[i]);
+        Rect rect = Rect.fromCenter(center: center, width: actualCardWidth, height: actualCardHeight);
+        rects[cardsInColumn[j]] = rect;
+      }
+    }
+  }
+
+  return rects;
+}
+
+LinkedHashMap<PlayingCard, Rect> _normalCardRects(
+    Layout layout,
+    List<PlayingCard> cards,
+    List<Suit> suitOrder,
+    {int playerIndex = 0}
+) {
+  if (playerIndex == 0 || playerIndex == 2) {
+    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex);
+  }
+  else {
+    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex);
+  }
+  throw Exception();
+}
+
+LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
+    Layout layout,
+    List<PlayingCard> cards,
+    List<Suit> suitOrder,
+    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal}) {
+  return switch (displayStyle) {
+    HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex),
+    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex),
+  };
+}
+
 Layout computeLayout(BuildContext context) {
-  final ds = MediaQuery.of(context).size;
+  final baseSize = MediaQuery.sizeOf(context);
+  // paddingOf returns the padding needed to avoid display cutouts.
+  final padding = MediaQuery.paddingOf(context);
+  final adjustedSize = Size(
+      baseSize.width - padding.left - padding.right,
+      baseSize.height - padding.top - padding.bottom);
+
   return Layout()
-    ..displaySize = ds
-    ..playerHeight = ds.shortestSide * 0.125;
+    ..displaySize = adjustedSize
+    ..playerHeight = adjustedSize.shortestSide * 0.125
+    ..padding = padding
+    ;
 }

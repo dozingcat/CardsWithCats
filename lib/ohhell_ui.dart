@@ -3,11 +3,11 @@ import 'dart:math';
 
 import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
-// import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'cards/round.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -64,6 +64,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
+  bool isClaimingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -162,6 +163,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
+    isClaimingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -225,7 +227,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     playerMoods.clear();
   }
 
-  // TODO
   void _updateMoodsAfterTrick() {
     // print(round.toJson());
     playerMoods.clear();
@@ -281,32 +282,52 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    if (round.numCardsPerPlayer <= 5) {
+      return false;
+    }
+    return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit);
+  }
+
+  void _handleClaimTricksDialogOk() {
+    claimRemainingTricks(round);
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
+  }
+
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    }
+    else {
+      _scheduleNextActionIfNeeded();
+    }
+  }
+
+  bool _shouldIgnoreCardClick() {
+    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
   }
 
   void handleHandCardClicked(final PlayingCard card) {
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
+    if (_shouldIgnoreCardClick()) {
+      return;
+    }
     if (round.status == OhHellRoundStatus.playing && round.currentPlayerIndex() == 0) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
       }
     }
-  }
-
-  // Duplicated from hearts_ui, might be worth a common function.
-  PlayingCard? _lastCardPlayedByHuman() {
-    return lastCardPlayedByPlayer(
-        playerIndex: 0,
-        numberOfPlayers: round.numberOfPlayers,
-        currentTrick: round.currentTrick,
-        previousTricks: round.previousTricks,
-    );
   }
 
   List<Suit> _suitDisplayOrder() {
@@ -334,7 +355,12 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
-    final playerTrickCard = _lastCardPlayedByHuman();
+    final playerTrickCard = lastCardPlayedByPlayer(
+      playerIndex: 0,
+      numberOfPlayers: round.numberOfPlayers,
+      currentTrick: round.currentTrick,
+      previousTricks: round.previousTricks,
+    );
     final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
@@ -355,7 +381,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   }
 
   Widget _trickCards(final Layout layout) {
-    final humanHand = aiMode == AiMode.humanPlayer0 ? round.players[0].hand : null;
     return TrickCards(
       layout: layout,
       currentTrick: round.currentTrick,
@@ -363,8 +388,8 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
-      humanPlayerHand: humanHand,
-      humanPlayerSuitOrder: _suitDisplayOrder(),
+      displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
+      suitOrder: _suitDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );
@@ -402,6 +427,10 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   bool _shouldShowPostBidDialog() {
     return !widget.dialogVisible && showPostBidDialog;
+  }
+
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
   }
 
   void makeBidForHuman(int bid) {
@@ -461,14 +490,32 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
+    List<Widget> handsToShowForClaim() {
+      if (!_shouldShowClaimTricksDialog()) {
+        return [];
+      }
+      return (const [1, 2, 3]).map((p) =>
+        PlayerHandCards(
+          layout: layout,
+          playerIndex: p,
+          suitDisplayOrder: _suitDisplayOrder(),
+          cards: round.players[p].hand,
+          trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
+          highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+        )).toList();
+    }
+
     return Stack(
       children: <Widget>[
         _handCards(layout, round.players[0].hand),
         _trickCards(layout),
+        ...handsToShowForClaim(),
         if (_shouldShowHumanBidDialog())
           BidDialog(layout: layout, round: round, onBid: makeBidForHuman, catImageIndices: widget.catImageIndices),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,
@@ -490,10 +537,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
 const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
-Widget _paddingAll(final double paddingPx, final Widget child) {
-  return Padding(padding: EdgeInsets.all(paddingPx), child: child);
-}
-
 class BidDialog extends StatefulWidget {
   final Layout layout;
   final OhHellRound round;
@@ -501,15 +544,15 @@ class BidDialog extends StatefulWidget {
   final List<int> catImageIndices;
 
   const BidDialog({
-    Key? key,
+    super.key,
     required this.layout,
     required this.round,
     required this.onBid,
     required this.catImageIndices,
-  }) : super(key: key);
+  });
 
   @override
-  _BidDialogState createState() => _BidDialogState();
+  State<BidDialog> createState() => _BidDialogState();
 }
 
 // TODO: Handle disallowed bids.
@@ -571,7 +614,7 @@ class _BidDialogState extends State<BidDialog> {
                 trumpCardMessage(),
 
                 const Padding(padding: EdgeInsets.only(top: 15), child: Text("Choose your bid", style: adjustBidTextStyle)),
-                if (disallowedBid != null) _paddingAll(5, Text("You may not bid $disallowedBid", style: const TextStyle(fontSize: 14))),
+                if (disallowedBid != null) paddingAll(5, Text("You may not bid $disallowedBid", style: const TextStyle(fontSize: 14))),
                 const SizedBox(height: 10),
                 Row(
                     mainAxisSize: MainAxisSize.min,
@@ -581,14 +624,14 @@ class _BidDialogState extends State<BidDialog> {
                         onPressed: canDecrementBid() ? decrementBid : null,
                         child: const Text("–", style: adjustBidTextStyle),
                       ),
-                      _paddingAll(
+                      paddingAll(
                           rowPadding, Text(bidAmount.toString(), style: adjustBidTextStyle)),
                       ElevatedButton(
                         onPressed: canIncrementBid() ? incrementBid : null,
                         child: const Text("+", style: adjustBidTextStyle),
                       ),
                     ]),
-                _paddingAll(
+                paddingAll(
                     rowPadding,
                     Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -610,8 +653,7 @@ class PostBidDialog extends StatelessWidget {
   final Function() onConfirm;
 
   const PostBidDialog(
-      {Key? key, required this.layout, required this.round, required this.onConfirm})
-      : super(key: key);
+      {super.key, required this.layout, required this.round, required this.onConfirm});
 
   String bidMessage() {
     final playerBid = round.players[0].bid!;
@@ -629,9 +671,9 @@ class PostBidDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(height: halfPadding),
-            _paddingAll(
+            paddingAll(
                 halfPadding, Text(bidMessage(), style: textStyle, textAlign: TextAlign.left)),
-            _paddingAll(
+            paddingAll(
                 halfPadding,
                 ElevatedButton(
                   onPressed: onConfirm,
@@ -651,13 +693,13 @@ class EndOfRoundDialog extends StatelessWidget {
   final List<int> catImageIndices;
 
   const EndOfRoundDialog({
-    Key? key,
+    super.key,
     required this.layout,
     required this.match,
     required this.onContinue,
     required this.onMainMenu,
     required this.catImageIndices,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -666,10 +708,10 @@ class EndOfRoundDialog extends StatelessWidget {
     const pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
 
-    Widget pointsCell(Object p) => _paddingAll(cellPad,
+    Widget pointsCell(Object p) => paddingAll(cellPad,
         Text(p.toString(), textAlign: TextAlign.right, style: const TextStyle(fontSize: pointsFontSize)));
 
-    Widget headerCell(String msg) => _paddingAll(
+    Widget headerCell(String msg) => paddingAll(
         cellPad,
         Text(msg,
             textAlign: TextAlign.right,
@@ -684,8 +726,8 @@ class EndOfRoundDialog extends StatelessWidget {
     }
 
     TableRow pointsRow(String title, List<Object> points) => TableRow(children: [
-      _paddingAll(cellPad, headerCell(title)),
-      ...points.map((p) => _paddingAll(cellPad, pointsCell(p.toString())))
+      paddingAll(cellPad, headerCell(title)),
+      ...points.map((p) => paddingAll(cellPad, pointsCell(p.toString())))
     ]);
 
     String matchOverMessage() {
@@ -706,7 +748,7 @@ class EndOfRoundDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _paddingAll(
+                    paddingAll(
                         10,
                         Text(matchOverMessage(),
                             style: const TextStyle(fontSize: 26))),
@@ -717,18 +759,18 @@ class EndOfRoundDialog extends StatelessWidget {
                   const SizedBox(height: 15),
                   Text("Round ${match.previousRounds.length + 1} of ${match.rules.numRoundsInMatch}"),
                 ],
-              _paddingAll(
+              paddingAll(
                   10,
                   Table(
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     defaultColumnWidth: const IntrinsicColumnWidth(),
                     children: [
                       TableRow(children: [
-                        _paddingAll(cellPad, headerCell("")),
-                        _paddingAll(cellPad, headerCell("You")),
-                        _paddingAll(cellPad, catImageCell(catImageIndices[1])),
-                        _paddingAll(cellPad, catImageCell(catImageIndices[2])),
-                        _paddingAll(cellPad, catImageCell(catImageIndices[3])),
+                        paddingAll(cellPad, headerCell("")),
+                        paddingAll(cellPad, headerCell("You")),
+                        paddingAll(cellPad, catImageCell(catImageIndices[1])),
+                        paddingAll(cellPad, catImageCell(catImageIndices[2])),
+                        paddingAll(cellPad, catImageCell(catImageIndices[3])),
                       ]),
                       pointsRow("Previous", match.currentRound.initialScores),
                       pointsRow("Round score", scores),
@@ -740,13 +782,13 @@ class EndOfRoundDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _paddingAll(
+                    paddingAll(
                         15,
                         ElevatedButton(
                           onPressed: onContinue,
                           child: const Text("Rematch"),
                         )),
-                    _paddingAll(
+                    paddingAll(
                         15,
                         ElevatedButton(
                           onPressed: onMainMenu,
@@ -759,7 +801,7 @@ class EndOfRoundDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _paddingAll(
+                    paddingAll(
                         15,
                         ElevatedButton(
                           onPressed: onContinue,

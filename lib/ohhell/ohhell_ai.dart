@@ -249,10 +249,10 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   int currentPlayerIndex = req.currentPlayerIndex();
   final constraints = List.generate(
       numPlayers,
-          (pnum) => CardDistributionConstraint(
+      (pnum) => CardDistributionConstraint(
         numCards: cardCounts[pnum],
         voidedSuits: voidedSuits[pnum].toList(),
-            fixedCards: pnum == currentPlayerIndex ? req.hand : [],
+        fixedCards: pnum == currentPlayerIndex ? req.hand : [],
       ));
   if (req.dealerHasTrumpCard && !seenCards.contains(req.trumpCard) && req.dealerIndex() != req.currentPlayerIndex()) {
     constraints[req.dealerIndex()].fixedCards.add(req.trumpCard);

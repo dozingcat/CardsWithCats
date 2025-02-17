@@ -14,6 +14,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'bridge/bridge.dart';
+import 'bridge_ui.dart';
 import 'common.dart';
 import 'hearts/hearts.dart';
 import 'ohhell/ohhell.dart';
@@ -27,6 +29,9 @@ import 'spades_ui.dart';
 const appTitle = "Cards With Cats";
 const appVersion = "1.2.0";
 const appLegalese = "© 2022-2023 Brian Nenninger";
+
+const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
+const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
 
 void main() {
   runApp(const MyApp());
@@ -43,6 +48,9 @@ class MyApp extends StatelessWidget {
       title: appTitle,
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        // TODO: remove this
+        useMaterial3: true,
+        // colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
       home: const MyHomePage(title: 'Cards With Cats'),
     );
@@ -222,6 +230,7 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("heartsMatch");
     preferences.remove("spadesMatch");
     preferences.remove("ohHellMatch");
+    preferences.remove("bridgeMatch");
 
     preferences.remove("matchType");
     matchType = null;
@@ -250,6 +259,15 @@ class _MyHomePageState extends State<MyHomePage> {
     if (match != null) {
       preferences.setString("matchType", "ohHell");
       preferences.setString("ohHellMatch", jsonEncode(match.toJson()));
+    } else {
+      _clearMatch();
+    }
+  }
+
+  void _saveBridgeMatch(final BridgeMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "bridge");
+      preferences.setString("bridgeMatch", jsonEncode(match.toJson()));
     } else {
       _clearMatch();
     }
@@ -285,6 +303,16 @@ class _MyHomePageState extends State<MyHomePage> {
     return _createOhHellMatch();
   }
 
+  BridgeMatch _initialBridgeMatch() {
+    if (preferences.getString("matchType") == "bridge") {
+      String? json = preferences.getString("bridgeMatch");
+      if (json != null) {
+        return BridgeMatch.fromJson(jsonDecode(json), rng);
+      }
+    }
+    return _createBridgeMatch();
+  }
+
   HeartsMatch _createHeartsMatch() {
     catIndices = randomizedCatImageIndices(rng);
     return HeartsMatch(heartsRulesFromPrefs, rng);
@@ -300,6 +328,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return OhHellMatch(ohHellRulesFromPrefs, Random());
   }
 
+  BridgeMatch _createBridgeMatch() {
+    catIndices = randomizedCatImageIndices(rng);
+    return BridgeMatch(Random());
+  }
+
   void _continueGame() {
     setState(() {
       dialogMode = DialogMode.none;
@@ -307,16 +340,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool isMatchInProgress() {
-    if (matchType == GameType.hearts) {
-      return preferences.getString("heartsMatch") != null;
-    }
-    if (matchType == GameType.spades) {
-      return preferences.getString("spadesMatch") != null;
-    }
-    if (matchType == GameType.ohHell) {
-      return preferences.getString("ohHellMatch") != null;
-    }
-    return false;
+    return switch (matchType) {
+      GameType.hearts => preferences.getString("heartsMatch") != null,
+      GameType.spades => preferences.getString("spadesMatch") != null,
+      GameType.ohHell => preferences.getString("ohHellMatch") != null,
+      GameType.bridge => preferences.getString("bridgeMatch") != null,
+      null => false,
+    };
   }
 
   void startNewHeartsMatch() {
@@ -349,6 +379,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.ohHell;
+    });
+  }
+
+  void startNewBridgeMatch() {
+    preferences.remove("bridgeMatch");
+    final newMatch = _createBridgeMatch();
+    _saveBridgeMatch(newMatch);
+    matchUpdateNotifier.sink.add(newMatch);
+    setState(() {
+      dialogMode = DialogMode.none;
+      matchType = GameType.bridge;
     });
   }
 
@@ -402,6 +443,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void handleNewBridgeMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewBridgeMatch);
+    } else {
+      startNewBridgeMatch();
+    }
+  }
+
   void handleNewMatchClicked() {
     setState(() {dialogMode = DialogMode.startMatch;});
   }
@@ -417,37 +466,35 @@ class _MyHomePageState extends State<MyHomePage> {
       case GameType.ohHell:
         handleNewOhHellMatchClicked();
         break;
+      case GameType.bridge:
+        handleNewBridgeMatchClicked();
+        break;
     }
   }
 
-  static const gameBackgroundColor = Color.fromRGBO(32, 160, 32, 0.3);
-  static const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
-
   Widget _gameTable(final Layout layout) {
-    final rect = Rect.fromLTWH(0, 0, layout.displaySize.width, layout.displaySize.height);
-    return Stack(children: [
-      Positioned.fromRect(rect: rect, child: Container(color: gameBackgroundColor)),
-      Positioned.fromRect(rect: layout.cardArea(), child: Container(color: gameTableColor)),
-    ]);
+    return Positioned.fromRect(rect: layout.cardArea(), child: Container(color: gameTableColor));
   }
 
   void _showAboutDialog(BuildContext context) async {
     final aboutText = await DefaultAssetBundle.of(context).loadString('assets/doc/about.md');
-    showAboutDialog(
-      context: context,
-      applicationName: appTitle,
-      applicationVersion: appVersion,
-      applicationLegalese: appLegalese,
-      children: [
-        Container(height: 15),
-        MarkdownBody(
-          data: aboutText,
-          onTapLink: (text, href, title) => launchUrl(Uri.parse(href!)),
-          // https://pub.dev/documentation/flutter_markdown/latest/flutter_markdown/MarkdownListItemCrossAxisAlignment.html
-          listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
-        ),
-      ],
-    );
+    if (context.mounted) {
+      showAboutDialog(
+        context: context,
+        applicationName: appTitle,
+        applicationVersion: appVersion,
+        applicationLegalese: appLegalese,
+        children: [
+          Container(height: 15),
+          MarkdownBody(
+            data: aboutText,
+            onTapLink: (text, href, title) => launchUrl(Uri.parse(href!)),
+            // https://pub.dev/documentation/flutter_markdown/latest/flutter_markdown/MarkdownListItemCrossAxisAlignment.html
+            listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
+          ),
+        ],
+      );
+    }
   }
 
   Widget _mainMenuDialog(final BuildContext context, final Layout layout) {
@@ -673,10 +720,10 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _menuIcon() {
     return Padding(
       padding: const EdgeInsets.all(10),
-      child: FloatingActionButton(
+      child: Opacity(opacity: 0.6, child: FloatingActionButton(
         onPressed: _showMainMenu,
         child: const Icon(Icons.menu),
-      ),
+      )),
     );
   }
 
@@ -687,64 +734,83 @@ class _MyHomePageState extends State<MyHomePage> {
       return Scaffold(body: Container());
     }
     const aiIndices = [1, 2, 3];
+    // Use layout.padding to avoid display cutouts. The background color is
+    // drawn outside the padding so that it will extend into any cutout area.
+    // (Not using SafeArea because it removes padding from child widgets, which
+    // interferes with the height/width calculations).
     return Scaffold(
       body: Stack(children: [
-        // Text(layout.displaySize.shortestSide.toString()),
-        _gameTable(layout),
-        ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
-        if (matchType == GameType.hearts)
-          HeartsMatchDisplay(
-            initialMatchFn: _initialHeartsMatch,
-            createMatchFn: _createHeartsMatch,
-            saveMatchFn: _saveHeartsMatch,
-            mainMenuFn: _showMainMenu,
-            matchUpdateStream: matchUpdateNotifier.stream,
-            dialogVisible: dialogMode != DialogMode.none,
-            catImageIndices: catIndices,
-            soundPlayer: soundPlayer,
-            statsStore: statsStore,
+        Container(color: gameBackgroundColor),
+        Padding(padding: layout.padding, child: Stack(children: [
+          // Text(layout.displaySize.shortestSide.toString()),
+          _gameTable(layout),
+          ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
+          if (matchType == GameType.hearts)
+            HeartsMatchDisplay(
+              initialMatchFn: _initialHeartsMatch,
+              createMatchFn: _createHeartsMatch,
+              saveMatchFn: _saveHeartsMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              soundPlayer: soundPlayer,
+              statsStore: statsStore,
+            ),
+          if (matchType == GameType.spades)
+            SpadesMatchDisplay(
+              initialMatchFn: _initialSpadesMatch,
+              createMatchFn: _createSpadesMatch,
+              saveMatchFn: _saveSpadesMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              tintTrumpCards: useTintedTrumpCards,
+              soundPlayer: soundPlayer,
+              statsStore: statsStore,
+            ),
+          if (matchType == GameType.ohHell)
+            OhHellMatchDisplay(
+              initialMatchFn: _initialOhHellMatch,
+              createMatchFn: _createOhHellMatch,
+              saveMatchFn: _saveOhHellMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              tintTrumpCards: useTintedTrumpCards,
+              soundPlayer: soundPlayer,
+              statsStore: statsStore,
+            ),
+          if (matchType == GameType.bridge)
+            BridgeMatchDisplay(
+              initialMatchFn: _initialBridgeMatch,
+              createMatchFn: _createBridgeMatch,
+              saveMatchFn: _saveBridgeMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              tintTrumpCards: useTintedTrumpCards,
+              soundPlayer: soundPlayer,
+              statsStore: statsStore,
+            ),
+          if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
+          if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
+          if (dialogMode == DialogMode.startMatch) NewGameDialog(
+              gameType: matchType,
+              newGameFn: startNewMatch,
+              cancelFn: () {setState(() {dialogMode = DialogMode.mainMenu;});},
+              layout: layout),
+          if (dialogMode == DialogMode.statistics) StatsDialog(
+              layout: layout,
+              statsStore: statsStore,
+              onClose: _showMainMenu,
           ),
-        if (matchType == GameType.spades)
-          SpadesMatchDisplay(
-            initialMatchFn: _initialSpadesMatch,
-            createMatchFn: _createSpadesMatch,
-            saveMatchFn: _saveSpadesMatch,
-            mainMenuFn: _showMainMenu,
-            matchUpdateStream: matchUpdateNotifier.stream,
-            dialogVisible: dialogMode != DialogMode.none,
-            catImageIndices: catIndices,
-            tintTrumpCards: useTintedTrumpCards,
-            soundPlayer: soundPlayer,
-            statsStore: statsStore,
-          ),
-        if (matchType == GameType.ohHell)
-          OhHellMatchDisplay(
-            initialMatchFn: _initialOhHellMatch,
-            createMatchFn: _createOhHellMatch,
-            saveMatchFn: _saveOhHellMatch,
-            mainMenuFn: _showMainMenu,
-            matchUpdateStream: matchUpdateNotifier.stream,
-            dialogVisible: dialogMode != DialogMode.none,
-            catImageIndices: catIndices,
-            tintTrumpCards: useTintedTrumpCards,
-            soundPlayer: soundPlayer,
-            statsStore: statsStore,
-          ),
-        if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
-        if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
-        if (dialogMode == DialogMode.startMatch) NewGameDialog(
-            gameType: matchType,
-            newGameFn: startNewMatch,
-            cancelFn: () {setState(() {dialogMode = DialogMode.mainMenu;});},
-            layout: layout),
-        if (dialogMode == DialogMode.statistics) StatsDialog(
-            layout: layout,
-            statsStore: statsStore,
-            onClose: _showMainMenu,
-        ),
-        if (dialogMode == DialogMode.none) _menuIcon(),
-      ]),
-    );
+          if (dialogMode == DialogMode.none) _menuIcon(),
+        ])),
+      ]));
   }
 }
 
@@ -759,12 +825,12 @@ TableRow _makeButtonRow(String title, void Function() onPressed) {
 
 class NewGameDialog extends StatefulWidget {
   const NewGameDialog({
-    Key? key,
+    super.key,
     required this.gameType,
     required this.newGameFn,
     required this.cancelFn,
     required this.layout,
-  }) : super(key: key);
+  });
 
   final GameType? gameType;
   final Function(GameType) newGameFn;
