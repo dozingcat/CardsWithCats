@@ -304,6 +304,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
   }
 
   void _trickToWinnerAnimationFinished() {

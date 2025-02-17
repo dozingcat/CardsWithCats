@@ -294,6 +294,8 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
   }
 
   void _trickToWinnerAnimationFinished() {

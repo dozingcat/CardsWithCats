@@ -277,6 +277,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
   }
 
   bool _shouldIgnoreCardClick() {

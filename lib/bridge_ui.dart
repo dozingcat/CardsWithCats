@@ -290,6 +290,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
   }
 
   bool _isPlayerControlledByHuman(int pnum) {
