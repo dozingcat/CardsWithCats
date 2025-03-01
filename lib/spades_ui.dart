@@ -340,12 +340,19 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
-  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
+  Widget _playerCards(final Layout layout) {
+    if (_shouldShowEndOfRoundDialog()) {
+      // Could show original hands, but the UI gets crowded.
+      return const SizedBox();
+    }
+    List<PlayerHandParams> handParams = [];
+    // Always show human player's hand.
+    List<PlayingCard> humanCards = round.players[0].hand;
     bool isHumanTurn = round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0;
     bool isBidding = round.status == SpadesRoundStatus.bidding;
     List<PlayingCard> highlightedCards = [];
     if (isBidding) {
-      highlightedCards = cards;
+      highlightedCards = humanCards;
     }
     else if (isHumanTurn) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
@@ -357,23 +364,37 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
     );
-    final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
+    final previousPlayerCards = (playerTrickCard != null) ? [...humanCards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
-    var key = "H${cards.map((c) => c.toString()).join()}";
+    var key = "H${humanCards.map((c) => c.toString()).join()}";
     if (playerTrickCard != null) {
       key += ":${playerTrickCard.toString()}";
     }
 
-    return PlayerHandCards(
-        key: Key(key),
-        layout: layout,
-        suitDisplayOrder: suitDisplayOrder,
-        trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
-        cards: cards,
-        animateFromCards: previousPlayerCards,
-        highlightedCards: highlightedCards,
-        onCardClicked: handleHandCardClicked);
+    handParams.add(PlayerHandParams(
+      key: Key(key),
+      playerIndex: 0,
+      cards: humanCards,
+      highlightedCards: highlightedCards,
+      animateFromCards: previousPlayerCards,
+      onCardClicked: handleHandCardClicked,
+    ));
+
+    if (_shouldShowClaimTricksDialog()) {
+      handParams.addAll((const [1, 2, 3]).map((p) => PlayerHandParams(
+        playerIndex: p,
+        cards: round.players[p].hand,
+        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+      )));
+    }
+
+    return MultiplePlayerHandCards(
+      layout: layout,
+      playerHands: handParams,
+      suitOrder: suitDisplayOrder,
+      trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
+    );
   }
 
   Widget _trickCards(final Layout layout) {
@@ -484,26 +505,10 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
-    List<Widget> handsToShowForClaim() {
-      if (!_shouldShowClaimTricksDialog()) {
-        return [];
-      }
-      return (const [1, 2, 3]).map((p) =>
-          PlayerHandCards(
-            layout: layout,
-            playerIndex: p,
-            suitDisplayOrder: suitDisplayOrder,
-            cards: round.players[p].hand,
-            trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
-            highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-          )).toList();
-    }
-
     return Stack(
       children: <Widget>[
-        _handCards(layout, round.players[0].hand),
+        _playerCards(layout),
         _trickCards(layout),
-        ...handsToShowForClaim(),
 
         if (_shouldShowHumanBidDialog())
           BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),

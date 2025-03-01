@@ -321,7 +321,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     }
   }
 
-  Widget _humanNonDummyHand(final Layout layout) {
+  PlayerHandParams _humanNonDummyHand(final Layout layout) {
     final declarer = round.contract?.declarer;
     int playerIndex = declarer == 2 ? 2 : 0;
     bool isPlayingNextCard = round.status == BridgeRoundStatus.playing && round.currentPlayerIndex() == playerIndex;
@@ -350,22 +350,20 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       key += ":${playerTrickCard.toString()}";
     }
 
-    return PlayerHandCards(
-        key: Key(key),
-        layout: layout,
-        playerIndex: playerIndex,
-        suitDisplayOrder: _suitDisplayOrder(),
-        cards: cards,
-        trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
-        animateFromCards: previousPlayerCards,
-        highlightedCards: highlightedCards,
-        onCardClicked: handleHandCardClicked);
+    return PlayerHandParams(
+      key: Key(key),
+      playerIndex: playerIndex,
+      cards: cards,
+      highlightedCards: highlightedCards,
+      animateFromCards: previousPlayerCards,
+      onCardClicked: handleHandCardClicked,
+    );
   }
 
-  Widget _dummyHand(final Layout layout) {
+  PlayerHandParams? _dummyHand(final Layout layout) {
     int? dummyPlayer = round.visibleDummy();
     if (dummyPlayer == null) {
-      return Container();
+      return null;
     }
     assert(round.status == BridgeRoundStatus.playing);
 
@@ -388,17 +386,51 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       key += ":${lastPlayedCard.toString()}";
     }
 
-    return PlayerHandCards(
-        key: Key(key),
-        layout: layout,
-        playerIndex: dummyPlayer,
-        displayStyle: HandDisplayStyle.dummy,
-        suitDisplayOrder: _suitDisplayOrder(),
-        cards: cards,
-        trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
-        animateFromCards: previousPlayerCards,
-        highlightedCards: highlightedCards,
-        onCardClicked: handleHandCardClicked);
+    return PlayerHandParams(
+      key: Key(key),
+      playerIndex: dummyPlayer,
+      displayStyle: HandDisplayStyle.dummy,
+      cards: cards,
+      highlightedCards: highlightedCards,
+      animateFromCards: previousPlayerCards,
+      onCardClicked: handleHandCardClicked,
+    );
+  }
+
+  List<PlayerHandParams> _handsToShowForClaim(Layout layout) {
+    if (!_shouldShowClaimTricksDialog() || round.contract == null) {
+      return [];
+    }
+    List<int> playersToShow = switch (round.contract!.declarer) {
+      0 => [1, 3],
+      1 => [1, 2],
+      2 => [1, 3],
+      3 => [2, 3],
+      _ => [],
+    };
+    return playersToShow.map((p) => PlayerHandParams(
+      playerIndex: p,
+      cards: round.players[p].hand,
+      highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+    )).toList();
+  }
+
+  Widget _playerCards(layout) {
+    final humanHand = _humanNonDummyHand(layout);
+    final dummyHand = _dummyHand(layout);
+    final claimHands = _handsToShowForClaim(layout);
+    final allHands = [
+      humanHand,
+      if (dummyHand != null) dummyHand,
+      ...claimHands,
+    ];
+
+    return MultiplePlayerHandCards(
+      layout: layout,
+      playerHands: allHands,
+      suitOrder: _suitDisplayOrder(),
+      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+    );
   }
 
   Widget _trickCards(final Layout layout) {
@@ -446,33 +478,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
-    List<Widget> handsToShowForClaim() {
-      if (!_shouldShowClaimTricksDialog() || round.contract == null) {
-        return [];
-      }
-      List<int> playersToShow = switch (round.contract!.declarer) {
-        0 => [1, 3],
-        1 => [1, 2],
-        2 => [1, 3],
-        3 => [2, 3],
-        _ => [],
-      };
-      return playersToShow.map((p) => PlayerHandCards(
-        layout: layout,
-        playerIndex: p,
-        suitDisplayOrder: _suitDisplayOrder(),
-        cards: round.players[p].hand,
-        trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
-        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-      )).toList();
-    }
-
     return Stack(
         children: [
-          _humanNonDummyHand(layout),
-          _dummyHand(layout),
+          _playerCards(layout),
           _trickCards(layout),
-          ...handsToShowForClaim(),
 
           if (_shouldShowBidDialog())
             BidDialog(

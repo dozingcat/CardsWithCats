@@ -33,6 +33,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Impeller is enabled by default in Flutter 3.27, but on my tablet
+             (Lenovo Chromebook Duet 9, "geralt"), it causes the app to render
+             upside down. Disabling Impeller fixes that.
+             https://docs.flutter.dev/perf/impeller
+        -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

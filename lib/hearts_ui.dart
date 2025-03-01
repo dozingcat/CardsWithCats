@@ -307,13 +307,46 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
-  Widget _handCards(final Layout layout, final List<PlayingCard> cards) {
+  Widget _playerCards(final Layout layout) {
+    if (_shouldShowEndOfRoundDialog()) {
+      // Could show points taken, but the UI gets crowded.
+      /*
+      bool useJD = round.rules.jdMinus10;
+      Map<int, List<PlayingCard>> takenCards = {};
+      for (final t in round.previousTricks) {
+        List<PlayingCard> pointCards = t.cards.where(
+            (c) => c == queenOfSpades || c.suit == Suit.hearts || (useJD && c == jackOfDiamonds)
+        ).toList();
+        if (pointCards.isNotEmpty) {
+          if (!takenCards.containsKey(t.winner)) {
+            takenCards[t.winner] = [];
+          }
+          takenCards[t.winner]!.addAll(pointCards);
+        }
+      }
+      List<PlayerHandParams> handParams = takenCards.entries.map(
+          (e) => PlayerHandParams(
+            playerIndex: e.key,
+            cards: e.value,
+            highlightedCards: e.value,
+          )).toList();
+      return MultiplePlayerHandCards(
+          layout: layout,
+          playerHands: handParams,
+          suitOrder: const [Suit.spades, Suit.diamonds, Suit.hearts, Suit.clubs],
+      );
+      */
+      return const SizedBox();
+    }
+    List<PlayerHandParams> handParams = [];
+    // Always show human player's hand.
+    List<PlayingCard> humanCards = round.players[0].hand;
     bool isHumanTurn = round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0;
     List<PlayingCard> highlightedCards = [];
     if (isHumanTurn) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     } else if (round.status == HeartsRoundStatus.passing) {
-      highlightedCards = cards.where((c) => !selectedCardsToPass.contains(c)).toList();
+      highlightedCards = humanCards.where((c) => !selectedCardsToPass.contains(c)).toList();
     }
 
     final playerTrickCard = lastCardPlayedByPlayer(
@@ -322,21 +355,36 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
     );
-    final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
+    final previousPlayerCards = (playerTrickCard != null) ? [...humanCards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
-    var key = "H${cards.map((c) => c.toString()).join()}";
+    var key = "H${humanCards.map((c) => c.toString()).join()}";
     if (playerTrickCard != null) {
       key += ":${playerTrickCard.toString()}";
     }
-    return PlayerHandCards(
-        key: Key(key),
+
+    handParams.add(PlayerHandParams(
+      key: Key(key),
+      playerIndex: 0,
+      cards: humanCards,
+      highlightedCards: highlightedCards,
+      animateFromCards: previousPlayerCards,
+      onCardClicked: handleHandCardClicked,
+    ));
+
+    if (_shouldShowClaimTricksDialog()) {
+      handParams.addAll((const [1, 2, 3]).map((p) => PlayerHandParams(
+        playerIndex: p,
+        cards: round.players[p].hand,
+        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+      )));
+    }
+
+    return MultiplePlayerHandCards(
         layout: layout,
-        suitDisplayOrder: suitDisplayOrder,
-        cards: cards,
-        animateFromCards: previousPlayerCards,
-        highlightedCards: highlightedCards,
-        onCardClicked: handleHandCardClicked);
+        playerHands: handParams,
+        suitOrder: suitDisplayOrder
+    );
   }
 
   Widget _trickCards(final Layout layout) {
@@ -429,25 +477,10 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
 
-    List<Widget> handsToShowForClaim() {
-      if (!_shouldShowClaimTricksDialog()) {
-        return [];
-      }
-      return (const [1, 2, 3]).map((p) =>
-          PlayerHandCards(
-            layout: layout,
-            playerIndex: p,
-            suitDisplayOrder: suitDisplayOrder,
-            cards: round.players[p].hand,
-            highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-          )).toList();
-    }
-
     return Stack(
       children: <Widget>[
-        _handCards(layout, round.players[0].hand),
+        _playerCards(layout),
         _trickCards(layout),
-        ...handsToShowForClaim(),
 
         if (_shouldShowPassDialog())
           PassCardsDialog(
