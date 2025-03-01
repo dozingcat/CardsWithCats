@@ -747,6 +747,11 @@ class ClaimRemainingTricksDialog extends StatelessWidget {
   }
 }
 
+enum HandDisplayStyle {
+  normal,
+  dummy,
+}
+
 class PlayerHandCards extends StatelessWidget {
   final Layout layout;
   final List<Suit> suitDisplayOrder;
@@ -757,6 +762,7 @@ class PlayerHandCards extends StatelessWidget {
   final Suit? trumpSuit;
   final int playerIndex;
   final HandDisplayStyle displayStyle;
+  final double scaleMultiplier;
 
   const PlayerHandCards({
     super.key,
@@ -769,11 +775,12 @@ class PlayerHandCards extends StatelessWidget {
     this.onCardClicked,
     this.playerIndex = 0,
     this.displayStyle = HandDisplayStyle.normal,
+    this.scaleMultiplier = 1,
   });
 
   @override
   Widget build(BuildContext context) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle);
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier);
 
     double rotation = (playerIndex == 1)
         ? pi / 2
@@ -782,7 +789,7 @@ class PlayerHandCards extends StatelessWidget {
         : 0;
 
     if (animateFromCards != null) {
-      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle);
+      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier);
       return TweenAnimationBuilder(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 200),
@@ -821,16 +828,144 @@ class PlayerHandCards extends StatelessWidget {
   }
 }
 
-enum HandDisplayStyle {
-  normal,
-  dummy,
+class PlayerHandParams {
+  final Key? key;
+  final int playerIndex;
+  final List<PlayingCard> cards;
+  final Iterable<PlayingCard> highlightedCards;
+  final void Function(PlayingCard)? onCardClicked;
+  final List<PlayingCard>? animateFromCards;
+  final HandDisplayStyle displayStyle;
+
+  PlayerHandParams({
+    this.key,
+    required this.playerIndex,
+    required this.cards,
+    required this.highlightedCards,
+    this.animateFromCards,
+    this.onCardClicked,
+    this.displayStyle = HandDisplayStyle.normal,
+  });
+}
+
+class MultiplePlayerHandCards extends StatelessWidget {
+  final Layout layout;
+  final List<PlayerHandParams> playerHands;
+  final List<Suit> suitOrder;
+  final Suit? trumpSuit;
+
+  const MultiplePlayerHandCards({
+    super.key,
+    required this.layout,
+    required this.playerHands,
+    required this.suitOrder,
+    this.trumpSuit,
+  });
+
+  static bool anyRectsIntersect(List<Rect> rects1, List<Rect> rects2) {
+    for (final r1 in rects1) {
+      for (final r2 in rects2) {
+        if (!r1.intersect(r2).isEmpty) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool hasCardIntersectionAtScaleMultiplier(double scaleMultiplier) {
+    if (playerHands.length <= 1) {
+      return false;
+    }
+    List<List<Rect>> perPlayerRects = [];
+    // Slightly expand the rects when checking for intersections so that
+    // the cards won't go right up to each other's edges.
+    // HACK: Swap width/height for sideways cards since they'll be rotated when drawn.
+    const bufferScale = 1.03;
+    for (final ph in playerHands) {
+      final rects = playerHandCardRects(
+        layout, ph.cards, suitOrder,
+        playerIndex: ph.playerIndex,
+        displayStyle: ph.displayStyle,
+        scaleMultiplier: scaleMultiplier,
+      ).values.toList(growable: false);
+      if (ph.playerIndex == 1 || ph.playerIndex == 3) {
+        for (int i = 0; i < rects.length; i++) {
+          rects[i] = Rect.fromCenter(center: rects[i].center, width: rects[i].height * bufferScale, height: rects[i].width * bufferScale);
+        }
+      }
+      else {
+        for (int i = 0; i < rects.length; i++) {
+          rects[i] = Rect.fromCenter(center: rects[i].center, width: rects[i].width * bufferScale, height: rects[i].height * bufferScale);
+        }
+      }
+      perPlayerRects.add(rects);
+    }
+
+    // O(N**4) but hopefully ok.
+    for (int i = 1; i < perPlayerRects.length; i++) {
+      for (int j = 0; j < i; j++) {
+        if (anyRectsIntersect(perPlayerRects[i], perPlayerRects[j])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  double computeBestScaleMultiplier() {
+    // Get all the card rects and see if any rect for player A intersects
+    // a rect for player B. If so, adjust scaleMultiplier until there are
+    // no more intersections.
+    if (!hasCardIntersectionAtScaleMultiplier(1)) {
+      return 1;
+    }
+    double min = 0;
+    double max = 1;
+    double current = 0.5;
+    double best = 0;
+    const nIters = 8;
+    for (int i = 0; i < nIters; i++) {
+      current = (min + max) / 2.0;
+      if (hasCardIntersectionAtScaleMultiplier(current)) {
+        // Too big, need to reduce scale.
+        max = current;
+      }
+      else {
+        best = current;
+        min = current;
+      }
+    }
+    return best;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scaleMultiplier = computeBestScaleMultiplier();
+
+    return Stack(children: [
+      ...playerHands.map((ph) => PlayerHandCards(
+        key: ph.key,
+        layout: layout,
+        playerIndex: ph.playerIndex,
+        cards: ph.cards,
+        highlightedCards: ph.highlightedCards,
+        suitDisplayOrder: suitOrder,
+        animateFromCards: ph.animateFromCards,
+        trumpSuit: trumpSuit,
+        onCardClicked: ph.onCardClicked,
+        displayStyle: ph.displayStyle,
+        scaleMultiplier: scaleMultiplier,
+      ))
+    ]);
+  }
 }
 
 LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {required int playerIndex}
+    {required int playerIndex, double scaleMultiplier = 1}
 ) {
   if (!(playerIndex == 0 || playerIndex == 2)) {
     throw Exception("invalid playerIndex: $playerIndex");
@@ -855,15 +990,18 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
   }
   final oneRowWidth = widthOfNCards(sortedCards.length);
   if (oneRowWidth < maxAllowedTotalWidth) {
+    final scaledRowWidth = oneRowWidth * scaleMultiplier;
+    final scaledCardWidth = cardWidth * scaleMultiplier;
+    final scaledCardHeight = cardHeight * scaleMultiplier;
     // Show all cards in a single row.
-    var startX = (ds.width - oneRowWidth) / 2;
+    var startX = (ds.width - scaledRowWidth) / 2;
     var startY = singleRowHeightFracStart * ds.height;
     if (playerIndex == 2) {
-      startY = ds.height - startY - cardHeight;
+      startY = layout.playerHeight;
     }
     for (int i = 0; i < sortedCards.length; i++) {
       final x = startX + i * pxBetweenCards;
-      final r = Rect.fromLTWH(x, startY, cardWidth, cardHeight);
+      final r = Rect.fromLTWH(x, startY, scaledCardWidth, scaledCardHeight);
       rects[sortedCards[i]] = r;
     }
     return rects;
@@ -878,14 +1016,14 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
   }
   final upperStartX = (ds.width - twoRowWidth) / 2;
   final lowerStartX = upperStartX + pxBetweenCards / 2;
-  final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth);
+  final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth) * scaleMultiplier;
   final scaledCardWidth = scale * cardWidth;
   final scaledCardHeight = scale * cardHeight;
   var upperStartY = upperRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight);
   var lowerStartY = lowerRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight) / 2;
   if (playerIndex == 2) {
     double diff = lowerStartY - upperStartY;
-    upperStartY = ds.height - (lowerStartY + scaledCardHeight);
+    upperStartY = layout.playerHeight; // .height - (lowerStartY + scaledCardHeight);
     lowerStartY = upperStartY + diff;
   }
   final midX = ds.width / 2;
@@ -910,7 +1048,7 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {required int playerIndex}
+    {required int playerIndex, double scaleMultiplier = 1.0}
     ) {
   if (!(playerIndex == 1 || playerIndex == 3)) {
     throw Exception("invalid playerIndex: $playerIndex");
@@ -935,11 +1073,13 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
   double scale = 1.0;
   scale = min(scale, availableWidth / preferredCardWidth);
   scale = min(scale, availableHeight / preferredTotalHeight);
+  scale *= scaleMultiplier;
 
   final actualCardWidth = scale * preferredCardWidth;
   final actualCardHeight = scale * preferredCardHeight;
 
-  final xCenter = 0.05 * ds.width + actualCardWidth / 2;
+  // final xCenter = 0.05 * ds.width + actualCardWidth / 2;
+  final xCenter = layout.playerHeight + actualCardWidth / 2;
   final yDistanceBetweenCenters = cardOverlapFraction * actualCardHeight;
 
   if (playerIndex == 1) {
@@ -970,6 +1110,7 @@ LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
   required List<PlayingCard> cards,
   required List<Suit> suitOrder,
   required int playerIndex,
+  double scaleMultiplier = 1,
 }) {
   final rects = LinkedHashMap<PlayingCard, Rect>();
   if (cards.isEmpty) {
@@ -1003,6 +1144,7 @@ LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
     double scale = 1.0;
     scale = min(scale, availableWidth / requiredWidth);
     scale = min(scale, availableHeight / requiredHeight);
+    scale *= scaleMultiplier;
     final actualCardWidth = preferredCardWidth * scale;
     final actualCardHeight = preferredCardHeight * scale;
     final actualOverlap = cardOverlapFraction * actualCardHeight;
@@ -1041,6 +1183,7 @@ LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
     double scale = 1.0;
     scale = min(scale, availableWidth / requiredWidth);
     scale = min(scale, availableHeight / requiredHeight);
+    scale *= scaleMultiplier;
     final actualCardWidth = preferredCardWidth * scale;
     final actualCardHeight = preferredCardHeight * scale;
     final actualOverlap = cardOverlapFraction * actualCardHeight;
@@ -1076,13 +1219,13 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {int playerIndex = 0}
+    {int playerIndex = 0, double scaleMultiplier = 1}
 ) {
   if (playerIndex == 0 || playerIndex == 2) {
-    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex);
+    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
   }
   else {
-    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex);
+    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
   }
   throw Exception();
 }
@@ -1091,10 +1234,10 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal}) {
+    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal, scaleMultiplier = 1.0}) {
   return switch (displayStyle) {
-    HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex),
-    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex),
+    HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
+    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
   };
 }
 
