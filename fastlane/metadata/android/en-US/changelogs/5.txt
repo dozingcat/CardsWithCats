@@ -1,0 +1,2 @@
+- Updated card images and UI.
+- Players will automatically claim remaining tricks when possible.
