@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:cards_with_cats/soundeffects.dart';
@@ -103,6 +104,8 @@ class _MyHomePageState extends State<MyHomePage> {
     catIndices = randomizedCatImageIndices(rng);
     soundPlayer.init();
     _readPreferences();
+
+    runAnimationTimingTestIfNeeded();
   }
 
   void _readPreferences() async {
@@ -727,6 +730,76 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  // A Fluttter bug causes most animations to take nearly zero time if the
+  // ""Transition animation scale" option is set to off. This makes the game
+  // unplayable, so we try to detect it by running a test animation on startup.
+  // If the animation finishes much faster than it's supposed to, we're probably
+  // in that condition and we notify the user.
+  // See https://github.com/flutter/flutter/issues/165268
+  bool runningTimingTestAnimation = false;
+  int timingTestAnimationStartTimestamp = 0;
+  bool showingAnimationSpeedWarningDialog = false;
+
+  void runAnimationTimingTestIfNeeded() {
+    if (Platform.isAndroid) {
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        setState(() {
+          timingTestAnimationStartTimestamp = DateTime.now().millisecondsSinceEpoch;
+          runningTimingTestAnimation = true;
+          // print("*** Started test animation");
+        });
+      });
+    }
+  }
+
+  Widget timingTestAnimation() {
+    return TweenAnimationBuilder(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(seconds: 3),
+      onEnd: timingTestAnimationFinished,
+      child: const Positioned(left: 0, top: 0, height: 0, width: 0, child: SizedBox()),
+      builder: (BuildContext context, double animMillis, Widget? child) {
+        return child!;
+      },
+    );
+  }
+
+  void timingTestAnimationFinished() {
+    int elapsed = DateTime.now().millisecondsSinceEpoch - timingTestAnimationStartTimestamp;
+    // print("*** test animation done, elapsed: $elapsed");
+    if (elapsed < 1000) {
+      setState(() {showingAnimationSpeedWarningDialog = true;});
+    }
+  }
+
+  Widget animationSpeedWarningDialog(final Size displaySize) {
+    String animationMessage = 'If animations are too fast, check the "Transition animation scale" option in the Settings app and make sure it\'s not set to "off".';
+    return SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: Dialog(
+          backgroundColor: dialogBackgroundColor,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(padding: const EdgeInsets.all(24), child: Text(
+                  animationMessage,
+                  style: const TextStyle(
+                    fontSize: 20,
+                  )
+              )),
+              Padding(padding: const EdgeInsets.only(bottom: 24), child: ElevatedButton(
+                onPressed: () {setState(() {showingAnimationSpeedWarningDialog = false;});},
+                child: const Text('OK'),
+              )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -809,6 +882,9 @@ class _MyHomePageState extends State<MyHomePage> {
               onClose: _showMainMenu,
           ),
           if (dialogMode == DialogMode.none) _menuIcon(),
+
+          if (runningTimingTestAnimation) timingTestAnimation(),
+          if (showingAnimationSpeedWarningDialog) animationSpeedWarningDialog(layout.displaySize),
         ])),
       ]));
   }
