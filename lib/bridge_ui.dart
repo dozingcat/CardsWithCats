@@ -22,8 +22,10 @@ void printd(String msg) {
 }
 
 PlayingCard computeCard(final CardToPlayRequest req) {
-  final mcParams = MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
-  final result = chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
+  final mcParams = MonteCarloParams(
+      maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
+  final result =
+      chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
   printd("Computed play: ${result.toString()}");
   return result.bestCard;
 }
@@ -58,7 +60,12 @@ class BridgeMatchDisplay extends StatefulWidget {
   BridgeMatchState createState() => BridgeMatchState();
 }
 
-final baseSuitDisplayOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
+final baseSuitDisplayOrder = [
+  Suit.spades,
+  Suit.hearts,
+  Suit.clubs,
+  Suit.diamonds
+];
 
 class BridgeMatchState extends State<BridgeMatchDisplay> {
   final rng = Random();
@@ -183,7 +190,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _scheduleNextAiPlayIfNeeded() {
     if (round.isOver()) {
       // printd("Round done, scores: ${round.pointsTaken().map((p) => p.totalRoundPoints)}");
-    } else if (round.status == BridgeRoundStatus.playing && !_isCurrentPlayerControlledByHuman()) {
+    } else if (round.status == BridgeRoundStatus.playing &&
+        !_isCurrentPlayerControlledByHuman()) {
       _computeAiPlay(minDelayMillis: 750);
     }
   }
@@ -194,11 +202,13 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     final t1 = DateTime.now().millisecondsSinceEpoch;
     try {
       printd("Starting isolate");
-      final card = await compute(computeCard, CardToPlayRequest.fromRound(round));
+      final card =
+          await compute(computeCard, CardToPlayRequest.fromRound(round));
       final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
       final delayMillis = max(0, minDelayMillis - elapsed);
       printd("Delaying for $delayMillis ms");
-      Future.delayed(Duration(milliseconds: delayMillis), () => _playCard(card));
+      Future.delayed(
+          Duration(milliseconds: delayMillis), () => _playCard(card));
     } catch (ex) {
       print("*** Exception in isolate: $ex");
       // final card = chooseCardToMakeBids(CardToPlayRequest.fromRound(round), rng);
@@ -275,8 +285,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       setState(() {
         isClaimingRemainingTricks = true;
       });
-    }
-    else {
+    } else {
       _scheduleNextActionIfNeeded();
     }
   }
@@ -313,7 +322,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     if (_shouldIgnoreCardClick()) {
       return;
     }
-    if (round.status == BridgeRoundStatus.playing && _isCurrentPlayerControlledByHuman()) {
+    if (round.status == BridgeRoundStatus.playing &&
+        _isCurrentPlayerControlledByHuman()) {
       if (round.legalPlaysForCurrentPlayer().contains(card)) {
         printd("Playing");
         _playCard(card);
@@ -324,14 +334,14 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   PlayerHandParams _humanNonDummyHand(final Layout layout) {
     final declarer = round.contract?.declarer;
     int playerIndex = declarer == 2 ? 2 : 0;
-    bool isPlayingNextCard = round.status == BridgeRoundStatus.playing && round.currentPlayerIndex() == playerIndex;
+    bool isPlayingNextCard = round.status == BridgeRoundStatus.playing &&
+        round.currentPlayerIndex() == playerIndex;
     bool isBidding = round.status == BridgeRoundStatus.bidding;
     final cards = round.players[playerIndex].hand;
     List<PlayingCard> highlightedCards = [];
     if (isBidding) {
       highlightedCards = cards;
-    }
-    else if (isPlayingNextCard) {
+    } else if (isPlayingNextCard) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
 
@@ -342,7 +352,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       previousTricks: round.previousTricks,
     );
 
-    final previousPlayerCards = (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
+    final previousPlayerCards =
+        (playerTrickCard != null) ? [...cards, playerTrickCard] : null;
     // Flutter needs a key property to determine whether the PlayerHandCards
     // component has changed between renders.
     var key = "H${cards.map((c) => c.toString()).join()}";
@@ -380,7 +391,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
     );
-    final previousPlayerCards = (lastPlayedCard != null) ? [...cards, lastPlayedCard] : null;
+    final previousPlayerCards =
+        (lastPlayedCard != null) ? [...cards, lastPlayedCard] : null;
     var key = "H${cards.map((c) => c.toString()).join()}";
     if (lastPlayedCard != null) {
       key += ":${lastPlayedCard.toString()}";
@@ -408,11 +420,32 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       3 => [2, 3],
       _ => [],
     };
-    return playersToShow.map((p) => PlayerHandParams(
-      playerIndex: p,
-      cards: round.players[p].hand,
-      highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-    )).toList();
+    return playersToShow
+        .map((p) => PlayerHandParams(
+              playerIndex: p,
+              cards: round.players[p].hand,
+              highlightedCards: p == round.currentTrick.leader
+                  ? round.players[p].hand
+                  : const [],
+            ))
+        .toList();
+  }
+
+  Widget allHandsForDebugging(layout) {
+    final params = [0, 1, 2, 3]
+        .map((p) => PlayerHandParams(
+              playerIndex: p,
+              cards: round.players[p].hand,
+              highlightedCards: [],
+              onCardClicked: handleHandCardClicked,
+            ))
+        .toList();
+    return MultiplePlayerHandCards(
+      layout: layout,
+      playerHands: params,
+      suitOrder: _suitDisplayOrder(),
+      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+    );
   }
 
   Widget _playerCards(layout) {
@@ -437,10 +470,15 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     List<DisplayedHand> displayedHands = [];
     final declarer = round.contract?.declarer;
     final humanNonDummyPlayer = declarer == 2 ? 2 : 0;
-    displayedHands.add(DisplayedHand(playerIndex: humanNonDummyPlayer, cards: round.players[humanNonDummyPlayer].hand));
+    displayedHands.add(DisplayedHand(
+        playerIndex: humanNonDummyPlayer,
+        cards: round.players[humanNonDummyPlayer].hand));
     final dummyIndex = round.visibleDummy();
     if (dummyIndex != null) {
-      displayedHands.add(DisplayedHand(playerIndex: dummyIndex, cards: round.players[dummyIndex].hand, displayStyle: HandDisplayStyle.dummy));
+      displayedHands.add(DisplayedHand(
+          playerIndex: dummyIndex,
+          cards: round.players[dummyIndex].hand,
+          displayStyle: HandDisplayStyle.dummy));
     }
 
     return TrickCards(
@@ -479,27 +517,27 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     final layout = computeLayout(context);
 
     return Stack(
-        children: [
-          _playerCards(layout),
-          _trickCards(layout),
-
-          if (_shouldShowBidDialog())
-            BidDialog(
-                layout: layout,
-                round: round,
-                onBid: makeBidForHuman,
-                catImageIndices: widget.catImageIndices,
-            ),
-          if (_shouldShowClaimTricksDialog())
-            ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
-          if (_shouldShowEndOfRoundDialog())
-            EndOfRoundDialog(
-              layout: layout,
-              match: match,
-              onContinue: () => setState(_startRound),
-              onMainMenu: _showMainMenuAfterMatch,
-            ),
-        ],
+      children: [
+        // _playerCards(layout),
+        allHandsForDebugging(layout),
+        _trickCards(layout),
+        if (_shouldShowBidDialog())
+          BidDialog(
+            layout: layout,
+            round: round,
+            onBid: makeBidForHuman,
+            catImageIndices: widget.catImageIndices,
+          ),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
+        if (_shouldShowEndOfRoundDialog())
+          EndOfRoundDialog(
+            layout: layout,
+            match: match,
+            onContinue: () => setState(_startRound),
+            onMainMenu: _showMainMenuAfterMatch,
+          ),
+      ],
     );
   }
 }
@@ -538,12 +576,14 @@ class _BidDialogState extends State<BidDialog> {
         cellPad,
         Text(msg,
             textAlign: TextAlign.right,
-            style: const TextStyle(fontSize: headerFontSize, fontWeight: FontWeight.bold)));
+            style: const TextStyle(
+                fontSize: headerFontSize, fontWeight: FontWeight.bold)));
 
     Widget catImageCell(int imageIndex) {
       const imageHeight = headerFontSize * 1.3;
       const padding = headerFontSize * 0.85;
-      return paddingHorizontal(padding, Image.asset(catImageForIndex(imageIndex), height: imageHeight));
+      return paddingHorizontal(padding,
+          Image.asset(catImageForIndex(imageIndex), height: imageHeight));
     }
 
     final bidHistory = widget.round.bidHistory;
@@ -554,7 +594,8 @@ class _BidDialogState extends State<BidDialog> {
       if (bidIndex < 0 || bidIndex >= bidHistory.length) {
         return const SizedBox();
       }
-      return Text(bidHistory[bidIndex].symbolString(), textAlign: TextAlign.center);
+      return Text(bidHistory[bidIndex].action.symbolString(),
+          textAlign: TextAlign.center);
     }
 
     final numberOfBidRows = ((dealer + bidHistory.length + 1) / 4).ceil();
@@ -595,11 +636,12 @@ class _BidDialogState extends State<BidDialog> {
       if (lastBid == null) {
         return true;
       }
-      return contractBid.isHigherThan(lastBid.contractBid!);
+      return contractBid.isHigherThan(lastBid.action.contractBid!);
     }
 
     void doBid() {
-      final bid = PlayerBid.contract(0, contractBid);
+      final bid = PlayerBid(
+          0, BidAction.contract(contractBid.count, contractBid.trump));
       setState(() {
         widget.onBid(bid);
       });
@@ -611,7 +653,7 @@ class _BidDialogState extends State<BidDialog> {
 
     void doPass() {
       setState(() {
-        widget.onBid(PlayerBid.pass(0));
+        widget.onBid(PlayerBid(0, BidAction.pass()));
       });
     }
 
@@ -624,7 +666,7 @@ class _BidDialogState extends State<BidDialog> {
 
     void doDouble() {
       setState(() {
-        widget.onBid(PlayerBid.double(0));
+        widget.onBid(PlayerBid(0, BidAction.double()));
       });
     }
 
@@ -637,91 +679,112 @@ class _BidDialogState extends State<BidDialog> {
 
     void doRedouble() {
       setState(() {
-        widget.onBid(PlayerBid.redouble(0));
+        widget.onBid(PlayerBid(0, BidAction.redouble()));
       });
     }
 
     return Center(
-      child: Transform.translate(offset: Offset(0, -widget.layout.displaySize.height * 0.1), child: Transform.scale(scale: widget.layout.dialogScale(), child: Dialog(
-        backgroundColor: dialogBackgroundColor,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          paddingAll(10, Table(
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            defaultColumnWidth: const IntrinsicColumnWidth(),
-            children: [
-              TableRow(children: [
-                paddingHorizontal(cellPad, headerCell("You")),
-                catImageCell(widget.catImageIndices[1]),
-                catImageCell(widget.catImageIndices[2]),
-                catImageCell(widget.catImageIndices[3]),
-              ]),
-              ...[for(var row = 0; row < numberOfBidRows; row += 1) TableRow(children: [
-                bidCell(rowIndex: row, playerIndex: 0),
-                bidCell(rowIndex: row, playerIndex: 1),
-                bidCell(rowIndex: row, playerIndex: 2),
-                bidCell(rowIndex: row, playerIndex: 3),
-              ])]
-            ],
-          )),
-          Row(
-            spacing: 12,
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: canDecrementBid() ? decrementBid : null,
-                child: const Text("–", style: adjustBidTextStyle),
-              ),
-              Text(contractBid.count.toString(), style: adjustBidTextStyle),
-              ElevatedButton(
-                onPressed: canIncrementBid() ? incrementBid : null,
-                child: const Text("+", style: adjustBidTextStyle),
-              ),
-            ]
-          ),
-          paddingAll(rowPadding, SegmentedButton<Suit?>(
-            segments: const [
-              ButtonSegment(value: Suit.clubs, label: Text("♣")),
-              ButtonSegment(value: Suit.diamonds, label: Text("♦")),
-              ButtonSegment(value: Suit.hearts, label: Text("♥")),
-              ButtonSegment(value: Suit.spades, label: Text("♠")),
-              ButtonSegment(value: null, label: Text("NT")),
-            ],
-            showSelectedIcon: false,
-            selected: {contractBid.trump},
-            onSelectionChanged: (Set<Suit?> selectedSuits) {
-              setState(() {
-                contractBid = ContractBid(contractBid.count, selectedSuits.first);
-              });
-            },
-          )),
-          Row(
-              spacing: 8,
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: canBid() ? doBid : null,
-                  child: Text("Bid ${contractBid.symbolString()}"),
-                ),
-                ElevatedButton(
-                  onPressed: canPass() ? doPass : null,
-                  child: const Text("Pass"),
-                ),
-                if (!canRedouble()) ElevatedButton(
-                    onPressed: canDouble() ? doDouble : null,
-                    child: const Text("Double"),
-                ),
-                if (canRedouble()) ElevatedButton(
-                  onPressed: doRedouble,
-                  child: const Text("Redouble"),
-                ),
-              ],
-          ),
-          const SizedBox(height: 12),
-        ])
-      ))
-    ));
+        child: Transform.translate(
+            offset: Offset(0, -widget.layout.displaySize.height * 0.1),
+            child: Transform.scale(
+                scale: widget.layout.dialogScale(),
+                child: Dialog(
+                    backgroundColor: dialogBackgroundColor,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      paddingAll(
+                          10,
+                          Table(
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            defaultColumnWidth: const IntrinsicColumnWidth(),
+                            children: [
+                              TableRow(children: [
+                                paddingHorizontal(cellPad, headerCell("You")),
+                                catImageCell(widget.catImageIndices[1]),
+                                catImageCell(widget.catImageIndices[2]),
+                                catImageCell(widget.catImageIndices[3]),
+                              ]),
+                              ...[
+                                for (var row = 0;
+                                    row < numberOfBidRows;
+                                    row += 1)
+                                  TableRow(children: [
+                                    bidCell(rowIndex: row, playerIndex: 0),
+                                    bidCell(rowIndex: row, playerIndex: 1),
+                                    bidCell(rowIndex: row, playerIndex: 2),
+                                    bidCell(rowIndex: row, playerIndex: 3),
+                                  ])
+                              ]
+                            ],
+                          )),
+                      Row(
+                          spacing: 12,
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton(
+                              onPressed:
+                                  canDecrementBid() ? decrementBid : null,
+                              child: const Text("–", style: adjustBidTextStyle),
+                            ),
+                            Text(contractBid.count.toString(),
+                                style: adjustBidTextStyle),
+                            ElevatedButton(
+                              onPressed:
+                                  canIncrementBid() ? incrementBid : null,
+                              child: const Text("+", style: adjustBidTextStyle),
+                            ),
+                          ]),
+                      paddingAll(
+                          rowPadding,
+                          SegmentedButton<Suit?>(
+                            segments: const [
+                              ButtonSegment(
+                                  value: Suit.clubs, label: Text("♣")),
+                              ButtonSegment(
+                                  value: Suit.diamonds, label: Text("♦")),
+                              ButtonSegment(
+                                  value: Suit.hearts, label: Text("♥")),
+                              ButtonSegment(
+                                  value: Suit.spades, label: Text("♠")),
+                              ButtonSegment(value: null, label: Text("NT")),
+                            ],
+                            showSelectedIcon: false,
+                            selected: {contractBid.trump},
+                            onSelectionChanged: (Set<Suit?> selectedSuits) {
+                              setState(() {
+                                contractBid = ContractBid(
+                                    contractBid.count, selectedSuits.first);
+                              });
+                            },
+                          )),
+                      Row(
+                        spacing: 8,
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            onPressed: canBid() ? doBid : null,
+                            child: Text("Bid ${contractBid.symbolString()}"),
+                          ),
+                          ElevatedButton(
+                            onPressed: canPass() ? doPass : null,
+                            child: const Text("Pass"),
+                          ),
+                          if (!canRedouble())
+                            ElevatedButton(
+                              onPressed: canDouble() ? doDouble : null,
+                              child: const Text("Double"),
+                            ),
+                          if (canRedouble())
+                            ElevatedButton(
+                              onPressed: doRedouble,
+                              child: const Text("Redouble"),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ])))));
   }
 }
 
@@ -760,69 +823,76 @@ class EndOfRoundDialog extends StatelessWidget {
     final roundResultDesc = roundResultDescription(round);
     final scoreDesc = "Score: ${round.contractScoreForPlayer(0)}";
 
-    final dialog = Center(child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
-      insetPadding: EdgeInsets.zero,
-      backgroundColor: dialogBackgroundColor,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            paddingAll(
-                10,
-                Text(roundResultDesc, style: const TextStyle(fontSize: 20))),
-          ],
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            paddingAll(
-                10,
-                Text(scoreDesc, style: const TextStyle(fontSize: 20))),
-          ],
-        ),
-
-        if (match.isMatchOver())
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              paddingAll(
-                  15,
-                  ElevatedButton(
-                    onPressed: onContinue,
-                    child: const Text("Rematch"),
-                  )),
-              paddingAll(
-                  15,
-                  ElevatedButton(
-                    onPressed: onMainMenu,
-                    child: const Text("Main Menu"),
-                  )),
-            ],
-          ),
-        if (!match.isMatchOver())
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              paddingAll(
-                  15,
-                  ElevatedButton(
-                    onPressed: onContinue,
-                    child: const Text("Continue"),
-                  ))
-            ],
-          ),
-      ],)
-    )));
+    final dialog = Center(
+        child: Transform.scale(
+            scale: layout.dialogScale(),
+            child: Dialog(
+                insetPadding: EdgeInsets.zero,
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        paddingAll(
+                            10,
+                            Text(roundResultDesc,
+                                style: const TextStyle(fontSize: 20))),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        paddingAll(
+                            10,
+                            Text(scoreDesc,
+                                style: const TextStyle(fontSize: 20))),
+                      ],
+                    ),
+                    if (match.isMatchOver())
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          paddingAll(
+                              15,
+                              ElevatedButton(
+                                onPressed: onContinue,
+                                child: const Text("Rematch"),
+                              )),
+                          paddingAll(
+                              15,
+                              ElevatedButton(
+                                onPressed: onMainMenu,
+                                child: const Text("Main Menu"),
+                              )),
+                        ],
+                      ),
+                    if (!match.isMatchOver())
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          paddingAll(
+                              15,
+                              ElevatedButton(
+                                onPressed: onContinue,
+                                child: const Text("Continue"),
+                              ))
+                        ],
+                      ),
+                  ],
+                ))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),
       duration: const Duration(milliseconds: 1000),
       child: dialog,
-      builder: (context, val, child) => Opacity(opacity: val.clamp(0.0, 1.0), child: child),
+      builder: (context, val, child) =>
+          Opacity(opacity: val.clamp(0.0, 1.0), child: child),
     );
   }
 }

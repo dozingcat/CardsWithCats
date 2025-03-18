@@ -21,13 +21,15 @@ enum DoubledType {
 }
 
 enum Vulnerability {
-  neither, nsOnly, ewOnly, both;
+  neither,
+  nsOnly,
+  ewOnly,
+  both;
 
   bool isPlayerVulnerable(int playerIndex) {
     if (playerIndex == 0 || playerIndex == 2) {
       return this == nsOnly || this == both;
-    }
-    else if (playerIndex == 1 || playerIndex == 3) {
+    } else if (playerIndex == 1 || playerIndex == 3) {
       return this == ewOnly || this == both;
     }
     throw AssertionError("Bad playerIndex $playerIndex");
@@ -49,9 +51,10 @@ int _rankIndexForSuit(Suit? suit) {
   };
 }
 
+// "2 hearts" or "3NT". Doesn't include pass/double/redouble.
 class ContractBid {
   final int count;
-  final Suit? trump;  // null=notrump
+  final Suit? trump; // null=notrump
 
   ContractBid(this.count, this.trump);
 
@@ -62,7 +65,9 @@ class ContractBid {
 
   @override
   bool operator ==(Object other) {
-    return (other is ContractBid && other.count == count && other.trump == trump);
+    return (other is ContractBid &&
+        other.count == count &&
+        other.trump == trump);
   }
 
   @override
@@ -75,7 +80,9 @@ class ContractBid {
   }
 
   bool isHigherThan(ContractBid other) {
-    return (count > other.count || (count == other.count && _rankIndexForSuit(trump) > _rankIndexForSuit(other.trump)));
+    return (count > other.count ||
+        (count == other.count &&
+            _rankIndexForSuit(trump) > _rankIndexForSuit(other.trump)));
   }
 
   static ContractBid fromString(String s) {
@@ -85,8 +92,7 @@ class ContractBid {
     }
     if (s.length == 2) {
       return ContractBid(count, Suit.fromChar(s[1]));
-    }
-    else if (s.length == 3 && s.substring(1) == "NT") {
+    } else if (s.length == 3 && s.substring(1) == "NT") {
       return noTrump(count);
     }
     throw Exception("Invalid bid string");
@@ -97,41 +103,48 @@ class ContractBid {
   bool get isSlam => count == 6;
 }
 
-class PlayerBid {
-  int player;
-  BidType bidType;
-  ContractBid? contractBid;
+// A contract bid, or a pass/double/redouble.
+class BidAction {
+  final BidType bidType;
+  final ContractBid? contractBid;
 
-  PlayerBid._(this.player, this.bidType, this.contractBid);
+  const BidAction._(this.bidType, this.contractBid);
+
+  static BidAction pass() => const BidAction._(BidType.pass, null);
+  static BidAction double() => const BidAction._(BidType.double, null);
+  static BidAction redouble() => const BidAction._(BidType.redouble, null);
+  static BidAction contract(int count, Suit? trump) =>
+      BidAction._(BidType.contract, ContractBid(count, trump));
+  static BidAction noTrump(int count) =>
+      BidAction._(BidType.contract, ContractBid.noTrump(count));
+  static BidAction withBid(ContractBid bid) =>
+      BidAction._(BidType.contract, bid);
 
   Map<String, dynamic> toJson() {
     return {
-      "player": player,
       "bidType": bidType.name,
       "contractBid": contractBid?.toString(),
     };
   }
 
-  static PlayerBid fromJson(Map<String, dynamic> json) {
-    int pnum = json["player"];
+  static BidAction fromJson(Map<String, dynamic> json) {
     BidType type = BidType.values.firstWhere((t) => t.name == json["bidType"]);
     return switch (type) {
-      BidType.pass => pass(pnum),
-      BidType.double => double(pnum),
-      BidType.redouble => redouble(pnum),
-      BidType.contract => contract(pnum, ContractBid.fromString(json["contractBid"])),
+      BidType.pass => pass(),
+      BidType.double => double(),
+      BidType.redouble => redouble(),
+      BidType.contract => withBid(ContractBid.fromString(json["contractBid"])),
     };
   }
 
   @override
   String toString() {
-    String desc = switch (bidType) {
+    return switch (bidType) {
       BidType.pass => "Pass",
       BidType.double => "Double",
       BidType.redouble => "Redouble",
       BidType.contract => contractBid.toString(),
     };
-    return "Player ${player}: ${desc}";
   }
 
   String symbolString() {
@@ -142,11 +155,27 @@ class PlayerBid {
       BidType.contract => contractBid!.symbolString(),
     };
   }
+}
 
-  static PlayerBid pass(int player) => PlayerBid._(player, BidType.pass, null);
-  static PlayerBid double(int player) => PlayerBid._(player, BidType.double, null);
-  static PlayerBid redouble(int player) => PlayerBid._(player, BidType.redouble, null);
-  static PlayerBid contract(int player, ContractBid bid) => PlayerBid._(player, BidType.contract, bid);
+class PlayerBid {
+  final int player;
+  final BidAction action;
+
+  PlayerBid(this.player, this.action);
+
+  Map<String, dynamic> toJson() {
+    return {
+      "player": player,
+      "bidType": action.bidType.name,
+      "contractBid": action.contractBid?.toString(),
+    };
+  }
+
+  static PlayerBid fromJson(Map<String, dynamic> json) {
+    int pnum = json["player"];
+    BidAction action = BidAction.fromJson(json);
+    return PlayerBid(pnum, action);
+  }
 }
 
 class Contract {
@@ -190,7 +219,7 @@ class Contract {
         DoubledType.doubled => 50,
         DoubledType.redoubled => 100,
       };
-      int doubleFactor = switch(doubled) {
+      int doubleFactor = switch (doubled) {
         DoubledType.none => 1,
         DoubledType.doubled => 2,
         DoubledType.redoubled => 4,
@@ -200,26 +229,27 @@ class Contract {
         DoubledType.doubled => isVulnerable ? 200 : 100,
         DoubledType.redoubled => isVulnerable ? 400 : 200,
       };
-      int bidTrickPoints = doubleFactor * (
-          bid.count * (isMinorSuit(bid.trump) ? 20 : 30) + (bid.trump == null ? 10 : 0)
-      );
+      int bidTrickPoints = doubleFactor *
+          (bid.count * (isMinorSuit(bid.trump) ? 20 : 30) +
+              (bid.trump == null ? 10 : 0));
       bool isGame = bidTrickPoints >= 100;
       int overtrickPoints = delta * pointsPerOvertrick;
 
       if (isGame) {
         int gameBonus = isVulnerable ? 500 : 300;
-        return bidTrickPoints + overtrickPoints + gameBonus + _slamBonus() + doubleBounus;
-      }
-      else {
+        return bidTrickPoints +
+            overtrickPoints +
+            gameBonus +
+            _slamBonus() +
+            doubleBounus;
+      } else {
         return bidTrickPoints + overtrickPoints + 50 + doubleBounus;
       }
-    }
-    else {
+    } else {
       final down = -delta;
       if (doubled == DoubledType.none) {
         return -down * (isVulnerable ? 100 : 50);
-      }
-      else {
+      } else {
         int multiplier = (doubled == DoubledType.redoubled) ? 2 : 1;
         if (down == 1) {
           return -multiplier * (isVulnerable ? 200 : 100);
@@ -237,13 +267,11 @@ class Contract {
   int _slamBonus() {
     if (bid.isGrandSlam) {
       return isVulnerable ? 1500 : 1000;
-    }
-    else if (bid.isSlam) {
+    } else if (bid.isSlam) {
       return isVulnerable ? 750 : 500;
     }
     return 0;
   }
-
 }
 
 enum BridgeRoundStatus {
@@ -269,11 +297,13 @@ class BridgePlayer {
   }
 }
 
-List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick) {
+List<PlayingCard> legalPlays(
+    List<PlayingCard> hand, TrickInProgress currentTrick) {
   if (currentTrick.cards.isEmpty) {
     return hand;
   }
-  final matchingSuit = hand.where((c) => c.suit == currentTrick.cards[0].suit).toList();
+  final matchingSuit =
+      hand.where((c) => c.suit == currentTrick.cards[0].suit).toList();
   if (matchingSuit.isNotEmpty) {
     return matchingSuit;
   }
@@ -285,14 +315,19 @@ class BridgeRound extends BaseTrickRound {
   late List<BridgePlayer> players;
   late int dealer;
   List<PlayerBid> bidHistory = [];
-  @override late TrickInProgress currentTrick;
-  @override List<Trick> previousTricks = [];
+  @override
+  late TrickInProgress currentTrick;
+  @override
+  List<Trick> previousTricks = [];
   Contract? contract;
   Vulnerability vulnerability = Vulnerability.neither;
   // Include "current" match points?
 
-  @override int get numberOfPlayers => 4;
-  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
+  @override
+  int get numberOfPlayers => 4;
+  @override
+  List<PlayingCard> cardsForPlayer(int playerIndex) =>
+      players[playerIndex].hand;
 
   static BridgeRound deal(int dealer, Random rng) {
     List<PlayingCard> cards = List.from(standardDeckCards());
@@ -300,14 +335,15 @@ class BridgeRound extends BaseTrickRound {
     List<BridgePlayer> players = [];
     int numCardsPerPlayer = cards.length ~/ numPlayers;
     for (int i = 0; i < numPlayers; i++) {
-      final playerCards = cards.sublist(i * numCardsPerPlayer, (i + 1) * numCardsPerPlayer);
+      final playerCards =
+          cards.sublist(i * numCardsPerPlayer, (i + 1) * numCardsPerPlayer);
       players.add(BridgePlayer(playerCards));
     }
 
     return BridgeRound()
-        ..players = players
-        ..dealer = dealer
-        ..currentTrick = TrickInProgress(0)  // placeholder
+          ..players = players
+          ..dealer = dealer
+          ..currentTrick = TrickInProgress(0) // placeholder
         ;
   }
 
@@ -320,8 +356,7 @@ class BridgeRound extends BaseTrickRound {
       ..currentTrick = currentTrick.copy()
       ..previousTricks = Trick.copyAll(previousTricks)
       ..contract = contract
-      ..vulnerability = vulnerability
-    ;
+      ..vulnerability = vulnerability;
   }
 
   Map<String, dynamic> toJson() {
@@ -338,24 +373,36 @@ class BridgeRound extends BaseTrickRound {
 
   static BridgeRound fromJson(final Map<String, dynamic> json) {
     return BridgeRound()
-      ..status = BridgeRoundStatus.values.firstWhere((s) => s.name == json["status"])
-      ..players = [...json["players"].map((p) => BridgePlayer.fromJson(p as Map<String, dynamic>))]
-      ..dealer = json["dealer"] as int
-      ..bidHistory = [...json["bidHistory"].map((b) => PlayerBid.fromJson(b as Map<String, dynamic>))]
-      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
-      ..previousTricks = [
-        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))
+      ..status =
+          BridgeRoundStatus.values.firstWhere((s) => s.name == json["status"])
+      ..players = [
+        ...json["players"]
+            .map((p) => BridgePlayer.fromJson(p as Map<String, dynamic>))
       ]
-      ..contract = (json["contract"] != null) ? Contract.fromJson(json["contract"]) : null
-    ;
+      ..dealer = json["dealer"] as int
+      ..bidHistory = [
+        ...json["bidHistory"]
+            .map((b) => PlayerBid.fromJson(b as Map<String, dynamic>))
+      ]
+      ..currentTrick =
+          TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+      ..previousTricks = [
+        ...json["previousTricks"]
+            .map((t) => Trick.fromJson(t as Map<String, dynamic>))
+      ]
+      ..contract = (json["contract"] != null)
+          ? Contract.fromJson(json["contract"])
+          : null;
   }
 
-  @override bool isOver() {
-    return isPassedOut() ||  players.every((p) => p.hand.isEmpty);
+  @override
+  bool isOver() {
+    return isPassedOut() || players.every((p) => p.hand.isEmpty);
   }
 
   bool isPassedOut() {
-    return bidHistory.length == numPlayers && bidHistory.every((b) => b.bidType == BidType.pass);
+    return bidHistory.length == numPlayers &&
+        bidHistory.every((b) => b.action.bidType == BidType.pass);
   }
 
   int currentBidder() {
@@ -367,7 +414,8 @@ class BridgeRound extends BaseTrickRound {
       throw Exception("Bidding is over");
     }
     if (bid.player != currentBidder()) {
-      throw Exception("Got bid from wrong player (${bid.player}, expected ${currentBidder()}");
+      throw Exception(
+          "Got bid from wrong player (${bid.player}, expected ${currentBidder()}");
     }
     bidHistory.add(bid);
     if (isBiddingOver(bidHistory)) {
@@ -375,7 +423,8 @@ class BridgeRound extends BaseTrickRound {
     }
   }
 
-  @override void playCard(PlayingCard card) {
+  @override
+  void playCard(PlayingCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);
@@ -399,7 +448,8 @@ class BridgeRound extends BaseTrickRound {
     currentTrick = TrickInProgress((contract!.declarer + 1) % 4);
   }
 
-  @override int currentPlayerIndex() {
+  @override
+  int currentPlayerIndex() {
     return (currentTrick.leader + currentTrick.cards.length) % 4;
   }
 
@@ -433,7 +483,9 @@ class BridgeRound extends BaseTrickRound {
     }
     int declarer = contract!.declarer;
     int dummy = contract!.dummy;
-    return previousTricks.where((t) => t.winner == declarer || t.winner == dummy).length;
+    return previousTricks
+        .where((t) => t.winner == declarer || t.winner == dummy)
+        .length;
   }
 
   int contractScoreForDeclarer() {
@@ -451,7 +503,9 @@ class BridgeRound extends BaseTrickRound {
     if (score == 0) {
       return 0;
     }
-    return (pnum == contract!.declarer || pnum == contract!.dummy) ? score : -score;
+    return (pnum == contract!.declarer || pnum == contract!.dummy)
+        ? score
+        : -score;
   }
 
   int tricksTakenByDeclarerOverContract() {
@@ -465,7 +519,7 @@ class BridgeRound extends BaseTrickRound {
 
 PlayerBid? lastContractBid(List<PlayerBid> bids) {
   for (final b in bids.reversed) {
-    if (b.bidType == BidType.contract) {
+    if (b.action.bidType == BidType.contract) {
       return b;
     }
   }
@@ -479,7 +533,7 @@ bool isBiddingOver(List<PlayerBid> bids) {
     return false;
   }
   for (int i = 0; i < numPlayers - 1; i++) {
-    if (bids[n - i - 1].bidType != BidType.pass) {
+    if (bids[n - i - 1].action.bidType != BidType.pass) {
       return false;
     }
   }
@@ -494,10 +548,10 @@ bool canCurrentBidderDouble(List<PlayerBid> bids) {
   // Find last contract bid. Double is allowed if there isn't already a double,
   // and if the bid was made by an opponent.
   for (final bid in bids.reversed) {
-    if (bid.bidType == BidType.double) {
+    if (bid.action.bidType == BidType.double) {
       return false;
     }
-    if (bid.bidType == BidType.contract) {
+    if (bid.action.bidType == BidType.contract) {
       return bid.player % 2 == previousBidder % 2;
     }
   }
@@ -513,13 +567,13 @@ bool canCurrentBidderRedouble(List<PlayerBid> bids) {
   // Find last contract bid. Redouble is allowed if there is a double but not
   // a redouble, and if the bid was made by the current bidder or partner.
   for (final bid in bids.reversed) {
-    if (bid.bidType == BidType.redouble) {
+    if (bid.action.bidType == BidType.redouble) {
       return false;
     }
-    if (bid.bidType == BidType.double) {
+    if (bid.action.bidType == BidType.double) {
       hasDouble = true;
     }
-    if (bid.bidType == BidType.contract) {
+    if (bid.action.bidType == BidType.contract) {
       return hasDouble && (bid.player % 2 != previousBidder % 2);
     }
   }
@@ -535,13 +589,13 @@ Contract contractFromBids({
   late PlayerBid lastBid;
   for (PlayerBid bid in bids.reversed) {
     if (doubled == DoubledType.none) {
-      doubled = switch (bid.bidType) {
+      doubled = switch (bid.action.bidType) {
         BidType.double => DoubledType.doubled,
         BidType.redouble => DoubledType.redoubled,
         _ => DoubledType.none,
       };
     }
-    if (bid.contractBid != null) {
+    if (bid.action.contractBid != null) {
       lastBid = bid;
       break;
     }
@@ -550,9 +604,10 @@ Contract contractFromBids({
   int lastBidPartner = (lastBid.player + 2) % 4;
   for (final b in bids) {
     if (b.player == lastBid.player || b.player == lastBidPartner) {
-      if (b.contractBid != null && b.contractBid!.trump == lastBid.contractBid!.trump) {
+      if (b.action.contractBid != null &&
+          b.action.contractBid!.trump == lastBid.action.contractBid!.trump) {
         return Contract(
-          bid: lastBid.contractBid!,
+          bid: lastBid.action.contractBid!,
           doubled: doubled,
           declarer: b.player,
           isVulnerable: vulnerability.isPlayerVulnerable(b.player),
@@ -582,9 +637,11 @@ class BridgeMatch {
   static BridgeMatch fromJson(final Map<String, dynamic> json, Random rng) {
     return BridgeMatch(rng)
       ..previousRounds = [
-        ...json["previousRounds"].map((r) => BridgeRound.fromJson(r as Map<String, dynamic>))
+        ...json["previousRounds"]
+            .map((r) => BridgeRound.fromJson(r as Map<String, dynamic>))
       ]
-      ..currentRound = BridgeRound.fromJson(json["currentRound"] as Map<String, dynamic>);
+      ..currentRound =
+          BridgeRound.fromJson(json["currentRound"] as Map<String, dynamic>);
   }
 
   void finishRound() {
