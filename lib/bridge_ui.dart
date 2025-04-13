@@ -153,6 +153,13 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     });
   }
 
+  void resetBids() {
+    setState(() {
+      round.bidHistory = [];
+      _scheduleNextActionIfNeeded();
+    });
+  }
+
   bool _isWaitingForHumanBid() {
     return (round.status == BridgeRoundStatus.bidding &&
         aiMode == AiMode.humanPlayer0 &&
@@ -526,6 +533,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             layout: layout,
             round: round,
             onBid: makeBidForHuman,
+            onResetBids: resetBids,
             catImageIndices: widget.catImageIndices,
           ),
         if (_shouldShowClaimTricksDialog())
@@ -548,6 +556,7 @@ class BidDialog extends StatefulWidget {
   final Layout layout;
   final BridgeRound round;
   final void Function(PlayerBid) onBid;
+  final void Function() onResetBids;
   final List<int> catImageIndices;
 
   const BidDialog({
@@ -555,6 +564,7 @@ class BidDialog extends StatefulWidget {
     required this.layout,
     required this.round,
     required this.onBid,
+    required this.onResetBids,
     required this.catImageIndices,
   });
 
@@ -781,6 +791,18 @@ class _BidDialogState extends State<BidDialog> {
                               onPressed: doRedouble,
                               child: const Text("Redouble"),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        spacing: 8,
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            onPressed: widget.onResetBids,
+                            child: Text("Reset"),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),

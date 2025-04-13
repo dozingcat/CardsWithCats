@@ -51,6 +51,9 @@ int _rankIndexForSuit(Suit? suit) {
   };
 }
 
+bool isSuitHigherThan(Suit? s1, Suit? s2) =>
+    _rankIndexForSuit(s1) > _rankIndexForSuit(s2);
+
 // "2 hearts" or "3NT". Doesn't include pass/double/redouble.
 class ContractBid {
   final int count;
@@ -61,7 +64,7 @@ class ContractBid {
   static ContractBid noTrump(int count) => ContractBid(count, null);
 
   @override
-  int get hashCode => count << 8 + (trump != null ? trump!.index + 1 : 0);
+  int get hashCode => Object.hash(count, trump);
 
   @override
   bool operator ==(Object other) {
@@ -81,8 +84,7 @@ class ContractBid {
 
   bool isHigherThan(ContractBid other) {
     return (count > other.count ||
-        (count == other.count &&
-            _rankIndexForSuit(trump) > _rankIndexForSuit(other.trump)));
+        (count == other.count && isSuitHigherThan(trump, other.trump)));
   }
 
   static ContractBid fromString(String s) {
@@ -101,6 +103,21 @@ class ContractBid {
   int get numTricksRequired => count + 6;
   bool get isGrandSlam => count == 7;
   bool get isSlam => count == 6;
+
+  ContractBid nextHigherBid() {
+    if (count == 7 && trump == null) {
+      throw Exception("No bid higher than 7NT");
+    }
+    const higherSuit = {
+      Suit.clubs: Suit.diamonds,
+      Suit.diamonds: Suit.hearts,
+      Suit.hearts: Suit.spades,
+      Suit.spades: null,
+    };
+    return trump == null ?
+        ContractBid(count + 1, Suit.clubs) :
+        ContractBid(count, higherSuit[trump]);
+  }
 }
 
 // A contract bid, or a pass/double/redouble.
@@ -119,6 +136,16 @@ class BidAction {
       BidAction._(BidType.contract, ContractBid.noTrump(count));
   static BidAction withBid(ContractBid bid) =>
       BidAction._(BidType.contract, bid);
+
+  @override
+  bool operator ==(Object other) {
+    return (other is BidAction &&
+        other.bidType == bidType &&
+        other.contractBid == contractBid);
+  }
+
+  @override
+  int get hashCode => Object.hash(bidType, contractBid);
 
   Map<String, dynamic> toJson() {
     return {
