@@ -651,7 +651,7 @@ class BridgeMatch {
   late BridgeRound currentRound;
 
   BridgeMatch(this.rng) {
-    currentRound = BridgeRound.deal(2, rng);
+    currentRound = BridgeRound.deal(0, rng);
   }
 
   Map<String, dynamic> toJson() {

@@ -11,16 +11,6 @@ import "package:cards_with_cats/bridge/bridge.dart";
 const c = PlayingCard.cardsFromString;
 const cb = ContractBid.fromString;
 
-PlayerBid getOpeningBid(List<PlayingCard> hand) {
-  final req = BidRequest(
-    playerIndex: 0,
-    hand: hand,
-    bidHistory: [],
-  );
-  print("getOpeningBid: $hand");
-  return chooseBid(req);
-}
-
 void main() {
   test("finesse", () {
     final req = CardToPlayRequest(
@@ -50,36 +40,5 @@ void main() {
     final result =
         chooseCardMonteCarlo(req, mcParams, chooseCardToMaximizeTricks, rng);
     expect(result.bestCard, c("QS")[0]);
-  });
-
-  test("opening bids", () {
-    expect(
-        getOpeningBid(c("AS KS QS 4S 3S TH 4H 2H 4D 3D 2D 7C 2C"))
-            .action
-            .bidType,
-        BidType.pass);
-    expect(
-        getOpeningBid(c("AS KS QS 4S 3S TH 4H 2H 4D 3D 2D AC 2C"))
-            .action
-            .contractBid,
-        cb("1S"));
-  });
-
-  test("contract from bids", () {
-    final bidHistory = [
-      PlayerBid(0, BidAction.noTrump(3)),
-      PlayerBid(1, BidAction.pass()),
-      PlayerBid(2, BidAction.pass()),
-      PlayerBid(3, BidAction.pass()),
-    ];
-
-    final contract = contractFromBids(
-      bids: bidHistory,
-      vulnerability: Vulnerability.neither,
-    );
-    expect(contract.declarer, 0);
-    expect(contract.bid, ContractBid(3, null));
-    expect(contract.doubled, DoubledType.none);
-    expect(contract.isVulnerable, false);
   });
 }

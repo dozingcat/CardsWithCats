@@ -54,6 +54,19 @@ class Range {
     return "Range(low: $low, high: $high)";
   }
 
+  String shortString() {
+    if (low == null && high == null) {
+      return "any";
+    }
+    if (low == null) {
+      return "<=$high";
+    }
+    if (high == null) {
+      return ">=$low";
+    }
+    return "$low-$high";
+  }
+
   @override
   bool operator ==(Object other) {
     return other is Range && low == other.low && high == other.high;
@@ -81,6 +94,26 @@ class Range {
           : other.high == null
               ? high
               : max(high!, other.high!),
+    );
+  }
+
+  bool isDisjointWith(Range other) {
+    return (high != null && other.low != null && high! < other.low!) ||
+        (low != null && other.high != null && low! > other.high!);
+  }
+
+  Range combineOrReplace(Range? other) {
+    if (other != null && isDisjointWith(other)) {
+      return other;
+    }
+    return combine(other);
+  }
+
+  Range plusConstant(int n) {
+    // Assumes nonnegative values.
+    return Range(
+      low: (low == null ? n : n + low!),
+      high: (high == null) ? null : high! + n,
     );
   }
 }
@@ -119,38 +152,43 @@ class HandEstimate {
     );
   }
 
+  @override
+  String toString() {
+    final s = suitLengthRanges;
+    return "Points: ${pointRange.shortString()} S:${s[Suit.spades]!.shortString()} H:${s[Suit.hearts]!.shortString()} D:${s[Suit.diamonds]!.shortString()} C:${s[Suit.clubs]!.shortString()}";
+  }
+
   bool matches(List<PlayingCard> hand, Map<Suit, int> suitCounts) {
     int points = highCardPoints(hand);
     if (pointBonusType == HandPointBonusType.suitLength) {
       points += lengthPointsForSuitCounts(suitCounts);
     }
-    print("Checking points: $pointRange $points");
+    // print("Checking points: $pointRange $points");
     if (!pointRange.contains(points)) {
-      print("Failed point range");
+      // print("Failed point range");
       return false;
     }
     for (final suit in Suit.values) {
-      print(
-          "Checking suit: $suit ${suitLengthRanges[suit]} ${suitCounts[suit]}");
+      // print("Checking suit: $suit ${suitLengthRanges[suit]} ${suitCounts[suit]}");
       if (!suitLengthRanges[suit]!.contains(suitCounts[suit]!)) {
-        print("Failed suit length");
+        // print("Failed suit length");
         return false;
       }
     }
     return true;
   }
 
-  HandEstimate combine(HandEstimate other) {
-    final combinedPoints = pointRange.combine(other.pointRange);
+  HandEstimate combineOrReplace(HandEstimate other) {
+    final combinedPoints = pointRange.combineOrReplace(other.pointRange);
     final combinedSuits = {
       Suit.clubs: suitLengthRanges[Suit.clubs]!
-          .combine(other.suitLengthRanges[Suit.clubs]),
+          .combineOrReplace(other.suitLengthRanges[Suit.clubs]),
       Suit.diamonds: suitLengthRanges[Suit.diamonds]!
-          .combine(other.suitLengthRanges[Suit.diamonds]),
+          .combineOrReplace(other.suitLengthRanges[Suit.diamonds]),
       Suit.hearts: suitLengthRanges[Suit.hearts]!
-          .combine(other.suitLengthRanges[Suit.hearts]),
+          .combineOrReplace(other.suitLengthRanges[Suit.hearts]),
       Suit.spades: suitLengthRanges[Suit.spades]!
-          .combine(other.suitLengthRanges[Suit.spades]),
+          .combineOrReplace(other.suitLengthRanges[Suit.spades]),
     };
     return HandEstimate(
       pointRange: combinedPoints,
@@ -176,13 +214,13 @@ class BidAnalysis {
       return false;
     }
     if (handMatcher != null) {
-      print("Checking custom matcher");
+      // print("Checking custom matcher");
       if (!handMatcher!(hand, suitCounts)) {
-        print("Failed custom matcher");
+        // print("Failed custom matcher");
         return false;
       }
     }
-    print("Passes! !");
+    // print("Passes!");
     return true;
   }
 }

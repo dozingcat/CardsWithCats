@@ -156,6 +156,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void resetBids() {
     setState(() {
       round.bidHistory = [];
+      round.status = BridgeRoundStatus.bidding;
+      showPostBidDialog = false;
       _scheduleNextActionIfNeeded();
     });
   }
@@ -173,17 +175,20 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _handleBiddingDone() {
     if (hasHumanPlayer()) {
       setState(() {
-        // showPostBidDialog = true;
-        // TODO: Remove when post-bid dialog exists.
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          _scheduleNextActionIfNeeded();
-        });
+        showPostBidDialog = true;
       });
     } else {
       Future.delayed(const Duration(milliseconds: 1000), () {
         _scheduleNextActionIfNeeded();
       });
     }
+  }
+
+  void _handlePostBidDialogConfirm() {
+    setState(() {
+      showPostBidDialog = false;
+    });
+    _scheduleNextActionIfNeeded();
   }
 
   void _scheduleNextAiBidIfNeeded() {
@@ -506,6 +511,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return !widget.dialogVisible && round.status == BridgeRoundStatus.bidding;
   }
 
+  bool _shouldShowPostBidDialog() {
+    return !widget.dialogVisible && showPostBidDialog;
+  }
+
   bool _shouldShowClaimTricksDialog() {
     return !widget.dialogVisible && isClaimingRemainingTricks;
   }
@@ -535,6 +544,13 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             onBid: makeBidForHuman,
             onResetBids: resetBids,
             catImageIndices: widget.catImageIndices,
+          ),
+        if (_shouldShowPostBidDialog())
+          PostBidDialog(
+              layout: layout,
+              round: round,
+              onConfirm: _handlePostBidDialogConfirm,
+              onResetBids: resetBids,
           ),
         if (_shouldShowClaimTricksDialog())
           ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
@@ -601,14 +617,17 @@ class _BidDialogState extends State<BidDialog> {
 
     Widget bidCell({required int rowIndex, required int playerIndex}) {
       int bidIndex = 4 * rowIndex + playerIndex - dealer;
-      if (bidIndex < 0 || bidIndex >= bidHistory.length) {
+      if (bidIndex == bidHistory.length) {
+        return const Text("?", textAlign: TextAlign.center);
+      }
+      if (bidIndex < 0 || bidIndex > bidHistory.length) {
         return const SizedBox();
       }
       return Text(bidHistory[bidIndex].action.symbolString(),
           textAlign: TextAlign.center);
     }
 
-    final numberOfBidRows = ((dealer + bidHistory.length + 1) / 4).ceil();
+    final numberOfBidRows = ((dealer + bidHistory.length + 2) / 4).ceil();
 
     bool canDecrementBid() {
       return contractBid.count > 1;
@@ -807,6 +826,66 @@ class _BidDialogState extends State<BidDialog> {
                       ),
                       const SizedBox(height: 12),
                     ])))));
+  }
+}
+
+class PostBidDialog extends StatelessWidget {
+  final Layout layout;
+  final BridgeRound round;
+  final Function() onConfirm;
+  final Function() onResetBids;
+
+  const PostBidDialog(
+      {Key? key, required this.layout, required this.round, required this.onConfirm, required this.onResetBids})
+      : super(key: key);
+
+  String contractMessage() {
+    if (round.contract == null) {
+      return "The hand is passed out.";
+    }
+    final contract = round.contract!;
+    String declarerDesc = switch (contract.declarer) {
+      0 => "South",
+      1 => "West",
+      2 => "North",
+      3 => "East",
+      _ => throw Error(),
+    };
+    String doubledDesc = switch (contract.doubled) {
+      DoubledType.none => "",
+      DoubledType.doubled => " doubled",
+      DoubledType.redoubled => " redoubled",
+    };
+    return "The contract is ${contract.bid.symbolString()}$doubledDesc by $declarerDesc";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const textStyle = TextStyle(fontSize: 14);
+    final halfPadding = textStyle.fontSize! * 0.75;
+    return Transform.scale(scale: layout.dialogScale(), child: Dialog(
+        backgroundColor: dialogBackgroundColor,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: halfPadding),
+            paddingAll(
+                halfPadding, Text(contractMessage(), style: textStyle, textAlign: TextAlign.left)),
+            paddingAll(
+                halfPadding,
+                ElevatedButton(
+                  onPressed: onConfirm,
+                  child: const Text("Start round"),
+                )),
+            SizedBox(height: halfPadding),
+            paddingAll(
+                halfPadding,
+                ElevatedButton(
+                  onPressed: onResetBids,
+                  child: const Text("Reset bidding"),
+                )),
+            SizedBox(height: halfPadding),          ],
+        )));
   }
 }
 

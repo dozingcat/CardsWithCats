@@ -41,7 +41,7 @@ LinkedHashMap<BidAction, BidAnalysis>? getBidAnalysesForNextBid(
   } else if (bidsSinceOpen == 2) {
     ContractBid openingBid =
         bidHistory[bidHistory.length - 2].action.contractBid!;
-    if (openingBid.count == 1 && openingBid.trump != null && bidHistory[bidHistory.length - 1].action.bidType == BidType.pass) {
+    if (openingBid.count == 1 && bidHistory[bidHistory.length - 1].action.bidType == BidType.pass) {
       print("Partner opened 1 of suit, opponent passed");
       return bidAnalysisForResponseToPartnerOpeningOneBid(bidHistory);
     }
@@ -51,20 +51,73 @@ LinkedHashMap<BidAction, BidAnalysis>? getBidAnalysesForNextBid(
 
 PlayerBid chooseBid(BidRequest req) {
   final analyses = getBidAnalysesForNextBid(req.bidHistory);
+  final counts = suitCounts(req.hand);
   if (analyses != null) {
-    final counts = suitCounts(req.hand);
     for (final bid in analyses.keys) {
-      print("Checking $bid");
+      // print("Checking $bid");
       if (analyses[bid]!.matches(req.hand, counts)) {
-        print("Making bid: $bid");
+        // print("Making bid: $bid");
         return PlayerBid(req.playerIndex, bid);
       }
     }
   }
 
-  // TODO
-  print("No matching bid, passing");
+  final handEstimates = handEstimatesForBidSequence(req.bidHistory);
+  print(handEstimates);
+  return makeBidUsingHandEstimates(req, handEstimates, counts);
+}
+
+PlayerBid makeBidUsingHandEstimates(BidRequest req, List<HandEstimate> handEstimates, Map<Suit, int> suitCounts) {
+  // Do we have a major fit?
+  HandEstimate partnerEstimate = handEstimates[(req.playerIndex + 2) % 4];
+  // TODO: adjust points for hand distribution
+  Range combinedPointRange = partnerEstimate.pointRange.plusConstant(highCardPoints(req.hand));
+  Range combinedSuitRange(Suit s) => partnerEstimate.suitLengthRanges[s]!.plusConstant(suitCounts[s]!);
+
+  Suit? majorSuitFit() {
+    Range totalSpades = combinedSuitRange(Suit.spades);
+    Range totalHearts = combinedSuitRange(Suit.hearts);
+    if (totalHearts.low! >= 8 && totalHearts.low! > totalSpades.low!) {
+      return Suit.hearts;
+    } else if (totalSpades.low! >= 8) {
+      return Suit.spades;
+    }
+    return null;
+  }
+
+  Suit? majorFitSuit = majorSuitFit();
+  if (majorFitSuit != null) {
+    int numTrumps = combinedSuitRange(majorFitSuit).low!;
+    int pointsNeededForGame = 26 - 2 * (numTrumps - 8);
+    if (combinedPointRange.low! >= pointsNeededForGame) {
+      final targetBid = ContractBid(4, majorFitSuit);
+      final currentBid = lastContractBid(req.bidHistory);
+      if (currentBid == null || targetBid.isHigherThan(currentBid.action.contractBid!)) {
+        return PlayerBid(req.playerIndex, BidAction.withBid(targetBid));
+      }
+    }
+  }
+
   return PlayerBid(req.playerIndex, BidAction.pass());
+}
+
+List<HandEstimate> handEstimatesForBidSequence(List<PlayerBid> bidSequence) {
+  final result = List.generate(4, (i) => HandEstimate());
+  List<PlayerBid> partialBidHistory = [];
+  for (int i = 0; i < bidSequence.length; i++) {
+    final currentBid = bidSequence[i];
+    int currentPlayer = currentBid.player;
+    final analyses = getBidAnalysesForNextBid(partialBidHistory);
+    if (analyses != null) {
+      final selectedAnalysis = analyses[currentBid.action];
+      if (selectedAnalysis != null) {
+        result[currentPlayer] = result[currentPlayer]
+            .combineOrReplace(selectedAnalysis.handEstimate);
+      }
+    }
+    partialBidHistory.add(bidSequence[i]);
+  }
+  return result;
 }
 
 bool suitCountCanOpenNoTrump(Map<Suit, int> counts) {
@@ -391,35 +444,42 @@ LinkedHashMap<BidAction, BidAnalysis>
   return result;
 }
 
-LinkedHashMap<BidAction, BidAnalysis>
-    bidAnalysisForResponseToPartnerOpeningOneBid(List<PlayerBid> bidHistory) {
+LinkedHashMap<BidAction, BidAnalysis> bidAnalysesForResponseToPartnerOpeningOneMajor(List<PlayerBid> bidHistory) {
   final openingBid = bidHistory[bidHistory.length - 2].action.contractBid!;
   final openedSuit = openingBid.trump!;
-  final LinkedHashMap<BidAction, BidAnalysis> result = LinkedHashMap();
+  final LinkedHashMap<BidAction, BidAnalysis> bids = LinkedHashMap();
 
-  if (isMajorSuit(openedSuit)) {
-    result[BidAction.contract(2, openedSuit)] = BidAnalysis(
-      description: "6-9 points, 3+ card trump support",
-      handEstimate: HandEstimate(
-        pointBonusType: HandPointBonusType.suitLength,
-        pointRange: const Range(low: 6, high: 9),
-        suitLengthRanges: {openedSuit: const Range(low: 3)},
-      ),
-    );
-    result[BidAction.contract(3, openedSuit)] = BidAnalysis(
-      description: "Limit raise: 10-12 points, 3+ card trump support",
-      handEstimate: HandEstimate(
-        pointBonusType: HandPointBonusType.suitLength,
-        pointRange: const Range(low: 10, high: 12),
-        suitLengthRanges: {openedSuit: const Range(low: 3)},
-      ),
-    );
+  bids[BidAction.contract(4, openedSuit)] = BidAnalysis(
+    description: "6-9 points, 5+ card trump support",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 6, high: 9),
+      suitLengthRanges: {openedSuit: const Range(low: 5)},
+    ),
+  );
+  bids[BidAction.contract(3, openedSuit)] = BidAnalysis(
+    description: "Limit raise: 10-12 points, 3+ card trump support",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 10, high: 12),
+      suitLengthRanges: {openedSuit: const Range(low: 3)},
+    ),
+  );
+  bids[BidAction.contract(2, openedSuit)] = BidAnalysis(
+    description: "6-9 points, 3+ card trump support",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 6, high: 9),
+      suitLengthRanges: {openedSuit: const Range(low: 3)},
+    ),
+  );
 
+  {
     var splinterBid = ContractBid(3, openedSuit);
     while (!(splinterBid.count == 4 && splinterBid.trump == openedSuit)) {
       splinterBid = splinterBid.nextHigherBid();
-      if (splinterBid.trump != null) {
-        result[BidAction.withBid(splinterBid)] = BidAnalysis(
+      if (splinterBid.trump != null && splinterBid.trump != openedSuit) {
+        bids[BidAction.withBid(splinterBid)] = BidAnalysis(
           description: "Splinter: 11+ points, 4+ card trump support, singleton or void in bid suit",
           handEstimate: HandEstimate(
             pointRange: const Range(low: 11),
@@ -433,67 +493,22 @@ LinkedHashMap<BidAction, BidAnalysis>
     }
   }
 
-  if (isSuitHigherThan(Suit.diamonds, openedSuit)) {
-    result[BidAction.contract(1, Suit.diamonds)] = BidAnalysis(
-      description: "6+ points, 4+ diamonds, no major with as many diamonds",
-      handEstimate: HandEstimate(
-        pointBonusType: HandPointBonusType.suitLength,
-        pointRange: const Range(low: 6),
-        suitLengthRanges: {Suit.diamonds: const Range(low: 4)},
-      ),
-      handMatcher: (hand, suitCounts) {
-        return suitCounts[Suit.hearts]! < suitCounts[Suit.diamonds]! &&
-            suitCounts[Suit.spades]! < suitCounts[Suit.diamonds]!;
-      },
-    );
-  }
-
-  if (isSuitHigherThan(Suit.hearts, openedSuit)) {
-    result[BidAction.contract(1, Suit.hearts)] = BidAnalysis(
-      description: "6+ points, 4+ hearts",
-      handEstimate: HandEstimate(
-        pointBonusType: HandPointBonusType.suitLength,
-        pointRange: const Range(low: 6),
-        suitLengthRanges: {Suit.hearts: const Range(low: 4)},
-      ),
-      handMatcher: (hand, suitCounts) {
-        return suitCounts[Suit.spades]! < suitCounts[Suit.hearts]!;
-      },
-    );
-  }
-
-  if (isSuitHigherThan(Suit.spades, openedSuit)) {
-    result[BidAction.contract(1, Suit.spades)] = BidAnalysis(
+  if (openedSuit == Suit.hearts) {
+    bids[BidAction.contract(1, Suit.spades)] = BidAnalysis(
       description: "6+ points, 4+ spades",
       handEstimate: HandEstimate(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 6),
-        suitLengthRanges: {Suit.spades: const Range(low: 4)},
+        suitLengthRanges: const {Suit.spades: Range(low: 4)},
       ),
     );
   }
 
   {
-    Map<Suit, Range> ntSuitRanges = {};
-    switch (openedSuit) {
-      case Suit.clubs:
-        ntSuitRanges[Suit.diamonds] = const Range(high: 4);
-        ntSuitRanges[Suit.hearts] = const Range(high: 3);
-        ntSuitRanges[Suit.spades] = const Range(high: 3);
-        break;
-      case Suit.diamonds:
-        ntSuitRanges[Suit.hearts] = const Range(high: 3);
-        ntSuitRanges[Suit.spades] = const Range(high: 3);
-        break;
-      case Suit.hearts:
-        ntSuitRanges[Suit.hearts] = const Range(high: 2);
-        ntSuitRanges[Suit.spades] = const Range(high: 3);
-        break;
-      case Suit.spades:
-        ntSuitRanges[Suit.spades] = const Range(high: 2);
-        break;
-    }
-    result[BidAction.noTrump(1)] = BidAnalysis(
+    final ntSuitRanges = openedSuit == Suit.hearts ?
+        const {Suit.hearts: Range(high: 2), Suit.spades: Range(high: 3)} :
+        const {Suit.spades: Range(high: 2)};
+    bids[BidAction.noTrump(1)] = BidAnalysis(
       description: "6-9 points",
       handEstimate: HandEstimate(
         pointBonusType: HandPointBonusType.suitLength,
@@ -503,27 +518,82 @@ LinkedHashMap<BidAction, BidAnalysis>
     );
   }
 
-  // HERE: Bid at 2-level with 10+ points and 4 card minor or 1S/2H with 5 hearts.
+  // Prioritize 2H over minors if responding to 1S.
+  if (openedSuit == Suit.spades) {
+    bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
+      description: "10+ points, 5+ hearts",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 10),
+        suitLengthRanges: const {Suit.hearts: Range(low: 5)},
+      ),
+    );
+  }
 
-  if (isMajorSuit(openedSuit)) {
+  {
+    final suitRangesFor2Diamonds = {Suit.diamonds: const Range(low: 4)};
+    if (openedSuit == Suit.hearts) {
+      suitRangesFor2Diamonds[Suit.spades] = const Range(high: 3);
+    }
+    bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
+      description: "10+ points, 4+ diamonds, clubs shorter or equal to diamonds",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 10),
+        suitLengthRanges: suitRangesFor2Diamonds,
+      ),
+      handMatcher: (hand, counts) {
+        if (counts[Suit.clubs]! > counts[Suit.diamonds]!) {
+          return false;
+        }
+        return true;
+      },
+    );
+  }
+
+  // For 2C, it's possible to have only 3 clubs, e.g. ♠A72 ♥9862 ♦Q93 ♣AK6
+  // after parter opens 1S. Too strong for 3S, not enough spades for Jacoby 2NT,
+  // so have to bid 2C.
+  {
+    final suitRangesFor2Clubs = {Suit.clubs: const Range(low: 3)};
+    if (openedSuit == Suit.hearts) {
+      suitRangesFor2Clubs[Suit.spades] = const Range(high: 3);
+    }
+    bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
+      description: "10+ points, 4+ clubs, diamonds shorter than clubs",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 10),
+        suitLengthRanges: suitRangesFor2Clubs,
+      ),
+      handMatcher: (hand, counts) {
+        if (counts[Suit.diamonds]! >= counts[Suit.clubs]! && counts[Suit.clubs]! > 3) {
+          return false;
+        }
+        return true;
+      },
+    );
+  }
+
+  {
     // 2NT is Jacoby if responder hasn't previously passed, invitational if they have passed.
     bool hasPreviouslyPassed = bidHistory.length >= 4;
     if (hasPreviouslyPassed) {
       if (openedSuit == Suit.hearts) {
-        result[BidAction.noTrump(2)] = BidAnalysis(
-          description: "10-12 points, <3 hearts, <4 spades, no 5-card minor",
-          handEstimate: HandEstimate(
-            pointRange: const Range(low: 10, high: 12),
-            suitLengthRanges: {
-              Suit.clubs: const Range(high: 4),
-              Suit.diamonds: const Range(high: 4),
-              Suit.hearts: const Range(high: 2),
-              Suit.spades: const Range(high: 3),
-            },
-          )
+        bids[BidAction.noTrump(2)] = BidAnalysis(
+            description: "10-12 points, <3 hearts, <4 spades, no 5-card minor",
+            handEstimate: HandEstimate(
+              pointRange: const Range(low: 10, high: 12),
+              suitLengthRanges: {
+                Suit.clubs: const Range(high: 4),
+                Suit.diamonds: const Range(high: 4),
+                Suit.hearts: const Range(high: 2),
+                Suit.spades: const Range(high: 3),
+              },
+            )
         );
       } else {
-        result[BidAction.noTrump(2)] = BidAnalysis(
+        bids[BidAction.noTrump(2)] = BidAnalysis(
             description: "10-12 points, <3 spades, no 5-card suit",
             handEstimate: HandEstimate(
               pointRange: const Range(low: 10, high: 12),
@@ -537,7 +607,7 @@ LinkedHashMap<BidAction, BidAnalysis>
         );
       }
     } else {
-      result[BidAction.noTrump(2)] = BidAnalysis(
+      bids[BidAction.noTrump(2)] = BidAnalysis(
         description: "Jacoby 2NT: 13+ points, 4+ card trump support",
         handEstimate: HandEstimate(
           pointRange: const Range(low: 13),
@@ -549,12 +619,235 @@ LinkedHashMap<BidAction, BidAnalysis>
     }
   }
 
-  result[BidAction.pass()] = BidAnalysis(
-    description: "Fewer than 6 points",
-    handEstimate: HandEstimate(pointRange: const Range(high: 5)),
+  return bids;
+}
+
+LinkedHashMap<BidAction, BidAnalysis> bidAnalysesForResponseToPartnerOpeningOneMinor(List<PlayerBid> bidHistory) {
+  LinkedHashMap<BidAction, BidAnalysis> bids = LinkedHashMap();
+  final openingBid = bidHistory[bidHistory.length - 2].action.contractBid!;
+  final openedSuit = openingBid.trump!;
+
+  if (openedSuit == Suit.clubs) {
+    bids[BidAction.contract(1, Suit.diamonds)] = BidAnalysis(
+      description: "6+ points, 4+ diamonds, no major with as many diamonds",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 6),
+        suitLengthRanges: {Suit.diamonds: const Range(low: 4)},
+      ),
+      handMatcher: (hand, suitCounts) {
+        return suitCounts[Suit.hearts]! < suitCounts[Suit.diamonds]! &&
+            suitCounts[Suit.spades]! < suitCounts[Suit.diamonds]!;
+      },
+    );
+  }
+
+  bids[BidAction.contract(1, Suit.hearts)] = BidAnalysis(
+    description: "6+ points, 4+ hearts",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 6),
+      suitLengthRanges: {Suit.hearts: const Range(low: 4)},
+    ),
+    handMatcher: (hand, suitCounts) {
+      return suitCounts[Suit.hearts]! >= suitCounts[Suit.spades]!;
+    },
   );
 
-  return result;
+  bids[BidAction.contract(1, Suit.spades)] = BidAnalysis(
+    description: "6+ points, 4+ spades",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 6),
+      suitLengthRanges: const {Suit.spades: Range(low: 4)},
+    ),
+  );
+
+  // Raise with 5 card support and no 4-card major.
+  bids[BidAction.contract(2, openedSuit)] = BidAnalysis(
+    description: "6-9 points, 5+ card trump support, no 4 card major",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 6, high: 9),
+      suitLengthRanges: {
+        openedSuit: const Range(low: 5),
+        Suit.hearts: const Range(high: 3),
+        Suit.spades: const Range(high: 3),
+      },
+    ),
+  );
+  bids[BidAction.contract(2, openedSuit)] = BidAnalysis(
+    description: "10-12 points, 5+ card trump support, no 4 card major",
+    handEstimate: HandEstimate(
+      pointBonusType: HandPointBonusType.suitLength,
+      pointRange: const Range(low: 10, high: 12),
+      suitLengthRanges: {
+        openedSuit: const Range(low: 5),
+        Suit.hearts: const Range(high: 3),
+        Suit.spades: const Range(high: 3),
+      },
+    ),
+  );
+
+  if (openedSuit == Suit.diamonds) {
+    bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
+      description: "5+ clubs, 10+ points, no 4 card major",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 10, high: 12),
+        suitLengthRanges: {
+          Suit.clubs: const Range(low: 5),
+          Suit.hearts: const Range(high: 3),
+          Suit.spades: const Range(high: 3),
+        },
+      ),
+    );
+  }
+
+  {
+    Map<Suit, Range> ntSuitRanges = {
+      Suit.hearts: const Range(high: 3),
+      Suit.spades: const Range(high: 3),
+    };
+    if (openedSuit == Suit.clubs) {
+      ntSuitRanges[Suit.diamonds] = const Range(high: 4);
+    }
+    bids[BidAction.noTrump(1)] = BidAnalysis(
+      description: "6-9 points, no 4 card major",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 6, high: 9),
+        suitLengthRanges: ntSuitRanges,
+      ),
+    );
+    bids[BidAction.noTrump(2)] = BidAnalysis(
+      description: "10-12 points, no 4 card major",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 10, high: 12),
+        suitLengthRanges: ntSuitRanges,
+      ),
+    );
+    bids[BidAction.noTrump(3)] = BidAnalysis(
+      description: "13-15 points, no 4 card major",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 13, high: 15),
+        suitLengthRanges: ntSuitRanges,
+      ),
+    );
+    // Not a real convention, but for now 4NT is balanced with 16+ points.
+    bids[BidAction.noTrump(3)] = BidAnalysis(
+      description: "16+ points, no 4 card major",
+      handEstimate: HandEstimate(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 16),
+        suitLengthRanges: ntSuitRanges,
+      ),
+    );
+  }
+
+  return bids;
+}
+
+LinkedHashMap<BidAction, BidAnalysis> bidAnalysesForResponseToPartnerOpening1NT(List<PlayerBid> bidHistory) {
+  LinkedHashMap<BidAction, BidAnalysis> bids = LinkedHashMap();
+
+  // Stayman if 4+ in both majors, or exactly 4 in one.
+  bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
+    description: "Stayman, requests parter to bid 4-card major",
+    handEstimate: HandEstimate(
+      pointRange: const Range(low: 8),
+    ),
+    handMatcher: (hand, suitCounts) {
+      int h = suitCounts[Suit.hearts]!;
+      int s = suitCounts[Suit.spades]!;
+      return (h >= 4 && s >= 4) || (h == 4 && s < 4) || (s == 4 && h < 4);
+    },
+  );
+
+  // Jacoby transfer, prefer spades if 5-5.
+  bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
+    description: "Jacoby transfer, 5+ spades",
+    handEstimate: HandEstimate(
+      suitLengthRanges: const {Suit.spades: Range(low: 5)},
+    ),
+    handMatcher: (hand, suitCounts) {
+      return suitCounts[Suit.hearts]! <= suitCounts[Suit.spades]!;
+    },
+  );
+
+  bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
+    description: "Jacoby transfer, 5+ hearts",
+    handEstimate: HandEstimate(
+      suitLengthRanges: const {Suit.hearts: Range(low: 5)},
+    ),
+  );
+
+  // Ignore minors for now, could do 2S->3C.
+
+  bids[BidAction.noTrump(2)] = BidAnalysis(
+    description: "8-10 points, no 4-card major",
+    handEstimate: HandEstimate(
+      pointRange: const Range(low: 8, high: 10),
+      suitLengthRanges: const {
+        Suit.hearts: Range(high: 3),
+        Suit.spades: Range(high: 3),
+      },
+    ),
+  );
+
+  bids[BidAction.noTrump(3)] = BidAnalysis(
+    description: "11-15 points, no 4-card major",
+    handEstimate: HandEstimate(
+      pointRange: const Range(low: 11, high: 15),
+      suitLengthRanges: const {
+        Suit.hearts: Range(high: 3),
+        Suit.spades: Range(high: 3),
+      },
+    ),
+  );
+
+  // Could do Gerber 4C, for now just 4NT invitational.
+  bids[BidAction.noTrump(4)] = BidAnalysis(
+    description: "16-17 points, invitational to slam",
+    handEstimate: HandEstimate(
+      pointRange: const Range(low: 16, high: 17),
+      suitLengthRanges: const {
+        Suit.hearts: Range(high: 3),
+        Suit.spades: Range(high: 3),
+      },
+    ),
+  );
+
+  bids[BidAction.noTrump(6)] = BidAnalysis(
+    description: "18+ points",
+    handEstimate: HandEstimate(
+      pointRange: const Range(low: 18),
+      suitLengthRanges: const {
+        Suit.hearts: Range(high: 3),
+        Suit.spades: Range(high: 3),
+      },
+    ),
+  );
+
+  // 5NT invitational to 7?
+
+  return bids;
+}
+
+
+LinkedHashMap<BidAction, BidAnalysis>
+    bidAnalysisForResponseToPartnerOpeningOneBid(List<PlayerBid> bidHistory) {
+  final openingBid = bidHistory[bidHistory.length - 2].action.contractBid!;
+  final openedSuit = openingBid.trump;
+  if (openedSuit == null) {
+    return bidAnalysesForResponseToPartnerOpening1NT(bidHistory);
+  } else if (isMajorSuit(openedSuit)) {
+    return bidAnalysesForResponseToPartnerOpeningOneMajor(bidHistory);
+  } else {
+    return bidAnalysesForResponseToPartnerOpeningOneMinor(bidHistory);
+  }
 }
 
 LinkedHashMap<BidAction, BidAnalysis>
@@ -604,10 +897,4 @@ bool hasSupportForUnbidSuits(final Map<Suit, int> counts, final Suit bidSuit) {
     }
   }
   return true;
-}
-
-List<HandEstimate> handEstimatesForBids(final List<PlayerBid> bidHistory) {
-  final List<HandEstimate> estimates = List.generate(4, (_) => HandEstimate());
-
-  return estimates;
 }
