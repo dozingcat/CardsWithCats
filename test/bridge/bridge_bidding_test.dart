@@ -19,16 +19,22 @@ PlayerBid getOpeningBid(List<PlayingCard> hand) {
   return chooseBid(req);
 }
 
-PlayerBid getResponseToPartnerOpening(List<PlayingCard> hand, ContractBid parterOpeningBid) {
+BidAction getResponseToBidSequence(List<PlayingCard> hand, List<BidAction> bids) {
+  int playerIndex = bids.length % 4;
+  final bidHistory = List.generate(bids.length, (n) => PlayerBid(n % 4, bids[n]));
   final req = BidRequest(
-    playerIndex: 0,
+    playerIndex: playerIndex,
     hand: hand,
-    bidHistory: [
-      PlayerBid(0, BidAction.withBid(parterOpeningBid)),
-      PlayerBid(1, BidAction.pass()),
-    ],
+    bidHistory: bidHistory,
   );
-  return chooseBid(req);
+  return chooseBid(req).action;
+}
+
+BidAction getResponseToPartnerOpening(List<PlayingCard> hand, ContractBid partnerOpeningBid) {
+  return getResponseToBidSequence(hand, [
+    BidAction.withBid(partnerOpeningBid),
+    BidAction.pass(),
+  ]);
 }
 
 void main() {
@@ -45,7 +51,7 @@ void main() {
     test("Raises major with minimum hand", () {
       final hand = c("AS KS 8S 4S 4H 3H 2H 4D 3D 2S 4C 3C 2C");
       expect(
-          getResponseToPartnerOpening(hand, cb("1H")).action,
+          getResponseToPartnerOpening(hand, cb("1H")),
           BidAction.contract(2, Suit.hearts));
     });
 
@@ -64,22 +70,52 @@ void main() {
         // With 13+ points, response should never be in spades (too strong for
         // a limit raise or 4S) and should never pass or bid 1NT.
         final responseTo1S = getResponseToPartnerOpening(hand, cb("1S"));
-        print("1S / ${responseTo1S.action.contractBid}");
-        expect(responseTo1S.action.bidType, BidType.contract);
-        final bidAfter1S = responseTo1S.action.contractBid!;
+        print("1S / ${responseTo1S.contractBid}");
+        expect(responseTo1S.bidType, BidType.contract);
+        final bidAfter1S = responseTo1S.contractBid!;
         expect(bidAfter1S.count == 1, false);
         expect(bidAfter1S.trump == Suit.spades, false);
 
         // 1S is allowed as response to 1H.
         final responseTo1H = getResponseToPartnerOpening(hand, cb("1H"));
-        print("1H / ${responseTo1H.action.contractBid}");
-        expect(responseTo1H.action.bidType, BidType.contract);
-        final bidAfter1H = responseTo1H.action.contractBid!;
+        print("1H / ${responseTo1H.contractBid}");
+        expect(responseTo1H.bidType, BidType.contract);
+        final bidAfter1H = responseTo1H.contractBid!;
         expect(bidAfter1H.count == 1 && bidAfter1H.trump == null, false);
         expect(bidAfter1H.trump == Suit.hearts, false);
 
         numBids += 1;
       }
+    });
+  });
+
+  group("Game and invitational bids", () {
+    test("Raises partner major response to game with maximum hand", () {
+      final response = getResponseToBidSequence(
+        // 19 points
+        c("AS KS QS 2S AH 2H TD 9D AC QC 7C 5C 3C"),
+        [
+          BidAction.withBid(cb("1C")),
+          BidAction.pass(),
+          BidAction.withBid(cb("1S")),
+          BidAction.pass(),
+        ],
+      );
+      expect(response.contractBid, cb("4S"));
+    });
+
+    test("Makes invitational bid after partner major response", () {
+      final response = getResponseToBidSequence(
+        // 17 points
+        c("AS KS QS 2S AH 2H TD 9D AC 9C 7C 5C 3C"),
+        [
+          BidAction.withBid(cb("1C")),
+          BidAction.pass(),
+          BidAction.withBid(cb("1S")),
+          BidAction.pass(),
+        ],
+      );
+      expect(response.contractBid, cb("3S"));
     });
   });
 }

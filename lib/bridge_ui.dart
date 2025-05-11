@@ -661,11 +661,7 @@ class _BidDialogState extends State<BidDialog> {
       if (!isHumanBidding) {
         return false;
       }
-      final lastBid = lastContractBid(widget.round.bidHistory);
-      if (lastBid == null) {
-        return true;
-      }
-      return contractBid.isHigherThan(lastBid.action.contractBid!);
+      return canCurrentBidderMakeContractBid(widget.round.bidHistory, contractBid);
     }
 
     void doBid() {

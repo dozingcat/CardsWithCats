@@ -567,6 +567,14 @@ bool isBiddingOver(List<PlayerBid> bids) {
   return true;
 }
 
+bool canCurrentBidderMakeContractBid(List<PlayerBid> bids, ContractBid contractBid) {
+  PlayerBid? lastContract = lastContractBid(bids);
+  if (lastContract == null) {
+    return true;
+  }
+  return contractBid.isHigherThan(lastContract.action.contractBid!);
+}
+
 bool canCurrentBidderDouble(List<PlayerBid> bids) {
   if (bids.isEmpty) {
     return false;
