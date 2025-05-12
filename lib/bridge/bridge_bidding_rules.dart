@@ -74,6 +74,43 @@ List<BiddingRule> allBiddingRules() {
       },
       actions: actionsForPartnerOpening1NT,
     ),
+    BiddingRule(
+      description: "Response to Stayman after opening 1NT",
+      matcher: (req) {
+        final bids = bidActionsRemovingInitialPasses(req.bidHistory);
+        if (bids.length == 4 &&
+            bids[1].bidType == BidType.pass &&
+            bids[3].bidType == BidType.pass) {
+          final openingBid = bids[0].contractBid!;
+          final responseBid = bids[2].contractBid!;
+          return openingBid.count == 1 &&
+              openingBid.trump == null &&
+              responseBid.count == 2 &&
+              responseBid.trump == Suit.clubs;
+        }
+        return false;
+      },
+      actions: actionsForStaymanResponse,
+    ),
+    BiddingRule(
+      description: "Response to Jacoby transfer after opening 1NT",
+      matcher: (req) {
+        final bids = bidActionsRemovingInitialPasses(req.bidHistory);
+        if (bids.length == 4 &&
+            bids[1].bidType == BidType.pass &&
+            bids[3].bidType == BidType.pass) {
+          final openingBid = bids[0].contractBid!;
+          final responseBid = bids[2].contractBid!;
+          return openingBid.count == 1 &&
+              openingBid.trump == null &&
+              responseBid.count == 2 &&
+              (responseBid.trump == Suit.hearts ||
+                  responseBid.trump == Suit.diamonds);
+        }
+        return false;
+      },
+      actions: actionsForJacobyTransferResponse,
+    ),
   ];
 }
 
@@ -544,7 +581,8 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
         suitLengthRanges: suitRangesFor2Clubs,
       ),
       handMatcher: (hand, counts) {
-        if (counts[Suit.diamonds]! >= counts[Suit.clubs]! && counts[Suit.clubs]! > 3) {
+        if (counts[Suit.diamonds]! >= counts[Suit.clubs]! &&
+            counts[Suit.clubs]! > 3) {
           return false;
         }
         return true;
@@ -810,6 +848,78 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
   );
 
   // 5NT invitational to 7?
+
+  return bids;
+}
+
+LinkedHashMap<BidAction, BidAnalysis> actionsForStaymanResponse(
+    BidRequest req) {
+  final LinkedHashMap<BidAction, BidAnalysis> bids = LinkedHashMap();
+
+  // 2D = no 4-card major
+  bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
+    description: "No 4-card major",
+    handEstimate: HandEstimate(
+      suitLengthRanges: {
+        Suit.hearts: const Range(high: 3),
+        Suit.spades: const Range(high: 3),
+      },
+    ),
+    handMatcher: (hand, suitCounts) {
+      return suitCounts[Suit.hearts]! < 4 && suitCounts[Suit.spades]! < 4;
+    },
+  );
+
+  // 2H = 4 hearts, may have 4 spades
+  bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
+    description: "4+ hearts, may also have 4 spades",
+    handEstimate: HandEstimate(
+      suitLengthRanges: {
+        Suit.hearts: const Range(low: 4),
+        Suit.spades: const Range(high: 4),
+      },
+    ),
+  );
+
+  // 2S = 4 spades, no 4 hearts
+  bids[BidAction.contract(2, Suit.spades)] = BidAnalysis(
+    description: "4+ spades, less than 4 hearts",
+    handEstimate: HandEstimate(
+      suitLengthRanges: {
+        Suit.hearts: const Range(high: 3),
+        Suit.spades: const Range(low: 4),
+      },
+    ),
+  );
+
+  return bids;
+}
+
+LinkedHashMap<BidAction, BidAnalysis> actionsForJacobyTransferResponse(
+    BidRequest req) {
+  final LinkedHashMap<BidAction, BidAnalysis> bids = LinkedHashMap();
+  final transferBid =
+      req.bidHistory[req.bidHistory.length - 2].action.contractBid!;
+
+  // If partner bid 2H, they have 5+ spades, so we bid 2S.
+  // If partner bid 2D, they have 5+ hearts, so we bid 2H.
+  final targetSuit =
+      transferBid.trump == Suit.hearts ? Suit.spades : Suit.hearts;
+
+  bids[BidAction.contract(3, targetSuit)] = BidAnalysis(
+    description: "Super-accept Jacoby transfer with 4+ card support",
+    handEstimate: HandEstimate(
+      pointRange: const Range(low: 16),
+      suitLengthRanges: {
+        targetSuit: const Range(low: 4),
+      },
+    ),
+  );
+
+  bids[BidAction.contract(2, targetSuit)] = BidAnalysis(
+    description: "Accept Jacoby transfer",
+    handEstimate: HandEstimate(),
+  );
 
   return bids;
 }

@@ -88,12 +88,12 @@ class Range {
           ? other.low
           : other.low == null
               ? low
-              : min(low!, other.low!),
+              : max(low!, other.low!),
       high: high == null
           ? other.high
           : other.high == null
               ? high
-              : max(high!, other.high!),
+              : min(high!, other.high!),
     );
   }
 

@@ -19,9 +19,11 @@ PlayerBid getOpeningBid(List<PlayingCard> hand) {
   return chooseBid(req);
 }
 
-BidAction getResponseToBidSequence(List<PlayingCard> hand, List<BidAction> bids) {
+BidAction getResponseToBidSequence(
+    List<PlayingCard> hand, List<BidAction> bids) {
   int playerIndex = bids.length % 4;
-  final bidHistory = List.generate(bids.length, (n) => PlayerBid(n % 4, bids[n]));
+  final bidHistory =
+      List.generate(bids.length, (n) => PlayerBid(n % 4, bids[n]));
   final req = BidRequest(
     playerIndex: playerIndex,
     hand: hand,
@@ -30,7 +32,8 @@ BidAction getResponseToBidSequence(List<PlayingCard> hand, List<BidAction> bids)
   return chooseBid(req).action;
 }
 
-BidAction getResponseToPartnerOpening(List<PlayingCard> hand, ContractBid partnerOpeningBid) {
+BidAction getResponseToPartnerOpening(
+    List<PlayingCard> hand, ContractBid partnerOpeningBid) {
   return getResponseToBidSequence(hand, [
     BidAction.withBid(partnerOpeningBid),
     BidAction.pass(),
@@ -39,19 +42,16 @@ BidAction getResponseToPartnerOpening(List<PlayingCard> hand, ContractBid partne
 
 void main() {
   test("opening bids", () {
-    expect(
-        getOpeningBid(c("AS KS QS 4S 3S TH 4H 2H 4D 3D 2D 7C 2C")).action,
+    expect(getOpeningBid(c("AS KS QS 4S 3S TH 4H 2H 4D 3D 2D 7C 2C")).action,
         BidAction.pass());
-    expect(
-        getOpeningBid(c("AS KS QS 4S 3S TH 4H 2H 4D 3D 2D AC 2C")).action,
+    expect(getOpeningBid(c("AS KS QS 4S 3S TH 4H 2H 4D 3D 2D AC 2C")).action,
         BidAction.contract(1, Suit.spades));
   });
 
   group("Response to partner opening", () {
     test("Raises major with minimum hand", () {
       final hand = c("AS KS 8S 4S 4H 3H 2H 4D 3D 2S 4C 3C 2C");
-      expect(
-          getResponseToPartnerOpening(hand, cb("1H")),
+      expect(getResponseToPartnerOpening(hand, cb("1H")),
           BidAction.contract(2, Suit.hearts));
     });
 
@@ -89,6 +89,43 @@ void main() {
     });
   });
 
+  group("NT responses", () {
+    test("Responds to Stayman after 1NT opening with a major", () {
+      final response = getResponseToBidSequence(
+          c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C"), [
+        BidAction.noTrump(1),
+        BidAction.pass(),
+        BidAction.withBid(cb("2C")),
+        BidAction.pass(),
+      ]);
+      expect(response.contractBid, cb("2S"));
+    });
+
+    test("Responds to Jacoby transfer", () {
+      final response = getResponseToBidSequence(
+          c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C"), [
+        BidAction.noTrump(1),
+        BidAction.pass(),
+        BidAction.withBid(cb("2D")),
+        BidAction.pass(),
+      ]);
+      expect(response.contractBid, cb("2H"));
+    });
+
+    test("Super-accept Jacoby transfer", () {
+      final response = getResponseToBidSequence(
+        c("AS KS JS 2S AH KH QH 4D 3D 2D 4C 3C 2C"),
+        [
+          BidAction.noTrump(1),
+          BidAction.pass(),
+          BidAction.withBid(cb("2H")),
+          BidAction.pass(),
+        ],
+      );
+      expect(response.contractBid, cb("3S"));
+    });
+  });
+
   group("Game and invitational bids", () {
     test("Raises partner major response to game with maximum hand", () {
       final response = getResponseToBidSequence(
@@ -116,6 +153,66 @@ void main() {
         ],
       );
       expect(response.contractBid, cb("3S"));
+    });
+
+    test("Makes invitational bid after partner's 1NT response", () {
+      final response = getResponseToBidSequence(
+        c("AS KS 7S 3S 2S AH 2H KD 9D QC JC 7C 5C"),
+        [
+          BidAction.withBid(cb("1S")),
+          BidAction.pass(),
+          BidAction.withBid(cb("1NT")),
+          BidAction.pass(),
+        ],
+      );
+      expect(response.contractBid, cb("2NT"));
+    });
+
+    test("Accepts partner's invitational bid with strong hand", () {
+      final response = getResponseToBidSequence(
+        c("AS KS QS 2S AH QH TD 9D TC 9C 7C 5C 3C"),
+        [
+          BidAction.withBid(cb("1C")),
+          BidAction.pass(),
+          BidAction.withBid(cb("1S")),
+          BidAction.pass(),
+          BidAction.withBid(cb("2S")),
+          BidAction.pass(),
+          BidAction.withBid(cb("3S")),
+        ],
+      );
+      expect(response.contractBid, cb("4S"));
+    });
+
+    test("Declines partner's invitational bid with strong hand", () {
+      final response = getResponseToBidSequence(
+        c("AS QS 3S 2S AH QH TD 9D TC 9C 7C 5C 3C"),
+        [
+          BidAction.withBid(cb("1C")),
+          BidAction.pass(),
+          BidAction.withBid(cb("1S")),
+          BidAction.pass(),
+          BidAction.withBid(cb("2S")),
+          BidAction.pass(),
+          BidAction.withBid(cb("3S")),
+        ],
+      );
+      expect(response.bidType, BidType.pass);
+    });
+
+    test("Raises to major game after partner's 1NT open and Stayman response", () {
+      final response = getResponseToBidSequence(
+        c("AS 4S 3S 2S AH 4H 3H 2H TD AC 7C 5C 3C"),
+        [
+          BidAction.withBid(cb("1NT")),
+          BidAction.pass(),
+          BidAction.withBid(cb("2C")),
+          BidAction.pass(),
+          BidAction.withBid(cb("2H")),
+          BidAction.pass(),
+        ],
+      );
+      expect(response.contractBid, cb("4H"));
     });
   });
 }

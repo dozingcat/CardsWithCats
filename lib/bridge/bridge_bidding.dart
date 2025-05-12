@@ -43,13 +43,13 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
     List<HandEstimate> handEstimates, Map<Suit, int> suitCounts) {
   // Do we have a major fit?
   HandEstimate partnerEstimate = handEstimates[(req.playerIndex + 2) % 4];
-  // TODO: adjust points for hand distribution
+  // TODO: adjust points for hand distribution?
   Range combinedPointRange =
       partnerEstimate.pointRange.plusConstant(highCardPoints(req.hand));
   Range combinedSuitRange(Suit s) =>
       partnerEstimate.suitLengthRanges[s]!.plusConstant(suitCounts[s]!);
 
-  Suit? majorSuitFit() {
+  Suit? findBestSuitFit() {
     Range totalSpades = combinedSuitRange(Suit.spades);
     Range totalHearts = combinedSuitRange(Suit.hearts);
     if (totalHearts.low! >= 8 && totalHearts.low! > totalSpades.low!) {
@@ -84,12 +84,18 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
     return null;
   }
 
-  Suit? majorFitSuit = majorSuitFit();
-  if (majorFitSuit != null) {
-    int numTrumps = combinedSuitRange(majorFitSuit).low!;
-    int pointsNeededForGame = 25 - 2 * (numTrumps - 8);
+  Suit? bestSuitFit = findBestSuitFit();
+  if (bestSuitFit == null || isMajorSuit(bestSuitFit)) {
+    // Heuristic is 25 points needed for game with 8 trumps,
+    // 23 with 9 trumps, 21 with 10 trumps, etc.
+    int trumpBonusPoints = (bestSuitFit != null)
+        ? 2 * (combinedSuitRange(bestSuitFit).low! - 8)
+        : 0;
+    int pointsNeededForGame = 25 - trumpBonusPoints;
     if (combinedPointRange.low! >= pointsNeededForGame) {
-      final targetBid = ContractBid(4, majorFitSuit);
+      final targetBid = bestSuitFit == null
+          ? ContractBid.noTrump(3)
+          : ContractBid(4, bestSuitFit);
       if (canCurrentBidderMakeContractBid(req.bidHistory, targetBid)) {
         return PlayerBid(req.playerIndex, BidAction.withBid(targetBid));
       }
@@ -100,7 +106,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
             (combinedPointRange.high != null &&
                 combinedPointRange.high! > pointsNeededForGame);
     if (shouldInviteIfPossible) {
-      ContractBid? invitationalBid = invitationalBidIfPossible(majorFitSuit);
+      ContractBid? invitationalBid = invitationalBidIfPossible(bestSuitFit);
       if (invitationalBid != null) {
         return PlayerBid(req.playerIndex, BidAction.withBid(invitationalBid));
       }
@@ -114,6 +120,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
 LinkedHashMap<BidAction, BidAnalysis>? getActionsForNextBid(BidRequest req) {
   for (final rule in allBiddingRules()) {
     if (rule.matcher(req)) {
+      // print("Matched rule: ${rule.description}");
       return rule.actions(req);
     }
   }
@@ -136,11 +143,32 @@ List<HandEstimate> handEstimatesForBidSequence(BidRequest req) {
     if (possibleActions != null) {
       final selectedAnalysis = possibleActions[currentBid.action];
       if (selectedAnalysis != null) {
+        final previousEstimate = result[currentPlayer];
         result[currentPlayer] = result[currentPlayer]
             .combineOrReplace(selectedAnalysis.handEstimate);
+
+        print(
+            "Matched action for $currentPlayer: ${selectedAnalysis.description}");
+        print("Previous estimate: $previousEstimate");
+        print("Estimate from action: ${selectedAnalysis.handEstimate}");
+        print("Updated estimate: ${result[currentPlayer]}");
+      }
+    } else {
+      HandEstimate? adHocEstimate = getAdHocHandEstimateForBidSequence(
+        partialBidHistory,
+        currentBid.action,
+      );
+      print("Ad-hoc estimate: $adHocEstimate");
+      if (adHocEstimate != null) {
+        result[currentPlayer] = adHocEstimate;
       }
     }
     partialBidHistory.add(currentBid);
   }
   return result;
+}
+
+HandEstimate? getAdHocHandEstimateForBidSequence(
+    List<PlayerBid> partialBidHistory, BidAction currentBid) {
+  return null;
 }
