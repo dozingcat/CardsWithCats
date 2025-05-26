@@ -4,6 +4,8 @@ import '../cards/card.dart';
 import 'bridge.dart';
 import 'bridge_ai.dart';
 import 'bridge_bidding.dart';
+import 'hand_estimate.dart';
+import 'utils.dart';
 
 class BiddingRule {
   final String description;
@@ -137,7 +139,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
 
   result[BidAction.noTrump(1)] = BidAnalysis(
     description: "Balanced hand with 15-17 points",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 15, high: 17),
       suitLengthRanges: notrumpSuitLengthRanges,
     ),
@@ -146,7 +148,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
 
   result[BidAction.noTrump(2)] = BidAnalysis(
     description: "Balanced hand with 20-22 points",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 20, high: 22),
       suitLengthRanges: notrumpSuitLengthRanges,
     ),
@@ -155,7 +157,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
 
   result[BidAction.noTrump(3)] = BidAnalysis(
     description: "Balanced hand with 23-25 points",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 23, high: 25),
       suitLengthRanges: notrumpSuitLengthRanges,
     ),
@@ -164,7 +166,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
 
   result[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
     description: "22 or more points",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 22),
       pointBonusType: HandPointBonusType.suitLength,
     ),
@@ -173,7 +175,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
   result[BidAction.contract(1, Suit.clubs)] = BidAnalysis(
     description:
         "13-21 points, clubs is longest suit or 3 clubs and 3 diamonds without 5 card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 13, high: 21),
       pointBonusType: HandPointBonusType.suitLength,
       suitLengthRanges: {Suit.clubs: const Range(low: 3)},
@@ -198,7 +200,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
   result[BidAction.contract(1, Suit.diamonds)] = BidAnalysis(
     description:
         "13-21 points, diamonds is longest suit or no 5 card major and diamonds is best minor",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 13, high: 21),
       pointBonusType: HandPointBonusType.suitLength,
       suitLengthRanges: {Suit.diamonds: const Range(low: 3)},
@@ -224,7 +226,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
 
   result[BidAction.contract(1, Suit.hearts)] = BidAnalysis(
     description: "13-21 points, 5+ hearts",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 13, high: 21),
       pointBonusType: HandPointBonusType.suitLength,
       suitLengthRanges: {Suit.hearts: const Range(low: 5)},
@@ -245,7 +247,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
 
   result[BidAction.contract(1, Suit.spades)] = BidAnalysis(
     description: "13-21 points, 5+ spades",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 13, high: 21),
       pointBonusType: HandPointBonusType.suitLength,
       suitLengthRanges: {Suit.spades: const Range(low: 5)},
@@ -267,7 +269,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
   for (final suit in Suit.values) {
     result[BidAction.contract(3, suit)] = BidAnalysis(
       description: "Preemptive, 0-10 points, 7+ cards in suit",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointRange: const Range(low: 0, high: 10),
         suitLengthRanges: {suit: const Range(low: 7)},
       ),
@@ -277,7 +279,7 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
   for (final suit in [Suit.spades, Suit.hearts, Suit.diamonds]) {
     result[BidAction.contract(2, suit)] = BidAnalysis(
       description: "Weak 2-bid, 5-10 points, 6 cards in suit",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointRange: const Range(low: 5, high: 10),
         suitLengthRanges: {suit: const Range(low: 6, high: 6)},
       ),
@@ -285,7 +287,8 @@ LinkedHashMap<BidAction, BidAnalysis> openingBidActions(BidRequest req) {
   }
 
   result[BidAction.pass()] = BidAnalysis(
-    handEstimate: HandEstimate(pointRange: const Range(low: 0, high: 11)),
+    handEstimate:
+        HandEstimate.create(pointRange: const Range(low: 0, high: 11)),
     description: "Less than 12 points",
   );
 
@@ -324,7 +327,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
 
   result[BidAction.noTrump(1)] = BidAnalysis(
     description: "15-17 points with balanced hand and stopper in opening suit",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 15, high: 17),
       suitLengthRanges: notrumpSuitLengthRanges,
     ),
@@ -337,7 +340,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
   result[BidAction.double()] = BidAnalysis(
     description:
         "Takeout double with 12+ points and support for other suits, or 17+ points",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 12),
     ),
     handMatcher: (hand, counts) {
@@ -363,14 +366,14 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
       // Check for preempts first.
       result[BidAction.contract(3, overcallSuit)] = BidAnalysis(
         description: "Preemptive, 7+ cards in suit, 5-10 points",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointRange: const Range(low: 5, high: 10),
           suitLengthRanges: {overcallSuit: const Range(low: 7)},
         ),
       );
       result[BidAction.contract(2, overcallSuit)] = BidAnalysis(
         description: "Preemptive, 6 cards in suit, 5-10 points",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointRange: const Range(low: 5, high: 10),
           suitLengthRanges: {overcallSuit: const Range(low: 6, high: 6)},
         ),
@@ -378,7 +381,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
       // TODO: Check that there's not a longer suit? Rare but possible.
       result[BidAction.contract(1, overcallSuit)] = BidAnalysis(
         description: "10-16 points, at least 5 cards in suit",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
           pointRange: const Range(low: 11, high: 18),
           suitLengthRanges: {overcallSuit: const Range(low: 5)},
@@ -387,21 +390,21 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
     } else {
       result[BidAction.contract(4, overcallSuit)] = BidAnalysis(
         description: "Preemptive, 7+ cards in suit, 7-10 points",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointRange: const Range(low: 7, high: 10),
           suitLengthRanges: {overcallSuit: const Range(low: 7)},
         ),
       );
       result[BidAction.contract(3, overcallSuit)] = BidAnalysis(
         description: "Preemptive, 6 cards in suit, 7-10 points",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointRange: const Range(low: 7, high: 10),
           suitLengthRanges: {overcallSuit: const Range(low: 6, high: 6)},
         ),
       );
       result[BidAction.contract(2, overcallSuit)] = BidAnalysis(
         description: "13-16 points, at least 5 cards in suit",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
           pointRange: const Range(low: 13, high: 18),
           suitLengthRanges: {overcallSuit: const Range(low: 5)},
@@ -412,7 +415,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
 
   result[BidAction.pass()] = BidAnalysis(
     description: "",
-    handEstimate: HandEstimate(pointRange: const Range(high: 16)),
+    handEstimate: HandEstimate.create(pointRange: const Range(high: 16)),
   );
 
   return result;
@@ -463,7 +466,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
 
   bids[BidAction.contract(4, openedSuit)] = BidAnalysis(
     description: "6-9 points, 5+ card trump support",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 6, high: 9),
       suitLengthRanges: {openedSuit: const Range(low: 5)},
@@ -471,7 +474,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
   );
   bids[BidAction.contract(3, openedSuit)] = BidAnalysis(
     description: "Limit raise: 10-12 points, 3+ card trump support",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 10, high: 12),
       suitLengthRanges: {openedSuit: const Range(low: 3)},
@@ -479,7 +482,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
   );
   bids[BidAction.contract(2, openedSuit)] = BidAnalysis(
     description: "6-9 points, 3+ card trump support",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 6, high: 9),
       suitLengthRanges: {openedSuit: const Range(low: 3)},
@@ -494,7 +497,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
         bids[BidAction.withBid(splinterBid)] = BidAnalysis(
           description:
               "Splinter: 11+ points, 4+ card trump support, singleton or void in bid suit",
-          handEstimate: HandEstimate(
+          handEstimate: HandEstimate.create(
             pointRange: const Range(low: 11),
             suitLengthRanges: {
               openedSuit: const Range(low: 4),
@@ -509,7 +512,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
   if (openedSuit == Suit.hearts) {
     bids[BidAction.contract(1, Suit.spades)] = BidAnalysis(
       description: "6+ points, 4+ spades",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 6),
         suitLengthRanges: const {Suit.spades: Range(low: 4)},
@@ -523,7 +526,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
         : const {Suit.spades: Range(high: 2)};
     bids[BidAction.noTrump(1)] = BidAnalysis(
       description: "6-9 points",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 6, high: 9),
         suitLengthRanges: ntSuitRanges,
@@ -535,7 +538,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
   if (openedSuit == Suit.spades) {
     bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
       description: "10+ points, 5+ hearts",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 10),
         suitLengthRanges: const {Suit.hearts: Range(low: 5)},
@@ -551,7 +554,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
     bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
       description:
           "10+ points, 4+ diamonds, clubs shorter or equal to diamonds",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 10),
         suitLengthRanges: suitRangesFor2Diamonds,
@@ -575,7 +578,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
     }
     bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
       description: "10+ points, 4+ clubs, diamonds shorter than clubs",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 10),
         suitLengthRanges: suitRangesFor2Clubs,
@@ -597,7 +600,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
       if (openedSuit == Suit.hearts) {
         bids[BidAction.noTrump(2)] = BidAnalysis(
             description: "10-12 points, <3 hearts, <4 spades, no 5-card minor",
-            handEstimate: HandEstimate(
+            handEstimate: HandEstimate.create(
               pointRange: const Range(low: 10, high: 12),
               suitLengthRanges: {
                 Suit.clubs: const Range(high: 4),
@@ -609,7 +612,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
       } else {
         bids[BidAction.noTrump(2)] = BidAnalysis(
             description: "10-12 points, <3 spades, no 5-card suit",
-            handEstimate: HandEstimate(
+            handEstimate: HandEstimate.create(
               pointRange: const Range(low: 10, high: 12),
               suitLengthRanges: {
                 Suit.clubs: const Range(high: 4),
@@ -622,7 +625,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMajor(
     } else {
       bids[BidAction.noTrump(2)] = BidAnalysis(
         description: "Jacoby 2NT: 13+ points, 4+ card trump support",
-        handEstimate: HandEstimate(
+        handEstimate: HandEstimate.create(
           pointRange: const Range(low: 13),
           suitLengthRanges: {
             openedSuit: const Range(low: 4),
@@ -645,7 +648,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
   if (openedSuit == Suit.clubs) {
     bids[BidAction.contract(1, Suit.diamonds)] = BidAnalysis(
       description: "6+ points, 4+ diamonds, no major with as many diamonds",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 6),
         suitLengthRanges: {Suit.diamonds: const Range(low: 4)},
@@ -659,7 +662,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
 
   bids[BidAction.contract(1, Suit.hearts)] = BidAnalysis(
     description: "6+ points, 4+ hearts",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 6),
       suitLengthRanges: {Suit.hearts: const Range(low: 4)},
@@ -671,7 +674,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
 
   bids[BidAction.contract(1, Suit.spades)] = BidAnalysis(
     description: "6+ points, 4+ spades",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 6),
       suitLengthRanges: const {Suit.spades: Range(low: 4)},
@@ -681,7 +684,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
   // Raise with 5 card support and no 4-card major.
   bids[BidAction.contract(2, openedSuit)] = BidAnalysis(
     description: "6-9 points, 5+ card trump support, no 4 card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 6, high: 9),
       suitLengthRanges: {
@@ -693,7 +696,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
   );
   bids[BidAction.contract(2, openedSuit)] = BidAnalysis(
     description: "10-12 points, 5+ card trump support, no 4 card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 10, high: 12),
       suitLengthRanges: {
@@ -707,7 +710,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
   if (openedSuit == Suit.diamonds) {
     bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
       description: "5+ clubs, 10+ points, no 4 card major",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 10, high: 12),
         suitLengthRanges: {
@@ -729,7 +732,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
     }
     bids[BidAction.noTrump(1)] = BidAnalysis(
       description: "6-9 points, no 4 card major",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 6, high: 9),
         suitLengthRanges: ntSuitRanges,
@@ -737,7 +740,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
     );
     bids[BidAction.noTrump(2)] = BidAnalysis(
       description: "10-12 points, no 4 card major",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 10, high: 12),
         suitLengthRanges: ntSuitRanges,
@@ -745,7 +748,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
     );
     bids[BidAction.noTrump(3)] = BidAnalysis(
       description: "13-15 points, no 4 card major",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 13, high: 15),
         suitLengthRanges: ntSuitRanges,
@@ -754,7 +757,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
     // Not a real convention, but for now 3NT is balanced with 16+ points.
     bids[BidAction.noTrump(3)] = BidAnalysis(
       description: "16+ points, no 4 card major",
-      handEstimate: HandEstimate(
+      handEstimate: HandEstimate.create(
         pointBonusType: HandPointBonusType.suitLength,
         pointRange: const Range(low: 16),
         suitLengthRanges: ntSuitRanges,
@@ -772,7 +775,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
   // Stayman if 4+ in both majors, or exactly 4 in one.
   bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
     description: "Stayman, requests parter to bid 4-card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 8),
     ),
     handMatcher: (hand, suitCounts) {
@@ -785,7 +788,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
   // Jacoby transfer, prefer spades if 5-5.
   bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
     description: "Jacoby transfer, 5+ spades",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       suitLengthRanges: const {Suit.spades: Range(low: 5)},
     ),
     handMatcher: (hand, suitCounts) {
@@ -795,7 +798,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
 
   bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
     description: "Jacoby transfer, 5+ hearts",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       suitLengthRanges: const {Suit.hearts: Range(low: 5)},
     ),
   );
@@ -804,7 +807,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
 
   bids[BidAction.noTrump(2)] = BidAnalysis(
     description: "8-10 points, no 4-card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 8, high: 10),
       suitLengthRanges: const {
         Suit.hearts: Range(high: 3),
@@ -815,7 +818,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
 
   bids[BidAction.noTrump(3)] = BidAnalysis(
     description: "11-15 points, no 4-card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 11, high: 15),
       suitLengthRanges: const {
         Suit.hearts: Range(high: 3),
@@ -827,7 +830,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
   // Could do Gerber 4C, for now just 4NT invitational.
   bids[BidAction.noTrump(4)] = BidAnalysis(
     description: "16-17 points, invitational to slam",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 16, high: 17),
       suitLengthRanges: const {
         Suit.hearts: Range(high: 3),
@@ -838,7 +841,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpening1NT(
 
   bids[BidAction.noTrump(6)] = BidAnalysis(
     description: "18+ points",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 18),
       suitLengthRanges: const {
         Suit.hearts: Range(high: 3),
@@ -859,7 +862,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForStaymanResponse(
   // 2D = no 4-card major
   bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
     description: "No 4-card major",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       suitLengthRanges: {
         Suit.hearts: const Range(high: 3),
         Suit.spades: const Range(high: 3),
@@ -873,7 +876,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForStaymanResponse(
   // 2H = 4 hearts, may have 4 spades
   bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
     description: "4+ hearts, may also have 4 spades",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       suitLengthRanges: {
         Suit.hearts: const Range(low: 4),
         Suit.spades: const Range(high: 4),
@@ -884,7 +887,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForStaymanResponse(
   // 2S = 4 spades, no 4 hearts
   bids[BidAction.contract(2, Suit.spades)] = BidAnalysis(
     description: "4+ spades, less than 4 hearts",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       suitLengthRanges: {
         Suit.hearts: const Range(high: 3),
         Suit.spades: const Range(low: 4),
@@ -908,7 +911,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForJacobyTransferResponse(
 
   bids[BidAction.contract(3, targetSuit)] = BidAnalysis(
     description: "Super-accept Jacoby transfer with 4+ card support",
-    handEstimate: HandEstimate(
+    handEstimate: HandEstimate.create(
       pointRange: const Range(low: 16),
       suitLengthRanges: {
         targetSuit: const Range(low: 4),
@@ -918,7 +921,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForJacobyTransferResponse(
 
   bids[BidAction.contract(2, targetSuit)] = BidAnalysis(
     description: "Accept Jacoby transfer",
-    handEstimate: HandEstimate(),
+    handEstimate: HandEstimate.create(),
   );
 
   return bids;
