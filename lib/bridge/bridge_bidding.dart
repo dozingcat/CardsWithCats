@@ -88,12 +88,12 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
     return null;
   }
 
-  ContractBid? minimumBidIfPossible(Suit? suit) {
+  int? minimumBidLevelIfPossible(Suit? suit) {
     ContractBid lastBid = lastContractBid(req.bidHistory)!.action.contractBid!;
     int level = isSuitHigherThan(suit, lastBid.trump!)
         ? lastBid.count
         : lastBid.count + 1;
-    return (level <= 7) ? ContractBid(level, suit) : null;
+    return (level <= 7) ? level : null;
   }
 
   Suit? bestSuitFit = findBestSuitFit();
@@ -104,6 +104,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
         ? 2 * (combinedSuitRange(bestSuitFit).low! - 8)
         : 0;
     int pointsNeededForGame = 25 - trumpBonusPoints;
+    int pointsNeededForGameInvite = 22 - trumpBonusPoints;
     // TODO: Look at the top of the range also.
     if (combinedPointRange.low! >= pointsNeededForGame) {
       final targetBid = bestSuitFit == null
@@ -114,11 +115,10 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
       }
     }
 
-    // FIXME: Don't invite if there's a wide range and the top just barely makes game.
     bool shouldInviteIfPossible =
-        combinedPointRange.low! + 2 >= pointsNeededForGame ||
-            (combinedPointRange.high != null &&
-                combinedPointRange.high! > pointsNeededForGame);
+        combinedPointRange.low! >= pointsNeededForGameInvite &&
+            (combinedPointRange.high == null ||
+                combinedPointRange.high! >= pointsNeededForGame);
     if (shouldInviteIfPossible) {
       print("Inviting with min ${combinedPointRange.low} points");
       ContractBid? invitationalBid = invitationalBidIfPossible(bestSuitFit);
@@ -127,9 +127,9 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
       }
     }
 
-    final minimumBid = minimumBidIfPossible(bestSuitFit);
-    if (minimumBid != null) {
-      final pointsNeededForMinimumBid = switch (minimumBid.count) {
+    int? minBidLevel = minimumBidLevelIfPossible(bestSuitFit);
+    if (minBidLevel != null) {
+      final pointsNeededForMinimumBid = switch (minBidLevel) {
         1 => 18,
         2 => 18,
         3 => 21,
@@ -137,7 +137,8 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
         _ => 99,
       };
       if (combinedPointRange.low! >= pointsNeededForMinimumBid) {
-        return PlayerBid(req.playerIndex, BidAction.withBid(minimumBid));
+        return PlayerBid(req.playerIndex,
+            BidAction.withBid(ContractBid(minBidLevel, bestSuitFit)));
       }
     }
   }
@@ -309,6 +310,8 @@ HandEstimate? getAdHocHandEstimateForBidSequence(List<HandEstimate> estimates,
         );
       } else if (raiseStrength == RaiseStrength.minimum) {
         // TODO: Figure out what point range this shows.
+        // e.g. if an invitational or game bid would have been possible,
+        // then it's weaker than that.
         Range pointRange = Range();
         return HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
