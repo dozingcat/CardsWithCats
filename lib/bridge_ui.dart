@@ -531,11 +531,12 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
+    final showAllHands = false;
 
     return Stack(
       children: [
-        // _playerCards(layout),
-        allHandsForDebugging(layout),
+        if (!showAllHands) _playerCards(layout),
+        if (showAllHands) allHandsForDebugging(layout),
         _trickCards(layout),
         if (_shouldShowBidDialog())
           BidDialog(

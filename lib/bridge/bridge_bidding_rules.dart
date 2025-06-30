@@ -65,7 +65,7 @@ List<BiddingRule> allBiddingRules() {
       actions: actionsForPartnerOpeningOneMinor,
     ),
     BiddingRule(
-      description: "Response to partner's minor opening and opponent 1-bid",
+      description: "Response to partner's minor opening and opponent overcall",
       matcher: (req) {
         final bids = bidActionsRemovingInitialPasses(req.bidHistory);
         if (bids.length == 2 &&
@@ -74,13 +74,12 @@ List<BiddingRule> allBiddingRules() {
           final opening = bids[0].contractBid!;
           final overcall = bids[1].contractBid!;
           return opening.count == 1 &&
-              overcall.count == 1 &&
               isMinorSuit(opening.trump) &&
-              overcall.trump != null;
+              ContractBid(2, opening.trump).isHigherThan(overcall);
         }
         return false;
       },
-      actions: actionsForPartnerOpeningOneMinorAndOpponentOneBid,
+      actions: actionsForPartnerOpeningOneMinorAndOpponentOvercall,
     ),
     BiddingRule(
       description: "Response to partner's major opening and opponent overcall",
@@ -439,10 +438,10 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForOpponentOpeningOneBid(
         ),
       );
       result[BidAction.contract(2, overcallSuit)] = BidAnalysis(
-        description: "13-16 points, at least 5 cards in suit",
+        description: "13+ points, at least 5 cards in suit",
         handEstimate: HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
-          pointRange: const Range(low: 13, high: 18),
+          pointRange: const Range(low: 13),
           suitLengthRanges: {overcallSuit: const Range(low: 5)},
         ),
       );
@@ -805,7 +804,7 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForPartnerOpeningOneMinor(
 }
 
 LinkedHashMap<BidAction, BidAnalysis>
-    actionsForPartnerOpeningOneMinorAndOpponentOneBid(BidRequest req) {
+    actionsForPartnerOpeningOneMinorAndOpponentOvercall(BidRequest req) {
   final LinkedHashMap<BidAction, BidAnalysis> bids = LinkedHashMap();
   final opening = req.bidHistory[req.bidHistory.length - 2].action.contractBid!;
   final overcall = req.bidHistory.last.action.contractBid!;
@@ -873,24 +872,60 @@ LinkedHashMap<BidAction, BidAnalysis>
         ),
       );
       break;
+    case Suit.clubs:
+      bids[BidAction.contract(2, Suit.spades)] = BidAnalysis(
+        description: "10+ points, 5+ spades",
+        handEstimate: HandEstimate.create(
+          pointRange: const Range(low: 10),
+          suitLengthRanges: const {Suit.spades: Range(low: 5)},
+        ),
+        handMatcher: (hand, suitCounts) {
+          return suitCounts[Suit.spades]! >= suitCounts[Suit.hearts]!;
+        },
+      );
+      bids[BidAction.contract(2, Suit.hearts)] = BidAnalysis(
+        description: "10+ points, 5+ hearts",
+        handEstimate: HandEstimate.create(
+          pointRange: const Range(low: 10),
+          suitLengthRanges: const {Suit.hearts: Range(low: 5)},
+        ),
+      );
+      // Need slightly stronger hand to make a negative double.
+      bids[BidAction.double()] = BidAnalysis(
+        description: "Negative doub le, 8+ points, 4 cards in both majors",
+        handEstimate: HandEstimate.create(
+          pointRange: const Range(low: 8),
+          suitLengthRanges: const {
+            Suit.hearts: Range(low: 4),
+            Suit.spades: Range(low: 4),
+          },
+        ),
+      );
+      break;
     default:
       throw Exception("Unexpected overcall suit: ${overcall.trump}");
   }
 
-  bids[BidAction.noTrump(1)] = BidAnalysis(
-    description: "6-9 points, no 4 card major, stopper in opponent's suit",
-    handEstimate: HandEstimate.create(
-      pointBonusType: HandPointBonusType.suitLength,
-      pointRange: const Range(low: 6, high: 9),
-      suitLengthRanges: {
-        Suit.hearts: const Range(high: 3),
-        Suit.spades: const Range(high: 3),
+  if (overcall.trump != Suit.clubs) {
+    bids[BidAction.noTrump(1)] = BidAnalysis(
+      description: "6-9 points, no 4 card major, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointBonusType: HandPointBonusType.suitLength,
+        pointRange: const Range(low: 6, high: 9),
+        suitLengthRanges: {
+          Suit.hearts: const Range(high: 3),
+          Suit.spades: const Range(high: 3),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
       },
-    ),
-    handMatcher: (hand, suitCounts) {
-      return hasStopperInSuit(hand, overcall.trump!);
-    },
-  );
+    );
+  }
+
+  // After 1D/2C, we might have 4 of a major and still bid 2NT.
+  // After a major overcall, we'd double with 4 cards in the other major.
+  final maxMajorSuitLength = overcall.trump == Suit.clubs ? 4 : 3;
 
   bids[BidAction.noTrump(2)] = BidAnalysis(
     description: "10-12 points, no 4 card major, stopper in opponent's suit",
@@ -898,8 +933,8 @@ LinkedHashMap<BidAction, BidAnalysis>
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 10, high: 12),
       suitLengthRanges: {
-        Suit.hearts: const Range(high: 3),
-        Suit.spades: const Range(high: 3),
+        Suit.hearts: Range(high: maxMajorSuitLength),
+        Suit.spades: Range(high: maxMajorSuitLength),
       },
     ),
     handMatcher: (hand, suitCounts) {
@@ -913,8 +948,8 @@ LinkedHashMap<BidAction, BidAnalysis>
       pointBonusType: HandPointBonusType.suitLength,
       pointRange: const Range(low: 13),
       suitLengthRanges: {
-        Suit.hearts: const Range(high: 3),
-        Suit.spades: const Range(high: 3),
+        Suit.hearts: Range(high: maxMajorSuitLength),
+        Suit.spades: Range(high: maxMajorSuitLength),
       },
     ),
     handMatcher: (hand, suitCounts) {
@@ -922,6 +957,7 @@ LinkedHashMap<BidAction, BidAnalysis>
     },
   );
 
+  // Raise partner's minor if nothing else is better.
   bids[BidAction.contract(2, opening.trump!)] = BidAnalysis(
     description: "6-9 points, 4+ trump support",
     handEstimate: HandEstimate.create(
@@ -938,7 +974,7 @@ LinkedHashMap<BidAction, BidAnalysis>
     ),
   );
 
-  if (overcall.trump != Suit.diamonds) {
+  if (isMajorSuit(overcall.trump)) {
     final otherMinor =
         (opening.trump == Suit.clubs) ? Suit.diamonds : Suit.clubs;
     bids[BidAction.contract(2, otherMinor)] = BidAnalysis(
@@ -960,12 +996,256 @@ LinkedHashMap<BidAction, BidAnalysis>
   final overcall = req.bidHistory.last.action.contractBid!;
 
   if (isMinorSuit(overcall.trump)) {
-    //
+    assert(overcall.count == 2);
+    // Raise to 2 is minimum, to 3 is limit, cuebid is game forcing, 4 is preemptive.
+    bids[BidAction.contract(4, opening.trump)] = BidAnalysis(
+      description: "6-12 points, 5+ trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6, high: 12),
+        suitLengthRanges: {opening.trump!: const Range(low: 5)},
+      ),
+    );
+    bids[BidAction.contract(2, opening.trump)] = BidAnalysis(
+      description: "6-9 points, 3+ trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6, high: 9),
+        suitLengthRanges: {opening.trump!: const Range(low: 3)},
+      ),
+    );
+    bids[BidAction.contract(3, opening.trump)] = BidAnalysis(
+      description: "Invitational, 10-12 points, 3+ trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10, high: 12),
+        suitLengthRanges: {opening.trump!: const Range(low: 3)},
+      ),
+    );
+    bids[BidAction.contract(3, overcall.trump)] = BidAnalysis(
+      description: "Cuebid, 13+ points, 3+ trumps, game forcing",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 13),
+        suitLengthRanges: {opening.trump!: const Range(low: 3)},
+      ),
+    );
+
+    final otherMajor =
+        (opening.trump == Suit.hearts) ? Suit.spades : Suit.hearts;
+    bids[BidAction.contract(2, otherMajor)] = BidAnalysis(
+      description: "10+ points, 5+ cards in suit, forcing",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10),
+        suitLengthRanges: {otherMajor: const Range(low: 5)},
+      ),
+    );
+
+    // Negative double is usually 4 spades, but can be 5+ with 8-9 points.
+    bids[BidAction.double()] = BidAnalysis(
+      description: "Negative double, 8+ points, 4+ in unbid major",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 8),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+          otherMajor: const Range(low: 4),
+        },
+      ),
+    );
+
+    bids[BidAction.noTrump(2)] = BidAnalysis(
+      description: "10-12 points, no 4 card major, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10, high: 12),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+          otherMajor: const Range(high: 3)
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+    bids[BidAction.noTrump(3)] = BidAnalysis(
+      description: "13+ points, no 4 card major, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 13),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+          otherMajor: const Range(high: 3),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+
+    if (overcall.trump == Suit.clubs) {
+      bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
+        description: "10+ points, 5+ cards in suit, forcing",
+        handEstimate: HandEstimate.create(
+          pointRange: const Range(low: 10),
+          suitLengthRanges: {Suit.diamonds: const Range(low: 5)},
+        ),
+      );
+    } else {
+      bids[BidAction.contract(3, Suit.clubs)] = BidAnalysis(
+        description: "12+ points, 5+ cards in suit, forcing",
+        handEstimate: HandEstimate.create(
+          pointRange: const Range(low: 12),
+          suitLengthRanges: {Suit.clubs: const Range(low: 5)},
+        ),
+      );
+    }
+  } else if (overcall.trump == Suit.spades) {
+    assert(opening == ContractBid(1, Suit.hearts));
+    assert(overcall == ContractBid(1, Suit.spades));
+
+    // Cuebid is limit raise or better, 3H is semi-preemptive with 4+ trumps.
+    bids[BidAction.contract(4, opening.trump)] = BidAnalysis(
+      description: "6-12 points, 5+ trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6, high: 12),
+        suitLengthRanges: {opening.trump!: const Range(low: 5)},
+      ),
+    );
+    bids[BidAction.contract(2, opening.trump)] = BidAnalysis(
+      description: "6-9 points, 3+ trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6, high: 9),
+        suitLengthRanges: {opening.trump!: const Range(low: 3)},
+      ),
+    );
+    bids[BidAction.contract(3, opening.trump)] = BidAnalysis(
+      description: "Preemptive, 6-9 points, 4 trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6, high: 9),
+        suitLengthRanges: {opening.trump!: const Range(low: 4, high: 4)},
+      ),
+    );
+    bids[BidAction.contract(2, overcall.trump)] = BidAnalysis(
+      description: "Cuebid, 10+ points, 3+ trumps",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10),
+        suitLengthRanges: {opening.trump!: const Range(low: 3)},
+      ),
+    );
+
+    // Negative double after 1S/2H shows both minors, but prefer to bid NT with a stopper.
+    bids[BidAction.noTrump(1)] = BidAnalysis(
+      description: "6-9 points, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6, high: 9),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+    bids[BidAction.noTrump(2)] = BidAnalysis(
+      description: "10-12 points, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10, high: 12),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+    bids[BidAction.noTrump(3)] = BidAnalysis(
+      description: "13+ points, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 13),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+
+    bids[BidAction.contract(2, Suit.diamonds)] = BidAnalysis(
+      description: "10+ points, 5+ cards in suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10),
+        suitLengthRanges: {Suit.diamonds: const Range(low: 5)},
+      ),
+      handMatcher: (hand, suitCounts) {
+        return suitCounts[Suit.diamonds]! >= suitCounts[Suit.clubs]!;
+      },
+    );
+    bids[BidAction.contract(2, Suit.clubs)] = BidAnalysis(
+      description: "10+ points, 5+ cards in suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10),
+        suitLengthRanges: {Suit.clubs: const Range(low: 5)},
+      ),
+    );
+
+    bids[BidAction.double()] = BidAnalysis(
+      description: "Negative double, 6+ points, 4+ in minors",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 6),
+        suitLengthRanges: {
+          Suit.clubs: const Range(low: 4),
+          Suit.diamonds: const Range(low: 4),
+        },
+      ),
+    );
   } else {
-    // Negative double shows both minors, but prefer to bid NT with a stopper.
+    assert(opening == ContractBid(1, Suit.spades));
+    assert(overcall == ContractBid(2, Suit.hearts));
+
+    // 3H cuebid is
+
+    // Negative double after 1S/2H shows both minors, but prefer to bid NT with a stopper.
+    bids[BidAction.noTrump(2)] = BidAnalysis(
+      description: "10-12 points, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 10, high: 12),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+    bids[BidAction.noTrump(3)] = BidAnalysis(
+      description: "13+ points, stopper in opponent's suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 13),
+        suitLengthRanges: {
+          opening.trump!: const Range(high: 2),
+        },
+      ),
+      handMatcher: (hand, suitCounts) {
+        return hasStopperInSuit(hand, overcall.trump!);
+      },
+    );
+
+    bids[BidAction.contract(3, Suit.diamonds)] = BidAnalysis(
+      description: "12+ points, 5+ cards in suit",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 12),
+        suitLengthRanges: {Suit.diamonds: const Range(low: 5)},
+      ),
+      handMatcher: (hand, suitCounts) {
+        return suitCounts[Suit.diamonds]! >= suitCounts[Suit.clubs]!;
+      },
+    );
+    bids[BidAction.contract(3, Suit.clubs)] = BidAnalysis(
+      description: "12+ points, 5+ cards in suit, forcing",
+      handEstimate: HandEstimate.create(
+        pointRange: const Range(low: 12),
+        suitLengthRanges: {Suit.clubs: const Range(low: 5)},
+      ),
+    );
+
     bids[BidAction.double()] = BidAnalysis(
       description:
-          "Negative double, 6+ points, 4+ clubs and diamonds, no stopper in opponent's suit",
+          "Negative double, 10+ points, 4+ clubs and diamonds, no stopper in opponent's suit",
       handEstimate: HandEstimate.create(
         pointRange: const Range(low: 6),
         suitLengthRanges: const {
@@ -1118,8 +1398,6 @@ LinkedHashMap<BidAction, BidAnalysis> actionsForJacobyTransferResponse(
   final transferBid =
       req.bidHistory[req.bidHistory.length - 2].action.contractBid!;
 
-  // If partner bid 2H, they have 5+ spades, so we bid 2S.
-  // If partner bid 2D, they have 5+ hearts, so we bid 2H.
   final targetSuit =
       transferBid.trump == Suit.hearts ? Suit.spades : Suit.hearts;
 

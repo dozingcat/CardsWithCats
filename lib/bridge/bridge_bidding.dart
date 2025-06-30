@@ -26,16 +26,21 @@ PlayerBid chooseBid(BidRequest req) {
   final counts = suitCounts(req.hand);
   for (final rule in allBiddingRules()) {
     if (rule.matcher(req)) {
+      print("Matched rule: ${rule.description}");
       final actions = rule.actions(req);
       for (final bidAction in actions.keys) {
         if (actions[bidAction]!.matches(req.hand, counts)) {
-          // print("${rule.description}: ${actions[bidAction]!.description}");
+          print("${rule.description}: ${actions[bidAction]!.description}");
           return PlayerBid(req.playerIndex, bidAction);
         }
       }
+      // We only match one rule.
+      print("No action matched, passing");
+      return PlayerBid(req.playerIndex, BidAction.pass());
     }
   }
 
+  print("No rule matched, using hand estimates");
   final handEstimates = handEstimatesForBidSequence(req);
   print(handEstimates);
   return makeBidUsingHandEstimates(req, handEstimates, counts);
@@ -49,7 +54,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
   Range combinedPointRange =
       partnerEstimate.pointRange.plusConstant(highCardPoints(req.hand));
   print(
-      "Partner point range: ${partnerEstimate.pointRange} Combined point range: $combinedPointRange");
+      "Partner point range: ${partnerEstimate.pointRange}, my points: ${highCardPoints(req.hand)}, combined point range: $combinedPointRange");
   Range combinedSuitRange(Suit s) =>
       partnerEstimate.suitLengthRanges[s]!.plusConstant(suitCounts[s]!);
 
@@ -90,7 +95,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
 
   int? minimumBidLevelIfPossible(Suit? suit) {
     ContractBid lastBid = lastContractBid(req.bidHistory)!.action.contractBid!;
-    int level = isSuitHigherThan(suit, lastBid.trump!)
+    int level = isSuitHigherThan(suit, lastBid.trump)
         ? lastBid.count
         : lastBid.count + 1;
     return (level <= 7) ? level : null;
@@ -129,13 +134,20 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
 
     int? minBidLevel = minimumBidLevelIfPossible(bestSuitFit);
     if (minBidLevel != null) {
-      final pointsNeededForMinimumBid = switch (minBidLevel) {
-        1 => 18,
-        2 => 18,
-        3 => 21,
-        4 => 24,
-        _ => 99,
-      };
+      final pointsNeededForMinimumBid = bestSuitFit != null
+          ? switch (minBidLevel) {
+              1 => 18,
+              2 => 18,
+              3 => 21,
+              4 => 24,
+              _ => 99,
+            }
+          : switch (minBidLevel) {
+              1 => 18,
+              2 => 21,
+              3 => 24,
+              _ => 99,
+            };
       if (combinedPointRange.low! >= pointsNeededForMinimumBid) {
         return PlayerBid(req.playerIndex,
             BidAction.withBid(ContractBid(minBidLevel, bestSuitFit)));
@@ -276,9 +288,6 @@ HandEstimate? getAdHocHandEstimateForBidSequence(List<HandEstimate> estimates,
   int currentPlayerIndex = (partialBidHistory.last.player + 1) % 4;
   int partnerIndex = (currentPlayerIndex + 2) % 4;
 
-  Map<Suit, Range> suitLengthRanges = {};
-  Range pointRange = const Range();
-
   // See if this is an invitational bid.
   if (currentBid.bidType == BidType.contract) {
     RaiseStrength? raiseStrength = raiseStrengthForBid(
@@ -312,10 +321,10 @@ HandEstimate? getAdHocHandEstimateForBidSequence(List<HandEstimate> estimates,
         // TODO: Figure out what point range this shows.
         // e.g. if an invitational or game bid would have been possible,
         // then it's weaker than that.
-        Range pointRange = Range();
+        Range minRaisePointRange = const Range();
         return HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
-          pointRange: pointRange,
+          pointRange: minRaisePointRange,
           suitLengthRanges: suitLengthRanges,
         );
       }
@@ -324,7 +333,7 @@ HandEstimate? getAdHocHandEstimateForBidSequence(List<HandEstimate> estimates,
 
   return HandEstimate.create(
     pointBonusType: HandPointBonusType.suitLength,
-    pointRange: pointRange,
-    suitLengthRanges: suitLengthRanges,
+    pointRange: const Range(),
+    suitLengthRanges: const {},
   );
 }

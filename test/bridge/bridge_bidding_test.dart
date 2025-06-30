@@ -140,7 +140,7 @@ void main() {
       expect(response, BidAction.double());
     });
 
-    test("Makes negative double after 1H with exactly 4 spades", () {
+    test("Makes negative double after 1C/1H with exactly 4 spades", () {
       final response = getResponseToBidSequence(
         c("AS KS QS 3S TH 3H 2H TD 9D KC 8C 7C 5C"),
         [
@@ -238,6 +238,72 @@ void main() {
         ],
       );
       expect(response, BidAction.noTrump(1));
+    });
+
+    test("Cuebids after 1H/2C with game forcing hand and trump support", () {
+      final response = getResponseToBidSequence(
+        c("AS 4S 3S KH 4H 2H AD KD 4D 3D 2D 5C 3C"),
+        [
+          BidAction.withBid(cb("1H")),
+          BidAction.withBid(cb("2C")),
+        ],
+      );
+      expect(response.contractBid, cb("3C"));
+    });
+
+    test("Bids 2S after 1H/2C with 10+ points and 5+ trumps", () {
+      final response = getResponseToBidSequence(
+        c("AS QS 4S 3S 2S AH 4H TD 9D 3D 2D 5C 3C"),
+        [
+          BidAction.withBid(cb("1H")),
+          BidAction.withBid(cb("2C")),
+        ],
+      );
+      expect(response.contractBid, cb("2S"));
+    });
+
+    test("Makes negative double after 1D/2C with both majors", () {
+      final response = getResponseToBidSequence(
+        c("AS QS 4S 3S KH JH 4H 2H TD 9D 3D 5C 3C"),
+        [
+          BidAction.withBid(cb("1D")),
+          BidAction.withBid(cb("2C")),
+        ],
+      );
+      expect(response, BidAction.double());
+    });
+
+    test("Bids 2NT after 1D/2C with 10+ points and stopper", () {
+      final response = getResponseToBidSequence(
+        c("AS QS 4S 3S JH 4H 3H TD 9D 3D KC 3C 2C"),
+        [
+          BidAction.withBid(cb("1D")),
+          BidAction.withBid(cb("2C")),
+        ],
+      );
+      expect(response.contractBid, cb("2NT"));
+    });
+
+    test("Bids major after 1D/2C with 10+ points and 5 cards", () {
+      final response = getResponseToBidSequence(
+        c("AS QS 4S 3S 2S JH 4H KD 9D 3D 5C 3C 2C"),
+        [
+          BidAction.withBid(cb("1D")),
+          BidAction.withBid(cb("2C")),
+        ],
+      );
+      expect(response.contractBid, cb("2S"));
+    });
+
+    test("Passes after 1D/2C if unable to bid major, NT, or double", () {
+      final response = getResponseToBidSequence(
+        c("AS QS 4S 3S KH JH 4H TD 9D 3D 5C 3C 2C"),
+        [
+          BidAction.withBid(cb("1D")),
+          BidAction.withBid(cb("2C")),
+        ],
+      );
+      expect(response, BidAction.pass());
     });
   });
 
@@ -434,6 +500,48 @@ void main() {
         BidAction.withBid(cb("2H")),
       ]);
       expect(response.contractBid, cb("4S"));
+    });
+  });
+
+  // Bugs found in actual play.
+  group("Regression tests", () {
+    test("Raises to major game after invitational raise of overcall", () {
+      final BidAction response = getResponseToBidSequence(
+          c("AS KS 8S 6S 5S KH QH 9H 5H 4H 2H 7D 3D"), [
+        BidAction.withBid(cb("1H")),
+        BidAction.withBid(cb("1S")),
+        BidAction.pass(),
+        BidAction.withBid(cb("3S")),
+        BidAction.pass(),
+      ]);
+      expect(response.contractBid, cb("4S"));
+    });
+
+    test("Passes after NT response to overcall", () {
+      final BidAction response = getResponseToBidSequence(
+          c("AS KS 8S 6S 5S KH QH 9H 5H 4H 2H 7D 3D"), [
+        BidAction.withBid(cb("1S")),
+        BidAction.withBid(cb("2H")),
+        BidAction.pass(),
+        BidAction.withBid(cb("2NT")),
+        BidAction.pass(),
+      ]);
+      // 3H might be better, but the current code should pass.
+      expect(response, BidAction.pass());
+    });
+    test("Does not make silly 3NT bid", () {
+      final BidAction response = getResponseToBidSequence(
+        c("QS JS AH 8H 7H 5C 3C 2C JD TD 8D 6D 4D"),
+        [
+          BidAction.withBid(cb("1S")),
+          BidAction.withBid(cb("2H")),
+          BidAction.pass(),
+          BidAction.withBid(cb("2NT")),
+          BidAction.pass(),
+          BidAction.pass(),
+        ],
+      );
+      expect(response, BidAction.pass());
     });
   });
 }
