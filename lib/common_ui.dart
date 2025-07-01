@@ -1000,7 +1000,7 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
       startY = layout.playerHeight;
     }
     for (int i = 0; i < sortedCards.length; i++) {
-      final x = startX + i * pxBetweenCards;
+      final x = startX + i * pxBetweenCards * scaleMultiplier;
       final r = Rect.fromLTWH(x, startY, scaledCardWidth, scaledCardHeight);
       rects[sortedCards[i]] = r;
     }

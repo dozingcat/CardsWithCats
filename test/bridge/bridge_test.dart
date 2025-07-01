@@ -23,9 +23,7 @@ void main() {
     // Complete scoring table: https://web2.acbl.org/documentLibrary/play/InstantScorer.pdf
     test("2H nonvul", () {
       final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(2, Suit.hearts),
-          isVulnerable: false);
+          declarer: 0, bid: ContractBid(2, Suit.hearts), isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(8), 110);
       expect(contract.scoreForTricksTaken(9), 140);
@@ -39,9 +37,7 @@ void main() {
 
     test("4C vul", () {
       final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(4, Suit.clubs),
-          isVulnerable: true);
+          declarer: 0, bid: ContractBid(4, Suit.clubs), isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(10), 130);
       expect(contract.scoreForTricksTaken(11), 150);
@@ -54,10 +50,8 @@ void main() {
     });
 
     test("1NT nonval", () {
-      final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(1, null),
-          isVulnerable: false);
+      final contract =
+          Contract(declarer: 0, bid: ContractBid(1, null), isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(7), 90);
       expect(contract.scoreForTricksTaken(8), 120);
@@ -71,9 +65,7 @@ void main() {
 
     test("4S vul", () {
       final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(4, Suit.spades),
-          isVulnerable: true);
+          declarer: 0, bid: ContractBid(4, Suit.spades), isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(10), 620);
       expect(contract.scoreForTricksTaken(11), 650);
@@ -84,9 +76,7 @@ void main() {
 
     test("5D nonvul", () {
       final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(5, Suit.diamonds),
-          isVulnerable: false);
+          declarer: 0, bid: ContractBid(5, Suit.diamonds), isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(11), 400);
       expect(contract.scoreForTricksTaken(12), 420);
@@ -96,10 +86,8 @@ void main() {
     });
 
     test("3NT vul", () {
-      final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(3, null),
-          isVulnerable: true);
+      final contract =
+          Contract(declarer: 0, bid: ContractBid(3, null), isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(9), 600);
       expect(contract.scoreForTricksTaken(10), 630);
@@ -111,9 +99,7 @@ void main() {
 
     test("6S nonvul", () {
       final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(6, Suit.spades),
-          isVulnerable: false);
+          declarer: 0, bid: ContractBid(6, Suit.spades), isVulnerable: false);
 
       expect(contract.scoreForTricksTaken(12), 980);
       expect(contract.scoreForTricksTaken(13), 1010);
@@ -124,9 +110,7 @@ void main() {
 
     test("7d vul", () {
       final contract = Contract(
-          declarer: 0,
-          bid: ContractBid(7, Suit.diamonds),
-          isVulnerable: true);
+          declarer: 0, bid: ContractBid(7, Suit.diamonds), isVulnerable: true);
 
       expect(contract.scoreForTricksTaken(13), 2140);
 
@@ -272,17 +256,17 @@ void main() {
   group("Contract from bids", () {
     test("Single bid", () {
       final bids = [
-        PlayerBid.contract(2, ContractBid(1, Suit.hearts)),
-        PlayerBid.pass(3),
-        PlayerBid.pass(0),
+        PlayerBid(2, BidAction.contract(1, Suit.hearts)),
+        PlayerBid(3, BidAction.pass()),
+        PlayerBid(0, BidAction.pass()),
       ];
 
       expect(isBiddingOver(bids), false);
-      bids.add(PlayerBid.pass(1));
+      bids.add(PlayerBid(1, BidAction.pass()));
       expect(isBiddingOver(bids), true);
       final contract = contractFromBids(
-          bids: bids,
-          vulnerability: Vulnerability.ewOnly,
+        bids: bids,
+        vulnerability: Vulnerability.ewOnly,
       );
       expect(contract.declarer, 2);
       expect(contract.bid, ContractBid(1, Suit.hearts));
@@ -291,17 +275,17 @@ void main() {
 
     test("Competitive bids", () {
       final bids = [
-        PlayerBid.pass(3),
-        PlayerBid.contract(0, ContractBid(1, Suit.spades)),
-        PlayerBid.contract(1, ContractBid(2, Suit.diamonds)),
-        PlayerBid.contract(2, ContractBid(2, Suit.spades)),
-        PlayerBid.contract(3, ContractBid(3, Suit.diamonds)),
-        PlayerBid.pass(0),
-        PlayerBid.pass(1),
+        PlayerBid(3, BidAction.pass()),
+        PlayerBid(0, BidAction.contract(1, Suit.spades)),
+        PlayerBid(1, BidAction.contract(2, Suit.diamonds)),
+        PlayerBid(2, BidAction.contract(2, Suit.spades)),
+        PlayerBid(3, BidAction.contract(3, Suit.diamonds)),
+        PlayerBid(0, BidAction.pass()),
+        PlayerBid(1, BidAction.pass()),
       ];
 
       expect(isBiddingOver(bids), false);
-      bids.add(PlayerBid.pass(2));
+      bids.add(PlayerBid(2, BidAction.pass()));
       expect(isBiddingOver(bids), true);
       final contract = contractFromBids(
         bids: bids,
@@ -314,37 +298,37 @@ void main() {
 
     test("Doubled", () {
       final bids = [
-        PlayerBid.contract(0, ContractBid(1, Suit.hearts)),
-        PlayerBid.pass(1),
-        PlayerBid.contract(2, ContractBid(2, Suit.hearts)),
-        PlayerBid.contract(3, ContractBid(3, Suit.spades)),
-        PlayerBid.contract(0, ContractBid(4, Suit.hearts)),
-        PlayerBid.contract(1, ContractBid(4, Suit.spades)),
-        PlayerBid.pass(2),
-        PlayerBid.pass(3),
+        PlayerBid(0, BidAction.contract(1, Suit.hearts)),
+        PlayerBid(1, BidAction.pass()),
+        PlayerBid(2, BidAction.contract(2, Suit.hearts)),
+        PlayerBid(3, BidAction.contract(3, Suit.spades)),
+        PlayerBid(0, BidAction.contract(4, Suit.hearts)),
+        PlayerBid(1, BidAction.contract(4, Suit.spades)),
+        PlayerBid(2, BidAction.pass()),
+        PlayerBid(3, BidAction.pass()),
       ];
 
       expect(isBiddingOver(bids), false);
       expect(canCurrentBidderDouble(bids), true);
       expect(canCurrentBidderRedouble(bids), false);
 
-      bids.add(PlayerBid.double(0));
+      bids.add(PlayerBid(0, BidAction.double()));
       expect(isBiddingOver(bids), false);
       expect(canCurrentBidderDouble(bids), false);
       expect(canCurrentBidderRedouble(bids), true);
 
-      bids.add(PlayerBid.pass(1));
+      bids.add(PlayerBid(1, BidAction.pass()));
       expect(isBiddingOver(bids), false);
       expect(canCurrentBidderDouble(bids), false);
       expect(canCurrentBidderRedouble(bids), false);
 
-      bids.add(PlayerBid.pass(2));
+      bids.add(PlayerBid(2, BidAction.pass()));
       expect(isBiddingOver(bids), false);
       expect(canCurrentBidderDouble(bids), false);
       expect(canCurrentBidderRedouble(bids), true);
 
       expect(isBiddingOver(bids), false);
-      bids.add(PlayerBid.pass(3));
+      bids.add(PlayerBid(3, BidAction.pass()));
       expect(isBiddingOver(bids), true);
       final contract = contractFromBids(
         bids: bids,
@@ -358,15 +342,15 @@ void main() {
 
     test("Contract in opponent's opened suit", () {
       final bids = [
-        PlayerBid.contract(0, cb("1C")),
-        PlayerBid.double(1),
-        PlayerBid.pass(2),
-        PlayerBid.contract(3, cb("1S")),
-        PlayerBid.pass(0),
-        PlayerBid.contract(1, cb("2C")),
-        PlayerBid.pass(2),
-        PlayerBid.pass(3),
-        PlayerBid.pass(0),
+        PlayerBid(0, BidAction.contract(1, Suit.clubs)),
+        PlayerBid(1, BidAction.double()),
+        PlayerBid(2, BidAction.pass()),
+        PlayerBid(3, BidAction.contract(1, Suit.spades)),
+        PlayerBid(0, BidAction.pass()),
+        PlayerBid(1, BidAction.contract(2, Suit.clubs)),
+        PlayerBid(2, BidAction.pass()),
+        PlayerBid(3, BidAction.pass()),
+        PlayerBid(0, BidAction.pass()),
       ];
 
       final contract = contractFromBids(
@@ -374,7 +358,7 @@ void main() {
         vulnerability: Vulnerability.neither,
       );
       expect(contract.declarer, 1);
-      expect(contract.bid, cb("2C"));
+      expect(contract.bid, ContractBid(2, Suit.clubs));
       expect(contract.doubled, DoubledType.none);
       expect(contract.isVulnerable, false);
     });

@@ -1,5 +1,8 @@
 enum Suit {
-  clubs, diamonds, hearts, spades;
+  clubs,
+  diamonds,
+  hearts,
+  spades;
 
   String get asciiChar {
     switch (this) {
@@ -48,7 +51,19 @@ enum Suit {
 }
 
 enum Rank {
-  two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, ace;
+  two,
+  three,
+  four,
+  five,
+  six,
+  seven,
+  eight,
+  nine,
+  ten,
+  jack,
+  queen,
+  king,
+  ace;
 
   // Returns number for non-face card, or jack=11, queen=12, king=13, ace=14.
   int get numericValue {
@@ -126,7 +141,9 @@ class PlayingCard {
 
   @override
   bool operator ==(Object other) {
-    return (other is PlayingCard && other.rank == this.rank && other.suit == this.suit);
+    return (other is PlayingCard &&
+        other.rank == this.rank &&
+        other.suit == this.suit);
   }
 
   @override
@@ -173,6 +190,19 @@ List<Rank> sortedRanksInSuit(Iterable<PlayingCard> cards, Suit suit) {
   return sortedCardsInSuit(cards, suit).map((c) => c.rank).toList();
 }
 
+Map<Suit, int> suitCounts(Iterable<PlayingCard> cards) {
+  Map<Suit, int> counts = {
+    Suit.spades: 0,
+    Suit.hearts: 0,
+    Suit.diamonds: 0,
+    Suit.clubs: 0,
+  };
+  for (final c in cards) {
+    counts[c.suit] = counts[c.suit]! + 1;
+  }
+  return counts;
+}
+
 PlayingCard minCardByRank(List<PlayingCard> cards) {
   var minCard = cards[0];
   for (final c in cards) {
@@ -195,7 +225,8 @@ PlayingCard maxCardByRank(List<PlayingCard> cards) {
 
 String descriptionWithSuitGroups(List<PlayingCard> cards) {
   String stringForRanksInSuit(Suit suit) =>
-      suit.symbolChar + sortedRanksInSuit(cards, suit).map((r) => r.asciiChar).join("");
+      suit.symbolChar +
+      sortedRanksInSuit(cards, suit).map((r) => r.asciiChar).join("");
   return [
     stringForRanksInSuit(Suit.spades),
     stringForRanksInSuit(Suit.hearts),
