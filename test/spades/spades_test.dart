@@ -192,7 +192,7 @@ void main() {
       expect(scores[1].endingMatchPoints, 250);
     });
 
-    test("No bad penalty if rule disabled", () {
+    test("No bag penalty if rule disabled", () {
       round.rules.penalizeBags = false;
       round.initialScores = [100, 200];
       final scores = round.pointsTaken();

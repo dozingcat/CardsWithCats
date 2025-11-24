@@ -543,5 +543,17 @@ void main() {
       );
       expect(response, BidAction.pass());
     });
+
+    test("Overcalls with strong suit at 2 level", () {
+      final BidAction response = getResponseToBidSequence(
+        c("AS QS TS 6S 5S 3S 8H KC 7C 2C AD JD 4D"),
+        [
+          BidAction.withBid(cb("1D")),
+          BidAction.pass(),
+          BidAction.withBid(cb("1NT")),
+        ],
+      );
+      expect(response, cb("2S"));
+    });
   });
 }

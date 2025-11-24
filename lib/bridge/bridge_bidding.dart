@@ -153,6 +153,15 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
             BidAction.withBid(ContractBid(minBidLevel, bestSuitFit)));
       }
     }
+  } else {
+    // HERE: No suit fit, can bid an unshown suit if sufficient length and points.
+    Suit? bestSuitNotAlreadyShown() {
+
+    }
+    final suitToMaybeBid = bestSuitNotAlreadyShown();
+    if (suitToMaybeBid != null) {
+
+    }
   }
 
   return PlayerBid(req.playerIndex, BidAction.pass());

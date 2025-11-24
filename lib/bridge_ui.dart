@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/bridge/bridge_llm_bidding.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
@@ -191,11 +192,36 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     _scheduleNextActionIfNeeded();
   }
 
+  final useLlmBidding = false;
+
   void _scheduleNextAiBidIfNeeded() {
     if (round.status == BridgeRoundStatus.bidding && !_isWaitingForHumanBid()) {
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        _makeBidForAiPlayer(round.currentBidder());
-      });
+      if (useLlmBidding) {
+        final bidRequest = BidRequest(
+          playerIndex: round.currentBidder(),
+          hand: round.players[round.currentBidder()].hand,
+          bidHistory: round.bidHistory,
+        );
+        final bidFuture = getBidFromLlm(bidRequest);
+        bidFuture.then((bid) {
+          if (bid == null) {
+            print("LLM didn't return a bid");
+            _makeBidForAiPlayer(round.currentBidder());
+          } else if (!canCurrentBidderMakeAction(bidRequest.bidHistory, bid)) {
+            print("LLM returned illegal bid: $bid");
+            _makeBidForAiPlayer(round.currentBidder());
+          } else {
+            print("LLM returned bid: $bid");
+            setState(() {
+              _addBid(PlayerBid(round.currentBidder(), bid));
+            });
+          }
+        });
+      } else {
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          _makeBidForAiPlayer(round.currentBidder());
+        });
+      }
     }
   }
 
@@ -531,7 +557,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
-    final showAllHands = false;
+    final showAllHands = true;
 
     return Stack(
       children: [

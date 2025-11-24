@@ -114,9 +114,9 @@ class ContractBid {
       Suit.hearts: Suit.spades,
       Suit.spades: null,
     };
-    return trump == null ?
-        ContractBid(count + 1, Suit.clubs) :
-        ContractBid(count, higherSuit[trump]);
+    return trump == null
+        ? ContractBid(count + 1, Suit.clubs)
+        : ContractBid(count, higherSuit[trump]);
   }
 }
 
@@ -162,6 +162,18 @@ class BidAction {
       BidType.redouble => redouble(),
       BidType.contract => withBid(ContractBid.fromString(json["contractBid"])),
     };
+  }
+
+  static BidAction fromString(String s) {
+    if (s == "pass") {
+      return pass();
+    } else if (s == "double") {
+      return double();
+    } else if (s == "redouble") {
+      return redouble();
+    } else {
+      return withBid(ContractBid.fromString(s));
+    }
   }
 
   @override
@@ -567,7 +579,8 @@ bool isBiddingOver(List<PlayerBid> bids) {
   return true;
 }
 
-bool canCurrentBidderMakeContractBid(List<PlayerBid> bids, ContractBid contractBid) {
+bool canCurrentBidderMakeContractBid(
+    List<PlayerBid> bids, ContractBid contractBid) {
   PlayerBid? lastContract = lastContractBid(bids);
   if (lastContract == null) {
     return true;
@@ -613,6 +626,15 @@ bool canCurrentBidderRedouble(List<PlayerBid> bids) {
     }
   }
   return false;
+}
+
+bool canCurrentBidderMakeAction(List<PlayerBid> bids, BidAction bid) {
+  return switch (bid.bidType) {
+    BidType.pass => true,
+    BidType.double => canCurrentBidderDouble(bids),
+    BidType.redouble => canCurrentBidderRedouble(bids),
+    BidType.contract => canCurrentBidderMakeContractBid(bids, bid.contractBid!),
+  };
 }
 
 Contract contractFromBids({
