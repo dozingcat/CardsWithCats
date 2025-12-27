@@ -317,6 +317,9 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         backgrounds[PlayingCard(r, Suit.hearts)] = Colors.redAccent.shade100;
       }
       backgrounds[queenOfSpades] = Colors.red;
+      if (round.rules.jdMinus10) {
+        backgrounds[jackOfDiamonds] = Colors.amber;
+      }
     }
     if (highlightReceivedCards) {
       if (round.players[0].hand.length == 13) {

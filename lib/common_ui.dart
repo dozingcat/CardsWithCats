@@ -134,18 +134,19 @@ class PositionedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // If the card has a background color, we set it in the top-level Container
+    // below and draw the transparent card on top of it so that the background
+    // will show through the transparent parts. If there's no background,
+    // we use the solid version of the card image.
     final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
-
     final cardStack = <Widget>[];
     Color? bgColor = cardBackgroundColor();
     final cardImagePath = bgColor != null ?
         "assets/cards/transparent/${card.toString()}.webp" :
         "assets/cards/solid/${card.toString()}.webp";
-    cardStack.add(Center(
-        child: Image(
-          image: AssetImage(cardImagePath),
-        )));
+    cardStack.add(Image(image: AssetImage(cardImagePath)));
 
+    // To dim a card, we draw a partially transparent black rectangle over it.
     if (dimming > 0) {
       cardStack.add(Container(color: Color.fromRGBO(0, 0, 0, dimming)));
     }
@@ -163,6 +164,8 @@ class PositionedCard extends StatelessWidget {
       ),
     ));
 
+    // ClipRRect clips the background color and dimming rectangle
+    // to the card's rounded rect.
     return Positioned.fromRect(
         rect: cardRect,
         child: Transform.rotate(angle: rotation, child: GestureDetector(
