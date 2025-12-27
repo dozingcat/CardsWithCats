@@ -37,6 +37,8 @@ class HeartsMatchDisplay extends StatefulWidget {
   final List<int> catImageIndices;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
+  final bool tintPointCards;
+  final bool tintReceivedCards;
   final StatsStore statsStore;
 
   const HeartsMatchDisplay({
@@ -49,6 +51,8 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.catImageIndices,
     required this.matchUpdateStream,
     required this.soundPlayer,
+    required this.tintPointCards,
+    required this.tintReceivedCards,
     required this.statsStore,
   }) : super(key: key);
 
@@ -307,6 +311,28 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
+  Map<PlayingCard, Color> cardBackgrounds() {
+    Map<PlayingCard, Color> backgrounds = {};
+    if (widget.tintPointCards) {
+      for (final r in Rank.values) {
+        backgrounds[PlayingCard(r, Suit.hearts)] = Colors.redAccent.shade100;
+      }
+      backgrounds[queenOfSpades] = Colors.red;
+      if (round.rules.jdMinus10) {
+        backgrounds[jackOfDiamonds] = Colors.amber;
+      }
+    }
+    if (widget.tintReceivedCards) {
+      if (round.players[0].hand.length == 13) {
+        final receivedCards = round.players[0].receivedCards;
+        for (final c in receivedCards) {
+          backgrounds[c] = Colors.lightBlue;
+        }
+      }
+    }
+    return backgrounds;
+  }
+
   Widget _playerCards(final Layout layout) {
     if (_shouldShowEndOfRoundDialog()) {
       // Could show points taken, but the UI gets crowded.
@@ -383,7 +409,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return MultiplePlayerHandCards(
         layout: layout,
         playerHands: handParams,
-        suitOrder: suitDisplayOrder
+        suitOrder: suitDisplayOrder,
+        cardBackgroundColors: cardBackgrounds(),
     );
   }
 
@@ -398,6 +425,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       suitOrder: suitDisplayOrder,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
+      cardBackgroundColors: cardBackgrounds(),
     );
   }
 

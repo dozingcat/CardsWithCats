@@ -98,90 +98,85 @@ Rect centeredSubrectWithAspectRatio(Rect parentRect, double aspectRatio) {
   }
 }
 
+const defaultTrumpBackgroundColor = Color.fromARGB(255, 255, 215, 0);
+
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
   final double cardAspectRatio;
-  final double opacity;
+  final double dimming;
   final double rotation;
   final bool isTrump;
   final void Function(PlayingCard)? onCardClicked;
+  final Color? backgroundColor;
 
   const PositionedCard({
-    Key? key,
+    super.key,
     required this.rect,
     required this.card,
     this.cardAspectRatio = defaultCardAspectRatio,
     this.onCardClicked,
-    this.opacity = 1.0,
+    this.dimming = 0.0,
     this.rotation = 0.0,
     this.isTrump = false,
-  }) : super(key: key);
+    this.backgroundColor,
+  });
+
+  Color? cardBackgroundColor() {
+    if (backgroundColor != null) {
+      return backgroundColor;
+    }
+    if (isTrump) {
+      return defaultTrumpBackgroundColor;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cardImagePath = isTrump && opacity == 1 ?
+    // If the card has a background color, we set it in the top-level Container
+    // below and draw the transparent card on top of it so that the background
+    // will show through the transparent parts. If there's no background,
+    // we use the solid version of the card image.
+    final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
+    final cardStack = <Widget>[];
+    Color? bgColor = cardBackgroundColor();
+    final cardImagePath = bgColor != null ?
         "assets/cards/transparent/${card.toString()}.webp" :
         "assets/cards/solid/${card.toString()}.webp";
-    const backgroundImagePath = "assets/cards/black.webp";
-    const trumpOverlayImagePath = "assets/cards/gold.webp";
-    final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
+    cardStack.add(Image(image: AssetImage(cardImagePath)));
 
-    final cardStack = <Widget>[];
-    if (opacity < 1) {
-      cardStack.add(const Center(
-          child: Image(
-            image: AssetImage(backgroundImagePath),
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-          )));
+    // To dim a card, we draw a partially transparent black rectangle over it.
+    if (dimming > 0) {
+      cardStack.add(Container(color: Color.fromRGBO(0, 0, 0, dimming)));
     }
-    else if (isTrump) {
-      cardStack.add(const Center(
-          child: Image(
-            image: AssetImage(trumpOverlayImagePath),
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-          )));
-
-      // cardStack.add(TweenAnimationBuilder(
-      //   tween: Tween(begin: Colors.pink, end: Colors.blue),
-      //   duration:
-      //   builder: (context, Color color, child) {
-      //
-      //   },
-      // ));
-      // cardStack.add(Container(
-      //   decoration: BoxDecoration(
-      //     color: Colors.amber,
-      //       borderRadius: BorderRadius.all(Radius.circular(5))
-      //   ),
-      // ));
-    }
-    cardStack.add(Center(
-        child: Image(
-          color: Color.fromRGBO(255, 255, 255, opacity),
-          colorBlendMode: BlendMode.modulate,
-          image: AssetImage(cardImagePath),
-        )));
 
     // The card images don't have an edge border so we draw it manually.
     // Width of 0 makes the border one physical pixel.
+    double cornerRadius = cardRect.width * 0.05;
     cardStack.add(Container(
       decoration: BoxDecoration(
         border: Border.all(
-          color: const Color.fromRGBO(64, 64, 64, 1),
+          color: const Color.fromRGBO(64, 64, 64, 1.0),
           width: 0,
         ),
-        borderRadius: BorderRadius.circular(cardRect.width * 0.05),
+        borderRadius: BorderRadius.circular(cornerRadius),
       ),
     ));
 
+    // ClipRRect clips the background color and dimming rectangle
+    // to the card's rounded rect.
     return Positioned.fromRect(
         rect: cardRect,
         child: Transform.rotate(angle: rotation, child: GestureDetector(
             onTapDown: onCardClicked != null ? ((tap) => onCardClicked!(card)) : null,
-            child: Stack(children: cardStack))));
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(cornerRadius),
+              child: Container(
+                color: bgColor,
+                child: Stack(children: cardStack)
+              )
+            ) )));
   }
 }
 
@@ -544,6 +539,7 @@ class TrickCards extends StatelessWidget {
   final List<DisplayedHand>? displayedHands;
   final List<Suit>? suitOrder;
   final Suit? trumpSuit;
+  final Map<PlayingCard, Color>? cardBackgroundColors;
 
   const TrickCards({
     super.key,
@@ -557,6 +553,7 @@ class TrickCards extends StatelessWidget {
     this.displayedHands,
     this.suitOrder,
     this.trumpSuit,
+    this.cardBackgroundColors,
   });
 
   @override
@@ -591,6 +588,7 @@ class TrickCards extends StatelessWidget {
         rect: cardRect,
         card: card,
         isTrump: card.suit == trumpSuit,
+        backgroundColor: cardBackgroundColors?[card],
     );
   }
 
@@ -638,6 +636,7 @@ class TrickCards extends StatelessWidget {
               rect: animRect,
               card: cards.last,
               isTrump: cards.last.suit == trumpSuit,
+              backgroundColor: cardBackgroundColors?[cards.last],
           );
         }));
 
@@ -667,6 +666,7 @@ class TrickCards extends StatelessWidget {
                     rect: animRect,
                     card: trick.cards[i],
                     isTrump: trick.cards[i].suit == trumpSuit,
+                    backgroundColor: cardBackgroundColors?[trick.cards[i]],
                 ));
           }
           return Stack(children: cardWidgets);
@@ -760,6 +760,7 @@ class PlayerHandCards extends StatelessWidget {
   final void Function(PlayingCard)? onCardClicked;
   final List<PlayingCard>? animateFromCards;
   final Suit? trumpSuit;
+  final Map<PlayingCard, Color>? cardBackgroundColors;
   final int playerIndex;
   final HandDisplayStyle displayStyle;
   final double scaleMultiplier;
@@ -772,6 +773,7 @@ class PlayerHandCards extends StatelessWidget {
     required this.highlightedCards,
     this.animateFromCards,
     this.trumpSuit,
+    this.cardBackgroundColors,
     this.onCardClicked,
     this.playerIndex = 0,
     this.displayStyle = HandDisplayStyle.normal,
@@ -803,9 +805,10 @@ class PlayerHandCards extends StatelessWidget {
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
                 isTrump: card.suit == trumpSuit,
-                opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
+                dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
                 onCardClicked: onCardClicked,
                 rotation: rotation,
+                backgroundColor: cardBackgroundColors?[card],
               ));
             }
             return Stack(children: cardImages);
@@ -819,11 +822,13 @@ class PlayerHandCards extends StatelessWidget {
         rect: entry.value,
         card: card,
         isTrump: card.suit == trumpSuit,
-        opacity: highlightedCards.contains(card) ? 1.0 : 0.5,
+        dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
         onCardClicked: onCardClicked,
         rotation: rotation,
+        backgroundColor: cardBackgroundColors?[card],
       ));
     }
+    print("PlayerHandCards backgrounds: $cardBackgroundColors");
     return Stack(children: cardImages);
   }
 }
@@ -853,6 +858,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
   final List<PlayerHandParams> playerHands;
   final List<Suit> suitOrder;
   final Suit? trumpSuit;
+  final Map<PlayingCard, Color>? cardBackgroundColors;
 
   const MultiplePlayerHandCards({
     super.key,
@@ -860,6 +866,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
     required this.playerHands,
     required this.suitOrder,
     this.trumpSuit,
+    this.cardBackgroundColors,
   });
 
   static bool anyRectsIntersect(List<Rect> rects1, List<Rect> rects2) {
@@ -953,6 +960,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
         suitDisplayOrder: suitOrder,
         animateFromCards: ph.animateFromCards,
         trumpSuit: trumpSuit,
+        cardBackgroundColors: cardBackgroundColors,
         onCardClicked: ph.onCardClicked,
         displayStyle: ph.displayStyle,
         scaleMultiplier: scaleMultiplier,

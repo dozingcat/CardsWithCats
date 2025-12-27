@@ -97,6 +97,8 @@ class _MyHomePageState extends State<MyHomePage> {
   List<int> catIndices = [0, 1, 2, 3];
   final soundPlayer = SoundEffectPlayer();
   bool useTintedTrumpCards = false;
+  bool useTintedHeartsPointCards = false;
+  bool useTintedHeartsReceivedCards = false;
 
   @override
   void initState() {
@@ -128,6 +130,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
       soundPlayer.enabled = preferences.getBool("soundEnabled") ?? true;
       useTintedTrumpCards = preferences.getBool("tintedTrumpCards") ?? true;
+      useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
+      useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
+
 
       statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
@@ -206,8 +211,18 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.setBool("tintedTrumpCards", enabled);
   }
 
-  bool tintedTrumpCardsEnabled() {
-    return useTintedTrumpCards;
+  void setTintedHeartsPointCardsEnabled(bool enabled) {
+    setState(() {
+      useTintedHeartsPointCards = enabled;
+    });
+    preferences.setBool("tintedHeartsPointCards", enabled);
+  }
+
+  void setTintedHeartsReceivedCardsEnabled(bool enabled) {
+    setState(() {
+      useTintedHeartsReceivedCards = enabled;
+    });
+    preferences.setBool("tintedHeartsReceivedCards", enabled);
   }
 
   void _showMainMenu() {
@@ -651,6 +666,22 @@ class _MyHomePageState extends State<MyHomePage> {
                                 rules.pointsOnFirstTrick = checked;
                               },
                             ),
+                            CheckboxListTile(
+                              dense: true,
+                              title: const Text("Tint point cards", style: labelStyle),
+                              value: useTintedHeartsPointCards,
+                              onChanged: (bool? checked) {
+                                setTintedHeartsPointCardsEnabled(checked == true);
+                              },
+                            ),
+                            CheckboxListTile(
+                              dense: true,
+                              title: const Text("Tint received cards", style: labelStyle),
+                              value: useTintedHeartsReceivedCards,
+                              onChanged: (bool? checked) {
+                                setTintedHeartsReceivedCardsEnabled(checked == true);
+                              },
+                            ),
 
                             const ListTile(
                                 title: Text("Spades",
@@ -828,6 +859,8 @@ class _MyHomePageState extends State<MyHomePage> {
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
               soundPlayer: soundPlayer,
+              tintPointCards: useTintedHeartsPointCards,
+              tintReceivedCards: useTintedHeartsReceivedCards,
               statsStore: statsStore,
             ),
           if (matchType == GameType.spades)
