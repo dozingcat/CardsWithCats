@@ -37,6 +37,8 @@ class HeartsMatchDisplay extends StatefulWidget {
   final List<int> catImageIndices;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
+  final bool tintPointCards;
+  final bool tintReceivedCards;
   final StatsStore statsStore;
 
   const HeartsMatchDisplay({
@@ -49,6 +51,8 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.catImageIndices,
     required this.matchUpdateStream,
     required this.soundPlayer,
+    required this.tintPointCards,
+    required this.tintReceivedCards,
     required this.statsStore,
   }) : super(key: key);
 
@@ -309,10 +313,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   Map<PlayingCard, Color> cardBackgrounds() {
     Map<PlayingCard, Color> backgrounds = {};
-    // TODO: Add a preference for this.
-    final highlightPointCards = true;
-    final highlightReceivedCards = true;
-    if (highlightPointCards) {
+    if (widget.tintPointCards) {
       for (final r in Rank.values) {
         backgrounds[PlayingCard(r, Suit.hearts)] = Colors.redAccent.shade100;
       }
@@ -321,7 +322,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         backgrounds[jackOfDiamonds] = Colors.amber;
       }
     }
-    if (highlightReceivedCards) {
+    if (widget.tintReceivedCards) {
       if (round.players[0].hand.length == 13) {
         final receivedCards = round.players[0].receivedCards;
         for (final c in receivedCards) {
