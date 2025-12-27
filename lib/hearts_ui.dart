@@ -307,6 +307,28 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
+  Map<PlayingCard, Color> cardBackgrounds() {
+    Map<PlayingCard, Color> backgrounds = {};
+    // TODO: Add a preference for this.
+    final highlightPointCards = true;
+    final highlightReceivedCards = true;
+    if (highlightPointCards) {
+      for (final r in Rank.values) {
+        backgrounds[PlayingCard(r, Suit.hearts)] = Colors.redAccent.shade100;
+      }
+      backgrounds[queenOfSpades] = Colors.red;
+    }
+    if (highlightReceivedCards) {
+      if (round.players[0].hand.length == 13) {
+        final receivedCards = round.players[0].receivedCards;
+        for (final c in receivedCards) {
+          backgrounds[c] = Colors.lightBlue;
+        }
+      }
+    }
+    return backgrounds;
+  }
+
   Widget _playerCards(final Layout layout) {
     if (_shouldShowEndOfRoundDialog()) {
       // Could show points taken, but the UI gets crowded.
@@ -383,7 +405,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return MultiplePlayerHandCards(
         layout: layout,
         playerHands: handParams,
-        suitOrder: suitDisplayOrder
+        suitOrder: suitDisplayOrder,
+        cardBackgroundColors: cardBackgrounds(),
     );
   }
 
@@ -398,6 +421,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       suitOrder: suitDisplayOrder,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
+      cardBackgroundColors: cardBackgrounds(),
     );
   }
 
