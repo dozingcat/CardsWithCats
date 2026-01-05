@@ -247,6 +247,18 @@ void printHand(List<PlayingCard> hand) {
   print(descriptionWithSuitGroups(hand));
 }
 
+/// Returns cards sorted by suit (spades, hearts, diamonds, clubs) and descending rank, as ASCII strings.
+String sortedCardString(List<PlayingCard> cards) {
+  final sorted = List.of(cards);
+  sorted.sort((a, b) {
+    final suitOrder = [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs];
+    final suitCompare = suitOrder.indexOf(a.suit).compareTo(suitOrder.indexOf(b.suit));
+    if (suitCompare != 0) return suitCompare;
+    return b.rank.index.compareTo(a.rank.index);
+  });
+  return sorted.map((c) => c.toString()).join(" ");
+}
+
 const playerNames = ['South', 'West', 'North', 'East'];
 
 String playerName(int index) => playerNames[index];
@@ -280,6 +292,7 @@ List<PlayingCard> getCardsToPassFromUser(List<PlayingCard> hand, int numCards) {
 
     if (parts.length != numCards) {
       print('Please enter exactly $numCards cards.');
+      print('Your hand: ${sortedCardString(hand)}');
       invalidInputCount++;
       continue;
     }
@@ -290,12 +303,14 @@ List<PlayingCard> getCardsToPassFromUser(List<PlayingCard> hand, int numCards) {
       final card = parseCard(part, hand);
       if (card == null) {
         print('Invalid card: $part');
+        print('Your hand: ${sortedCardString(hand)}');
         invalidInputCount++;
         valid = false;
         break;
       }
       if (cards.contains(card)) {
         print('Duplicate card: $part');
+        print('Your hand: ${sortedCardString(hand)}');
         invalidInputCount++;
         valid = false;
         break;
@@ -338,6 +353,14 @@ void playRound(HeartsRound round, HeartsRuleSet rules, Random rng, MonteCarloPar
       print('$winnerName won the trick${trickPoints > 0 ? " ($trickPoints point${trickPoints > 1 ? "s" : ""})" : ""}.');
     }
   }
+
+  // Check for moon shooting
+  final shooter = moonShooter(round.previousTricks);
+  if (shooter != null) {
+    final shooterName = shooter == 0 ? 'You' : playerName(shooter);
+    print('');
+    print('$shooterName shot the moon!');
+  }
 }
 
 void playHumanTurn(HeartsRound round, HeartsRuleSet rules) {
@@ -379,12 +402,14 @@ PlayingCard getCardToPlayFromUser(List<PlayingCard> hand, List<PlayingCard> lega
     final card = parseCard(input, hand);
     if (card == null) {
       print('Invalid card. Enter a card like "AS" or "A♠".');
+      print('Legal plays: ${sortedCardString(legalPlays)}');
       invalidInputCount++;
       continue;
     }
 
     if (!legalPlays.contains(card)) {
       print('${card.symbolString()} is not a legal play.');
+      print('Legal plays: ${sortedCardString(legalPlays)}');
       invalidInputCount++;
       continue;
     }
