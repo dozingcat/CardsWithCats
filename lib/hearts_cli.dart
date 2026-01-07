@@ -24,6 +24,28 @@ int invalidInputCount = 0;
 ///   --output-json=PATH: Write a JSON summary of the round to the specified path.
 
 void main(List<String> args) {
+  if (args.contains('--help') || args.contains('-h')) {
+    print('''
+Hearts CLI - Play a round of Hearts from the command line.
+
+Usage: dart run lib/hearts_cli.dart [options]
+
+Options:
+  --help, -h            Show this help message and exit.
+  --replay              After the human plays, replay the same hand with AI
+                        and compare results.
+  --seed=N              Use a fixed random seed for reproducibility.
+  --pass=DIRECTION      Pass direction: left, right, across, or none.
+                        Default: left.
+  --mc-rounds=N         Monte Carlo max rounds for AI. Default: 20.
+  --mc-rollouts=N       Monte Carlo rollouts per round for AI. Default: 50.
+  --replay-rounds=N     Number of replay rounds to average for AI comparison.
+                        Default: 1.
+  --output-json=PATH    Write a JSON summary of the round to the specified path.
+''');
+    exit(0);
+  }
+
   bool replay = args.contains('--replay');
   int? seed;
   int passDirection = 1; // Default: left
@@ -247,7 +269,7 @@ void printHand(List<PlayingCard> hand) {
   print(descriptionWithSuitGroups(hand));
 }
 
-/// Returns cards sorted by suit (spades, hearts, diamonds, clubs) and descending rank, as ASCII strings.
+/// Returns cards sorted by suit (spades, hearts, diamonds, clubs) and descending rank, with suit symbols.
 String sortedCardString(List<PlayingCard> cards) {
   final sorted = List.of(cards);
   sorted.sort((a, b) {
@@ -256,7 +278,7 @@ String sortedCardString(List<PlayingCard> cards) {
     if (suitCompare != 0) return suitCompare;
     return b.rank.index.compareTo(a.rank.index);
   });
-  return sorted.map((c) => c.toString()).join(" ");
+  return sorted.map((c) => c.symbolString()).join(" ");
 }
 
 const playerNames = ['South', 'West', 'North', 'East'];
