@@ -398,6 +398,301 @@ void main() {
     });
   });
 
+  group("opener rebids", () {
+    test("original example: raise responder's major with four", () {
+      final result = selectSaycBid(parseHand(exampleHandString),
+          ["1D", "pass", "1S", "pass"].map(BidAction.fromString).toList());
+      expect(result!.action.toString(), "2S");
+      expect(result.meaning.totalPoints, const Range(low: 13, high: 15));
+      expect(result.meaning.suitLengths[Suit.spades], const Range(low: 4));
+    });
+
+    test("jump raise and game raise", () {
+      expect(
+          openingBid("AQ32", "K6", "AKJ32", "32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "3S"); // 18 total
+      expect(
+          openingBid("AQ32", "6", "AKQJ32", "Q2",
+              history: ["1D", "pass", "1S", "pass"]),
+          "4S"); // 20 total
+    });
+
+    test("notrump rebids", () {
+      expect(
+          openingBid("K32", "K32", "AQ32", "J32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "1NT"); // 13
+      expect(
+          openingBid("K32", "KQ2", "AQ32", "A32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "2NT"); // 18
+    });
+
+    test("six-card suit rebids", () {
+      expect(
+          openingBid("32", "K2", "AKJ432", "Q32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "2D"); // 15 total
+      expect(
+          openingBid("32", "K2", "AKQJ32", "Q32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "3D"); // 17 total
+    });
+
+    test("reverses require 17+", () {
+      expect(
+          openingBid("K2", "AQ32", "AKQ32", "32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "2H"); // 19 total
+      expect(
+          openingBid("K2", "KQ32", "AQJ32", "32",
+              history: ["1D", "pass", "1S", "pass"]),
+          "2D"); // 16 total: no reverse
+    });
+
+    test("jump shift with 18+", () {
+      expect(
+          openingBid("K2", "2", "AKQ32", "AQJ43",
+              history: ["1D", "pass", "1S", "pass"]),
+          "3C"); // 21 total
+      expect(
+          openingBid("AKJ32", "2", "K2", "AQJ43",
+              history: ["1S", "pass", "1NT", "pass"]),
+          "3C"); // 20 total
+    });
+
+    test("new major before raising a minor response", () {
+      expect(
+          openingBid("K32", "KQ32", "2", "AQ432",
+              history: ["1C", "pass", "1D", "pass"]),
+          "1H");
+    });
+
+    test("after a single raise", () {
+      expect(
+          openingBid("AKJ32", "K32", "Q32", "32",
+              history: ["1S", "pass", "2S", "pass"]),
+          "Pass"); // 14
+      expect(
+          openingBid("AKJ32", "AK2", "Q32", "32",
+              history: ["1S", "pass", "2S", "pass"]),
+          "3S"); // 18
+    });
+
+    test("accepts a limit raise with 14", () {
+      expect(
+          openingBid("AKJ32", "K32", "Q32", "32",
+              history: ["1S", "pass", "3S", "pass"]),
+          "4S"); // 14
+      expect(
+          openingBid("AKJ32", "Q32", "Q32", "32",
+              history: ["1S", "pass", "3S", "pass"]),
+          "Pass"); // 13
+    });
+
+    test("Jacoby 2NT rebids", () {
+      expect(
+          openingBid("AKJ32", "K32", "Q32", "32",
+              history: ["1S", "pass", "2NT", "pass"]),
+          "4S"); // minimum
+      expect(
+          openingBid("AKJ32", "AK2", "Q32", "32",
+              history: ["1S", "pass", "2NT", "pass"]),
+          "3S"); // extras
+    });
+
+    test("Stayman answers and transfer completions", () {
+      final stayman = ["1NT", "pass", "2C", "pass"];
+      expect(openingBid("K432", "AQ32", "A32", "K2", history: stayman), "2H");
+      expect(openingBid("AQ32", "K32", "A32", "KJ2", history: stayman), "2S");
+      expect(openingBid("K32", "A32", "AQ32", "KJ2", history: stayman), "2D");
+      expect(
+          openingBid("K32", "A32", "AQ32", "KJ2",
+              history: ["1NT", "pass", "2D", "pass"]),
+          "2H");
+    });
+
+    test("1NT opener invitation decisions", () {
+      final invite = ["1NT", "pass", "2NT", "pass"];
+      expect(openingBid("K32", "A32", "AQ32", "Q32", history: invite), "Pass");
+      expect(openingBid("K32", "A32", "AQ32", "KJ2", history: invite), "3NT");
+    });
+
+    test("2C rebids", () {
+      final after2d = ["2C", "pass", "2D", "pass"];
+      expect(openingBid("AKJ4", "AQ3", "KQ3", "K32", history: after2d), "2NT");
+      expect(
+          openingBid("AKQJ32", "AKQ", "A32", "2", history: after2d), "2S");
+    });
+  });
+
+  group("responder rebids", () {
+    test("Stayman continuations", () {
+      final h2 = ["1NT", "pass", "2C", "pass", "2H", "pass"];
+      expect(openingBid("K432", "Q432", "QJ2", "32", history: h2), "3H"); // 8
+      expect(openingBid("A432", "QJ32", "QJ2", "32", history: h2), "4H"); // 10
+      final s2 = ["1NT", "pass", "2C", "pass", "2S", "pass"];
+      expect(openingBid("32", "QJ32", "A432", "Q32", history: s2), "2NT"); // 9
+      expect(openingBid("32", "QJ32", "A432", "K32", history: s2), "3NT"); // 10
+    });
+
+    test("transfer continuations", () {
+      final t = ["1NT", "pass", "2D", "pass", "2H", "pass"];
+      expect(openingBid("32", "KQ432", "432", "432", history: t), "Pass");
+      expect(openingBid("32", "KQ432", "K32", "J32", history: t), "2NT");
+      expect(openingBid("32", "KQJ432", "Q32", "32", history: t), "3H");
+      expect(openingBid("K2", "KQ432", "K32", "Q32", history: t), "3NT");
+      expect(openingBid("32", "KQJ432", "K32", "K2", history: t), "4H");
+    });
+
+    test("after opener raises our suit", () {
+      final raised = ["1D", "pass", "1S", "pass", "2S", "pass"];
+      expect(openingBid("KQ32", "432", "Q32", "J32", history: raised), "Pass");
+      expect(openingBid("KQ32", "432", "K32", "KJ2", history: raised), "3S");
+      expect(openingBid("KQ32", "A32", "K32", "J32", history: raised), "4S");
+    });
+
+    test("after opener's 1NT rebid", () {
+      final nt = ["1D", "pass", "1S", "pass", "1NT", "pass"];
+      expect(openingBid("KQ32", "432", "Q32", "J32", history: nt), "Pass");
+      expect(openingBid("KQ32", "432", "K32", "KJ2", history: nt), "2NT");
+      expect(openingBid("KQ32", "A32", "K32", "J32", history: nt), "3NT");
+      expect(openingBid("KQJ432", "32", "Q32", "32", history: nt), "2S");
+      expect(openingBid("KQJ432", "A2", "K32", "32", history: nt), "4S");
+    });
+
+    test("after opener rebids its own suit", () {
+      final own = ["1D", "pass", "1S", "pass", "2D", "pass"];
+      expect(openingBid("KQ32", "432", "Q32", "J32", history: own), "Pass");
+      expect(openingBid("KQ32", "K432", "32", "KJ2", history: own), "2NT");
+      expect(openingBid("KQ32", "A432", "32", "KJ2", history: own), "3NT");
+      expect(openingBid("KQJ432", "432", "32", "32", history: own), "2S");
+    });
+
+    test("preference after a second suit", () {
+      final second = ["1D", "pass", "1S", "pass", "2C", "pass"];
+      expect(openingBid("KQ32", "432", "Q32", "J32", history: second), "2D");
+      expect(openingBid("KQ32", "432", "32", "J432", history: second), "Pass");
+      expect(openingBid("KQ32", "A32", "K32", "J32", history: second), "3NT");
+    });
+
+    test("moves toward game over a reverse", () {
+      expect(
+          openingBid("432", "AQJ32", "Q32", "32",
+              history: ["1D", "pass", "1H", "pass", "2S", "pass"]),
+          "3NT"); // 9 opposite 17+
+    });
+
+    test("two-over-one continuations", () {
+      final raised = ["1S", "pass", "2C", "pass", "2S", "pass"];
+      expect(openingBid("K32", "A32", "K2", "KQ432", history: raised), "4S");
+      expect(openingBid("K32", "432", "32", "KQJ43", history: raised), "Pass");
+      final nt = ["1S", "pass", "2C", "pass", "2NT", "pass"];
+      expect(openingBid("K32", "A32", "K2", "KQ432", history: nt), "3NT");
+    });
+
+    test("2C auction continuations", () {
+      final after2nt = ["2C", "pass", "2D", "pass", "2NT", "pass"];
+      expect(openingBid("Q32", "J432", "Q32", "432", history: after2nt), "3NT");
+      expect(openingBid("432", "5432", "J32", "432", history: after2nt), "Pass");
+      final after2s = ["2C", "pass", "2D", "pass", "2S", "pass"];
+      expect(openingBid("Q32", "5432", "J32", "432", history: after2s), "4S");
+      expect(openingBid("32", "J5432", "J32", "432", history: after2s), "2NT");
+    });
+  });
+
+  group("slam conventions", () {
+    test("Jacoby sequences launch Blackwood", () {
+      expect(
+          openingBid("K432", "A432", "AK2", "K2",
+              history: ["1S", "pass", "2NT", "pass", "3S", "pass"]),
+          "4NT"); // 17
+    });
+
+    test("Blackwood answers", () {
+      final ask = ["1S", "pass", "2NT", "pass", "3S", "pass", "4NT", "pass"];
+      expect(openingBid("AKJ32", "A32", "K32", "32", history: ask), "5H");
+      expect(openingBid("AKJ32", "432", "K32", "K2", history: ask), "5D");
+    });
+
+    test("Blackwood placement", () {
+      expect(
+          openingBid("K432", "A432", "AK2", "K2", history: [
+            "1S", "pass", "2NT", "pass", "3S", "pass", "4NT", "pass",
+            "5H", "pass"
+          ]),
+          "6S"); // two aces + two shown
+      expect(
+          openingBid("K432", "KQ32", "KQ2", "K2", history: [
+            "1S", "pass", "2NT", "pass", "3S", "pass", "4NT", "pass",
+            "5D", "pass"
+          ]),
+          "5S"); // zero aces + one shown
+    });
+
+    test("Gerber answers and continuation", () {
+      final ask = ["1NT", "pass", "4C", "pass"];
+      expect(openingBid("K32", "A32", "AQ32", "KJ2", history: ask), "4S");
+      expect(openingBid("K32", "KQ2", "KQ32", "KJ2", history: ask), "4D");
+      expect(
+          openingBid("AK2", "KQ2", "AQ32", "Q32",
+              history: ["1NT", "pass", "4C", "pass", "4S", "pass"]),
+          "6NT"); // 2 + 2 aces
+      expect(
+          openingBid("KQ2", "KQ2", "KQ32", "QJ2",
+              history: ["1NT", "pass", "4C", "pass", "4H", "pass"]),
+          "4NT"); // 0 + 1 aces
+    });
+  });
+
+  group("opener's third call", () {
+    test("invitation decisions after a 1NT rebid", () {
+      final h = ["1D", "pass", "1S", "pass", "1NT", "pass", "2NT", "pass"];
+      expect(openingBid("K32", "KJ2", "AQ32", "J32", history: h), "3NT"); // 14
+      expect(openingBid("K32", "QJ2", "AQ32", "432", history: h), "Pass"); // 12
+    });
+
+    test("invitation decisions after a raise", () {
+      final h = ["1D", "pass", "1S", "pass", "2S", "pass", "3S", "pass"];
+      expect(openingBid("AQ32", "K32", "A5432", "2", history: h), "4S"); // 14
+      expect(
+          selectSaycBid(parseHand(exampleHandString),
+                  h.map(BidAction.fromString).toList())!
+              .action
+              .toString(),
+          "Pass"); // 13
+    });
+
+    test("minor invite accepted with 3NT", () {
+      expect(
+          openingBid("32", "K2", "AKJ432", "Q32", history: [
+            "1D", "pass", "1S", "pass", "2D", "pass", "3D", "pass"
+          ]),
+          "3NT"); // 15
+    });
+
+    test("corrects Stayman 3NT to the spade fit", () {
+      final h = ["1NT", "pass", "2C", "pass", "2H", "pass", "3NT", "pass"];
+      expect(openingBid("K432", "AQ32", "A32", "K2", history: h), "4S");
+      expect(openingBid("K32", "AQ32", "A32", "K32", history: h), "Pass");
+    });
+
+    test("transfer choice of games", () {
+      final h = ["1NT", "pass", "2D", "pass", "2H", "pass", "3NT", "pass"];
+      expect(openingBid("K32", "A32", "AQ32", "KJ2", history: h), "4H");
+      expect(openingBid("K32", "A3", "AQ32", "KJ32", history: h), "Pass");
+    });
+
+    test("2C game force is enforced", () {
+      expect(
+          openingBid("AKQJ32", "AKQ", "A32", "2", history: [
+            "2C", "pass", "2D", "pass", "2S", "pass", "2NT", "pass"
+          ]),
+          "4S");
+    });
+  });
+
   group("auction dispatch", () {
     test("completed auction rejected", () {
       expect(
@@ -410,14 +705,6 @@ void main() {
     });
 
     test("unported positions return null", () {
-      // Opener's rebid is phase 3.
-      expect(
-          selectSaycBid(
-              parseHand(exampleHandString),
-              ["1D", "pass", "1S", "pass"]
-                  .map(BidAction.fromString)
-                  .toList()),
-          null);
       // Competitive auctions are a later phase.
       expect(
           selectSaycBid(parseHand(exampleHandString),
