@@ -949,6 +949,446 @@ void main() {
     });
   });
 
+  group("parity: parsing and summaries", () {
+    test("ten parses as T or 10", () {
+      final a = parseHand("AS KS QS JS 10S 9S 8S 7S 6S 5S 4S 3S 2S");
+      final b = parseHand("AS KS QS JS TS 9S 8S 7S 6S 5S 4S 3S 2S");
+      expect(a.toSet(), b.toSet());
+    });
+
+    test("invalid token rejected", () {
+      expect(() => parseHand("AS KS QS JS TS 9S 8S 7S 6S 5S 4S 3S 1S"),
+          throwsFormatException);
+    });
+
+    test("meaning summaries", () {
+      final nt = describeSaycCall([], BidAction.noTrump(1))!.summary();
+      expect(nt, contains("15-17 HCP"));
+      expect(nt, contains("balanced"));
+      final spade = describeSaycCall([], BidAction.fromString("1S"))!.summary();
+      expect(spade, contains("5+ spades"));
+      expect(spade, contains("13-21 total points"));
+      final weakTwo = describeSaycCall([], BidAction.fromString("2S"))!.summary();
+      expect(weakTwo, contains("6 spades"));
+      expect(weakTwo, contains("5-10 HCP"));
+    });
+
+    test("vulnerability parameter is accepted", () {
+      final result = selectSaycBid(parseHand(exampleHandString), [],
+          vulnerability: Vulnerability.both);
+      expect(result.action.toString(), "1D");
+    });
+  });
+
+  group("parity: opener rebids", () {
+    test("raise responder's major after a minor opening", () {
+      expect(
+          openingBid("K32", "KQ32", "32", "AQ32",
+              history: ["1C", "pass", "1H", "pass"]),
+          "2H");
+    });
+
+    test("2NT rebid over a two-over-one", () {
+      expect(
+          openingBid("AKJ32", "K32", "32", "Q32",
+              history: ["1S", "pass", "2C", "pass"]),
+          "2NT");
+    });
+
+    test("game after a single raise with 19+", () {
+      expect(
+          openingBid("AKJ32", "AK2", "KJ2", "32",
+              history: ["1S", "pass", "2S", "pass"]),
+          "4S");
+    });
+
+    test("natural 2NT over a minor raised to game", () {
+      expect(
+          openingBid("K32", "K32", "AQ32", "J32",
+              history: ["1D", "pass", "2NT", "pass"]),
+          "3NT");
+    });
+
+    test("rebids after a 1NT response", () {
+      final nt = ["1S", "pass", "1NT", "pass"];
+      expect(openingBid("AKJ432", "32", "K32", "Q2", history: nt), "2S");
+      expect(openingBid("AKJ32", "32", "32", "KQ32", history: nt), "2C");
+      expect(openingBid("AKJ32", "K32", "Q32", "32", history: nt), "Pass");
+    });
+
+    test("weak two opener passes the raise", () {
+      expect(
+          openingBid("KQJ432", "32", "432", "32",
+              history: ["2S", "pass", "3S", "pass"]),
+          "Pass");
+    });
+
+    test("completes the transfer to spades", () {
+      expect(
+          openingBid("K32", "A32", "AQ32", "KJ2",
+              history: ["1NT", "pass", "2H", "pass"]),
+          "2S");
+    });
+  });
+
+  group("parity: responder rebids", () {
+    test("2NT after a Stayman denial", () {
+      expect(
+          openingBid("K432", "Q432", "QJ2", "32",
+              history: ["1NT", "pass", "2C", "pass", "2D", "pass"]),
+          "2NT");
+    });
+
+    test("4S after a spade transfer", () {
+      expect(
+          openingBid("KQJ432", "32", "K32", "K2",
+              history: ["1NT", "pass", "2H", "pass", "2S", "pass"]),
+          "4S");
+    });
+
+    test("game-try decisions", () {
+      final tryH = ["1S", "pass", "2S", "pass", "3S", "pass"];
+      expect(openingBid("K32", "Q432", "K32", "Q32", history: tryH), "4S");
+      expect(openingBid("K32", "Q432", "Q32", "432", history: tryH), "Pass");
+    });
+
+    test("Jacoby continuations without slam values", () {
+      expect(
+          openingBid("K432", "A432", "AK2", "32",
+              history: ["1S", "pass", "2NT", "pass", "4S", "pass"]),
+          "Pass");
+      expect(
+          openingBid("K432", "A432", "AK2", "32",
+              history: ["1S", "pass", "2NT", "pass", "3S", "pass"]),
+          "4S");
+    });
+
+    test("after opener's jump raise", () {
+      final jump = ["1D", "pass", "1S", "pass", "3S", "pass"];
+      expect(openingBid("KQ32", "432", "Q32", "J32", history: jump), "4S");
+      expect(openingBid("Q432", "K32", "432", "J32", history: jump), "Pass");
+    });
+
+    test("over opener's 2NT jump rebid", () {
+      final jump = ["1D", "pass", "1S", "pass", "2NT", "pass"];
+      expect(openingBid("KQ32", "432", "Q32", "J32", history: jump), "3NT");
+      expect(openingBid("KQJ432", "32", "Q32", "32", history: jump), "4S");
+    });
+
+    test("2NT invite over a second suit", () {
+      expect(
+          openingBid("KQ32", "K32", "K32", "J32",
+              history: ["1D", "pass", "1S", "pass", "2C", "pass"]),
+          "2NT");
+    });
+
+    test("raising opener's second-suit major", () {
+      final h = ["1C", "pass", "1D", "pass", "1H", "pass"];
+      expect(openingBid("432", "K432", "AQ43", "32", history: h), "2H");
+      expect(openingBid("432", "K432", "AQJ432", "-", history: h), "3H");
+      expect(openingBid("432", "32", "AQ432", "J32", history: h), "1NT");
+    });
+
+    test("continuations after our 1NT response", () {
+      expect(
+          openingBid("32", "KQ432", "Q432", "32",
+              history: ["1S", "pass", "1NT", "pass", "2C", "pass"]),
+          "2S"); // preference
+      expect(
+          openingBid("32", "K432", "Q432", "K32",
+              history: ["1S", "pass", "1NT", "pass", "2C", "pass"]),
+          "Pass");
+      expect(
+          openingBid("32", "K432", "Q432", "K32",
+              history: ["1S", "pass", "1NT", "pass", "2S", "pass"]),
+          "Pass");
+      expect(
+          openingBid("32", "K432", "Q432", "K32",
+              history: ["1S", "pass", "1NT", "pass", "3S", "pass"]),
+          "4S");
+      expect(
+          openingBid("32", "K432", "Q432", "K32",
+              history: ["1S", "pass", "1NT", "pass", "2NT", "pass"]),
+          "3NT");
+    });
+
+    test("pass a 2NT rebid after a minimum two-over-one", () {
+      expect(
+          openingBid("K32", "432", "32", "KQJ43",
+              history: ["1S", "pass", "2C", "pass", "2NT", "pass"]),
+          "Pass");
+    });
+  });
+
+  group("parity: competitive", () {
+    test("balancing seat treated as direct", () {
+      expect(
+          openingBid("AKJ32", "432", "32", "432",
+              history: ["1H", "pass", "pass"]),
+          "1S");
+    });
+
+    test("raise beats negative double after a major opening", () {
+      expect(openingBid("KQ32", "K32", "J432", "32", history: ["1H", "2C"]),
+          "2H");
+    });
+
+    test("penalty double of their 1NT overcall", () {
+      expect(openingBid("KQ32", "2", "KJ32", "Q432", history: ["1H", "1NT"]),
+          "Double");
+    });
+
+    test("no optional double without trump quality", () {
+      expect(
+          selectSaycBid(parseHand("A2 5432 KQ32 A32"),
+                  [BidAction.fromString("4H")])
+              .action
+              .toString(),
+          "Pass");
+    });
+
+    test("negative-double continuations over notrump and suit rebids", () {
+      expect(
+          openingBid("KQ32", "432", "Q32", "J32",
+              history: ["1C", "1H", "X", "pass", "1NT", "pass"]),
+          "Pass");
+      expect(
+          openingBid("KQ32", "432", "QJ3", "KJ2",
+              history: ["1C", "1H", "X", "pass", "1NT", "pass"]),
+          "2NT");
+      expect(
+          openingBid("432", "KQ32", "Q32", "J32",
+              history: ["1D", "1S", "X", "pass", "2D", "pass"]),
+          "Pass");
+      expect(
+          openingBid("432", "KQ32", "QJ2", "QJ2",
+              history: ["1D", "1S", "X", "pass", "2D", "pass"]),
+          "3D");
+      expect(
+          openingBid("432", "KQ32", "QJ32", "32",
+              history: ["1D", "1S", "X", "pass", "2C", "pass"]),
+          "2D"); // preference
+      expect(
+          openingBid("432", "KQ32", "Q32", "J32",
+              history: ["1D", "1S", "X", "pass", "2C", "pass"]),
+          "Pass");
+    });
+
+    test("game after a raise with an LHO overcall", () {
+      expect(
+          openingBid("KQ32", "A32", "K32", "J32",
+              history: ["1D", "pass", "1S", "2C", "2S", "pass"]),
+          "4S");
+    });
+
+    test("pass 3NT after our natural 2NT in competition", () {
+      expect(
+          openingBid("K32", "KJ3", "QJ32", "Q32",
+              history: ["1D", "1H", "2NT", "pass", "3NT", "pass"]),
+          "Pass");
+    });
+
+    test("compete with a six-card suit when partner passes", () {
+      expect(
+          openingBid("KQJ432", "32", "432", "32",
+              history: ["1D", "1H", "1S", "2H", "pass", "pass"]),
+          "2S");
+    });
+  });
+
+  group("parity: slam and third calls", () {
+    test("2NT opener accepts quantitative with 21", () {
+      expect(
+          openingBid("AK2", "KQ2", "KQ32", "KJ2",
+              history: ["2NT", "pass", "4NT", "pass"]),
+          "6NT");
+    });
+
+    test("opener passes responder's signoff", () {
+      expect(
+          openingBid("K32", "KJ2", "AQ32", "J32",
+              history: ["1D", "pass", "1S", "pass", "1NT", "pass", "2S", "pass"]),
+          "Pass");
+    });
+
+    test("transfer invitation decisions", () {
+      final invite = ["1NT", "pass", "2D", "pass", "2H", "pass", "2NT", "pass"];
+      expect(openingBid("K32", "A32", "AQ32", "KJ2", history: invite), "4H");
+      expect(openingBid("K32", "A32", "AQ32", "Q32", history: invite), "Pass");
+    });
+  });
+
+  group("parity: missed-game fixes", () {
+    test("game over a jump rebid after a two-over-one", () {
+      expect(
+          openingBid("-", "QJ876", "AKT74", "842",
+              history: ["1S", "pass", "2H", "pass", "3S", "pass"]),
+          "3NT");
+    });
+
+    test("responder bids game over a jump shift after 1NT", () {
+      expect(
+          openingBid("32", "Q432", "KJ32", "Q32",
+              history: ["1S", "pass", "1NT", "pass", "3H", "pass"]),
+          "4H");
+    });
+
+    test("advancer bids 3NT over a strong overcall", () {
+      expect(openingBid("KQ32", "32", "A432", "K32", history: ["2S", "3H", "pass"]),
+          "3NT");
+    });
+
+    test("opener invites over 1NT with 17+", () {
+      expect(
+          openingBid("AQ32", "AKJ2", "2", "KJ32",
+              history: ["1C", "pass", "1D", "pass", "1H", "pass", "1NT", "pass"]),
+          "2NT");
+    });
+  });
+
+  group("parity: fallback", () {
+    test("raises partner to game in a deep auction", () {
+      expect(
+          openingBid("KQ32", "A32", "K32", "J32", history: [
+            "1D", "pass", "1S", "pass", "2C", "pass", "2D", "pass",
+            "2S", "pass"
+          ]),
+          "4S");
+    });
+
+    test("3NT with a stopper and combined strength", () {
+      expect(
+          selectSaycBid(parseHand(exampleHandString),
+                  ["1D", "1H", "1S", "2H", "X", "pass"]
+                      .map(BidAction.fromString)
+                      .toList())
+              .action
+              .toString(),
+          "3NT");
+    });
+
+    test("passes without values in an unknown position", () {
+      expect(
+          selectSaycBid(parseHand(exampleHandString),
+                  ["1C", "pass", "1H", "pass", "1S"]
+                      .map(BidAction.fromString)
+                      .toList())
+              .action
+              .toString(),
+          "Pass");
+    });
+  });
+
+  group("parity: dispatch", () {
+    test("completed auction rejected even where the fallback would apply", () {
+      expect(
+          () => selectSaycBid(
+              parseHand(exampleHandString),
+              ["1S", "pass", "2S", "pass", "pass", "pass"]
+                  .map(BidAction.fromString)
+                  .toList()),
+          throwsStateError);
+    });
+
+    test("passed hand still responds", () {
+      expect(
+          openingBid("K32", "Q432", "K32", "432",
+              history: ["pass", "pass", "1S", "pass"]),
+          "2S");
+    });
+  });
+
+  group("parity: describe and explain", () {
+    test("describe 2C opening", () {
+      expect(describeSaycCall([], BidAction.fromString("2C"))!.hcp,
+          const Range(low: 22));
+    });
+
+    test("describe a single raise", () {
+      final meaning = describeSaycCall(
+          ["1S", "pass"].map(BidAction.fromString).toList(),
+          BidAction.fromString("2S"))!;
+      expect(meaning.totalPoints, const Range(low: 6, high: 10));
+      expect(meaning.suitLengths[Suit.spades], const Range(low: 3));
+    });
+
+    test("describe Jacoby 2NT", () {
+      final meaning = describeSaycCall(
+          ["1H", "pass"].map(BidAction.fromString).toList(),
+          BidAction.noTrump(2))!;
+      expect(meaning.artificial, true);
+      expect(meaning.suitLengths[Suit.hearts], const Range(low: 4));
+      expect(meaning.totalPoints, const Range(low: 13));
+    });
+
+    test("describe Stayman and transfers", () {
+      final nt1 = ["1NT", "pass"].map(BidAction.fromString).toList();
+      final stayman = describeSaycCall(nt1, BidAction.fromString("2C"))!;
+      expect(stayman.artificial, true);
+      expect(stayman.hcp, const Range(low: 8));
+      final transfer = describeSaycCall(nt1, BidAction.fromString("2D"))!;
+      expect(transfer.artificial, true);
+      expect(transfer.suitLengths[Suit.hearts], const Range(low: 5));
+    });
+
+    test("describe a negative double", () {
+      final meaning = describeSaycCall(
+          ["1D", "1S"].map(BidAction.fromString).toList(),
+          BidAction.double())!;
+      expect(meaning.artificial, true);
+      expect(meaning.suitLengths[Suit.hearts], const Range(low: 4));
+    });
+
+    test("describe an overcall", () {
+      final meaning = describeSaycCall(
+          [BidAction.fromString("1H")], BidAction.fromString("1S"))!;
+      expect(meaning.hcp, const Range(low: 8, high: 16));
+      expect(meaning.suitLengths[Suit.spades], const Range(low: 5));
+    });
+
+    test("describe opener's raise of the response", () {
+      final meaning = describeSaycCall(
+          ["1D", "pass", "1S", "pass"].map(BidAction.fromString).toList(),
+          BidAction.fromString("2S"))!;
+      expect(meaning.totalPoints, const Range(low: 13, high: 15));
+      expect(meaning.suitLengths[Suit.spades], const Range(low: 4));
+    });
+
+    test("describe merges weak and strong meanings", () {
+      final meaning = describeSaycCall(
+          ["1H", "pass"].map(BidAction.fromString).toList(),
+          BidAction.fromString("1S"))!;
+      expect(meaning.suitLengths[Suit.spades], const Range(low: 4));
+      expect(meaning.totalPoints, const Range(low: 6));
+    });
+
+    test("describe returns null for uncovered positions", () {
+      expect(
+          describeSaycCall(
+              ["1D", "1H", "1S", "2H", "X", "pass"]
+                  .map(BidAction.fromString)
+                  .toList(),
+              BidAction.fromString("3S")),
+          null);
+    });
+
+    test("explain intersects a player's calls", () {
+      final ex = explainSaycAuction(["1S", "pass", "2S", "pass", "3S", "pass"]
+          .map(BidAction.fromString)
+          .toList());
+      expect(ex.players[0]!.totalPoints, const Range(low: 16, high: 18));
+      expect(ex.players[0]!.suitLengths[Suit.spades], const Range(low: 5));
+      expect(ex.players[2]!.totalPoints, const Range(low: 6, high: 10));
+    });
+
+    test("explain marks meaningless calls as null", () {
+      final ex = explainSaycAuction(
+          ["1NT", "pass", "5C", "pass"].map(BidAction.fromString).toList());
+      expect(ex.calls[2].meaning, null);
+      expect(ex.calls[1].meaning, isNotNull);
+    });
+  });
+
   group("self-play invariants", () {
     test("no hard failures over random deals", () {
       for (int index = 0; index < 150; index++) {
