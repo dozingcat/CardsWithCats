@@ -46,6 +46,13 @@ PlayerBid chooseBid(BidRequest req) {
   return makeBidUsingHandEstimates(req, handEstimates, counts);
 }
 
+int gameLevelForSuit(Suit? suit) {
+  if (suit == null) {
+    return 3;
+  }
+  return isMajorSuit(suit) ? 4 : 5;
+}
+
 PlayerBid makeBidUsingHandEstimates(BidRequest req,
     List<HandEstimate> handEstimates, Map<Suit, int> suitCounts) {
   // Do we have a major fit?
@@ -54,7 +61,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
   Range combinedPointRange =
       partnerEstimate.pointRange.plusConstant(highCardPoints(req.hand));
   print(
-      "Partner point range: ${partnerEstimate.pointRange}, my points: ${highCardPoints(req.hand)}, combined point range: $combinedPointRange");
+      "Partner estimate: ${partnerEstimate}, my points: ${highCardPoints(req.hand)}, combined point range: $combinedPointRange");
   Range combinedSuitRange(Suit s) =>
       partnerEstimate.suitLengthRanges[s]!.plusConstant(suitCounts[s]!);
 
@@ -110,6 +117,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
         : 0;
     int pointsNeededForGame = 25 - trumpBonusPoints;
     int pointsNeededForGameInvite = 22 - trumpBonusPoints;
+
     // TODO: Look at the top of the range also.
     if (combinedPointRange.low! >= pointsNeededForGame) {
       final targetBid = bestSuitFit == null
@@ -125,7 +133,7 @@ PlayerBid makeBidUsingHandEstimates(BidRequest req,
             (combinedPointRange.high == null ||
                 combinedPointRange.high! >= pointsNeededForGame);
     if (shouldInviteIfPossible) {
-      print("Inviting with min ${combinedPointRange.low} points");
+      print("Inviting with combined range: $combinedPointRange ($trumpBonusPoints $pointsNeededForGameInvite)");
       ContractBid? invitationalBid = invitationalBidIfPossible(bestSuitFit);
       if (invitationalBid != null) {
         return PlayerBid(req.playerIndex, BidAction.withBid(invitationalBid));
@@ -311,17 +319,29 @@ HandEstimate? getAdHocHandEstimateForBidSequence(List<HandEstimate> estimates,
           suitLengthRanges: suitLengthRanges,
         );
       } else if (raiseStrength == RaiseStrength.gameInvite) {
+        // This range is a bit tight, might want to expand min and/or max.
         int minPoints = 23 - partnerMinPoints;
+        int maxPoints = 24 - partnerMinPoints;
         return HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
-          pointRange: Range(low: minPoints),
+          pointRange: Range(low: minPoints, high: maxPoints),
           suitLengthRanges: suitLengthRanges,
         );
       } else if (raiseStrength == RaiseStrength.minimum) {
-        // TODO: Figure out what point range this shows.
-        // e.g. if an invitational or game bid would have been possible,
-        // then it's weaker than that.
         Range minRaisePointRange = const Range();
+        int levelsBelowGame = gameLevelForSuit(trump) - currentBid.contractBid!.count;
+        if (levelsBelowGame >= 2) {
+          // Weaker than invitational.
+          int maxPoints = 22 - partnerMinPoints;
+          minRaisePointRange = Range(high: maxPoints);
+        }
+        else if (levelsBelowGame == 1) {
+          // Invitational wasn't available, not strong enough to force game.
+          int maxPoints = 24 - partnerMinPoints;
+          minRaisePointRange = Range(high: maxPoints);
+        }
+
+        print("Minimum raise, applying range: $minRaisePointRange");
         return HandEstimate.create(
           pointBonusType: HandPointBonusType.suitLength,
           pointRange: minRaisePointRange,
