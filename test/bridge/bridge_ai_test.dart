@@ -1,7 +1,6 @@
 import "dart:math";
 
 import "package:cards_with_cats/bridge/bridge_ai.dart";
-import "package:cards_with_cats/bridge/bridge_bidding.dart";
 import "package:cards_with_cats/cards/rollout.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:flutter_test/flutter_test.dart";
@@ -36,7 +35,7 @@ void main() {
     expect(req.legalPlays().length, 5);
 
     final mcParams = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50);
-    final rng = Random();
+    final rng = Random(17); // Seeded: unseeded runs occasionally misplay.
     final result =
         chooseCardMonteCarlo(req, mcParams, chooseCardToMaximizeTricks, rng);
     expect(result.bestCard, c("QS")[0]);

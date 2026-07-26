@@ -6,35 +6,6 @@ import "../cards/rollout.dart";
 import "../cards/trick.dart";
 import "bridge.dart";
 import "bridge.dart" as bridge;
-import "hand_estimate.dart";
-
-class BidAnalysis {
-  final HandEstimate handEstimate;
-  final bool Function(List<PlayingCard>, Map<Suit, int> suitCounts)?
-      handMatcher;
-  final String description;
-
-  BidAnalysis({
-    required this.handEstimate,
-    this.handMatcher,
-    required this.description,
-  });
-
-  bool matches(List<PlayingCard> hand, Map<Suit, int> suitCounts) {
-    if (!handEstimate.matches(hand, suitCounts)) {
-      return false;
-    }
-    if (handMatcher != null) {
-      // print("Checking custom matcher");
-      if (!handMatcher!(hand, suitCounts)) {
-        // print("Failed custom matcher");
-        return false;
-      }
-    }
-    // print("Passes!");
-    return true;
-  }
-}
 
 class CardToPlayRequest {
   final List<PlayingCard> hand;

@@ -1,6 +1,7 @@
 import "package:cards_with_cats/bridge/bridge.dart";
 import "package:cards_with_cats/bridge/hand_estimate.dart";
 import "package:cards_with_cats/bridge/sayc/sayc_bidding.dart";
+import "package:cards_with_cats/bridge/sayc/selfplay.dart";
 import "package:cards_with_cats/cards/card.dart";
 import "package:flutter_test/flutter_test.dart";
 
@@ -945,6 +946,21 @@ void main() {
       expect(openingBid("AKQ32", "32", "AK32", "32",
               history: ["1S", "pass", "2S", "4H"]),
           "Double");
+    });
+  });
+
+  group("self-play invariants", () {
+    test("no hard failures over random deals", () {
+      for (int index = 0; index < 150; index++) {
+        final hands = dealHands(1, index);
+        final result = runDeal(hands);
+        final failures = result.findings
+            .where((f) => hardFailureCategories.contains(f.category))
+            .toList();
+        expect(failures, isEmpty,
+            reason: "deal $index (seed 1): $failures; "
+                "auction: ${result.history.map((c) => '$c').join(' ')}");
+      }
     });
   });
 

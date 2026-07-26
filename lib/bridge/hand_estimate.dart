@@ -1,8 +1,8 @@
+/// Integer ranges with optional bounds, used by the SAYC bidding engine to
+/// express what a call shows (point counts and suit lengths).
+library;
+
 import 'dart:math';
-
-import 'package:cards_with_cats/bridge/utils.dart';
-
-import '../cards/card.dart';
 
 class Range {
   final int? low;
@@ -75,85 +75,6 @@ class Range {
     return Range(
       low: (low == null ? n : n + low!),
       high: (high == null) ? null : high! + n,
-    );
-  }
-}
-
-Map<Suit, Range> _addMissingSuitRanges(Map<Suit, Range>? suitLengths) {
-  Map<Suit, Range> allSuitLengths = {};
-  for (final suit in Suit.values) {
-    allSuitLengths[suit] = suitLengths?[suit] ?? const Range();
-  }
-  return allSuitLengths;
-}
-
-enum HandPointBonusType {
-  none,
-  suitLength,
-}
-
-class HandEstimate {
-  final Range pointRange;
-  final Map<Suit, Range> suitLengthRanges;
-  final HandPointBonusType pointBonusType;
-
-  HandEstimate(
-      {required this.pointRange,
-      required this.suitLengthRanges,
-      required this.pointBonusType});
-
-  static HandEstimate create(
-      {pointRange = const Range(),
-      Map<Suit, Range>? suitLengthRanges,
-      HandPointBonusType pointBonusType = HandPointBonusType.none}) {
-    return HandEstimate(
-      pointRange: pointRange,
-      suitLengthRanges: _addMissingSuitRanges(suitLengthRanges),
-      pointBonusType: pointBonusType,
-    );
-  }
-
-  @override
-  String toString() {
-    final s = suitLengthRanges;
-    return "Points: ${pointRange.shortString()} S:${s[Suit.spades]!.shortString()} H:${s[Suit.hearts]!.shortString()} D:${s[Suit.diamonds]!.shortString()} C:${s[Suit.clubs]!.shortString()}";
-  }
-
-  bool matches(List<PlayingCard> hand, Map<Suit, int> suitCounts) {
-    int points = highCardPoints(hand);
-    if (pointBonusType == HandPointBonusType.suitLength) {
-      points += lengthPointsForSuitCounts(suitCounts);
-    }
-    // print("Checking points: $pointRange $points");
-    if (!pointRange.contains(points)) {
-      // print("Failed point range");
-      return false;
-    }
-    for (final suit in Suit.values) {
-      // print("Checking suit: $suit ${suitLengthRanges[suit]} ${suitCounts[suit]}");
-      if (!suitLengthRanges[suit]!.contains(suitCounts[suit]!)) {
-        // print("Failed suit length");
-        return false;
-      }
-    }
-    return true;
-  }
-
-  HandEstimate combineOrReplace(HandEstimate other) {
-    final combinedPoints = pointRange.combineOrReplace(other.pointRange);
-    final combinedSuits = {
-      Suit.clubs: suitLengthRanges[Suit.clubs]!
-          .combineOrReplace(other.suitLengthRanges[Suit.clubs]),
-      Suit.diamonds: suitLengthRanges[Suit.diamonds]!
-          .combineOrReplace(other.suitLengthRanges[Suit.diamonds]),
-      Suit.hearts: suitLengthRanges[Suit.hearts]!
-          .combineOrReplace(other.suitLengthRanges[Suit.hearts]),
-      Suit.spades: suitLengthRanges[Suit.spades]!
-          .combineOrReplace(other.suitLengthRanges[Suit.spades]),
-    };
-    return HandEstimate.create(
-      pointRange: combinedPoints,
-      suitLengthRanges: combinedSuits,
     );
   }
 }
