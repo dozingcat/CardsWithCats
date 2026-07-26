@@ -164,6 +164,19 @@ class BidAction {
     };
   }
 
+  static BidAction fromString(String s) {
+    if (s == "-" || s.toLowerCase() == "p" || s.toLowerCase() == "pass") {
+      return pass();
+    }
+    if (s.toLowerCase() == "x" || s.toLowerCase() == "double") {
+      return double();
+    }
+    if (s.toLowerCase() == "xx" || s.toLowerCase() == "redouble") {
+      return redouble();
+    }
+    return withBid(ContractBid.fromString(s));
+  }
+
   @override
   String toString() {
     return switch (bidType) {

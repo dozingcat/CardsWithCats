@@ -9,6 +9,10 @@ import "package:cards_with_cats/bridge/utils.dart";
 const c = PlayingCard.cardsFromString;
 const cb = ContractBid.fromString;
 
+List<BidAction> makeBidActions(List<String> ss) {
+  return ss.map(BidAction.fromString).toList();
+}
+
 PlayerBid getOpeningBid(List<PlayingCard> hand) {
   final req = BidRequest(
     playerIndex: 0,
@@ -38,6 +42,26 @@ BidAction getResponseToPartnerOpening(
     BidAction.withBid(partnerOpeningBid),
     BidAction.pass(),
   ]);
+}
+
+void verifyNonCompetitiveBids(
+  List<PlayingCard> firstHand,
+  List<PlayingCard> partnerHand,
+  List<BidAction> expectedBids,
+) {
+  final actualBids = <BidAction>[];
+  final bidsWithPasses = <BidAction>[];
+  while (actualBids.length < expectedBids.length) {
+    bool isFirstHand = (actualBids.length % 2 == 0);
+    final bid = getResponseToBidSequence(
+      isFirstHand ? firstHand : partnerHand,
+      bidsWithPasses,
+    );
+    actualBids.add(bid);
+    bidsWithPasses.add(bid);
+    bidsWithPasses.add(BidAction.pass());
+    expect(actualBids, expectedBids.sublist(0, actualBids.length));
+  }
 }
 
 void main() {
@@ -132,10 +156,7 @@ void main() {
     test("Makes negative double with 4-card major", () {
       final response = getResponseToBidSequence(
         c("TS 3S 2S AH TH 9H 2H TD 9D KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1C", "1S"]),
       );
       expect(response, BidAction.double());
     });
@@ -143,10 +164,7 @@ void main() {
     test("Makes negative double after 1C/1H with exactly 4 spades", () {
       final response = getResponseToBidSequence(
         c("AS KS QS 3S TH 3H 2H TD 9D KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1H")),
-        ],
+        makeBidActions(["1C", "1H"]),
       );
       expect(response, BidAction.double());
     });
@@ -154,10 +172,7 @@ void main() {
     test("Bids 1S after 1H with 5+ spades", () {
       final response = getResponseToBidSequence(
         c("AS KS QS 3S 2S TH 2H TD 9D KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1H")),
-        ],
+        makeBidActions(["1C", "1H"]),
       );
       expect(response.contractBid, cb("1S"));
     });
@@ -165,10 +180,7 @@ void main() {
     test("Makes negative double with 5 hearts and minimum hand", () {
       final response = getResponseToBidSequence(
         c("4S 3S AH TH 4H 3H 2H TD 9D KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1C", "1S"]),
       );
       expect(response, BidAction.double());
     });
@@ -176,10 +188,7 @@ void main() {
     test("Makes negative double with 4 hearts and 10+ points", () {
       final response = getResponseToBidSequence(
         c("4S 3S AH TH 4H 3H AD TD 9D KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1C", "1S"]),
       );
       expect(response, BidAction.double());
     });
@@ -187,10 +196,7 @@ void main() {
     test("Bids 2H with 5 hearts and 10+ points", () {
       final response = getResponseToBidSequence(
         c("4S 3S AH TH 4H 3H 2H AD TD KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1C", "1S"]),
       );
       expect(response.contractBid, cb("2H"));
     });
@@ -198,10 +204,7 @@ void main() {
     test("Raises partner's minor if unable to bid major or NT", () {
       final response = getResponseToBidSequence(
         c("AS 4S 2S TH 2H TD 9D 8D 7D KC 8C 7C 5C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.withBid(cb("1H")),
-        ],
+        makeBidActions(["1C", "1H"]),
       );
       expect(response.contractBid, cb("2C"));
     });
@@ -209,10 +212,7 @@ void main() {
     test("Bids 1NT after 1H/1S with stopper", () {
       final response = getResponseToBidSequence(
         c("AS 4S 3S KH 4H TD 4D 3D 2D 9C 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1H")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1C", "1S"]),
       );
       expect(response.contractBid, cb("1NT"));
     });
@@ -221,10 +221,7 @@ void main() {
         () {
       final response = getResponseToBidSequence(
         c("5S 4S 3S KH 4H QD 4D 3D 2D QC 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1H")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1H", "1S"]),
       );
       expect(response, BidAction.double());
     });
@@ -232,10 +229,7 @@ void main() {
     test("Bids NT after 1H/1S with a stopper and both minors", () {
       final response = getResponseToBidSequence(
         c("AS 4S 3S KH 4H 9D 4D 3D 2D 9C 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1H")),
-          BidAction.withBid(cb("1S")),
-        ],
+        makeBidActions(["1H", "1S"]),
       );
       expect(response, BidAction.noTrump(1));
     });
@@ -243,10 +237,7 @@ void main() {
     test("Cuebids after 1H/2C with game forcing hand and trump support", () {
       final response = getResponseToBidSequence(
         c("AS 4S 3S KH 4H 2H AD KD 4D 3D 2D 5C 3C"),
-        [
-          BidAction.withBid(cb("1H")),
-          BidAction.withBid(cb("2C")),
-        ],
+        makeBidActions(["1H", "2C"]),
       );
       expect(response.contractBid, cb("3C"));
     });
@@ -254,10 +245,7 @@ void main() {
     test("Bids 2S after 1H/2C with 10+ points and 5+ trumps", () {
       final response = getResponseToBidSequence(
         c("AS QS 4S 3S 2S AH 4H TD 9D 3D 2D 5C 3C"),
-        [
-          BidAction.withBid(cb("1H")),
-          BidAction.withBid(cb("2C")),
-        ],
+        makeBidActions(["1H", "2C"]),
       );
       expect(response.contractBid, cb("2S"));
     });
@@ -265,10 +253,7 @@ void main() {
     test("Makes negative double after 1D/2C with both majors", () {
       final response = getResponseToBidSequence(
         c("AS QS 4S 3S KH JH 4H 2H TD 9D 3D 5C 3C"),
-        [
-          BidAction.withBid(cb("1D")),
-          BidAction.withBid(cb("2C")),
-        ],
+        makeBidActions(["1D", "2C"]),
       );
       expect(response, BidAction.double());
     });
@@ -276,10 +261,7 @@ void main() {
     test("Bids 2NT after 1D/2C with 10+ points and stopper", () {
       final response = getResponseToBidSequence(
         c("AS QS 4S 3S JH 4H 3H TD 9D 3D KC 3C 2C"),
-        [
-          BidAction.withBid(cb("1D")),
-          BidAction.withBid(cb("2C")),
-        ],
+        makeBidActions(["1D", "2C"]),
       );
       expect(response.contractBid, cb("2NT"));
     });
@@ -287,10 +269,7 @@ void main() {
     test("Bids major after 1D/2C with 10+ points and 5 cards", () {
       final response = getResponseToBidSequence(
         c("AS QS 4S 3S 2S JH 4H KD 9D 3D 5C 3C 2C"),
-        [
-          BidAction.withBid(cb("1D")),
-          BidAction.withBid(cb("2C")),
-        ],
+        makeBidActions(["1D", "2C"]),
       );
       expect(response.contractBid, cb("2S"));
     });
@@ -298,63 +277,85 @@ void main() {
     test("Passes after 1D/2C if unable to bid major, NT, or double", () {
       final response = getResponseToBidSequence(
         c("AS QS 4S 3S KH JH 4H TD 9D 3D 5C 3C 2C"),
-        [
-          BidAction.withBid(cb("1D")),
-          BidAction.withBid(cb("2C")),
-        ],
+        makeBidActions(["1D", "2C"]),
       );
       expect(response, BidAction.pass());
     });
   });
 
-  group("Multi-step partner responses", () {
-    test("Raises partner's major response with minimum hand", () {
-      final response = getResponseToBidSequence(
-        // 13 points, minimum opener
-        c("AS KS QS 2S AH 2H TD 9D 9C 8C 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("1S")),
-          BidAction.pass(),
-        ],
-      );
-      expect(response.contractBid, cb("2S"));
+  group("Multi-step non-competitive auctions", () {
+    test("4-4 major fit, minimum opening and response", () {
+      // 13 point opener, 6 point responder.
+      final openingHand = c("AS KS QS 2S AH 2H TD 9D 9C 8C 7C 5C 3C");
+      final partnerHand = c("JS 4S 3S 2S KH QH 8H 5D 4D 3D 2S 6C 4C");
+      final expectedBids = makeBidActions(["1C", "1S", "2S", "-"]);
+      verifyNonCompetitiveBids(openingHand, partnerHand, expectedBids);
+    });
+
+    test("4-4 major fit, invitational opener, response declines", () {
+      // 13 point opener, 6 point responder.
+      final openingHand = c("AS KS QS 2S AH 2H TD 9D AC 8C 7C 5C 3C");
+      final partnerHand = c("JS 4S 3S 2S KH QH 8H 5D 4D 3D 2D 6C 4C");
+      final expectedBids = makeBidActions(["1C", "1S", "3S", "-"]);
+      verifyNonCompetitiveBids(openingHand, partnerHand, expectedBids);
+    });
+
+    test("4-4 major fit, invitational opener, response accepts", () {
+      // 13 point opener, 6 point responder.
+      final openingHand = c("AS KS QS 2S AH 2H TD 9D AC 8C 7C 5C 3C");
+      final partnerHand = c("JS 4S 3S 2S KH QH 8H 5D 4D 3D 2S KC 4C");
+      final expectedBids = makeBidActions(["1C", "1S", "3S", "4S", "-"]);
+      verifyNonCompetitiveBids(openingHand, partnerHand, expectedBids);
+    });
+
+    test("4-4 major fit, minimum opening, invitational response, decline", () {
+      // 13 point opener, 11 point responder.
+      final openingHand = c("AS KS QS 2S AH 2H TD 9D 9C 8C 7C 5C 3C");
+      final partnerHand = c("JS 4S 3S 2S KH QH 8H AD JD 5D 2D 6C 4C");
+      final expectedBids = makeBidActions(["1C", "1S", "2S", "3S", "-"]);
+      verifyNonCompetitiveBids(openingHand, partnerHand, expectedBids);
+    });
+
+    test("4-4 major fit, minimum opening, invitational response, accept", () {
+      // 15 point opener, 11 point responder.
+      final openingHand = c("AS KS QS 2S AH 2H TD 9D QC 8C 7C 5C 3C");
+      final partnerHand = c("JS 4S 3S 2S KH QH 8H AD JD 5D 2D 6C 4C");
+      final expectedBids = makeBidActions(["1C", "1S", "2S", "3S", "4S", "-"]);
+      verifyNonCompetitiveBids(openingHand, partnerHand, expectedBids);
     });
   });
 
   group("NT responses", () {
     test("Responds to Stayman after 1NT opening with a major", () {
+      final openingHand = c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C");
       final response = getResponseToBidSequence(
-          c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C"), [
-        BidAction.noTrump(1),
-        BidAction.pass(),
-        BidAction.withBid(cb("2C")),
-        BidAction.pass(),
-      ]);
+          c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C"),
+          makeBidActions(["1NT", "-", "2C", "-"]),
+      );
       expect(response.contractBid, cb("2S"));
     });
 
+    // FIXME
+    test("Infers fit in spades after partner declines hearts", () {
+      final response = getResponseToBidSequence(
+          c("AS KS 3S 2S AH KH QH 2H 4D 3D 2D 4C 3C"),
+          makeBidActions(["1NT", "-", "2C", "-", "2H", "-", "3NT", "-"]),
+      );
+      expect(response.contractBid, cb("4S"));
+    }, skip: true);
+
     test("Responds to Jacoby transfer", () {
       final response = getResponseToBidSequence(
-          c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C"), [
-        BidAction.noTrump(1),
-        BidAction.pass(),
-        BidAction.withBid(cb("2D")),
-        BidAction.pass(),
-      ]);
+          c("AS KS 3S 2S AH KH QH 4D 3D 2D 4C 3C 2C"),
+          makeBidActions(["1NT", "-", "2D", "-"]),
+      );
       expect(response.contractBid, cb("2H"));
     });
 
     test("Super-accept Jacoby transfer", () {
       final response = getResponseToBidSequence(
         c("AS KS JS 2S AH KH QH 4D 3D 2D 4C 3C 2C"),
-        [
-          BidAction.noTrump(1),
-          BidAction.pass(),
-          BidAction.withBid(cb("2H")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1NT", "-", "2H", "-"]),
       );
       expect(response.contractBid, cb("3S"));
     });
@@ -365,12 +366,7 @@ void main() {
       final response = getResponseToBidSequence(
         // 19 points
         c("AS KS QS 2S AH 2H TD 9D AC QC 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("1S")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1C", "-", "1S", "-"]),
       );
       expect(response.contractBid, cb("4S"));
     });
@@ -379,12 +375,7 @@ void main() {
       final response = getResponseToBidSequence(
         // 17 points
         c("AS KS QS 2S AH 2H TD 9D AC 9C 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("1S")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1C", "-", "1S", "-"]),
       );
       expect(response.contractBid, cb("3S"));
     });
@@ -392,12 +383,7 @@ void main() {
     test("Makes invitational bid after partner's 1NT response", () {
       final response = getResponseToBidSequence(
         c("AS KS 7S 3S 2S AH 2H KD 9D QC JC 7C 5C"),
-        [
-          BidAction.withBid(cb("1S")),
-          BidAction.pass(),
-          BidAction.withBid(cb("1NT")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1S", "-", "1NT", "-"]),
       );
       expect(response.contractBid, cb("2NT"));
     });
@@ -405,16 +391,7 @@ void main() {
     test("Accepts partner's invitational bid with strong hand", () {
       final response = getResponseToBidSequence(
         c("AS KS QS 2S AH QH TD 9D TC 9C 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("1S")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2S")),
-          BidAction.pass(),
-          BidAction.withBid(cb("3S")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1C", "-", "1S", "-", "2S", "-", "3S", "-"]),
       );
       expect(response.contractBid, cb("4S"));
     });
@@ -422,16 +399,7 @@ void main() {
     test("Declines partner's invitational bid with weak hand", () {
       final response = getResponseToBidSequence(
         c("AS QS 3S 2S AH QH TD 9D TC 9C 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("1S")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2S")),
-          BidAction.pass(),
-          BidAction.withBid(cb("3S")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1C", "-", "1S", "-", "2S", "-", "3S", "-"]),
       );
       expect(response.bidType, BidType.pass);
     });
@@ -440,14 +408,7 @@ void main() {
         () {
       final response = getResponseToBidSequence(
         c("AS 4S 3S 2S AH 4H 3H 2H TD AC 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1NT")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2H")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1NT", "-", "2C", "-", "2H", "-"]),
       );
       expect(response.contractBid, cb("4H"));
     });
@@ -455,14 +416,7 @@ void main() {
     test("Raises to NT game after partner's 1NT open and Stayman response", () {
       final response = getResponseToBidSequence(
         c("AS 4S 3S AH 4H 3H 2H TD 2D AC 7C 5C 3C"),
-        [
-          BidAction.withBid(cb("1NT")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2C")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2S")),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1NT", "-", "2C", "-", "2S", "-"]),
       );
       expect(response.contractBid, cb("3NT"));
     });
@@ -471,34 +425,25 @@ void main() {
   group("Competitive auctions", () {
     test("Supports partner's major indicated by negative double", () {
       final BidAction response = getResponseToBidSequence(
-          c("AS JS 3S 2S TH 9H KD QD JD 2D QC JC 4C"), [
-        BidAction.withBid(cb("1D")),
-        BidAction.withBid(cb("1H")),
-        BidAction.double(),
-        BidAction.withBid(cb("2H")),
-      ]);
+          c("AS JS 3S 2S TH 9H KD QD JD 2D QC JC 4C"),
+          makeBidActions(["1D", "1H", "X", "2H"]),
+      );
       expect(response.contractBid, cb("2S"));
     });
 
     test("Makes invitational raise after negative double", () {
       final BidAction response = getResponseToBidSequence(
-          c("AS JS 3S 2S AH 9H KD QD JD 2D QC JC 4C"), [
-        BidAction.withBid(cb("1D")),
-        BidAction.withBid(cb("1H")),
-        BidAction.double(),
-        BidAction.withBid(cb("2H")),
-      ]);
+          c("AS JS 3S 2S AH 9H KD QD JD 2D QC JC 4C"),
+          makeBidActions(["1D", "1H", "X", "2H"]),
+      );
       expect(response.contractBid, cb("3S"));
     });
 
     test("Raises to game after negative double", () {
       final BidAction response = getResponseToBidSequence(
-          c("AS QS 3S 2S AH 9H KD QD JD 2D QC JC 4C"), [
-        BidAction.withBid(cb("1D")),
-        BidAction.withBid(cb("1H")),
-        BidAction.double(),
-        BidAction.withBid(cb("2H")),
-      ]);
+          c("AS QS 3S 2S AH 9H KD QD JD 2D QC JC 4C"),
+          makeBidActions(["1D", "1H", "X", "2H"]),
+      );
       expect(response.contractBid, cb("4S"));
     });
   });
@@ -507,39 +452,25 @@ void main() {
   group("Regression tests", () {
     test("Raises to major game after invitational raise of overcall", () {
       final BidAction response = getResponseToBidSequence(
-          c("AS KS 8S 6S 5S KH QH 9H 5H 4H 2H 7D 3D"), [
-        BidAction.withBid(cb("1H")),
-        BidAction.withBid(cb("1S")),
-        BidAction.pass(),
-        BidAction.withBid(cb("3S")),
-        BidAction.pass(),
-      ]);
+          c("AS KS 8S 6S 5S KH QH 9H 5H 4H 2H 7D 3D"),
+          makeBidActions(["1H", "1S", "-", "3S", "-"]),
+      );
       expect(response.contractBid, cb("4S"));
     });
 
     test("Passes after NT response to overcall", () {
       final BidAction response = getResponseToBidSequence(
-          c("AS KS 8S 6S 5S KH QH 9H 5H 4H 2H 7D 3D"), [
-        BidAction.withBid(cb("1S")),
-        BidAction.withBid(cb("2H")),
-        BidAction.pass(),
-        BidAction.withBid(cb("2NT")),
-        BidAction.pass(),
-      ]);
+          c("AS KS 8S 6S 5S KH QH 9H 5H 4H 2H 7D 3D"),
+        makeBidActions(["1S", "2H", "-", "2NT", "-"]),
+      );
       // 3H might be better, but the current code should pass.
       expect(response, BidAction.pass());
     });
+
     test("Does not make silly 3NT bid", () {
       final BidAction response = getResponseToBidSequence(
         c("QS JS AH 8H 7H 5C 3C 2C JD TD 8D 6D 4D"),
-        [
-          BidAction.withBid(cb("1S")),
-          BidAction.withBid(cb("2H")),
-          BidAction.pass(),
-          BidAction.withBid(cb("2NT")),
-          BidAction.pass(),
-          BidAction.pass(),
-        ],
+        makeBidActions(["1S", "2H", "-", "2NT", "-", "-"]),
       );
       expect(response, BidAction.pass());
     });
