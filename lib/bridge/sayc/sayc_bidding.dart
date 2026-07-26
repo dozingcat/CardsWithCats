@@ -421,6 +421,468 @@ List<SaycRule> openingRules() {
 }
 
 // ---------------------------------------------------------------------------
+// Suit-choice helpers
+// ---------------------------------------------------------------------------
+
+bool _isMajor(Suit s) => s == Suit.hearts || s == Suit.spades;
+
+/// Choose a suit to bid: longest first, ties prefer a major, equal-length
+/// minors take the higher-ranking with 5+ cards and the cheaper with 4.
+Suit? bestSuit(HandAnalysis hand, Iterable<Suit> candidates) {
+  List<int> key(Suit s) {
+    final length = hand.count(s);
+    return [
+      length,
+      _isMajor(s) ? 1 : 0,
+      length >= 5 ? _strainOrder(s) : -_strainOrder(s),
+    ];
+  }
+
+  Suit? best;
+  List<int>? bestKey;
+  for (final s in candidates) {
+    final k = key(s);
+    if (bestKey == null ||
+        k[0] > bestKey[0] ||
+        (k[0] == bestKey[0] &&
+            (k[1] > bestKey[1] ||
+                (k[1] == bestKey[1] && k[2] > bestKey[2])))) {
+      best = s;
+      bestKey = k;
+    }
+  }
+  return best;
+}
+
+/// Responder's suit choice with 10+ points over partner's major opening.
+Suit? _newSuitChoiceOverMajor(HandAnalysis hand, ContractBid opening) {
+  if (hand.totalPoints < 10) return null;
+  final candidates = <Suit>[];
+  if (opening.trump == Suit.hearts && hand.count(Suit.spades) >= 4) {
+    candidates.add(Suit.spades);
+  }
+  if (opening.trump == Suit.spades && hand.count(Suit.hearts) >= 5) {
+    candidates.add(Suit.hearts);
+  }
+  for (final minor in [Suit.diamonds, Suit.clubs]) {
+    if (hand.count(minor) >= 4) candidates.add(minor);
+  }
+  return candidates.isEmpty ? null : bestSuit(hand, candidates);
+}
+
+Suit? _majorChoiceOverMinor(HandAnalysis hand) {
+  final spades = hand.count(Suit.spades);
+  final hearts = hand.count(Suit.hearts);
+  if (spades < 4 && hearts < 4) return null;
+  if (spades > hearts) return Suit.spades;
+  if (hearts > spades) return Suit.hearts;
+  return spades >= 5 ? Suit.spades : Suit.hearts;
+}
+
+// ---------------------------------------------------------------------------
+// Responses to partner's opening bid
+// ---------------------------------------------------------------------------
+
+List<SaycRule>? responseRules(BidAction opening) {
+  if (opening.bidType != BidType.contract) return null;
+  final bid = opening.contractBid!;
+  if (bid.trump == null) {
+    if (bid.count == 1) return oneNtResponseRules();
+    if (bid.count == 2) return twoNtResponseRules();
+    return null;
+  }
+  if (bid.count == 2 && bid.trump == Suit.clubs) return twoClubResponseRules();
+  if (bid.count == 1) {
+    return _isMajor(bid.trump!)
+        ? _majorResponseRules(bid)
+        : _minorResponseRules(bid);
+  }
+  if (bid.count == 2) return weakTwoResponseRules(bid);
+  if (bid.count == 3 || bid.count == 4) return preemptResponseRules(bid);
+  return null;
+}
+
+List<SaycRule> _majorResponseRules(ContractBid opening) {
+  final suit = opening.trump!;
+  final name = _suitNames[suit]!;
+  final rules = <SaycRule>[
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "Too weak to respond",
+          totalPoints: const Range(high: 5)),
+    ),
+    SaycRule(
+      BidAction.noTrump(2),
+      BidMeaning(
+        description: "Jacoby 2NT: game-forcing raise with 4+ $name",
+        totalPoints: const Range(low: 13),
+        artificial: true,
+        suitLengths: {suit: const Range(low: 4)},
+      ),
+    ),
+    SaycRule(
+      BidAction.contract(2, suit),
+      BidMeaning(
+        description: "Single raise: 3+ $name, 6-10 points",
+        totalPoints: const Range(low: 6, high: 10),
+        suitLengths: {suit: const Range(low: 3)},
+      ),
+    ),
+    SaycRule(
+      BidAction.contract(3, suit),
+      BidMeaning(
+        description: "Limit raise: 3+ $name, 11-12 points, invitational",
+        totalPoints: const Range(low: 11, high: 12),
+        suitLengths: {suit: const Range(low: 3)},
+      ),
+    ),
+  ];
+  // New suits with 10+ points: longest suit first.
+  final targets = <(Suit, int, int, int)>[
+    if (suit == Suit.hearts) (Suit.spades, 1, 4, 6),
+    if (suit == Suit.spades) (Suit.hearts, 2, 5, 10),
+    (Suit.diamonds, 2, 4, 10),
+    (Suit.clubs, 2, 4, 10),
+  ];
+  for (final (target, level, minLen, minPts) in targets) {
+    final label = level == 1
+        ? "New suit (forcing): 4+ ${_suitNames[target]}, 6+ points"
+        : "Two-over-one: $minLen+ ${_suitNames[target]}, 10+ points, forcing";
+    rules.add(SaycRule(
+      BidAction.contract(level, target),
+      BidMeaning(
+        description: label,
+        totalPoints: Range(low: minPts),
+        suitLengths: {target: Range(low: minLen)},
+      ),
+      ignoreInfo: true,
+      require: (h) => _newSuitChoiceOverMajor(h, opening) == target,
+    ));
+  }
+  if (suit == Suit.hearts) {
+    // Weak hands still show a spade suit at the one level.
+    rules.add(SaycRule(
+      BidAction.contract(1, Suit.spades),
+      BidMeaning(
+        description: "New suit (forcing): 4+ spades, 6+ points",
+        totalPoints: const Range(low: 6),
+        suitLengths: {Suit.spades: const Range(low: 4)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints <= 9 && h.count(Suit.spades) >= 4,
+    ));
+  }
+  rules.add(SaycRule(
+    BidAction.noTrump(1),
+    BidMeaning(
+      description:
+          "6-9 points, fewer than three $name, no suit to bid at the one level",
+      totalPoints: const Range(low: 6, high: 9),
+      suitLengths: {
+        suit: const Range(high: 2),
+        if (suit == Suit.hearts) Suit.spades: const Range(high: 3),
+      },
+    ),
+  ));
+  return rules;
+}
+
+List<SaycRule> _minorResponseRules(ContractBid opening) {
+  final suit = opening.trump!;
+  final name = _suitNames[suit]!;
+  const noMajor = {
+    Suit.spades: Range(high: 3),
+    Suit.hearts: Range(high: 3),
+  };
+  final rules = <SaycRule>[
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "Too weak to respond",
+          totalPoints: const Range(high: 5)),
+    ),
+  ];
+  for (final major in [Suit.hearts, Suit.spades]) {
+    rules.add(SaycRule(
+      BidAction.contract(1, major),
+      BidMeaning(
+        description: "New suit (forcing): 4+ ${_suitNames[major]}, 6+ points",
+        totalPoints: const Range(low: 6),
+        suitLengths: {major: const Range(low: 4)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 6 && _majorChoiceOverMinor(h) == major,
+    ));
+  }
+  if (suit == Suit.clubs) {
+    rules.add(SaycRule(
+      BidAction.contract(1, Suit.diamonds),
+      BidMeaning(
+        description: "New suit (forcing): 4+ diamonds, 6+ points, no 4-card major",
+        totalPoints: const Range(low: 6),
+        suitLengths: {Suit.diamonds: const Range(low: 4), ...noMajor},
+      ),
+      require: (h) => h.count(Suit.diamonds) >= h.count(Suit.clubs),
+    ));
+  }
+  rules.addAll([
+    SaycRule(
+      BidAction.contract(2, suit),
+      BidMeaning(
+        description: "Single raise: 4+ $name, 6-10 points, no 4-card major",
+        totalPoints: const Range(low: 6, high: 10),
+        suitLengths: {suit: const Range(low: 4), ...noMajor},
+      ),
+    ),
+    SaycRule(
+      BidAction.contract(3, suit),
+      BidMeaning(
+        description: "Limit raise: 4+ $name, 11-12 points, no 4-card major",
+        totalPoints: const Range(low: 11, high: 12),
+        suitLengths: {suit: const Range(low: 4), ...noMajor},
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(2),
+      BidMeaning(
+        description: "13-15 HCP, balanced, no 4-card major",
+        hcp: const Range(low: 13, high: 15),
+        balanced: true,
+        suitLengths: noMajor,
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "16-18 HCP, balanced, no 4-card major",
+        hcp: const Range(low: 16, high: 18),
+        balanced: true,
+        suitLengths: noMajor,
+      ),
+    ),
+  ]);
+  final other = suit == Suit.clubs ? Suit.diamonds : Suit.clubs;
+  rules.addAll([
+    SaycRule(
+      BidAction.contract(2, other),
+      BidMeaning(
+        description: "Two-over-one: 4+ ${_suitNames[other]}, 10+ points, forcing",
+        totalPoints: const Range(low: 10),
+        suitLengths: {other: const Range(low: 4), ...noMajor},
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(1),
+      BidMeaning(
+        description: "6-9 points, no 4-card major, no fit",
+        totalPoints: const Range(low: 6, high: 9),
+        suitLengths: noMajor,
+      ),
+    ),
+  ]);
+  return rules;
+}
+
+List<SaycRule> oneNtResponseRules() {
+  const noMajor = {
+    Suit.spades: Range(high: 3),
+    Suit.hearts: Range(high: 3),
+  };
+  return [
+    SaycRule(
+      BidAction.contract(2, Suit.hearts),
+      BidMeaning(
+        description: "Jacoby transfer: 5+ spades, any strength",
+        artificial: true,
+        suitLengths: {Suit.spades: const Range(low: 5)},
+      ),
+      require: (h) => h.count(Suit.spades) >= h.count(Suit.hearts),
+    ),
+    SaycRule(
+      BidAction.contract(2, Suit.diamonds),
+      BidMeaning(
+        description: "Jacoby transfer: 5+ hearts, any strength",
+        artificial: true,
+        suitLengths: {Suit.hearts: const Range(low: 5)},
+      ),
+      require: (h) => h.count(Suit.hearts) > h.count(Suit.spades),
+    ),
+    SaycRule(
+      BidAction.contract(2, Suit.clubs),
+      BidMeaning(
+        description: "Stayman: at least one 4-card major, invitational or better",
+        hcp: const Range(low: 8),
+        artificial: true,
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.hcp >= 8 &&
+          (h.count(Suit.spades) == 4 || h.count(Suit.hearts) == 4),
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "Too weak to invite game", hcp: const Range(high: 7)),
+    ),
+    SaycRule(
+      BidAction.noTrump(2),
+      BidMeaning(
+        description: "Invites 3NT; no 4-card major",
+        hcp: const Range(low: 8, high: 9),
+        suitLengths: noMajor,
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "To play; no 4-card major",
+        hcp: const Range(low: 10, high: 15),
+        suitLengths: noMajor,
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(4),
+      BidMeaning(
+        description: "Quantitative: invites 6NT",
+        hcp: const Range(low: 16, high: 17),
+        suitLengths: noMajor,
+      ),
+    ),
+    SaycRule(
+      BidAction.contract(4, Suit.clubs),
+      BidMeaning(
+        description: "Gerber: asking for aces, slam-going",
+        hcp: const Range(low: 18),
+        artificial: true,
+        suitLengths: noMajor,
+      ),
+    ),
+  ];
+}
+
+List<SaycRule> twoNtResponseRules() {
+  // Simplified: no Stayman or transfers over 2NT yet.
+  return [
+    SaycRule(
+      BidAction.contract(4, Suit.clubs),
+      BidMeaning(
+        description: "Gerber: asking for aces, slam-going",
+        hcp: const Range(low: 13),
+        artificial: true,
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(4),
+      BidMeaning(
+        description: "Quantitative: invites 6NT",
+        hcp: const Range(low: 11, high: 12),
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+          description: "To play", hcp: const Range(low: 5, high: 10)),
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "Too weak to try for game", hcp: const Range(high: 4)),
+    ),
+  ];
+}
+
+List<SaycRule> twoClubResponseRules() {
+  // Simplified: always 2D waiting; no positive responses.
+  return [
+    SaycRule(
+      BidAction.contract(2, Suit.diamonds),
+      BidMeaning(
+        description: "Waiting; says nothing about diamonds",
+        artificial: true,
+      ),
+    ),
+  ];
+}
+
+List<SaycRule> weakTwoResponseRules(ContractBid opening) {
+  final suit = opening.trump!;
+  final name = _suitNames[suit]!;
+  final rules = <SaycRule>[];
+  if (_isMajor(suit)) {
+    rules.add(SaycRule(
+      BidAction.contract(4, suit),
+      BidMeaning(
+        description: "Raise to game: 3+ $name, 15+ points",
+        totalPoints: const Range(low: 15),
+        suitLengths: {suit: const Range(low: 3)},
+      ),
+    ));
+  } else {
+    rules.add(SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "To play over partner's weak two",
+        totalPoints: const Range(low: 15),
+      ),
+      require: (h) => h.count(suit) >= 3,
+    ));
+  }
+  rules.addAll([
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "To play: strong hand, no trump fit required",
+        hcp: const Range(low: 16),
+      ),
+    ),
+    SaycRule(
+      BidAction.contract(3, suit),
+      BidMeaning(
+        description: "Preemptive raise: 3+ $name, extends the barrage",
+        totalPoints: const Range(high: 14),
+        suitLengths: {suit: const Range(low: 3)},
+      ),
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "No fit and no reason to act over partner's weak two"),
+    ),
+  ]);
+  return rules;
+}
+
+List<SaycRule> preemptResponseRules(ContractBid opening) {
+  final suit = opening.trump!;
+  final rules = <SaycRule>[];
+  if (opening.count == 3 && _isMajor(suit)) {
+    rules.add(SaycRule(
+      BidAction.contract(4, suit),
+      BidMeaning(
+        description: "Raise to game: 2+ ${_suitNames[suit]}, 15+ points",
+        totalPoints: const Range(low: 15),
+        suitLengths: {suit: const Range(low: 2)},
+      ),
+    ));
+  }
+  if (opening.count == 3) {
+    rules.add(SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "To play: strong hand over partner's preempt",
+        hcp: const Range(low: 16),
+      ),
+    ));
+  }
+  rules.add(SaycRule(
+    BidAction.pass(),
+    BidMeaning(description: "No reason to act over partner's preempt"),
+  ));
+  return rules;
+}
+
+// ---------------------------------------------------------------------------
 // Auction dispatch and public API
 // ---------------------------------------------------------------------------
 
@@ -428,14 +890,28 @@ List<SaycRule> openingRules() {
 /// the position has not been ported yet (callers should fall back to the
 /// legacy engine). Throws [StateError] if the auction is already over.
 List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
-  if (calls.length >= 4 &&
-      calls
-          .sublist(calls.length - 3)
-          .every((c) => c.bidType == BidType.pass)) {
+  final n = calls.length;
+  if (n >= 4 &&
+      calls.sublist(n - 3).every((c) => c.bidType == BidType.pass)) {
     throw StateError("The auction is already over");
   }
-  if (calls.every((c) => c.bidType == BidType.pass)) {
-    return openingRules();
+  int? first;
+  for (int i = 0; i < n; i++) {
+    if (calls[i].bidType != BidType.pass) {
+      first = i;
+      break;
+    }
+  }
+  if (first == null) return openingRules();
+
+  // Positions relative to the caller: (n - i) % 4 is 0 for the caller's own
+  // calls, 2 for partner's, and odd for the opponents'.
+  final openerOffset = (n - first) % 4;
+  final anyOpponentAction = Iterable.generate(n).any(
+      (i) => (n - i) % 2 == 1 && calls[i].bidType != BidType.pass);
+
+  if (openerOffset == 2 && !anyOpponentAction) {
+    if (n == first + 2) return responseRules(calls[first]);
   }
   return null; // not ported yet
 }

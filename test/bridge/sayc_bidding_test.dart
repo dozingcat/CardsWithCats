@@ -218,6 +218,186 @@ void main() {
     });
   });
 
+  group("responses to major openings", () {
+    test("single raise with three trumps", () {
+      final result = selectSaycBid(hand("K32", "Q432", "K32", "432"),
+          [BidAction.fromString("1S"), BidAction.pass()]);
+      expect(result!.action.toString(), "2S");
+      expect(result.meaning.totalPoints, const Range(low: 6, high: 10));
+      expect(result.meaning.suitLengths[Suit.spades], const Range(low: 3));
+    });
+
+    test("raise preferred over new suit", () {
+      expect(openingBid("KQ32", "K32", "Q432", "32", history: ["1H", "pass"]),
+          "2H");
+    });
+
+    test("limit raise", () {
+      expect(openingBid("K32", "K432", "KJ32", "Q2", history: ["1S", "pass"]),
+          "3S");
+    });
+
+    test("Jacoby 2NT", () {
+      final result = selectSaycBid(hand("K432", "A432", "AK2", "32"),
+          [BidAction.fromString("1S"), BidAction.pass()]);
+      expect(result!.action.toString(), "2NT");
+      expect(result.meaning.artificial, true);
+      expect(result.meaning.suitLengths[Suit.spades], const Range(low: 4));
+    });
+
+    test("game-forcing hand with three trumps bids new suit", () {
+      expect(openingBid("K32", "AQ32", "A432", "32", history: ["1S", "pass"]),
+          "2D");
+    });
+
+    test("one spade over one heart", () {
+      expect(openingBid("KQ32", "32", "Q432", "J32", history: ["1H", "pass"]),
+          "1S");
+    });
+
+    test("1NT response with no fit", () {
+      final result = selectSaycBid(hand("32", "K432", "Q432", "K32"),
+          [BidAction.fromString("1S"), BidAction.pass()]);
+      expect(result!.action.toString(), "1NT");
+      expect(result.meaning.suitLengths[Suit.spades], const Range(high: 2));
+    });
+
+    test("two hearts over one spade shows five", () {
+      final result = selectSaycBid(hand("32", "AKJ32", "432", "Q32"),
+          [BidAction.fromString("1S"), BidAction.pass()]);
+      expect(result!.action.toString(), "2H");
+      expect(result.meaning.suitLengths[Suit.hearts], const Range(low: 5));
+    });
+
+    test("two clubs over one heart", () {
+      expect(openingBid("K32", "32", "A32", "KQ432", history: ["1H", "pass"]),
+          "2C");
+    });
+
+    test("pass with a weak hand", () {
+      expect(openingBid("432", "5432", "432", "432", history: ["1S", "pass"]),
+          "Pass");
+    });
+  });
+
+  group("responses to minor openings", () {
+    test("four-four majors up the line", () {
+      expect(openingBid("K432", "A432", "32", "Q32", history: ["1C", "pass"]),
+          "1H");
+    });
+
+    test("longer major first", () {
+      expect(openingBid("KQ432", "A432", "32", "32", history: ["1D", "pass"]),
+          "1S");
+    });
+
+    test("five-five majors bids spades", () {
+      expect(openingBid("KQ432", "A5432", "2", "32", history: ["1D", "pass"]),
+          "1S");
+    });
+
+    test("one diamond over one club", () {
+      expect(openingBid("432", "432", "AQ432", "K2", history: ["1C", "pass"]),
+          "1D");
+    });
+
+    test("raises of a minor", () {
+      expect(openingBid("432", "32", "KQ432", "Q32", history: ["1D", "pass"]),
+          "2D");
+      expect(openingBid("K32", "2", "KQ432", "Q432", history: ["1D", "pass"]),
+          "3D");
+    });
+
+    test("notrump ladder", () {
+      expect(openingBid("K32", "Q32", "J32", "Q432", history: ["1D", "pass"]),
+          "1NT");
+      expect(openingBid("K32", "QJ2", "J32", "AK32", history: ["1D", "pass"]),
+          "2NT");
+      expect(openingBid("AK2", "QJ2", "J32", "AK32", history: ["1D", "pass"]),
+          "3NT");
+    });
+
+    test("two-over-one in the other minor", () {
+      expect(openingBid("32", "K32", "432", "AQJ32", history: ["1D", "pass"]),
+          "2C");
+    });
+  });
+
+  group("responses to 1NT", () {
+    List<String> nt1 = ["1NT", "pass"];
+
+    test("Stayman with a four-card major", () {
+      final result = selectSaycBid(hand("KQ32", "K432", "432", "32"),
+          nt1.map(BidAction.fromString).toList());
+      expect(result!.action.toString(), "2C");
+      expect(result.meaning.artificial, true);
+    });
+
+    test("transfers", () {
+      expect(openingBid("32", "KQ432", "432", "432", history: nt1), "2D");
+      expect(openingBid("KQ432", "32", "432", "432", history: nt1), "2H");
+      // A 5-card major always transfers, even with Stayman values.
+      expect(openingBid("KQ432", "K432", "32", "32", history: nt1), "2H");
+    });
+
+    test("no Stayman below eight points", () {
+      expect(openingBid("K432", "Q32", "J432", "J2", history: nt1), "Pass");
+    });
+
+    test("notrump ladder", () {
+      expect(openingBid("J32", "Q32", "J432", "432", history: nt1), "Pass");
+      expect(openingBid("K32", "Q32", "K432", "J32", history: nt1), "2NT");
+      expect(openingBid("K32", "Q32", "KQ32", "Q32", history: nt1), "3NT");
+      expect(openingBid("AK2", "KQ2", "KJ32", "J32", history: nt1), "4NT");
+      expect(openingBid("AK2", "KQ2", "KQ32", "Q32", history: nt1), "4C");
+    });
+  });
+
+  group("responses to two-level and preempt openings", () {
+    test("2D waiting over 2C", () {
+      final result = selectSaycBid(hand("K32", "Q432", "432", "432"),
+          [BidAction.fromString("2C"), BidAction.pass()]);
+      expect(result!.action.toString(), "2D");
+      expect(result.meaning.artificial, true);
+    });
+
+    test("raises of a weak two", () {
+      expect(openingBid("K32", "432", "Q432", "432", history: ["2S", "pass"]),
+          "3S");
+      expect(openingBid("K32", "AK2", "A432", "K32", history: ["2S", "pass"]),
+          "4S");
+    });
+
+    test("pass a weak two without support", () {
+      expect(openingBid("K432", "2", "Q432", "K432", history: ["2H", "pass"]),
+          "Pass");
+    });
+
+    test("3NT over a weak two with 16+ and no fit", () {
+      expect(openingBid("K2", "AQ32", "AQ32", "K32", history: ["2S", "pass"]),
+          "3NT");
+    });
+
+    test("raise partner's preempt to game", () {
+      expect(openingBid("K32", "AK2", "A432", "K32", history: ["3S", "pass"]),
+          "4S");
+    });
+
+    test("3NT over a minor preempt with 16+", () {
+      expect(openingBid("K2", "AQ32", "AQ32", "K32", history: ["3C", "pass"]),
+          "3NT");
+    });
+
+    test("ladders over 2NT opening", () {
+      expect(openingBid("K32", "Q32", "KQ32", "J32", history: ["2NT", "pass"]),
+          "4NT");
+      expect(openingBid("AK2", "Q32", "KQ32", "J32", history: ["2NT", "pass"]),
+          "4C");
+      expect(openingBid("K32", "Q32", "Q432", "432", history: ["2NT", "pass"]),
+          "3NT");
+    });
+  });
+
   group("auction dispatch", () {
     test("completed auction rejected", () {
       expect(
@@ -230,9 +410,18 @@ void main() {
     });
 
     test("unported positions return null", () {
+      // Opener's rebid is phase 3.
+      expect(
+          selectSaycBid(
+              parseHand(exampleHandString),
+              ["1D", "pass", "1S", "pass"]
+                  .map(BidAction.fromString)
+                  .toList()),
+          null);
+      // Competitive auctions are a later phase.
       expect(
           selectSaycBid(parseHand(exampleHandString),
-              [BidAction.fromString("1D"), BidAction.pass()]),
+              [BidAction.fromString("1D"), BidAction.fromString("1S")]),
           null);
     });
   });

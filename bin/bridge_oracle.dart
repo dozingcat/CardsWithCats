@@ -37,7 +37,7 @@ void main(List<String> args) {
         List.generate(4, (i) => deck.sublist(i * 13, (i + 1) * 13));
 
     final history = <BidAction>[];
-    while (true) {
+    while (history.length < 30) {
       final seat = history.length % 4;
       if (history.length >= 4 &&
           history
@@ -46,7 +46,12 @@ void main(List<String> args) {
         break;
       }
       final result = selectSaycBid(hands[seat], history);
-      if (result == null) break; // position not ported yet
+      if (result == null) {
+        // Position not ported yet: substitute an (unchecked) pass so the
+        // walk continues through covered positions.
+        history.add(BidAction.pass());
+        continue;
+      }
       final historyString = history.isEmpty
           ? "-"
           : history.map((c) => c.toString()).join(" ");
