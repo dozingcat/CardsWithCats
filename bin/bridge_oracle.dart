@@ -46,12 +46,6 @@ void main(List<String> args) {
         break;
       }
       final result = selectSaycBid(hands[seat], history);
-      if (result == null) {
-        // Position not ported yet: substitute an (unchecked) pass so the
-        // walk continues through covered positions.
-        history.add(BidAction.pass());
-        continue;
-      }
       final historyString = history.isEmpty
           ? "-"
           : history.map((c) => c.toString()).join(" ");

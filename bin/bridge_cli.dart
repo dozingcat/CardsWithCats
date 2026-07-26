@@ -84,10 +84,6 @@ void main(List<String> args) {
   final hand = parseHand(positional[0]);
   final history = parseHistory(positional.length > 1 ? positional[1] : "");
   final result = selectSaycBid(hand, history);
-  if (result == null) {
-    print("Position not ported yet");
-    exit(1);
-  }
   print("Bid: ${result.action}");
   print("Bid information: ${result.meaning.summary()} "
       "(${result.meaning.description})");
