@@ -18,6 +18,7 @@
 /// The auction history is a flat list of [BidAction]s starting with the
 /// dealer's first call; seats are derived from list positions relative to
 /// the caller (the next call belongs to the caller).
+library;
 
 import '../../cards/card.dart';
 import '../bridge.dart';
