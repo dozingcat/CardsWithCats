@@ -389,6 +389,75 @@ void main() {
           "3NT");
     });
 
+    test("Stayman and transfers over 2NT", () {
+      final nt2 = ["2NT", "pass"];
+      // Stayman with a 4-card major and 5+ HCP.
+      expect(openingBid("K432", "Q32", "J432", "J2", history: nt2), "3C");
+      // Transfers with any 5-card major, any strength.
+      expect(openingBid("KQ432", "32", "432", "432", history: nt2), "3H");
+      expect(openingBid("32", "KQ432", "432", "432", history: nt2), "3D");
+      expect(openingBid("KQ432", "K432", "32", "32", history: nt2), "3H");
+      // Too weak for Stayman: pass.
+      expect(openingBid("J432", "Q32", "J432", "42", history: nt2), "Pass");
+    });
+
+    test("opener answers Stayman and transfers over 2NT", () {
+      expect(
+          openingBid("AQ32", "KQJ2", "AQ2", "K2",
+              history: ["2NT", "pass", "3C", "pass"]),
+          "3H"); // hearts first with both majors
+      expect(
+          openingBid("AQ3", "KQ2", "AQ32", "K32",
+              history: ["2NT", "pass", "3C", "pass"]),
+          "3D"); // no 4-card major
+      expect(
+          openingBid("AQ3", "KQ2", "AQ32", "K32",
+              history: ["2NT", "pass", "3D", "pass"]),
+          "3H");
+      expect(
+          openingBid("AQ3", "KQ2", "AQ32", "K32",
+              history: ["2NT", "pass", "3H", "pass"]),
+          "3S");
+    });
+
+    test("responder continues after Stayman over 2NT", () {
+      expect(
+          openingBid("K432", "Q432", "J32", "32",
+              history: ["2NT", "pass", "3C", "pass", "3H", "pass"]),
+          "4H"); // fit found
+      expect(
+          openingBid("32", "Q432", "K432", "J32",
+              history: ["2NT", "pass", "3C", "pass", "3S", "pass"]),
+          "3NT"); // wrong major
+      expect(
+          openingBid("K432", "Q32", "J432", "J2",
+              history: ["2NT", "pass", "3C", "pass", "3D", "pass"]),
+          "3NT"); // no major
+    });
+
+    test("responder continues after a transfer over 2NT", () {
+      final completed = ["2NT", "pass", "3D", "pass", "3H", "pass"];
+      expect(openingBid("32", "J65432", "432", "32", history: completed),
+          "Pass"); // bust
+      expect(openingBid("K2", "Q5432", "J432", "32", history: completed),
+          "3NT"); // exactly five: choice of games
+      expect(openingBid("32", "Q65432", "K32", "J2", history: completed),
+          "4H"); // six trumps
+    });
+
+    test("opener's choice of games after 2NT structures", () {
+      final choice = ["2NT", "pass", "3D", "pass", "3H", "pass", "3NT", "pass"];
+      expect(openingBid("AQ3", "KQ2", "AQ32", "K32", history: choice),
+          "4H"); // 3-card fit
+      expect(openingBid("AQ32", "K2", "AQJ2", "KQ2", history: choice),
+          "Pass"); // doubleton
+      expect(
+          openingBid("AQ32", "KQJ2", "AQ2", "K2", history: [
+            "2NT", "pass", "3C", "pass", "3H", "pass", "3NT", "pass"
+          ]),
+          "4S"); // correcting to the 4-4 spade fit
+    });
+
     test("ladders over 2NT opening", () {
       expect(openingBid("K32", "Q32", "KQ32", "J32", history: ["2NT", "pass"]),
           "4NT");

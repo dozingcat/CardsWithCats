@@ -762,14 +762,48 @@ List<SaycRule> oneNtResponseRules() {
 }
 
 List<SaycRule> twoNtResponseRules() {
-  // Simplified: no Stayman or transfers over 2NT yet.
+  const noMajor = {
+    Suit.spades: Range(high: 3),
+    Suit.hearts: Range(high: 3),
+  };
   return [
+    SaycRule(
+      BidAction.contract(3, Suit.hearts),
+      BidMeaning(
+        description: "Jacoby transfer: 5+ spades, any strength",
+        artificial: true,
+        suitLengths: {Suit.spades: const Range(low: 5)},
+      ),
+      require: (h) => h.count(Suit.spades) >= h.count(Suit.hearts),
+    ),
+    SaycRule(
+      BidAction.contract(3, Suit.diamonds),
+      BidMeaning(
+        description: "Jacoby transfer: 5+ hearts, any strength",
+        artificial: true,
+        suitLengths: {Suit.hearts: const Range(low: 5)},
+      ),
+      require: (h) => h.count(Suit.hearts) > h.count(Suit.spades),
+    ),
+    SaycRule(
+      BidAction.contract(3, Suit.clubs),
+      BidMeaning(
+        description: "Stayman: at least one 4-card major, game values",
+        hcp: const Range(low: 5),
+        artificial: true,
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.hcp >= 5 &&
+          (h.count(Suit.spades) == 4 || h.count(Suit.hearts) == 4),
+    ),
     SaycRule(
       BidAction.contract(4, Suit.clubs),
       BidMeaning(
         description: "Gerber: asking for aces, slam-going",
         hcp: const Range(low: 13),
         artificial: true,
+        suitLengths: noMajor,
       ),
     ),
     SaycRule(
@@ -777,12 +811,15 @@ List<SaycRule> twoNtResponseRules() {
       BidMeaning(
         description: "Quantitative: invites 6NT",
         hcp: const Range(low: 11, high: 12),
+        suitLengths: noMajor,
       ),
     ),
     SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
-          description: "To play", hcp: const Range(low: 5, high: 10)),
+          description: "To play; no 4-card major",
+          hcp: const Range(low: 5, high: 10),
+          suitLengths: noMajor),
     ),
     SaycRule(
       BidAction.pass(),
@@ -1192,6 +1229,60 @@ List<SaycRule>? oneNtRebidRules(BidAction response) {
 }
 
 List<SaycRule>? twoNtRebidRules(BidAction response) {
+  if (response == BidAction.contract(3, Suit.clubs)) {
+    // Stayman at the three level.
+    return [
+      SaycRule(
+        BidAction.contract(3, Suit.hearts),
+        BidMeaning(
+          description: "4 hearts (may also hold 4 spades)",
+          hcp: const Range(low: 20, high: 21),
+          suitLengths: {Suit.hearts: const Range(low: 4, high: 5)},
+        ),
+      ),
+      SaycRule(
+        BidAction.contract(3, Suit.spades),
+        BidMeaning(
+          description: "4 spades, fewer than 4 hearts",
+          hcp: const Range(low: 20, high: 21),
+          suitLengths: {
+            Suit.spades: const Range(low: 4, high: 5),
+            Suit.hearts: const Range(high: 3),
+          },
+        ),
+      ),
+      SaycRule(
+        BidAction.contract(3, Suit.diamonds),
+        BidMeaning(
+          description: "Denies a 4-card major",
+          hcp: const Range(low: 20, high: 21),
+          artificial: true,
+          suitLengths: {
+            Suit.spades: const Range(high: 3),
+            Suit.hearts: const Range(high: 3),
+          },
+        ),
+      ),
+    ];
+  }
+  if (response == BidAction.contract(3, Suit.diamonds)) {
+    return [
+      SaycRule(
+        BidAction.contract(3, Suit.hearts),
+        BidMeaning(
+            description: "Completing the transfer (forced)", artificial: true),
+      )
+    ];
+  }
+  if (response == BidAction.contract(3, Suit.hearts)) {
+    return [
+      SaycRule(
+        BidAction.contract(3, Suit.spades),
+        BidMeaning(
+            description: "Completing the transfer (forced)", artificial: true),
+      )
+    ];
+  }
   if (response == BidAction.contract(4, Suit.clubs)) {
     return gerberAnswerRules(const Range(low: 20, high: 21));
   }
@@ -1637,6 +1728,75 @@ List<SaycRule>? responderRebidRules(
       return [
         SaycRule(BidAction.pass(),
             BidMeaning(description: "Respecting partner's decision"))
+      ];
+    }
+    final rebidBid = rebid.contractBid!;
+    if (response == BidAction.contract(3, Suit.clubs)) {
+      // Stayman continuation: everything is game-going over 2NT.
+      final rules = <SaycRule>[];
+      if (rebidBid.trump != null && _isMajor(rebidBid.trump!)) {
+        final major = rebidBid.trump!;
+        rules.add(SaycRule(
+          BidAction.contract(4, major),
+          BidMeaning(
+            description: "Raise to game: 4 ${_suitNames[major]}",
+            suitLengths: {major: const Range(low: 4)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(major) >= 4,
+        ));
+      }
+      rules.addAll([
+        SaycRule(
+          BidAction.noTrump(4),
+          BidMeaning(
+              description: "Quantitative: invites 6NT, no fit",
+              hcp: const Range(low: 11, high: 12)),
+        ),
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(
+              description: "To play, no major-suit fit",
+              hcp: const Range(low: 5, high: 10)),
+          ignoreInfo: true,
+        ),
+      ]);
+      return rules;
+    }
+    final transferTargets = {
+      BidAction.contract(3, Suit.diamonds): Suit.hearts,
+      BidAction.contract(3, Suit.hearts): Suit.spades,
+    };
+    if (transferTargets.containsKey(response)) {
+      final major = transferTargets[response]!;
+      final name = _suitNames[major]!;
+      return [
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description: "Signing off after the transfer",
+              hcp: const Range(high: 4)),
+        ),
+        SaycRule(
+          BidAction.contract(4, major),
+          BidMeaning(
+            description: "To play: 6+ $name, game values",
+            hcp: const Range(low: 5),
+            suitLengths: {major: const Range(low: 6)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(major) >= 6,
+        ),
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(
+            description:
+                "Choice of games: exactly 5 $name, opener corrects with a fit",
+            hcp: const Range(low: 5),
+            suitLengths: {major: const Range(low: 5, high: 5)},
+          ),
+          ignoreInfo: true,
+        ),
       ];
     }
     return null;
@@ -2497,10 +2657,7 @@ List<SaycRule>? openerThirdCallRules(
     return _oneNtOpenerThirdRules(response, rebid, r2);
   }
   if (opening == BidAction.noTrump(2)) {
-    return [
-      SaycRule(BidAction.pass(),
-          BidMeaning(description: "Responder has placed the contract"))
-    ];
+    return _twoNtOpenerThirdRules(response, rebid, r2);
   }
   if (opening == BidAction.contract(2, Suit.clubs)) {
     if (r2 == BidAction.noTrump(4)) return blackwoodAnswerRules();
@@ -2542,6 +2699,83 @@ List<SaycRule>? openerThirdCallRules(
     SaycRule(BidAction.pass(),
         BidMeaning(description: "Preemptive opener never bids again"))
   ];
+}
+
+List<SaycRule> _twoNtOpenerThirdRules(
+    BidAction response, BidAction rebid, BidAction r2) {
+  final defaultRules = [
+    SaycRule(BidAction.pass(),
+        BidMeaning(description: "Responder has placed the contract"))
+  ];
+  List<SaycRule> quantitative() => [
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Accepting the slam invitation",
+              hcp: const Range(low: 21, high: 21)),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description: "Declining the slam invitation",
+              hcp: const Range(low: 20, high: 20)),
+        ),
+      ];
+
+  if (response == BidAction.contract(3, Suit.clubs)) {
+    // Stayman.
+    if (r2 == BidAction.noTrump(4)) return quantitative();
+    if (r2 == BidAction.noTrump(3) &&
+        rebid == BidAction.contract(3, Suit.hearts)) {
+      // Responder's major was spades; with four we belong there.
+      return [
+        SaycRule(
+          BidAction.contract(4, Suit.spades),
+          BidMeaning(
+            description: "Correcting to the 4-4 spade fit",
+            suitLengths: {Suit.spades: const Range(low: 4, high: 5)},
+          ),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+            description: "No spade fit; 3NT stands",
+            suitLengths: {Suit.spades: const Range(high: 3)},
+          ),
+        ),
+      ];
+    }
+    return defaultRules;
+  }
+  final transferTargets = {
+    BidAction.contract(3, Suit.diamonds): Suit.hearts,
+    BidAction.contract(3, Suit.hearts): Suit.spades,
+  };
+  if (transferTargets.containsKey(response)) {
+    final major = transferTargets[response]!;
+    if (r2 == BidAction.noTrump(3)) {
+      // Choice of games with exactly five of the major.
+      return [
+        SaycRule(
+          BidAction.contract(4, major),
+          BidMeaning(
+            description: "Choice of games: 3+ ${_suitNames[major]}",
+            suitLengths: {major: const Range(low: 3, high: 5)},
+          ),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+            description: "Doubleton ${_suitNames[major]}; 3NT stands",
+            suitLengths: {major: const Range(high: 2)},
+          ),
+        ),
+      ];
+    }
+    if (r2 == BidAction.noTrump(4)) return quantitative();
+    return defaultRules;
+  }
+  return defaultRules;
 }
 
 List<SaycRule> _oneNtOpenerThirdRules(

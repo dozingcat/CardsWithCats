@@ -1,10 +1,7 @@
 # SAYC Bidding Engine
 
 A rules-based contract bridge bidding engine implementing a Standard American
-(SAYC-style) system with two-over-one responses showing 10+ points. Ported
-from a Python reference implementation and cross-validated against it
-bid-for-bid on ~40,000 auction positions; this Dart version is now the
-primary implementation.
+(SAYC-style) system with two-over-one responses showing 10+ points.
 
 **Scope:**
 - Uncontested auctions through opener's third call (five calls deep, six for
@@ -107,7 +104,9 @@ consulted.
 - To 1NT: Jacoby transfers with any 5-card major (any strength), Stayman with
   a 4-card major and 8+ HCP, 2NT = 8-9, 3NT = 10-15, quantitative 4NT =
   16-17, Gerber 4C = 18+.
-- To 2NT: Gerber 4C = 13+, quantitative 4NT = 11-12, 3NT = 5-10.
+- To 2NT: Jacoby transfers (3D/3H) with any 5-card major, Stayman 3C with a
+  4-card major and 5+ HCP, Gerber 4C = 13+, quantitative 4NT = 11-12,
+  3NT = 5-10.
 - To 2C: 2D waiting (always).
 - To weak twos: preemptive raise with 3+ trumps, game with 15+ and a fit,
   3NT to play with 16+ and no fit; otherwise pass. Over 3-level preempts:
@@ -124,7 +123,10 @@ consulted.
   a limit raise with 14+).
 - After Jacoby 2NT: 4M minimum, 3M with extras.
 - After 1NT openings: Stayman answers (2D/2H/2S, hearts first with both),
-  transfer completions, invitation accepted with 16+.
+  transfer completions, invitation accepted with 16+. After 2NT openings the
+  same structures one level higher (3D/3H/3S Stayman answers, transfer
+  completions); responder continues game-going (raise the found fit, 3NT
+  choice-of-games with five, 4M with six) and opener corrects with a fit.
 - After 2C-2D: 2NT = 22-24 balanced, 3NT = 25-27, otherwise longest suit.
 
 ### Responder rebids
@@ -215,8 +217,7 @@ consulted.
 ### Known simplifications
 - No suit-quality checks on preempts; no seat/vulnerability adjustments.
 - 2C is HCP-only; no positive responses to 2C (2D is always waiting).
-- No Stayman/transfers over a 2NT opening; no 2NT feature-ask over weak
-  twos.
+- No 2NT feature-ask over weak twos.
 - No splinters, no preemptive jump raises, no strong jump shifts by
   responder (opener's jump-shift rebids exist).
 - Jacoby 2NT rebids don't show shortness; slam machinery is limited to
@@ -250,20 +251,3 @@ dart run bin/bridge_cli.dart "1S pass 2S pass 3S" --explain
 # flags (thin/missed games, bad trump fits, light slams):
 dart run bin/bridge_selfplay.dart --deals 2000 --seed 7 [--category missed-game]
 ```
-
-## Provenance
-
-Ported from the Python reference implementation at `~/tmp/bridge_bidding`
-(same architecture, developed test-first with self-play tuning).
-`bin/bridge_oracle.dart` emits every position of seeded full auctions as
-TSV for bid-for-bid checking against that reference:
-
-```sh
-dart run bin/bridge_oracle.dart --deals 1500 --seed 3 \
-  | python3 ~/tmp/bridge_bidding/oracle_check.py
-```
-
-The two engines agree on all ~40,000 positions checked. Future development
-happens here in Dart; the oracle remains useful only if changes are
-mirrored in Python, so expect the engines to diverge once Dart-side
-development begins.
