@@ -58,6 +58,13 @@ class HandAnalysis {
 
   int get aces => cards.where((c) => c.rank == Rank.ace).length;
 
+  /// How many of A/K/Q the hand holds in the given suit.
+  int topHonorCount(Suit suit) => cards
+      .where((c) =>
+          c.suit == suit &&
+          (c.rank == Rank.ace || c.rank == Rank.king || c.rank == Rank.queen))
+      .length;
+
   /// True for shapes 4-3-3-3, 4-4-3-2, and 5-3-3-2.
   bool get isBalanced {
     final lengths = counts.values.toList()..sort();
@@ -842,13 +849,44 @@ List<SaycRule> twoNtResponseRules() {
   ];
 }
 
+/// A positive suit response to 2C needs a good 5+ card suit (two of the top
+/// three honors) and 8+ HCP; with several, prefer the best per [bestSuit].
+Suit? _positiveSuitChoice(HandAnalysis hand) {
+  if (hand.hcp < 8) return null;
+  final candidates = Suit.values
+      .where((s) => hand.count(s) >= 5 && hand.topHonorCount(s) >= 2);
+  return bestSuit(hand, candidates);
+}
+
 List<SaycRule> twoClubResponseRules() {
-  // Simplified: always 2D waiting; no positive responses.
   return [
+    for (final suit in Suit.values)
+      SaycRule(
+        // 2D is the conventional waiting bid, so diamonds go to the 3 level.
+        BidAction.contract(suit == Suit.hearts || suit == Suit.spades ? 2 : 3,
+            suit),
+        BidMeaning(
+          description: "Positive response: good 5+ card "
+              "${_suitNames[suit]} suit, 8+ HCP",
+          hcp: const Range(low: 8),
+          suitLengths: {suit: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) => _positiveSuitChoice(h) == suit,
+      ),
+    SaycRule(
+      BidAction.noTrump(2),
+      BidMeaning(
+        description: "Positive response: 8+ HCP balanced, no good 5-card suit",
+        hcp: const Range(low: 8),
+        balanced: true,
+      ),
+    ),
     SaycRule(
       BidAction.contract(2, Suit.diamonds),
       BidMeaning(
-        description: "Waiting; says nothing about diamonds",
+        description: "Waiting: no positive response available; "
+            "says nothing about diamonds",
         artificial: true,
       ),
     ),
@@ -860,13 +898,21 @@ List<SaycRule> weakTwoResponseRules(ContractBid opening) {
   final name = _suitNames[suit]!;
   final rules = <SaycRule>[];
   if (_isMajor(suit)) {
+    // The eight-card fit usually beats 3NT: partner's suit is nearly
+    // worthless in notrump without entries, so a doubleton raises too,
+    // needing a bit extra since dummy brings less shape.
     rules.add(SaycRule(
       BidAction.contract(4, suit),
       BidMeaning(
-        description: "Raise to game: 3+ $name, 15+ points",
+        description: "Raise to game: 15+ with 3+ $name, or 16+ with a "
+            "doubleton",
         totalPoints: const Range(low: 15),
-        suitLengths: {suit: const Range(low: 3)},
+        suitLengths: {suit: const Range(low: 2)},
       ),
+      ignoreInfo: true,
+      require: (h) =>
+          (h.count(suit) >= 3 && h.totalPoints >= 15) ||
+          (h.count(suit) >= 2 && h.totalPoints >= 16),
     ));
   } else {
     rules.add(SaycRule(
@@ -1339,6 +1385,86 @@ List<SaycRule>? twoNtRebidRules(BidAction response) {
 }
 
 List<SaycRule>? twoClubRebidRules(BidAction response) {
+  final responseBidOrNull = response.contractBid;
+  // Positive responses (game-forcing): 2NT, or a suit at its cheapest
+  // non-2D level.
+  if (response == BidAction.noTrump(2)) {
+    return [
+      for (final suit in [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs])
+        SaycRule(
+          BidAction.contract(cheapestLevel(suit, ContractBid.noTrump(2)), suit),
+          BidMeaning(
+            description: "Natural: 5+ ${_suitNames[suit]}, game-forcing",
+            hcp: const Range(low: 22),
+            suitLengths: {suit: const Range(low: 5)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(suit) >= 5 && h.longestSuit == suit,
+        ),
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description: "22-24 HCP, balanced",
+            hcp: const Range(low: 22, high: 24),
+            balanced: true),
+      ),
+      SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "25+ opposite a positive: 33+ combined",
+            hcp: const Range(low: 25)),
+      ),
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description: "No long suit to show: game in notrump",
+            hcp: const Range(low: 22)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  if (responseBidOrNull != null &&
+      responseBidOrNull.trump != null &&
+      responseBidOrNull != ContractBid(2, Suit.diamonds)) {
+    final pSuit = responseBidOrNull.trump!;
+    final pName = _suitNames[pSuit]!;
+    return [
+      SaycRule(
+        BidAction.contract(responseBidOrNull.count + 1, pSuit),
+        BidMeaning(
+          description: "Raise: 3+ $pName, game-forcing",
+          hcp: const Range(low: 22),
+          suitLengths: {pSuit: const Range(low: 3)},
+        ),
+      ),
+      SaycRule(
+        BidAction.noTrump(cheapestLevel(null, responseBidOrNull)),
+        BidMeaning(
+            description: "22-24 HCP, balanced, no fit",
+            hcp: const Range(low: 22, high: 24),
+            balanced: true),
+      ),
+      for (final suit in Suit.values)
+        if (suit != pSuit)
+          SaycRule(
+            BidAction.contract(cheapestLevel(suit, responseBidOrNull), suit),
+            BidMeaning(
+              description: "Natural: 5+ ${_suitNames[suit]}, game-forcing",
+              hcp: const Range(low: 22),
+              suitLengths: {suit: const Range(low: 5)},
+            ),
+            ignoreInfo: true,
+            require: (h) => h.count(suit) >= 5 && h.longestSuit == suit,
+          ),
+      SaycRule(
+        BidAction.noTrump(cheapestLevel(null, responseBidOrNull)),
+        BidMeaning(
+            description: "No fit and no long suit to show, game-forcing",
+            hcp: const Range(low: 22)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
   if (response != BidAction.contract(2, Suit.diamonds)) return null;
   final rules = <SaycRule>[
     SaycRule(
@@ -1978,6 +2104,8 @@ List<SaycRule>? _responderRebidAfter1ntRules(
 
 List<SaycRule>? _responderRebidAfter2cRules(
     BidAction response, BidAction rebid) {
+  final positiveRules = _rebidAfter2cPositiveRules(response, rebid);
+  if (positiveRules != null) return positiveRules;
   if (response != BidAction.contract(2, Suit.diamonds)) return null;
   final rebidBid = rebid.contractBid!;
   if (rebid == BidAction.noTrump(2)) {
@@ -2029,6 +2157,131 @@ List<SaycRule>? _responderRebidAfter2cRules(
     ];
   }
   return null;
+}
+
+bool _is2cPositiveSuitResponse(ContractBid response) {
+  final suit = response.trump;
+  if (suit == null) return false;
+  return response.count == (_isMajor(suit) ? 2 : 3);
+}
+
+/// Responder's continuation after a positive response to 2C. The auction is
+/// game-forcing with 30+ combined points, so slam is always in the picture;
+/// with real extras responder drives via Blackwood or 6NT rather than a
+/// quantitative raise (which opener's tables would read as an ace-ask).
+List<SaycRule>? _rebidAfter2cPositiveRules(
+    BidAction response, BidAction rebid) {
+  final rebidBid = rebid.contractBid!;
+  final noFitGame = cheapestLevel(null, rebidBid) <= 3
+      ? SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(description: "No fit: playing game in notrump"),
+          ignoreInfo: true,
+        )
+      : SaycRule(
+          BidAction.contract(5, rebidBid.trump ?? Suit.clubs),
+          BidMeaning(description: "Playing game in partner's suit"),
+          ignoreInfo: true,
+        );
+  if (response == BidAction.noTrump(2)) {
+    if (rebid == BidAction.noTrump(3)) {
+      return [
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Slam: 33+ combined points",
+              hcp: const Range(low: 11)),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(description: "No slam interest opposite 22-24"),
+          ignoreInfo: true,
+        ),
+      ];
+    }
+    if (rebid == BidAction.noTrump(6)) {
+      return [
+        SaycRule(BidAction.pass(),
+            BidMeaning(description: "Respecting partner's decision"))
+      ];
+    }
+    if (rebidBid.trump != null) {
+      return [
+        if (_isMajor(rebidBid.trump!))
+          SaycRule(
+            BidAction.contract(4, rebidBid.trump!),
+            BidMeaning(
+              description:
+                  "Raise to game: 3+ ${_suitNames[rebidBid.trump!]}",
+              suitLengths: {rebidBid.trump!: const Range(low: 3)},
+            ),
+          ),
+        noFitGame,
+      ];
+    }
+    return null;
+  }
+  final respBid = response.contractBid;
+  if (respBid == null ||
+      respBid.trump == null ||
+      !_is2cPositiveSuitResponse(respBid)) {
+    return null;
+  }
+  final pSuit = respBid.trump!;
+  if (rebidBid.trump == pSuit) {
+    // Opener raised our suit: trump agreed and the values are known, so
+    // check for aces with any extras and otherwise sign off in game.
+    return [
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description: "Blackwood: asking for aces",
+            totalPoints: const Range(low: 10),
+            artificial: true),
+      ),
+      SaycRule(
+        BidAction.contract(_isMajor(pSuit) ? 4 : 5, pSuit),
+        BidMeaning(
+            description: "Minimum positive: signing off in game",
+            totalPoints: const Range(low: 8, high: 9)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  if (rebidBid.trump == null) {
+    // 2NT or 3NT: 22-24 balanced without a fit for our suit.
+    return [
+      SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Slam: 33+ combined points",
+            hcp: const Range(low: 11)),
+      ),
+      rebidBid.count >= 3
+          ? SaycRule(
+              BidAction.pass(),
+              BidMeaning(description: "No slam interest opposite 22-24"),
+              ignoreInfo: true,
+            )
+          : SaycRule(
+              BidAction.noTrump(3),
+              BidMeaning(description: "No slam interest: playing game"),
+              ignoreInfo: true,
+            ),
+    ];
+  }
+  // Opener showed a suit of his own.
+  return [
+    if (_isMajor(rebidBid.trump!))
+      SaycRule(
+        BidAction.contract(4, rebidBid.trump!),
+        BidMeaning(
+          description: "Raise to game: 3+ ${_suitNames[rebidBid.trump!]}",
+          suitLengths: {rebidBid.trump!: const Range(low: 3)},
+        ),
+      ),
+    noFitGame,
+  ];
 }
 
 List<SaycRule> _responderRebidAfterSuitRules(

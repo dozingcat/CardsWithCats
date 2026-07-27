@@ -138,10 +138,13 @@ consulted.
 - To 2NT: Jacoby transfers (3D/3H) with any 5-card major, Stayman 3C with a
   4-card major and 5+ HCP, Gerber 4C = 13+, quantitative 4NT = 11-12,
   3NT = 5-10.
-- To 2C: 2D waiting (always).
-- To weak twos: preemptive raise with 3+ trumps, game with 15+ and a fit,
-  3NT to play with 16+ and no fit; otherwise pass. Over 3-level preempts:
-  game with 15+ and a fit, 3NT with 16+.
+- To 2C: positives with 8+ HCP — a good 5+ card suit (two of the top three
+  honors) at its cheapest non-2D level (2H/2S/3C/3D), else 2NT if balanced;
+  2D waiting otherwise.
+- To weak twos: preemptive raise with 3+ trumps, game with 15+ and 3+
+  trumps or 16+ and a doubleton (the 8-card fit beats 3NT), 3NT to play
+  with 16+ and no fit; otherwise pass. Over 3-level preempts: game with 15+
+  and a fit, 3NT with 16+.
 
 ### Opener rebids
 - After a new-suit response: raise partner's major with 4 trumps (13-15
@@ -159,6 +162,10 @@ consulted.
   completions); responder continues game-going (raise the found fit, 3NT
   choice-of-games with five, 4M with six) and opener corrects with a fit.
 - After 2C-2D: 2NT = 22-24 balanced, 3NT = 25-27, otherwise longest suit.
+- After a positive response to 2C: raise the suit with 3+ support
+  (game-forcing; responder then signs off in game or bids Blackwood with
+  10+), else cheapest NT with 22-24 balanced, else a natural 5+ suit; over
+  the 2NT positive, 3NT with 22-24 and 6NT with 25+.
 
 ### Responder rebids
 - 1NT auctions: raise Stayman-found fits (invite 8-9, game 10+), retreat to
@@ -179,6 +186,10 @@ consulted.
   12+ drives to game.
 - After 2C-2D: raise opener's major to game with 3+ support, mark time with
   the cheapest notrump without support, 3NT over 2NT with 3+ HCP.
+- After a 2C positive: opposite a raise, Blackwood with 10+ else game;
+  opposite a notrump rebid, 6NT with 11+ HCP (33+ combined) else game;
+  opposite opener's own suit, raise a major to game with 3+ support else
+  3NT.
 
 ### Slam bidding
 - Gerber 4C over 1NT (18+ HCP) and 2NT (13+) openings: answers 4D/4H/4S/4NT
@@ -247,7 +258,8 @@ consulted.
 
 ### Known simplifications
 - No suit-quality checks on preempts; no seat/vulnerability adjustments.
-- 2C is HCP-only; no positive responses to 2C (2D is always waiting).
+- 2C is HCP-only (no playing-trick evaluation); slam moves after a positive
+  go through Blackwood or direct 6NT, never a quantitative raise.
 - No 2NT feature-ask over weak twos.
 - No preemptive jump raises and no strong jump shifts by responder
   (opener's jump-shift rebids exist; splinter responses to majors exist).

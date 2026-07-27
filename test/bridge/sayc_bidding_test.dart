@@ -437,8 +437,92 @@ void main() {
     });
 
     test("3NT over a weak two with 16+ and no fit", () {
-      expect(openingBid("K2", "AQ32", "AQ32", "K32", history: ["2S", "pass"]),
+      expect(openingBid("2", "AQ32", "AKQ32", "K32", history: ["2S", "pass"]),
           "3NT");
+    });
+
+    test("game raise of a weak two with a doubleton and 16+", () {
+      expect(openingBid("K32", "A2", "AQ432", "K32", history: ["2H", "pass"]),
+          "4H"); // 17 total: the 8-card fit beats 3NT
+      expect(openingBid("K2", "AQ32", "AQ32", "K32", history: ["2S", "pass"]),
+          "4S"); // 18 total
+    });
+
+    test("positive suit responses to 2C", () {
+      final h = ["2C", "pass"];
+      expect(openingBid("32", "AKJ32", "K32", "Q32", history: h), "2H");
+      expect(openingBid("AQ743", "32", "K32", "432", history: h), "2S");
+      expect(openingBid("432", "32", "K32", "AKJ32", history: h), "3C");
+      expect(openingBid("432", "32", "AK432", "Q32", history: h), "3D");
+    });
+
+    test("2NT positive response to 2C", () {
+      final result = selectSaycBid(hand("K32", "QJ32", "K32", "Q32"),
+          [BidAction.fromString("2C"), BidAction.pass()]);
+      expect(result.action.toString(), "2NT"); // 11 balanced
+      // A bad five-card suit doesn't qualify as a suit positive.
+      expect(openingBid("J8743", "A2", "K32", "Q32", history: ["2C", "pass"]),
+          "2NT");
+    });
+
+    test("2D waiting with 8+ but no positive available", () {
+      expect(openingBid("K432", "QJ32", "K432", "2", history: ["2C", "pass"]),
+          "2D"); // unbalanced, no good suit
+    });
+
+    test("opener rebids after a suit positive to 2C", () {
+      final h = ["2C", "pass", "2H", "pass"];
+      expect(openingBid("AK32", "KQJ2", "AK2", "A2", history: h),
+          "3H"); // support: raise sets trump
+      expect(openingBid("AK2", "K2", "AKQ2", "KQ32", history: h),
+          "2NT"); // 24 balanced, no fit
+      expect(openingBid("AKQJ32", "2", "AK2", "AK2", history: h),
+          "2S"); // own suit
+    });
+
+    test("opener rebids after a 2NT positive to 2C", () {
+      final h = ["2C", "pass", "2NT", "pass"];
+      expect(openingBid("AK2", "KQ2", "AKQ2", "K32", history: h), "3NT"); // 24
+      expect(openingBid("AK2", "KQ2", "AKQ2", "KQ2", history: h), "6NT"); // 26
+      expect(openingBid("AKQJ32", "AK2", "AK", "32", history: h),
+          "3S"); // long suit
+    });
+
+    test("raised 2C positive leads to Blackwood and slam", () {
+      final raised = ["2C", "pass", "2H", "pass", "3H", "pass"];
+      expect(openingBid("32", "AKJ32", "K32", "Q32", history: raised),
+          "4NT"); // 14 total: slam try
+      expect(openingBid("32", "AKJ32", "432", "432", history: raised),
+          "4H"); // 9 total: minimum positive signs off
+      expect(
+          openingBid("AK32", "KQ42", "AK2", "A2",
+              history: ["2C", "pass", "2H", "pass", "3H", "pass", "4NT",
+                "pass"]),
+          "5S"); // 3 aces
+      expect(
+          openingBid("32", "AKJ32", "K32", "Q32",
+              history: ["2C", "pass", "2H", "pass", "3H", "pass", "4NT",
+                "pass", "5S", "pass"]),
+          "6H"); // all four aces together
+    });
+
+    test("notrump ladders after 2C positives", () {
+      expect(
+          openingBid("32", "AKJ32", "Q32", "432",
+              history: ["2C", "pass", "2H", "pass", "2NT", "pass"]),
+          "3NT"); // 10 HCP
+      expect(
+          openingBid("32", "AKJ32", "K32", "J32",
+              history: ["2C", "pass", "2H", "pass", "2NT", "pass"]),
+          "6NT"); // 12 HCP: 34+ combined
+      expect(
+          openingBid("K32", "J432", "K32", "Q32",
+              history: ["2C", "pass", "2NT", "pass", "3NT", "pass"]),
+          "Pass"); // 9 HCP
+      expect(
+          openingBid("K32", "QJ32", "K32", "Q32",
+              history: ["2C", "pass", "2NT", "pass", "3NT", "pass"]),
+          "6NT"); // 11 HCP
     });
 
     test("raise partner's preempt to game", () {
