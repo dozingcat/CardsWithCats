@@ -41,6 +41,33 @@ penalty with a strong trump stack over their 2-level+ contract or when they
 preempt into 23+ combined points, and otherwise passes. It never initiates
 slams and labels its output with a "Fallback:" description.
 
+### Adding a convention: continuations don't consult meanings
+
+Selection routes **structurally**: the dispatcher and the continuation
+tables branch on the raw shape of earlier calls (suit, level, position),
+not on what those calls meant. They never call `describeSaycCall`. So a new
+conventional call is only half-defined by its rule — the tables for the
+following calls will otherwise pattern-match its shape into some existing
+natural branch and misplay it with confidence. (When splinters were added,
+`1H-3S` was correctly *described* as a splinter while opener's rebid table
+simultaneously treated it as a natural spade suit and "raised" the
+singleton.) The interpretation layer and the continuation tables stay
+consistent only by discipline; only the fallback bidder actually bids from
+accumulated meanings.
+
+Checklist for a new convention:
+1. Add the rule (its `BidMeaning` doubles as the selection condition;
+   ordering in the table sets priority).
+2. Teach partner's next-call table to recognize the shape (and the table
+   after that, if the sequence continues — e.g. an ace-ask needs answer
+   *and* placement handling).
+3. Check whether the same shape means something else in competition
+   (a double jump is a splinter uncontested but a natural free bid over an
+   overcall — the `contested` flag on the rebid delegations exists for
+   this).
+4. Run self-play: misread conventions surface as quality findings
+   (silly-strain contracts, missed games) even when every call is legal.
+
 ## API
 
 ```dart
