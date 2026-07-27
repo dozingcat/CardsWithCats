@@ -1448,6 +1448,49 @@ void main() {
           "4H");
     });
 
+    test("minimum responder still raises a jump shift with four trumps", () {
+      // 6 total points, but the 9-card fit outranks a singleton "preference".
+      expect(
+          openingBid("5", "A987", "765", "J9753",
+              history: ["1S", "pass", "1NT", "pass", "3H", "pass"]),
+          "4H");
+    });
+
+    test("false preference over a jump shift needs a doubleton", () {
+      expect(
+          openingBid("Q2", "987", "K652", "J975",
+              history: ["1S", "pass", "1NT", "pass", "3H", "pass"]),
+          "3S"); // 6 points, two spades, no heart fit
+      expect(
+          openingBid("5", "98", "K6532", "J9753",
+              history: ["1S", "pass", "1NT", "pass", "3H", "pass"]),
+          "3NT"); // no tolerance for either suit: never 3S on a singleton
+    });
+
+    test("opener drives the jump-shift force to game over a preference", () {
+      expect(
+          openingBid("AKQ96", "KQJT5", "A4", "2", history: [
+            "1S", "pass", "1NT", "pass", "3H", "pass", "3S", "pass"
+          ]),
+          "4S");
+    });
+
+    test("jump shift after a suit response: no singleton preference", () {
+      // 7 points, singleton diamond: 3NT beats a 3D "preference".
+      expect(
+          openingBid("A987", "9876", "5", "QJ75",
+              history: ["1D", "pass", "1S", "pass", "3C", "pass"]),
+          "3NT");
+    });
+
+    test("opener continues the force over responder's suit rebid", () {
+      final rebids = ["1D", "pass", "1S", "pass", "3C", "pass", "3S", "pass"];
+      expect(openingBid("5", "K2", "AKJ87", "AKQ32", history: rebids),
+          "3NT"); // no spade fit
+      expect(openingBid("Q65", "2", "AKJ87", "AKQ3", history: rebids),
+          "4S"); // three-card support
+    });
+
     test("advancer bids 3NT over a strong overcall", () {
       expect(openingBid("KQ32", "32", "A432", "K32", history: ["2S", "3H", "pass"]),
           "3NT");
