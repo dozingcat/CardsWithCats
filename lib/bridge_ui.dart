@@ -6,7 +6,7 @@ import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'bridge/bridge_bidding.dart';
+import 'bridge/sayc/sayc_bidding.dart';
 import 'cards/round.dart';
 import 'cards/trick.dart';
 import 'common_ui.dart';
@@ -136,14 +136,14 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   void _makeBidForAiPlayer(int playerIndex) {
-    final bid = chooseBid(BidRequest(
-      playerIndex: playerIndex,
-      hand: round.players[playerIndex].hand,
-      bidHistory: round.bidHistory,
-    ));
+    final bid = selectSaycBid(
+      round.players[playerIndex].hand,
+      round.bidHistory.map((b) => b.action).toList(),
+    );
+    final playerBid = PlayerBid(playerIndex, bid.action);
     printd("P$playerIndex bids $bid");
     setState(() {
-      _addBid(bid);
+      _addBid(playerBid);
     });
   }
 
