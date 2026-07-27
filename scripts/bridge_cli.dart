@@ -1,8 +1,8 @@
 /// Command-line interface to the SAYC bidding engine.
 ///
-///   dart run bin/bridge_cli.dart "A2 AKJT Q32 9876" "1H pass"
-///   dart run bin/bridge_cli.dart "" --describe 1NT
-///   dart run bin/bridge_cli.dart "pass 1S pass" --explain
+///   dart run scripts/bridge_cli.dart "A2 AKJT Q32 9876" "1H pass"
+///   dart run scripts/bridge_cli.dart "" --describe 1NT
+///   dart run scripts/bridge_cli.dart "pass 1S pass" --explain
 ///
 /// Hands accept 13 cards ("AS QS 3S ...") or four suit groups, spades first
 /// with '-' for a void ("A2 AKJT Q32 9876"). With --describe/--explain no

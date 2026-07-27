@@ -286,13 +286,13 @@ flutter test test/bridge/sayc_bidding_test.dart   # 180 tests, includes a
                                                   # 150-deal self-play invariant
 
 # Choose or interpret bids from the command line:
-dart run bin/bridge_cli.dart "A2 AKJT Q32 9876" "1H pass"
-dart run bin/bridge_cli.dart "1D 1S" --describe X
-dart run bin/bridge_cli.dart "1S pass 2S pass 3S" --explain
+dart run scripts/bridge_cli.dart "A2 AKJT Q32 9876" "1H pass"
+dart run scripts/bridge_cli.dart "1D 1S" --describe X
+dart run scripts/bridge_cli.dart "1S pass 2S pass 3S" --explain
 
 # Self-play over random deals (reproducible from seed + index): reports
 # hard failures (exceptions, illegal calls, runaway auctions, bids below
 # their own advertised minimums — all held at zero) and heuristic quality
 # flags (thin/missed games, bad trump fits, light slams):
-dart run bin/bridge_selfplay.dart --deals 2000 --seed 7 [--category missed-game]
+dart run scripts/bridge_selfplay.dart --deals 2000 --seed 7 [--category missed-game]
 ```

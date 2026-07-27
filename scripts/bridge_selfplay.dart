@@ -1,7 +1,7 @@
 /// Self-play over random deals: reports hard engine failures and heuristic
 /// bidding-quality findings. Every deal is reproducible from (seed, index).
 ///
-/// Usage: dart run bin/bridge_selfplay.dart [--deals N] [--seed S]
+/// Usage: dart run scripts/bridge_selfplay.dart [--deals N] [--seed S]
 ///          [--examples K] [--category NAME]
 library;
 
