@@ -512,6 +512,19 @@ List<SaycRule> _majorResponseRules(ContractBid opening) {
           description: "Too weak to respond",
           totalPoints: const Range(high: 5)),
     ),
+    // Splinters before Jacoby 2NT so they'll be preferred. A splinter is a
+    // double jump in a new suit (one more than a jump shift); capped at 15
+    // so stronger hands go through Jacoby 2NT, which keeps the auction
+    // lower for slam exploration.
+    for (Suit shortSuit in Suit.values) if (shortSuit != suit) SaycRule(
+      BidAction.contract(cheapestLevel(shortSuit, opening) + 2, shortSuit),
+      BidMeaning(
+        description: "Splinter: game-forcing raise with 4+ $name, singleton or void in ${_suitNames[shortSuit]}",
+        totalPoints: const Range(low: 12, high: 15),
+        artificial: true,
+        suitLengths: {suit: const Range(low: 4), shortSuit: const Range(high: 1)},
+      ),
+    ),
     SaycRule(
       BidAction.noTrump(2),
       BidMeaning(
@@ -1094,7 +1107,19 @@ Suit? _secondSuitChoice(
   return null;
 }
 
-List<SaycRule>? openerRebidRules(BidAction opening, BidAction response) {
+/// A splinter is a double jump in a new suit over partner's major opening
+/// (e.g. 1H-3S or 1S-4D). Only meaningful in uncontested auctions: the same
+/// call in competition is a natural free bid.
+bool _isSplinterResponse(ContractBid opening, ContractBid response) {
+  final trump = opening.trump;
+  if (trump == null || !_isMajor(trump) || opening.count != 1) return false;
+  final responseSuit = response.trump;
+  if (responseSuit == null || responseSuit == trump) return false;
+  return response.count == cheapestLevel(responseSuit, opening) + 2;
+}
+
+List<SaycRule>? openerRebidRules(BidAction opening, BidAction response,
+    {bool contested = false}) {
   if (opening.bidType != BidType.contract ||
       response.bidType != BidType.contract) {
     return null;
@@ -1110,7 +1135,8 @@ List<SaycRule>? openerRebidRules(BidAction opening, BidAction response) {
     return twoClubRebidRules(response);
   }
   if (openBid.trump != null && openBid.count == 1) {
-    return _oneSuitRebidRules(openBid, response.contractBid!);
+    return _oneSuitRebidRules(openBid, response.contractBid!,
+        contested: contested);
   }
   if (openBid.trump != null && openBid.count >= 2) {
     // Preemptive openings: the preemptor never bids again voluntarily.
@@ -1349,9 +1375,29 @@ List<SaycRule>? twoClubRebidRules(BidAction response) {
   return rules;
 }
 
-List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response) {
+List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response,
+    {bool contested = false}) {
   final mySuit = opening.trump!;
 
+  if (!contested && _isSplinterResponse(opening, response)) {
+    return [
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description:
+                "Blackwood: asking for aces (slam interest opposite the splinter)",
+            totalPoints: const Range(low: 16),
+            artificial: true),
+      ),
+      SaycRule(
+        BidAction.contract(4, mySuit),
+        BidMeaning(
+            description: "Signing off in game opposite the splinter",
+            totalPoints: const Range(low: 13, high: 15)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
   if (response.trump == mySuit) {
     return _rebidAfterRaiseRules(opening, response);
   }
@@ -1715,7 +1761,8 @@ List<SaycRule> _rebidAfterNewSuitRules(
 // ---------------------------------------------------------------------------
 
 List<SaycRule>? responderRebidRules(
-    BidAction opening, BidAction response, BidAction rebid) {
+    BidAction opening, BidAction response, BidAction rebid,
+    {bool contested = false}) {
   if (rebid.bidType != BidType.contract) return null;
   if (opening == BidAction.noTrump(1)) {
     return _responderRebidAfter1ntRules(response, rebid);
@@ -1808,7 +1855,8 @@ List<SaycRule>? responderRebidRules(
       opening.contractBid!.trump != null &&
       opening.contractBid!.count == 1) {
     return _responderRebidAfterSuitRules(
-        opening.contractBid!, response, rebid.contractBid!);
+        opening.contractBid!, response, rebid.contractBid!,
+        contested: contested);
   }
   return null;
 }
@@ -1984,7 +2032,8 @@ List<SaycRule>? _responderRebidAfter2cRules(
 }
 
 List<SaycRule> _responderRebidAfterSuitRules(
-    ContractBid opening, BidAction response, ContractBid rebid) {
+    ContractBid opening, BidAction response, ContractBid rebid,
+    {bool contested = false}) {
   final oSuit = opening.trump!;
   final oMajor = _isMajor(oSuit);
   final oName = _suitNames[oSuit]!;
@@ -1995,6 +2044,13 @@ List<SaycRule> _responderRebidAfterSuitRules(
 
   List<SaycRule> passOnly(String description) =>
       [SaycRule(BidAction.pass(), BidMeaning(description: description))];
+
+  if (!contested &&
+      responseBid != null &&
+      _isSplinterResponse(opening, responseBid)) {
+    if (rebid == ContractBid.noTrump(4)) return blackwoodAnswerRules();
+    return passOnly("Respecting partner's decision opposite the splinter");
+  }
 
   // Our response was a raise: opener either invited or signed off.
   if (responseBid != null && responseBid.trump == oSuit) {
@@ -2960,6 +3016,13 @@ List<SaycRule> _oneSuitOpenerThirdRules(
   final responseBid =
       response.bidType == BidType.contract ? response.contractBid : null;
   if (rebidBid == null || responseBid == null) return defaultRules;
+
+  // We asked Blackwood (e.g. over a splinter): place the contract.
+  if (rebid == BidAction.noTrump(4) && r2.trump != null && r2.count == 5) {
+    return blackwoodPlacementRules(BidAction.withBid(opening), response,
+            rebid, BidAction.withBid(r2)) ??
+        defaultRules;
+  }
 
   // 4NT: quantitative over our notrump rebid, Blackwood otherwise.
   if (r2 == ContractBid.noTrump(4)) {
@@ -4642,7 +4705,8 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         }
         // Both calls were natural bids: the uncontested continuation logic
         // applies (levels adapt via the actual calls).
-        return responderRebidRules(opening, myResponse, partnerRebid);
+        return responderRebidRules(opening, myResponse, partnerRebid,
+            contested: true);
       }
       if (partnerRebid.bidType == BidType.contract &&
           myResponse.bidType == BidType.double &&
@@ -4697,7 +4761,7 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     if (overcall.bidType == BidType.contract &&
         partnerCall.bidType == BidType.contract) {
       // Partner's free bid carries at least its uncontested meaning.
-      return openerRebidRules(opening, partnerCall);
+      return openerRebidRules(opening, partnerCall, contested: true);
     }
     if (isSuitBid(overcall) &&
         partnerCall.bidType == BidType.pass &&

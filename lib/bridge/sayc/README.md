@@ -94,9 +94,13 @@ consulted.
 
 ### Responses
 - To one of a major: single raise 6-10 with 3+ trumps (raises take priority
-  over new suits on minimum hands), limit raise 11-12, Jacoby 2NT = 13+ with
-  4+ trumps (game-forcing); 1S over 1H = 4+ spades, 6+; two-over-one = 10+
-  points, forcing (2H over 1S shows 5+ hearts); 1NT = 6-9, no fit.
+  over new suits on minimum hands), limit raise 11-12, splinter (double jump
+  in a new suit, e.g. 1H-3S or 1S-4D) = game-forcing raise with 4+ trumps,
+  12-15, and a singleton or void in the bid suit, Jacoby 2NT = 13+ with
+  4+ trumps (game-forcing, and the route for 16+ hands even with shortness);
+  1S over 1H = 4+ spades, 6+; two-over-one = 10+ points, forcing (2H over 1S
+  shows 5+ hearts); 1NT = 6-9, no fit. Opposite a splinter, opener signs off
+  in game with 13-15 and bids Blackwood with 16+.
 - To one of a minor: 4-card majors up the line (longer major first, 5-5 bids
   spades); 1D over 1C with 4+ diamonds; raises need 4+ support and deny a
   4-card major (6-10 / 11-12); 2NT = 13-15 balanced, 3NT = 16-18 balanced;
@@ -218,8 +222,10 @@ consulted.
 - No suit-quality checks on preempts; no seat/vulnerability adjustments.
 - 2C is HCP-only; no positive responses to 2C (2D is always waiting).
 - No 2NT feature-ask over weak twos.
-- No splinters, no preemptive jump raises, no strong jump shifts by
-  responder (opener's jump-shift rebids exist).
+- No preemptive jump raises and no strong jump shifts by responder
+  (opener's jump-shift rebids exist; splinter responses to majors exist).
+- Splinters apply only in uncontested auctions (the same double jump in
+  competition is a natural free bid).
 - Jacoby 2NT rebids don't show shortness; slam machinery is limited to
   Blackwood/Gerber ace-asks and quantitative 4NT (no king-asks, cue bids,
   or grand slams), and the fallback bidder never initiates a slam.

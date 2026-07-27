@@ -246,6 +246,68 @@ void main() {
       expect(result.meaning.suitLengths[Suit.spades], const Range(low: 4));
     });
 
+    test("splinter 3S over 1H", () {
+      final result = selectSaycBid(hand("2", "AK32", "A432", "K432"),
+          [BidAction.fromString("1H"), BidAction.pass()]);
+      expect(result.action.toString(), "3S");
+      expect(result.meaning.artificial, true);
+      expect(result.meaning.suitLengths[Suit.hearts], const Range(low: 4));
+      expect(result.meaning.suitLengths[Suit.spades], const Range(high: 1));
+      expect(result.meaning.totalPoints, const Range(low: 12, high: 15));
+    });
+
+    test("splinter 4C over 1S", () {
+      final result = selectSaycBid(hand("K432", "AK32", "A5432", "-"),
+          [BidAction.fromString("1S"), BidAction.pass()]);
+      expect(result.action.toString(), "4C");
+      expect(result.meaning.artificial, true);
+      expect(result.meaning.suitLengths[Suit.spades], const Range(low: 4));
+      expect(result.meaning.suitLengths[Suit.clubs], const Range(high: 1));
+      expect(result.meaning.totalPoints, const Range(low: 12, high: 15));
+    });
+
+    test("opener continues correctly after a splinter", () {
+      final splintered = ["1H", "pass", "3S", "pass"];
+      // Minimum: sign off in game (not a "raise" of the singleton!).
+      expect(openingBid("Q432", "AKJ43", "K2", "32", history: splintered),
+          "4H"); // 15
+      // Slam interest opposite the shortness: Blackwood.
+      expect(openingBid("32", "AKJ43", "AK32", "K2", history: splintered),
+          "4NT"); // 19
+    });
+
+    test("splinter Blackwood sequence completes", () {
+      // Responder answers aces...
+      expect(
+          openingBid("2", "AK32", "A432", "K432",
+              history: ["1H", "pass", "3S", "pass", "4NT", "pass"]),
+          "5H"); // 2 aces
+      // ...and opener places the contract.
+      expect(
+          openingBid("32", "AKJ43", "AK32", "K2", history: [
+            "1H", "pass", "3S", "pass", "4NT", "pass", "5H", "pass"
+          ]),
+          "6H"); // 2 + 2 aces
+      expect(
+          openingBid("32", "KQJ43", "AK32", "K2", history: [
+            "1H", "pass", "3S", "pass", "4NT", "pass", "5D", "pass"
+          ]),
+          "5H"); // 1 + 1 aces: sign off
+    });
+
+    test("contested three-level free bid is not a splinter", () {
+      // 1H (3C) 3S is a natural free bid; opener raises real spades.
+      expect(
+          openingBid("Q432", "AKJ43", "K2", "32",
+              history: ["1H", "3C", "3S", "pass"]),
+          "4S");
+    });
+
+    test("16+ with shortness prefers Jacoby 2NT to a splinter", () {
+      expect(openingBid("2", "AK32", "AK32", "KQ32", history: ["1H", "pass"]),
+          "2NT"); // 18: above the splinter cap
+    });
+
     test("game-forcing hand with three trumps bids new suit", () {
       expect(openingBid("K32", "AQ32", "A432", "32", history: ["1S", "pass"]),
           "2D");
