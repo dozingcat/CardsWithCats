@@ -179,9 +179,13 @@ consulted.
 - After opener rebids its own suit or a second suit: weak hands pass, sign
   off in a 6-card suit, or give preference to opener's first suit; 11-12
   invites (raise with fit, else 2NT); 13+ bids game. A second-suit major is
-  raised with 4-card support (6-9 cheap, 10-12 jump, 13+ game). Reverses and
-  jump shifts are one-round forces: responder chooses game with 8+ and
-  otherwise retreats as cheaply as possible.
+  raised with 4-card support (6-9 cheap, 10-12 jump, 13+ game). Reverses are
+  one-round forces: responder chooses game with 8+ and otherwise retreats as
+  cheaply as possible. Jump shifts force to game: any 4-card fit for the
+  second suit raises (3+ with a point to spare after a 1NT response), a
+  preference to opener's first suit needs a doubleton, and with no fit or
+  tolerance responder retreats to notrump — never a singleton "preference";
+  opener drives any below-game retreat on to game.
 - Two-over-one auctions: opener's minimum rebids may be passed with 10-11;
   12+ drives to game.
 - After 2C-2D: raise opener's major to game with 3+ support, mark time with
@@ -247,7 +251,8 @@ consulted.
 - Sandwich/balancing seat with both opponents bidding: over a raised suit,
   sound overcalls and takeout doubles; over two different suits, a double
   showing 4+ in both unbid suits, a notrump overcall with both stoppers, or
-  a sound suit overcall.
+  a sound suit overcall; over a notrump response (e.g. 1C-P-1NT), sound
+  overcalls and a takeout double of the opening suit.
 - Responder's second call in competition: after a negative double, opener's
   rebid is passed with a minimum, invited with 10-12, and raised to game
   with 13+; natural-bid sequences reuse the uncontested continuation logic

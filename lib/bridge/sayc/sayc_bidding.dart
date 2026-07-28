@@ -2436,12 +2436,16 @@ List<SaycRule> _responderRebidAfterSuitRules(
             BidAction.contract(4, second),
             BidMeaning(
               description:
-                  "Game: 3+ ${_suitNames[second]} opposite a jump shift",
-              totalPoints: const Range(low: 7, high: 9),
+                  "Game: fit for ${_suitNames[second]} opposite a jump shift",
+              totalPoints: const Range(low: 6, high: 9),
               suitLengths: {second: const Range(low: 3)},
             ),
             ignoreInfo: true,
-            require: (h) => h.count(second) >= 3 && h.totalPoints >= 7,
+            // A 4-card fit raises with any 1NT response; 3 trumps need a
+            // point beyond the bare minimum.
+            require: (h) =>
+                h.count(second) >= 4 ||
+                (h.count(second) >= 3 && h.totalPoints >= 7),
           ));
         }
         if (cheapestLevel(null, rebid) <= 3) {
@@ -2454,13 +2458,33 @@ List<SaycRule> _responderRebidAfterSuitRules(
             require: (h) => h.totalPoints >= 7,
           ));
         }
-        rules.add(SaycRule(
-          BidAction.contract(cheapestLevel(oSuit, rebid), oSuit),
-          BidMeaning(
+        rules.addAll([
+          SaycRule(
+            BidAction.contract(cheapestLevel(oSuit, rebid), oSuit),
+            BidMeaning(
               description: "Minimum preference to $oName",
-              totalPoints: const Range(low: 6, high: 6)),
-          ignoreInfo: true,
-        ));
+              totalPoints: const Range(low: 6, high: 6),
+              suitLengths: {oSuit: const Range(low: 2)},
+            ),
+            ignoreInfo: true,
+            require: (h) => h.count(oSuit) >= 2,
+          ),
+          // No fit and no tolerance: 3NT is the least bad forced call.
+          if (cheapestLevel(null, rebid) <= 3)
+            SaycRule(
+              BidAction.noTrump(3),
+              BidMeaning(
+                  description:
+                      "No fit for either suit opposite a jump shift"),
+              ignoreInfo: true,
+            )
+          else
+            SaycRule(
+              BidAction.contract(cheapestLevel(oSuit, rebid), oSuit),
+              BidMeaning(description: "Forced preference to $oName"),
+              ignoreInfo: true,
+            ),
+        ]);
         return rules;
       }
       return [
@@ -2818,11 +2842,13 @@ List<SaycRule> _responderRebidAfterSuitRules(
         BidAction.contract(4, second),
         BidMeaning(
           description: "Raise to game: 4+ $sName opposite a strong rebid",
-          totalPoints: const Range(low: 8),
+          totalPoints: Range(low: isJump ? 6 : 8),
           suitLengths: {second: const Range(low: 4)},
         ),
         ignoreInfo: true,
-        require: (h) => h.count(second) >= 4 && h.totalPoints >= 8,
+        // A jump shift is forcing to game, so any 4-card fit raises.
+        require: (h) =>
+            h.count(second) >= 4 && (isJump || h.totalPoints >= 8),
       ));
     }
     if (cheapestLevel(null, rebid) <= 3) {
@@ -2849,13 +2875,21 @@ List<SaycRule> _responderRebidAfterSuitRules(
       SaycRule(
         BidAction.contract(cheapestLevel(oSuit, rebid), oSuit),
         BidMeaning(
-            description: "Minimum preference to $oName",
-            totalPoints: const Range(low: 6, high: 7)),
+          description: "Minimum preference to $oName",
+          totalPoints: const Range(low: 6, high: 7),
+          suitLengths: {oSuit: const Range(low: 2)},
+        ),
         ignoreInfo: true,
-        require: (h) => h.totalPoints <= 7,
+        require: (h) => h.totalPoints <= 7 && h.count(oSuit) >= 2,
       ),
-      SaycRule(BidAction.pass(), BidMeaning(description: "Nothing suitable"),
-          ignoreInfo: true),
+      // The rebid is forcing, so with no fit and no tolerance retreat to
+      // notrump rather than pass.
+      SaycRule(
+        BidAction.noTrump(cheapestLevel(null, rebid)),
+        BidMeaning(
+            description: "No fit for either suit opposite a strong rebid"),
+        ignoreInfo: true,
+      ),
     ]);
     return rules;
   }
@@ -3404,7 +3438,50 @@ List<SaycRule> _oneSuitOpenerThirdRules(
     }
     return defaultRules;
   }
-  // We showed a second suit (13-18).
+  // We showed a second suit (13-18, or 18+ for a jump shift).
+  final second = rebidBid.trump!;
+  final isJumpShift =
+      rebidBid.count > cheapestLevel(second, responseBid);
+  final r2BelowGame =
+      r2.trump != null && r2.count < (_isMajor(r2.trump!) ? 4 : 5);
+  if (isJumpShift && r2BelowGame) {
+    // Our jump shift forces to game; responder's minimum retreat can't end
+    // the auction.
+    if (r2.trump == oSuit || r2.trump == second) {
+      return [
+        SaycRule(
+          suitGame(r2.trump!),
+          BidMeaning(
+              description: "Continuing to game: the jump shift is forcing"),
+          ignoreInfo: true,
+        )
+      ];
+    }
+    // Responder retreated to their own suit.
+    return [
+      SaycRule(
+        suitGame(r2.trump!),
+        BidMeaning(
+          description: "Raising responder's suit to game",
+          suitLengths: {r2.trump!: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(r2.trump!) >= 3,
+      ),
+      if (cheapestLevel(null, r2) <= 3)
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(description: "Choosing game in notrump"),
+          ignoreInfo: true,
+        )
+      else
+        SaycRule(
+          suitGame(oSuit),
+          BidMeaning(description: "Choosing game in the original suit"),
+          ignoreInfo: true,
+        ),
+    ];
+  }
   if (r2 == ContractBid.noTrump(1)) {
     return [
       SaycRule(
@@ -4139,9 +4216,59 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall) {
 /// (including the balancing seat after opener's suit is raised).
 List<SaycRule> sandwichActionRules(ContractBid firstBid, ContractBid secondBid) {
   final firstSuit = firstBid.trump!;
-  final secondSuit = secondBid.trump!;
   final over = secondBid;
   final rules = <SaycRule>[];
+
+  if (secondBid.trump == null) {
+    // Responder bid notrump: only the opening suit is really "theirs", so
+    // act as over one suit, a level higher.
+    final theirSuit = firstSuit;
+    for (final s in Suit.values) {
+      if (s == theirSuit) continue;
+      final level = cheapestLevel(s, over);
+      if (level > 3) continue;
+      rules.add(SaycRule(
+        BidAction.contract(level, s),
+        BidMeaning(
+          description: "Overcall over their notrump response: "
+              "5+ ${_suitNames[s]}, opening values",
+          totalPoints: const Range(low: 13, high: 17),
+          suitLengths: {s: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.totalPoints >= 13 &&
+            h.hcp <= 17 &&
+            _overcallSuitChoice(h, {theirSuit}) == s,
+      ));
+    }
+    rules.addAll([
+      SaycRule(
+        BidAction.double(),
+        BidMeaning(
+          description: "Takeout of the opening suit "
+              "(support for the unbid suits, or 17+ any shape)",
+          totalPoints: const Range(low: 13),
+          artificial: true,
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            (h.totalPoints >= 13 &&
+                h.count(theirSuit) <= 2 &&
+                Suit.values
+                    .where((s) => s != theirSuit)
+                    .every((s) => h.count(s) >= 3)) ||
+            h.hcp >= 17,
+      ),
+      SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description:
+                  "No suitable action with both opponents bidding")),
+    ]);
+    return rules;
+  }
+  final secondSuit = secondBid.trump!;
 
   if (firstSuit == secondSuit) {
     // They bid and raised one suit.
@@ -4881,7 +5008,9 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     final openBid = opening.contractBid!;
     if (partnerActions.isEmpty && myActions.isEmpty) {
       if (oppActions.length == 1) return directActionRules(openBid);
-      if (oppActions.length == 2 && oppActions.every(isSuitBid)) {
+      if (oppActions.length == 2 &&
+          isSuitBid(oppActions[0]) &&
+          oppActions[1].bidType == BidType.contract) {
         return sandwichActionRules(
             oppActions[0].contractBid!, oppActions[1].contractBid!);
       }
