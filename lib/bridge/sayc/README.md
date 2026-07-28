@@ -251,7 +251,8 @@ consulted.
 - Sandwich/balancing seat with both opponents bidding: over a raised suit,
   sound overcalls and takeout doubles; over two different suits, a double
   showing 4+ in both unbid suits, a notrump overcall with both stoppers, or
-  a sound suit overcall.
+  a sound suit overcall; over a notrump response (e.g. 1C-P-1NT), sound
+  overcalls and a takeout double of the opening suit.
 - Responder's second call in competition: after a negative double, opener's
   rebid is passed with a minimum, invited with 10-12, and raised to game
   with 13+; natural-bid sequences reuse the uncontested continuation logic

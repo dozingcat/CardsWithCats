@@ -1087,6 +1087,21 @@ void main() {
           "Pass");
     });
 
+    test("sandwich seat over a 1NT response", () {
+      expect(
+          openingBid("4", "AKJ432", "AJ5", "432",
+              history: ["1C", "pass", "1NT"]),
+          "2H");
+      expect(
+          openingBid("KQ32", "2", "KQ42", "KQ52",
+              history: ["1H", "pass", "1NT"]),
+          "Double");
+      expect(
+          openingBid("Q432", "Q32", "K32", "Q32",
+              history: ["1C", "pass", "1NT"]),
+          "Pass");
+    });
+
     test("responder's second call after a negative double", () {
       final h = ["1D", "1S", "X", "pass", "2H", "pass"];
       expect(openingBid("432", "KQ32", "Q32", "J32", history: h), "Pass");

@@ -4216,9 +4216,59 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall) {
 /// (including the balancing seat after opener's suit is raised).
 List<SaycRule> sandwichActionRules(ContractBid firstBid, ContractBid secondBid) {
   final firstSuit = firstBid.trump!;
-  final secondSuit = secondBid.trump!;
   final over = secondBid;
   final rules = <SaycRule>[];
+
+  if (secondBid.trump == null) {
+    // Responder bid notrump: only the opening suit is really "theirs", so
+    // act as over one suit, a level higher.
+    final theirSuit = firstSuit;
+    for (final s in Suit.values) {
+      if (s == theirSuit) continue;
+      final level = cheapestLevel(s, over);
+      if (level > 3) continue;
+      rules.add(SaycRule(
+        BidAction.contract(level, s),
+        BidMeaning(
+          description: "Overcall over their notrump response: "
+              "5+ ${_suitNames[s]}, opening values",
+          totalPoints: const Range(low: 13, high: 17),
+          suitLengths: {s: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.totalPoints >= 13 &&
+            h.hcp <= 17 &&
+            _overcallSuitChoice(h, {theirSuit}) == s,
+      ));
+    }
+    rules.addAll([
+      SaycRule(
+        BidAction.double(),
+        BidMeaning(
+          description: "Takeout of the opening suit "
+              "(support for the unbid suits, or 17+ any shape)",
+          totalPoints: const Range(low: 13),
+          artificial: true,
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            (h.totalPoints >= 13 &&
+                h.count(theirSuit) <= 2 &&
+                Suit.values
+                    .where((s) => s != theirSuit)
+                    .every((s) => h.count(s) >= 3)) ||
+            h.hcp >= 17,
+      ),
+      SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description:
+                  "No suitable action with both opponents bidding")),
+    ]);
+    return rules;
+  }
+  final secondSuit = secondBid.trump!;
 
   if (firstSuit == secondSuit) {
     // They bid and raised one suit.
@@ -4958,7 +5008,9 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     final openBid = opening.contractBid!;
     if (partnerActions.isEmpty && myActions.isEmpty) {
       if (oppActions.length == 1) return directActionRules(openBid);
-      if (oppActions.length == 2 && oppActions.every(isSuitBid)) {
+      if (oppActions.length == 2 &&
+          isSuitBid(oppActions[0]) &&
+          oppActions[1].bidType == BidType.contract) {
         return sandwichActionRules(
             oppActions[0].contractBid!, oppActions[1].contractBid!);
       }
