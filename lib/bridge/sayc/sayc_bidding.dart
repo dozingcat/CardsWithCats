@@ -4134,6 +4134,17 @@ List<SaycRule>? advanceOvercallRules(
       require: stopperOk,
     ));
   }
+  if (!_isMajor(suit) && cheapestLevel(suit, over) <= 5) {
+    // Game values but no stopper for notrump: raise the minor to game.
+    rules.add(SaycRule(
+      BidAction.contract(5, suit),
+      BidMeaning(
+        description: "Raise to game: 4+ $name, 13+ points",
+        totalPoints: const Range(low: 13),
+        suitLengths: {suit: const Range(low: 4)},
+      ),
+    ));
+  }
   rules.add(SaycRule(BidAction.pass(),
       BidMeaning(description: "No suitable advance of the overcall")));
   return rules;

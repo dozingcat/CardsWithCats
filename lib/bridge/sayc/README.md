@@ -230,8 +230,9 @@ consulted.
   trumps (5+ HCP among them) and 8+ HCP, the double is converted rather
   than advanced. Advances never jump past game; a takeout double is
   answered in the best unbid suit (0-8 cheap, 9-11 jump, 12+ game);
-  overcalls are raised with 3+ support on the 6-10/11-12/13+ ladder, and
-  3NT needs only 12 opposite a sound overcall of a preempt; systems on over
+  overcalls are raised with 3+ support on the 6-10/11-12/13+ ladder (13+
+  raises a minor overcall to 5m when notrump lacks a stopper), and 3NT
+  needs only 12 opposite a sound overcall of a preempt; systems on over
   partner's 1NT overcall.
 - Responder over an overcall: raises keep their uncontested meanings (major
   raises take priority over a negative double); negative doubles show 4+

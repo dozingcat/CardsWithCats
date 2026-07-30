@@ -1049,6 +1049,15 @@ void main() {
           "2S"); // free advance over their raise
     });
 
+    test("strong advance of a minor overcall", () {
+      final h = ["1H", "2C", "2H"];
+      // 13+ with a big fit and no heart stopper: game in the minor.
+      expect(openingBid("A2", "32", "432", "AQJ432", history: h), "5C");
+      // Same shape with a stopper prefers notrump.
+      expect(openingBid("A2", "A32", "32", "AQJ432", history: h), "3NT");
+      expect(openingBid("2", "A32", "432", "AQJ432", history: h), "2NT");
+    });
+
     test("free advances are not forced", () {
       expect(openingBid("KQ32", "432", "K432", "32", history: ["1H", "X", "2H"]),
           "2S");
