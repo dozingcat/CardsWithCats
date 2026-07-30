@@ -1056,9 +1056,23 @@ void main() {
       // Same shape with a stopper prefers notrump.
       expect(openingBid("A2", "A32", "32", "AQJ432", history: h), "3NT");
       expect(openingBid("2", "A32", "432", "AQJ432", history: h), "2NT");
-      // 13+ with only three trumps and no stopper: jump raise as a stopgap
-      // (a cue bid would be the textbook call).
-      expect(openingBid("AK32", "432", "A32", "Q32", history: h), "4C");
+      // 13+ with only three trumps and no stopper: cue bid their suit
+      // (limit raise or better).
+      expect(openingBid("AK32", "432", "A32", "Q32", history: h), "3H");
+    });
+
+    test("overcaller after partner's cue bid", () {
+      final h = ["1H", "2C", "2H", "3H", "pass"];
+      // With their suit stopped, choose 3NT.
+      expect(openingBid("K2", "KJ2", "32", "KQT943", history: h), "3NT");
+      // Minimum, no stopper: sign off (never pass the forcing cue).
+      expect(openingBid("KQ2", "432", "2", "KQT943", history: h), "4C");
+      // Extra values, no stopper: game in the minor.
+      expect(openingBid("AQ2", "32", "A2", "KQJ943", history: h), "5C");
+      // Opener bidding over the cue relieves the force but not the values.
+      final contested = ["1H", "2C", "2H", "3H", "4H"];
+      expect(openingBid("AQ2", "32", "A2", "KQJ943", history: contested), "5C");
+      expect(openingBid("KQ2", "432", "2", "KQT943", history: contested), "Pass");
     });
 
     test("free advances are not forced", () {

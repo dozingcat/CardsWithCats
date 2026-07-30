@@ -232,9 +232,11 @@ consulted.
   answered in the best unbid suit (0-8 cheap, 9-11 jump, 12+ game);
   overcalls are raised with 3+ support on the 6-10/11-12/13+ ladder (13+
   without a stopper for notrump raises a minor overcall to 5m with 4+
-  support, or jump-raises as a stopgap with only three — no cue-bid
-  advances yet), and 3NT needs only 12 opposite a sound overcall of a
-  preempt; systems on over partner's 1NT overcall.
+  support; with only three, a cue bid of their suit shows a limit raise
+  or better and the overcaller chooses 3NT with a stopper, signs off at
+  the cheapest level with a minimum, or raises to game with 13+), and
+  3NT needs only 12 opposite a sound overcall of a preempt; systems on
+  over partner's 1NT overcall.
 - Responder over an overcall: raises keep their uncontested meanings (major
   raises take priority over a negative double); negative doubles show 4+
   cards in the unbid major (exactly four at the one level — with five, bid
