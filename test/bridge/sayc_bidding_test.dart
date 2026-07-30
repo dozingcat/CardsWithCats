@@ -1056,6 +1056,9 @@ void main() {
       // Same shape with a stopper prefers notrump.
       expect(openingBid("A2", "A32", "32", "AQJ432", history: h), "3NT");
       expect(openingBid("2", "A32", "432", "AQJ432", history: h), "2NT");
+      // 13+ with only three trumps and no stopper: jump raise as a stopgap
+      // (a cue bid would be the textbook call).
+      expect(openingBid("AK32", "432", "A32", "Q32", history: h), "4C");
     });
 
     test("free advances are not forced", () {

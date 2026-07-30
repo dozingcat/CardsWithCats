@@ -4144,6 +4144,18 @@ List<SaycRule>? advanceOvercallRules(
         suitLengths: {suit: const Range(low: 4)},
       ),
     ));
+    // Only three trumps and no stopper: jump raise as a stopgap (a cue bid
+    // would be the textbook call, but that machinery doesn't exist yet).
+    if (raiseLevel + 1 < 5) {
+      rules.add(SaycRule(
+        BidAction.contract(raiseLevel + 1, suit),
+        BidMeaning(
+          description: "Jump raise: 3 $name, game values, no stopper",
+          totalPoints: const Range(low: 13),
+          suitLengths: {suit: const Range(low: 3)},
+        ),
+      ));
+    }
   }
   rules.add(SaycRule(BidAction.pass(),
       BidMeaning(description: "No suitable advance of the overcall")));
