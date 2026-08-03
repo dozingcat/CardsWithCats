@@ -157,7 +157,9 @@ consulted.
   a limit raise with 14+).
 - After Jacoby 2NT: 4M minimum, 3M with extras.
 - After 1NT openings: Stayman answers (2D/2H/2S, hearts first with both),
-  transfer completions, invitation accepted with 16+. After 2NT openings the
+  transfer completions, invitation accepted with 16+; the post-transfer 2NT
+  invite is accepted with any 4 trumps (9-card fit), and a minimum with 3
+  trumps declines into 3M rather than passing. After 2NT openings the
   same structures one level higher (3D/3H/3S Stayman answers, transfer
   completions); responder continues game-going (raise the found fit, 3NT
   choice-of-games with five, 4M with six) and opener corrects with a fit.

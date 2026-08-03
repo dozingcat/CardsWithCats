@@ -3232,7 +3232,15 @@ List<SaycRule> _oneNtOpenerThirdRules(
         SaycRule(
           BidAction.contract(4, major),
           BidMeaning(
-            description: "Maximum with 3+ $name",
+            description: "Accepting with four $name: 9-card fit",
+            hcp: const Range(low: 15, high: 17),
+            suitLengths: {major: const Range(low: 4)},
+          ),
+        ),
+        SaycRule(
+          BidAction.contract(4, major),
+          BidMeaning(
+            description: "Maximum with 3 $name",
             hcp: const Range(low: 16, high: 17),
             suitLengths: {major: const Range(low: 3, high: 5)},
           ),
@@ -3244,9 +3252,18 @@ List<SaycRule> _oneNtOpenerThirdRules(
               hcp: const Range(low: 16, high: 17)),
         ),
         SaycRule(
+          BidAction.contract(3, major),
+          BidMeaning(
+            description: "Minimum, but 3 $name: the 5-3 fit plays better",
+            hcp: const Range(low: 15, high: 15),
+            suitLengths: {major: const Range(low: 3, high: 3)},
+          ),
+        ),
+        SaycRule(
           BidAction.pass(),
           BidMeaning(
-              description: "Minimum", hcp: const Range(low: 15, high: 15)),
+              description: "Minimum, no fit",
+              hcp: const Range(low: 15, high: 15)),
         ),
       ];
     }

@@ -1073,6 +1073,10 @@ void main() {
       final contested = ["1H", "2C", "2H", "3H", "4H"];
       expect(openingBid("AQ2", "32", "A2", "KQJ943", history: contested), "5C");
       expect(openingBid("KQ2", "432", "2", "KQT943", history: contested), "Pass");
+      // Opponent doubling the cuebid is treated the same as a pass.
+      final doubled = ["1H", "2C", "2H", "3H", "X"];
+      expect(openingBid("AQ2", "32", "A2", "KQJ943", history: doubled), "5C");
+      expect(openingBid("KQ2", "432", "2", "KQT943", history: doubled), "4C");
     });
 
     test("free advances are not forced", () {
@@ -1470,7 +1474,17 @@ void main() {
     test("transfer invitation decisions", () {
       final invite = ["1NT", "pass", "2D", "pass", "2H", "pass", "2NT", "pass"];
       expect(openingBid("K32", "A32", "AQ32", "KJ2", history: invite), "4H");
-      expect(openingBid("K32", "A32", "AQ32", "Q32", history: invite), "Pass");
+      // Four trumps accept even at a minimum: 9-card fit, ruffing values.
+      expect(openingBid("K32", "A432", "AQ32", "Q2", history: invite), "4H");
+      // A minimum with three trumps declines into 3H, not 2NT.
+      expect(openingBid("K32", "A32", "AQ32", "Q32", history: invite), "3H");
+      expect(openingBid("K32", "A3", "AQ32", "Q432", history: invite), "Pass");
+      expect(openingBid("KQ2", "A3", "AQ32", "Q432", history: invite), "3NT");
+      expect(
+          openingBid("AQ87", "A8", "QT63", "K64",
+              history: ["1NT", "pass", "2H", "pass", "2S", "pass", "2NT",
+                  "pass"]),
+          "4S");
     });
   });
 
