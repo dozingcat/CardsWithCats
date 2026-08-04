@@ -694,8 +694,7 @@ class GameTypeDropdown extends StatelessWidget {
         DropdownMenuItem(value: GameType.hearts, child: Text('Hearts', style: textStyle)),
         DropdownMenuItem(value: GameType.spades, child: Text('Spades', style: textStyle)),
         DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
-        // Bridge isn't enabled for release yet.
-        // DropdownMenuItem(value: GameType.bridge, child: Text('Bridge', style: textStyle)),
+        DropdownMenuItem(value: GameType.bridge, child: Text('Bridge', style: textStyle)),
       ],
       onChanged: onChanged,
     );
@@ -828,7 +827,6 @@ class PlayerHandCards extends StatelessWidget {
         backgroundColor: cardBackgroundColors?[card],
       ));
     }
-    print("PlayerHandCards backgrounds: $cardBackgroundColors");
     return Stack(children: cardImages);
   }
 }

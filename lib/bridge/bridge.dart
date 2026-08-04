@@ -88,6 +88,7 @@ class ContractBid {
   }
 
   static ContractBid fromString(String s) {
+    s = s.toUpperCase();
     int count = int.parse(s.substring(0, 1));
     if (!(count >= 1 && count <= 7)) {
       throw Exception("Invalid bid amount: $count");
@@ -399,6 +400,14 @@ class BridgeRound extends BaseTrickRound {
       ..vulnerability = vulnerability;
   }
 
+  BridgeRound copyAndReset() {
+    return BridgeRound()
+      ..players = List.generate(players.length, (p) => BridgePlayer(originalHandForPlayer(p)))
+      ..dealer = dealer
+      ..vulnerability = vulnerability
+    ;
+  }
+
   Map<String, dynamic> toJson() {
     return {
       "status": status.name,
@@ -435,6 +444,28 @@ class BridgeRound extends BaseTrickRound {
           : null;
   }
 
+  List<PlayingCard> originalHandForPlayer(int playerIndex) {
+    // Combine current cards, cards from previous tricks, and card from the current trick.
+    final hand = [...players[playerIndex].hand];
+    for (final t in previousTricks) {
+      var offset = playerIndex - t.leader;
+      if (offset < 0) {
+        offset += players.length;
+      }
+      hand.add(t.cards[offset]);
+    }
+    {
+      var offset = playerIndex - currentTrick.leader;
+      if (offset < 0) {
+        offset += players.length;
+      }
+      if (offset < currentTrick.cards.length) {
+        hand.add(currentTrick.cards[offset]);
+      }
+    }
+    return hand;
+  }
+
   @override
   bool isOver() {
     return isPassedOut() || players.every((p) => p.hand.isEmpty);
@@ -460,6 +491,27 @@ class BridgeRound extends BaseTrickRound {
     bidHistory.add(bid);
     if (isBiddingOver(bidHistory)) {
       _endBidding();
+    }
+  }
+
+  void resetBidding() {
+    if (previousTricks.isNotEmpty || currentTrick.cards.isNotEmpty) {
+      throw Exception("Can't reset bidding after play has started");
+    }
+    bidHistory = [];
+    status = .bidding;
+    contract = null;
+  }
+
+  void undoBidsToPlayerIndex(int playerIndex) {
+    if (previousTricks.isNotEmpty || currentTrick.cards.isNotEmpty) {
+      throw Exception("Can't undo bid after play has started");
+    }
+    int bidIndex = bidHistory.lastIndexWhere((b) => b.player == playerIndex);
+    if (bidIndex >= 0) {
+      bidHistory = bidHistory.sublist(0, bidIndex);
+      status = .bidding;
+      contract = null;
     }
   }
 
@@ -670,6 +722,8 @@ class BridgeMatch {
   Random rng;
   List<BridgeRound> previousRounds = [];
   late BridgeRound currentRound;
+  // TODO: Store multiple rounds and their duplicate plays, with the overall
+  // result determined by IMPs.
 
   BridgeMatch(this.rng) {
     currentRound = BridgeRound.deal(0, rng);
@@ -693,11 +747,43 @@ class BridgeMatch {
   }
 
   void finishRound() {
-    // TODO
+    // TODO: Multiple rounds per match
   }
 
   bool isMatchOver() {
-    // TODO
+    // TODO: Multiple rounds per match
     return currentRound.isOver();
   }
+}
+
+int impsForScoreDifference(int diff) {
+  int positiveImps(int p) {
+    if (p <= 10) return 0;
+    if (p <= 40) return 1;
+    if (p <= 80) return 2;
+    if (p <= 120) return 3;
+    if (p <= 160) return 4;
+    if (p <= 210) return 5;
+    if (p <= 260) return 6;
+    if (p <= 310) return 7;
+    if (p <= 360) return 8;
+    if (p <= 420) return 9;
+    if (p <= 490) return 10;
+    if (p <= 590) return 11;
+    if (p <= 740) return 12;
+    if (p <= 890) return 13;
+    if (p <= 1090) return 14;
+    if (p <= 1290) return 15;
+    if (p <= 1490) return 16;
+    if (p <= 1740) return 17;
+    if (p <= 1990) return 18;
+    if (p <= 2240) return 19;
+    if (p <= 2490) return 20;
+    if (p <= 2990) return 21;
+    if (p <= 3490) return 22;
+    if (p <= 3990) return 23;
+    return 24;
+  }
+
+  return (diff < 0) ? -positiveImps(-diff) : positiveImps(diff);
 }

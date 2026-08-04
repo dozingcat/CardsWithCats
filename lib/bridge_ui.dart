@@ -78,6 +78,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   bool showScoreOverlay = false;
   late BridgeMatch match;
   late StreamSubscription matchUpdateSubscription;
+  late BridgeRound duplicateRound;
 
   BridgeRound get round => match.currentRound;
 
@@ -85,6 +86,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void initState() {
     super.initState();
     match = widget.initialMatchFn();
+    duplicateRound = match.currentRound.copyAndReset();
     matchUpdateSubscription = widget.matchUpdateStream.listen((event) {
       if (event is BridgeMatch) {
         _updateMatch(event);
@@ -133,9 +135,14 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       _scheduleNextActionIfNeeded();
     }
     widget.saveMatchFn(match);
+
+    if (round.isPassedOut()) {
+      _runDuplicateRound();
+    }
   }
 
-  void _makeBidForAiPlayer(int playerIndex) {
+  void _makeBidForAiPlayer() {
+    final playerIndex = round.currentBidder();
     final bid = selectSaycBid(
       round.players[playerIndex].hand,
       round.bidHistory.map((b) => b.action).toList(),
@@ -155,10 +162,14 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   void resetBids() {
     setState(() {
-      round.bidHistory = [];
-      round.status = BridgeRoundStatus.bidding;
-      showPostBidDialog = false;
+      round.resetBidding();
       _scheduleNextActionIfNeeded();
+    });
+  }
+
+  void undoLastHumanBid() {
+    setState(() {
+      round.undoBidsToPlayerIndex(0);
     });
   }
 
@@ -193,9 +204,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   void _scheduleNextAiBidIfNeeded() {
     if (round.status == BridgeRoundStatus.bidding && !_isWaitingForHumanBid()) {
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        _makeBidForAiPlayer(round.currentBidder());
-      });
+      Future.delayed(const Duration(milliseconds: 1000), _makeBidForAiPlayer);
     }
   }
 
@@ -236,7 +245,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
-      _updateStatsIfMatchOrRoundOver();
+      if (round.isOver()) {
+        _runDuplicateRound();
+      }
+      // _updateStatsIfMatchOrRoundOver();
     }
   }
 
@@ -254,6 +266,41 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   void _updateStatsIfMatchOrRoundOver() {
     // TODO
+  }
+
+  void _runDuplicateRound() {
+    duplicateRound = round.copyAndReset();
+    const delayDuration = Duration(milliseconds: 10);
+    // print("*** Starting duplicate round");
+
+    void runNextStep() {
+      if (duplicateRound.status == .bidding) {
+        final playerIndex = duplicateRound.currentBidder();
+        final bid = selectSaycBid(
+          duplicateRound.players[playerIndex].hand,
+          duplicateRound.bidHistory.map((b) => b.action).toList(),
+        );
+        final playerBid = PlayerBid(playerIndex, bid.action);
+        // print("*** Bid: ${playerBid.action}");
+        setState(() {
+          duplicateRound.addBid(playerBid);
+        });
+      }
+      else {
+        // This should possibly be async.
+        final card = computeCard(CardToPlayRequest.fromRound(duplicateRound));
+        // print("*** Play: $card");
+        setState(() {
+          duplicateRound.playCard(card);
+        });
+      }
+
+      if (!duplicateRound.isOver()) {
+        Future.delayed(delayDuration, runNextStep);
+      }
+    }
+
+    Future.delayed(delayDuration, runNextStep);
   }
 
   List<Suit> _suitDisplayOrder() {
@@ -313,6 +360,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     });
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
+    _runDuplicateRound();
   }
 
   bool _isPlayerControlledByHuman(int pnum) {
@@ -443,7 +491,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         .toList();
   }
 
-  Widget allHandsForDebugging(layout) {
+  Widget allHandsForDebugging(Layout layout) {
     final params = [0, 1, 2, 3]
         .map((p) => PlayerHandParams(
               playerIndex: p,
@@ -458,6 +506,23 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       suitOrder: _suitDisplayOrder(),
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
     );
+  }
+
+  Widget allHandsForPostRound(Layout layout) {
+    final params = [0, 1, 2, 3]
+        .map((p) => PlayerHandParams(
+            playerIndex: p,
+            cards: round.originalHandForPlayer(p),
+            highlightedCards: [],
+          ))
+        .toList();
+    return MultiplePlayerHandCards(
+      layout: layout,
+      playerHands: params,
+      suitOrder: _suitDisplayOrder(),
+      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+    );
+
   }
 
   Widget _playerCards(layout) {
@@ -508,10 +573,11 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldShowBidDialog() {
-    return !widget.dialogVisible && round.status == BridgeRoundStatus.bidding;
+    return !widget.dialogVisible && !round.isPassedOut() && (round.status == BridgeRoundStatus.bidding || showPostBidDialog);
   }
 
   bool _shouldShowPostBidDialog() {
+    return false;
     return !widget.dialogVisible && showPostBidDialog;
   }
 
@@ -533,25 +599,22 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     final layout = computeLayout(context);
     final showAllHands = false;
 
+    // TODO: Allow rotating the players so the dummy is always at top.
+
     return Stack(
       children: [
-        if (!showAllHands) _playerCards(layout),
-        if (showAllHands) allHandsForDebugging(layout),
+        if (!showAllHands && !_shouldShowEndOfRoundDialog()) _playerCards(layout),
+        if (showAllHands && !_shouldShowEndOfRoundDialog()) allHandsForDebugging(layout),
+        if (_shouldShowEndOfRoundDialog()) allHandsForPostRound(layout),
         _trickCards(layout),
         if (_shouldShowBidDialog())
           BidDialog(
             layout: layout,
             round: round,
             onBid: makeBidForHuman,
-            onResetBids: resetBids,
+            onResetBids: undoLastHumanBid,
+            onConfirmContract: _handlePostBidDialogConfirm,
             catImageIndices: widget.catImageIndices,
-          ),
-        if (_shouldShowPostBidDialog())
-          PostBidDialog(
-              layout: layout,
-              round: round,
-              onConfirm: _handlePostBidDialogConfirm,
-              onResetBids: resetBids,
           ),
         if (_shouldShowClaimTricksDialog())
           ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
@@ -559,8 +622,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
           EndOfRoundDialog(
             layout: layout,
             match: match,
+            duplicateRound: duplicateRound,
             onContinue: () => setState(_startRound),
             onMainMenu: _showMainMenuAfterMatch,
+            onReplayDuplicateRound: _runDuplicateRound,
           ),
       ],
     );
@@ -574,6 +639,7 @@ class BidDialog extends StatefulWidget {
   final BridgeRound round;
   final void Function(PlayerBid) onBid;
   final void Function() onResetBids;
+  final void Function() onConfirmContract;
   final List<int> catImageIndices;
 
   const BidDialog({
@@ -582,6 +648,7 @@ class BidDialog extends StatefulWidget {
     required this.round,
     required this.onBid,
     required this.onResetBids,
+    required this.onConfirmContract,
     required this.catImageIndices,
   });
 
@@ -591,6 +658,9 @@ class BidDialog extends StatefulWidget {
 
 class _BidDialogState extends State<BidDialog> {
   ContractBid contractBid = ContractBid(1, Suit.clubs);
+  int? explainBidRow;
+  int explainBidColumn = 0;
+  String bidExplanation = "";
 
   @override
   Widget build(BuildContext context) {
@@ -615,20 +685,57 @@ class _BidDialogState extends State<BidDialog> {
 
     final bidHistory = widget.round.bidHistory;
     final dealer = widget.round.dealer;
+    final isBiddingOver = widget.round.contract != null || widget.round.isPassedOut();
+    final numberOfBidRows = ((dealer + bidHistory.length + (isBiddingOver ? 0 : 1)) / 4).ceil();
+    final hasHumanBid = bidHistory.any((b) => b.player == 0);
 
     Widget bidCell({required int rowIndex, required int playerIndex}) {
       int bidIndex = 4 * rowIndex + playerIndex - dealer;
-      if (bidIndex == bidHistory.length) {
+      if (bidIndex == bidHistory.length && !isBiddingOver) {
         return const Text("?", textAlign: TextAlign.center);
       }
-      if (bidIndex < 0 || bidIndex > bidHistory.length) {
+      if (bidIndex < 0 || bidIndex >= bidHistory.length) {
         return const SizedBox();
       }
-      return Text(bidHistory[bidIndex].action.symbolString(),
-          textAlign: TextAlign.center);
+
+      final isExplainingBid = explainBidRow == rowIndex && explainBidColumn == playerIndex;
+      return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isExplainingBid) {
+                explainBidRow = null;
+              }
+              else {
+                explainBidRow = rowIndex;
+                explainBidColumn = playerIndex;
+              }
+            });
+          },
+          child: Container(
+            color: isExplainingBid ? Colors.white : Colors.transparent,
+            child: Text(
+              bidHistory[bidIndex].action.symbolString(),
+              style: TextStyle(fontWeight: isExplainingBid ? FontWeight.bold : FontWeight.normal),
+              textAlign: TextAlign.center)),
+      );
     }
 
-    final numberOfBidRows = ((dealer + bidHistory.length + 2) / 4).ceil();
+    Widget bidExplanation() {
+      int bidIndex = 4 * explainBidRow! + explainBidColumn - dealer;
+      if (bidIndex >= bidHistory.length) {
+        return const SizedBox();
+      }
+      final bidsUpToSelection = bidHistory.sublist(0, bidIndex).map((b) => b.action).toList();
+      final meaning = describeSaycCall(bidsUpToSelection, bidHistory[bidIndex].action);
+      return Padding(padding: EdgeInsets.only(bottom: 5), child: Container(
+        width: 200,
+        color: Colors.white70,
+        child: paddingAll(4, Text(
+          meaning != null ? meaning.description : "No specific meaning",
+          style: const TextStyle(fontSize: 10),
+        )),
+      ));
+    }
 
     bool canDecrementBid() {
       return contractBid.count > 1;
@@ -709,6 +816,50 @@ class _BidDialogState extends State<BidDialog> {
       });
     }
 
+    final bidRows = <TableRow>[];
+    for (var row = 0; row < numberOfBidRows; row++) {
+      bidRows.add(TableRow(children: [
+        bidCell(rowIndex: row, playerIndex: 0),
+        bidCell(rowIndex: row, playerIndex: 1),
+        bidCell(rowIndex: row, playerIndex: 2),
+        bidCell(rowIndex: row, playerIndex: 3),
+      ]));
+    }
+
+    String contractMessage() {
+      if (widget.round.contract == null) {
+        return "The hand is passed out.";
+      }
+      final contract = widget.round.contract!;
+      String declarerDesc = switch (contract.declarer) {
+        0 => "South",
+        1 => "West",
+        2 => "North",
+        3 => "East",
+        _ => throw Error(),
+      };
+      String doubledDesc = switch (contract.doubled) {
+        DoubledType.none => "",
+        DoubledType.doubled => " doubled",
+        DoubledType.redoubled => " redoubled",
+      };
+      return "The contract is ${contract.bid.symbolString()}$doubledDesc by $declarerDesc";
+    }
+
+    List<Widget> postBidRows() {
+      const textStyle = TextStyle(fontSize: 14);
+      final halfPadding = textStyle.fontSize! * 0.75;
+
+      return [
+        paddingAll(
+          halfPadding, Text(contractMessage(), style: textStyle, textAlign: TextAlign.left)),
+        ElevatedButton(
+          onPressed: widget.onConfirmContract,
+          child: const Text("Start round"),
+        ),
+      ];
+    }
+
     return Center(
         child: Transform.translate(
             offset: Offset(0, -widget.layout.displaySize.height * 0.1),
@@ -742,73 +893,79 @@ class _BidDialogState extends State<BidDialog> {
                                   ])
                               ]
                             ],
-                          )),
-                      Row(
-                          spacing: 12,
+                          )
+                      ),
+                      if (explainBidRow != null) bidExplanation(),
+
+                      if (!isBiddingOver) ...[
+                        Row(
+                            spacing: 12,
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                onPressed:
+                                    canDecrementBid() ? decrementBid : null,
+                                child: const Text("–", style: adjustBidTextStyle),
+                              ),
+                              Text(contractBid.count.toString(),
+                                  style: adjustBidTextStyle),
+                              ElevatedButton(
+                                onPressed:
+                                    canIncrementBid() ? incrementBid : null,
+                                child: const Text("+", style: adjustBidTextStyle),
+                              ),
+                            ]),
+                        paddingAll(
+                            rowPadding,
+                            SegmentedButton<Suit?>(
+                              segments: const [
+                                ButtonSegment(
+                                    value: Suit.clubs, label: Text("♣")),
+                                ButtonSegment(
+                                    value: Suit.diamonds, label: Text("♦")),
+                                ButtonSegment(
+                                    value: Suit.hearts, label: Text("♥")),
+                                ButtonSegment(
+                                    value: Suit.spades, label: Text("♠")),
+                                ButtonSegment(value: null, label: Text("NT")),
+                              ],
+                              showSelectedIcon: false,
+                              selected: {contractBid.trump},
+                              onSelectionChanged: (Set<Suit?> selectedSuits) {
+                                setState(() {
+                                  contractBid = ContractBid(
+                                      contractBid.count, selectedSuits.first);
+                                });
+                              },
+                            )),
+                        Row(
+                          spacing: 8,
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             ElevatedButton(
-                              onPressed:
-                                  canDecrementBid() ? decrementBid : null,
-                              child: const Text("–", style: adjustBidTextStyle),
+                              onPressed: canBid() ? doBid : null,
+                              child: Text("Bid ${contractBid.symbolString()}"),
                             ),
-                            Text(contractBid.count.toString(),
-                                style: adjustBidTextStyle),
                             ElevatedButton(
-                              onPressed:
-                                  canIncrementBid() ? incrementBid : null,
-                              child: const Text("+", style: adjustBidTextStyle),
+                              onPressed: canPass() ? doPass : null,
+                              child: const Text("Pass"),
                             ),
-                          ]),
-                      paddingAll(
-                          rowPadding,
-                          SegmentedButton<Suit?>(
-                            segments: const [
-                              ButtonSegment(
-                                  value: Suit.clubs, label: Text("♣")),
-                              ButtonSegment(
-                                  value: Suit.diamonds, label: Text("♦")),
-                              ButtonSegment(
-                                  value: Suit.hearts, label: Text("♥")),
-                              ButtonSegment(
-                                  value: Suit.spades, label: Text("♠")),
-                              ButtonSegment(value: null, label: Text("NT")),
-                            ],
-                            showSelectedIcon: false,
-                            selected: {contractBid.trump},
-                            onSelectionChanged: (Set<Suit?> selectedSuits) {
-                              setState(() {
-                                contractBid = ContractBid(
-                                    contractBid.count, selectedSuits.first);
-                              });
-                            },
-                          )),
-                      Row(
-                        spacing: 8,
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton(
-                            onPressed: canBid() ? doBid : null,
-                            child: Text("Bid ${contractBid.symbolString()}"),
-                          ),
-                          ElevatedButton(
-                            onPressed: canPass() ? doPass : null,
-                            child: const Text("Pass"),
-                          ),
-                          if (!canRedouble())
-                            ElevatedButton(
-                              onPressed: canDouble() ? doDouble : null,
-                              child: const Text("Double"),
-                            ),
-                          if (canRedouble())
-                            ElevatedButton(
-                              onPressed: doRedouble,
-                              child: const Text("Redouble"),
-                            ),
-                        ],
-                      ),
+                            if (!canRedouble())
+                              ElevatedButton(
+                                onPressed: canDouble() ? doDouble : null,
+                                child: const Text("Double"),
+                              ),
+                            if (canRedouble())
+                              ElevatedButton(
+                                onPressed: doRedouble,
+                                child: const Text("Redouble"),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (isBiddingOver) ...postBidRows(),
                       const SizedBox(height: 12),
                       Row(
                         spacing: 8,
@@ -816,8 +973,8 @@ class _BidDialogState extends State<BidDialog> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ElevatedButton(
-                            onPressed: widget.onResetBids,
-                            child: Text("Reset"),
+                            onPressed: ((isHumanBidding || isBiddingOver) && hasHumanBid) ?  widget.onResetBids : null,
+                            child: Text("Undo last bid"),
                           ),
                         ],
                       ),
@@ -826,100 +983,72 @@ class _BidDialogState extends State<BidDialog> {
   }
 }
 
-class PostBidDialog extends StatelessWidget {
-  final Layout layout;
-  final BridgeRound round;
-  final Function() onConfirm;
-  final Function() onResetBids;
-
-  const PostBidDialog(
-      {Key? key, required this.layout, required this.round, required this.onConfirm, required this.onResetBids})
-      : super(key: key);
-
-  String contractMessage() {
-    if (round.contract == null) {
-      return "The hand is passed out.";
-    }
-    final contract = round.contract!;
-    String declarerDesc = switch (contract.declarer) {
-      0 => "South",
-      1 => "West",
-      2 => "North",
-      3 => "East",
-      _ => throw Error(),
-    };
-    String doubledDesc = switch (contract.doubled) {
-      DoubledType.none => "",
-      DoubledType.doubled => " doubled",
-      DoubledType.redoubled => " redoubled",
-    };
-    return "The contract is ${contract.bid.symbolString()}$doubledDesc by $declarerDesc";
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 14);
-    final halfPadding = textStyle.fontSize! * 0.75;
-    return Transform.scale(scale: layout.dialogScale(), child: Dialog(
-        backgroundColor: dialogBackgroundColor,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: halfPadding),
-            paddingAll(
-                halfPadding, Text(contractMessage(), style: textStyle, textAlign: TextAlign.left)),
-            paddingAll(
-                halfPadding,
-                ElevatedButton(
-                  onPressed: onConfirm,
-                  child: const Text("Start round"),
-                )),
-            SizedBox(height: halfPadding),
-            paddingAll(
-                halfPadding,
-                ElevatedButton(
-                  onPressed: onResetBids,
-                  child: const Text("Reset bidding"),
-                )),
-            SizedBox(height: halfPadding),          ],
-        )));
-  }
-}
-
 class EndOfRoundDialog extends StatelessWidget {
   final Layout layout;
   final BridgeMatch match;
+  final BridgeRound duplicateRound;
   final Function() onContinue;
   final Function() onMainMenu;
+  // For testing to see how the AI plays the hand over multiple runs.
+  final Function()? onReplayDuplicateRound;
 
   const EndOfRoundDialog({
     super.key,
     required this.layout,
     required this.match,
+    required this.duplicateRound,
     required this.onContinue,
     required this.onMainMenu,
+    this.onReplayDuplicateRound,
   });
 
-  String roundResultDescription(BridgeRound round) {
-    if (round.isPassedOut()) {
-      return "Passed out";
-    }
-    final contract = round.contract!;
-    final tricksOver = round.tricksTakenByDeclarerOverContract();
-    final direction = "SWNE"[contract.declarer];
+  Row makeRow(List<Widget> children) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+  }
 
-    final contractDesc = "${contract.bid.symbolString()} by $direction";
-    final bidResultDesc = tricksOver >= 0
-        ? "made ${tricksOver + contract.bid.count}"
-        : "down ${-tricksOver}";
-    return "$contractDesc, $bidResultDesc";
+  List<Row> rowsForDuplicateRound() {
+    final round = match.currentRound;
+    int myScore = round.contractScoreForPlayer(0);
+    int dupScore = duplicateRound.contractScoreForPlayer(0);
+    int scoreDiff = myScore - dupScore;
+
+    return [
+      makeRow([
+        paddingAll(
+          0,
+          Text("${roundResultDescription(duplicateRound)}: ${plusPrefixIfPositive(dupScore)}"),
+        ),
+      ]),
+      makeRow([
+        Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text("Difference: ${plusPrefixIfPositive(scoreDiff)}")
+        ),
+      ]),
+      makeRow([
+        paddingAll(
+            0,
+            Text("IMPs: ${plusPrefixIfPositive(impsForScoreDifference(scoreDiff))}")
+        ),
+      ]),
+      if (onReplayDuplicateRound != null) makeRow([
+        Transform.scale(scale: 0.5, child:
+          ElevatedButton(
+            onPressed: onReplayDuplicateRound,
+            child: const Text("Replay duplicate round"),
+          )),
+      ]),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     final round = match.currentRound;
     final roundResultDesc = roundResultDescription(round);
-    final scoreDesc = "Score: ${round.contractScoreForPlayer(0)}";
 
     final dialog = Center(
         child: Transform.scale(
@@ -930,31 +1059,28 @@ class EndOfRoundDialog extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        paddingAll(
-                            10,
-                            Text(roundResultDesc,
-                                style: const TextStyle(fontSize: 20))),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        paddingAll(
-                            10,
-                            Text(scoreDesc,
-                                style: const TextStyle(fontSize: 20))),
-                      ],
-                    ),
+                    makeRow([
+                      Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Text("$roundResultDesc: ${formatRoundScore(round)}",
+                              style: const TextStyle(fontSize: 18))),
+                    ]),
+                    makeRow([
+                      const Padding(
+                        padding: EdgeInsets.only(),
+                        child: Text("Duplicate round"),
+                      ),
+                    ]),
+                    // Show progress indicator while duplicate round is playing.
+                    if (!duplicateRound.isOver()) makeRow([
+                      paddingAll(
+                        10,
+                        CircularProgressIndicator(value: duplicateRound.previousTricks.length / 13),
+                      ),
+                    ]),
+                    if (duplicateRound.isOver()) ...rowsForDuplicateRound(),
                     if (match.isMatchOver())
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                      makeRow([
                           paddingAll(
                               15,
                               ElevatedButton(
@@ -970,18 +1096,14 @@ class EndOfRoundDialog extends StatelessWidget {
                         ],
                       ),
                     if (!match.isMatchOver())
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                      makeRow([
                           paddingAll(
                               15,
                               ElevatedButton(
                                 onPressed: onContinue,
                                 child: const Text("Continue"),
                               ))
-                        ],
-                      ),
+                      ]),
                   ],
                 ))));
 
@@ -994,3 +1116,27 @@ class EndOfRoundDialog extends StatelessWidget {
     );
   }
 }
+
+String roundResultDescription(BridgeRound round) {
+  if (round.isPassedOut()) {
+    return "Passed out";
+  }
+  final contract = round.contract!;
+  final tricksOver = round.tricksTakenByDeclarerOverContract();
+  final direction = "SWNE"[contract.declarer];
+  String doubledDesc = switch (contract.doubled) {
+    DoubledType.none => "",
+    DoubledType.doubled => " doubled",
+    DoubledType.redoubled => " redoubled",
+  };
+
+  final contractDesc = "${contract.bid.symbolString()}$doubledDesc by $direction";
+  final bidResultDesc = tricksOver >= 0
+      ? "made ${tricksOver + contract.bid.count}"
+      : "down ${-tricksOver}";
+  return "$contractDesc, $bidResultDesc";
+}
+
+String plusPrefixIfPositive(int n) => "${(n > 0) ? '+' : ''}$n";
+
+String formatRoundScore(BridgeRound r) => plusPrefixIfPositive(r.contractScoreForPlayer(0));
