@@ -157,7 +157,9 @@ consulted.
   a limit raise with 14+).
 - After Jacoby 2NT: 4M minimum, 3M with extras.
 - After 1NT openings: Stayman answers (2D/2H/2S, hearts first with both),
-  transfer completions, invitation accepted with 16+. After 2NT openings the
+  transfer completions, invitation accepted with 16+; the post-transfer 2NT
+  invite is accepted with any 4 trumps (9-card fit), and a minimum with 3
+  trumps declines into 3M rather than passing. After 2NT openings the
   same structures one level higher (3D/3H/3S Stayman answers, transfer
   completions); responder continues game-going (raise the found fit, 3NT
   choice-of-games with five, 4M with six) and opener corrects with a fit.
@@ -230,9 +232,13 @@ consulted.
   trumps (5+ HCP among them) and 8+ HCP, the double is converted rather
   than advanced. Advances never jump past game; a takeout double is
   answered in the best unbid suit (0-8 cheap, 9-11 jump, 12+ game);
-  overcalls are raised with 3+ support on the 6-10/11-12/13+ ladder, and
-  3NT needs only 12 opposite a sound overcall of a preempt; systems on over
-  partner's 1NT overcall.
+  overcalls are raised with 3+ support on the 6-10/11-12/13+ ladder (13+
+  without a stopper for notrump raises a minor overcall to 5m with 4+
+  support; with only three, a cue bid of their suit shows a limit raise
+  or better and the overcaller chooses 3NT with a stopper, signs off at
+  the cheapest level with a minimum, or raises to game with 13+), and
+  3NT needs only 12 opposite a sound overcall of a preempt; systems on
+  over partner's 1NT overcall.
 - Responder over an overcall: raises keep their uncontested meanings (major
   raises take priority over a negative double); negative doubles show 4+
   cards in the unbid major (exactly four at the one level — with five, bid

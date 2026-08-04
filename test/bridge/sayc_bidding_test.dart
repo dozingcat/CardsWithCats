@@ -1049,6 +1049,36 @@ void main() {
           "2S"); // free advance over their raise
     });
 
+    test("strong advance of a minor overcall", () {
+      final h = ["1H", "2C", "2H"];
+      // 13+ with a big fit and no heart stopper: game in the minor.
+      expect(openingBid("A2", "32", "432", "AQJ432", history: h), "5C");
+      // Same shape with a stopper prefers notrump.
+      expect(openingBid("A2", "A32", "32", "AQJ432", history: h), "3NT");
+      expect(openingBid("2", "A32", "432", "AQJ432", history: h), "2NT");
+      // 13+ with only three trumps and no stopper: cue bid their suit
+      // (limit raise or better).
+      expect(openingBid("AK32", "432", "A32", "Q32", history: h), "3H");
+    });
+
+    test("overcaller after partner's cue bid", () {
+      final h = ["1H", "2C", "2H", "3H", "pass"];
+      // With their suit stopped, choose 3NT.
+      expect(openingBid("K2", "KJ2", "32", "KQT943", history: h), "3NT");
+      // Minimum, no stopper: sign off (never pass the forcing cue).
+      expect(openingBid("KQ2", "432", "2", "KQT943", history: h), "4C");
+      // Extra values, no stopper: game in the minor.
+      expect(openingBid("AQ2", "32", "A2", "KQJ943", history: h), "5C");
+      // Opener bidding over the cue relieves the force but not the values.
+      final contested = ["1H", "2C", "2H", "3H", "4H"];
+      expect(openingBid("AQ2", "32", "A2", "KQJ943", history: contested), "5C");
+      expect(openingBid("KQ2", "432", "2", "KQT943", history: contested), "Pass");
+      // Opponent doubling the cuebid is treated the same as a pass.
+      final doubled = ["1H", "2C", "2H", "3H", "X"];
+      expect(openingBid("AQ2", "32", "A2", "KQJ943", history: doubled), "5C");
+      expect(openingBid("KQ2", "432", "2", "KQT943", history: doubled), "4C");
+    });
+
     test("free advances are not forced", () {
       expect(openingBid("KQ32", "432", "K432", "32", history: ["1H", "X", "2H"]),
           "2S");
@@ -1444,7 +1474,17 @@ void main() {
     test("transfer invitation decisions", () {
       final invite = ["1NT", "pass", "2D", "pass", "2H", "pass", "2NT", "pass"];
       expect(openingBid("K32", "A32", "AQ32", "KJ2", history: invite), "4H");
-      expect(openingBid("K32", "A32", "AQ32", "Q32", history: invite), "Pass");
+      // Four trumps accept even at a minimum: 9-card fit, ruffing values.
+      expect(openingBid("K32", "A432", "AQ32", "Q2", history: invite), "4H");
+      // A minimum with three trumps declines into 3H, not 2NT.
+      expect(openingBid("K32", "A32", "AQ32", "Q32", history: invite), "3H");
+      expect(openingBid("K32", "A3", "AQ32", "Q432", history: invite), "Pass");
+      expect(openingBid("KQ2", "A3", "AQ32", "Q432", history: invite), "3NT");
+      expect(
+          openingBid("AQ87", "A8", "QT63", "K64",
+              history: ["1NT", "pass", "2H", "pass", "2S", "pass", "2NT",
+                  "pass"]),
+          "4S");
     });
   });
 
