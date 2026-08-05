@@ -315,6 +315,11 @@ class Contract {
   }
 }
 
+// Standard duplicate rotation for the first four boards:
+// neither, N-S, E-W, both.
+Vulnerability vulnerabilityForRoundIndex(int index) =>
+    Vulnerability.values[index % Vulnerability.values.length];
+
 enum BridgeRoundStatus {
   bidding,
   playing,
@@ -404,6 +409,7 @@ class BridgeRound extends BaseTrickRound {
     return BridgeRound()
       ..players = List.generate(players.length, (p) => BridgePlayer(originalHandForPlayer(p)))
       ..dealer = dealer
+      ..currentTrick = TrickInProgress(0) // placeholder
       ..vulnerability = vulnerability
     ;
   }
@@ -417,6 +423,7 @@ class BridgeRound extends BaseTrickRound {
       "currentTrick": currentTrick.toJson(),
       "previousTricks": [...previousTricks.map((t) => t.toJson())],
       "contract": contract?.toJson(),
+      "vulnerability": vulnerability.name,
     };
   }
 
@@ -441,7 +448,11 @@ class BridgeRound extends BaseTrickRound {
       ]
       ..contract = (json["contract"] != null)
           ? Contract.fromJson(json["contract"])
-          : null;
+          : null
+      ..vulnerability = (json["vulnerability"] != null)
+          ? Vulnerability.values
+              .firstWhere((v) => v.name == json["vulnerability"])
+          : Vulnerability.neither;
   }
 
   List<PlayingCard> originalHandForPlayer(int playerIndex) {
@@ -720,39 +731,112 @@ Contract contractFromBids({
 
 class BridgeMatch {
   Random rng;
+  int numRounds;
   List<BridgeRound> previousRounds = [];
+  // AI replays of each round with the same deal, used for IMP scoring.
+  List<BridgeRound> previousDuplicateRounds = [];
   late BridgeRound currentRound;
-  // TODO: Store multiple rounds and their duplicate plays, with the overall
-  // result determined by IMPs.
+  late BridgeRound duplicateRound;
 
-  BridgeMatch(this.rng) {
-    currentRound = BridgeRound.deal(0, rng);
+  BridgeMatch(this.rng, {this.numRounds = 4}) {
+    currentRound = BridgeRound.deal(rng.nextInt(numPlayers), rng)
+      ..vulnerability = _vulnerabilityForNewRound(0);
+    duplicateRound = currentRound.copyAndReset();
   }
+
+  // Vulnerability follows the standard duplicate cycle, except that a
+  // single-round match gets a random vulnerability.
+  Vulnerability _vulnerabilityForNewRound(int roundIndex) => (numRounds == 1)
+      ? Vulnerability.values[rng.nextInt(Vulnerability.values.length)]
+      : vulnerabilityForRoundIndex(roundIndex);
 
   Map<String, dynamic> toJson() {
     return {
+      "numRounds": numRounds,
       "previousRounds": [...previousRounds.map((r) => r.toJson())],
+      "previousDuplicateRounds": [
+        ...previousDuplicateRounds.map((r) => r.toJson())
+      ],
       "currentRound": currentRound.toJson(),
+      "duplicateRound": duplicateRound.toJson(),
     };
   }
 
   static BridgeMatch fromJson(final Map<String, dynamic> json, Random rng) {
-    return BridgeMatch(rng)
+    final match = BridgeMatch(rng)
+      ..numRounds = json["numRounds"] as int? ?? 4
       ..previousRounds = [
         ...json["previousRounds"]
             .map((r) => BridgeRound.fromJson(r as Map<String, dynamic>))
       ]
+      ..previousDuplicateRounds = [
+        ...(json["previousDuplicateRounds"] ?? [])
+            .map((r) => BridgeRound.fromJson(r as Map<String, dynamic>))
+      ]
       ..currentRound =
           BridgeRound.fromJson(json["currentRound"] as Map<String, dynamic>);
+    match.duplicateRound = (json["duplicateRound"] != null)
+        ? BridgeRound.fromJson(json["duplicateRound"] as Map<String, dynamic>)
+        : match.currentRound.copyAndReset();
+    return match;
   }
 
+  // After the final round, finishRound() archives currentRound without
+  // dealing a new one, so it's both the last element of previousRounds and
+  // currentRound.
+  bool get _isCurrentRoundArchived =>
+      previousRounds.isNotEmpty && identical(previousRounds.last, currentRound);
+
+  int get numCompletedRounds =>
+      previousRounds.length +
+      (!_isCurrentRoundArchived && currentRound.isOver() ? 1 : 0);
+
+  // 1-based, for display.
+  int get currentRoundNumber => min(previousRounds.length + 1, numRounds);
+
   void finishRound() {
-    // TODO: Multiple rounds per match
+    if (!currentRound.isOver()) {
+      throw Exception("Current round is not over");
+    }
+    if (_isCurrentRoundArchived) {
+      throw Exception("Current round is already finished");
+    }
+    final nextDealer = (currentRound.dealer + 1) % numPlayers;
+    previousRounds.add(currentRound);
+    previousDuplicateRounds.add(duplicateRound);
+    if (!isMatchOver()) {
+      currentRound = BridgeRound.deal(nextDealer, rng)
+        ..vulnerability = _vulnerabilityForNewRound(previousRounds.length);
+      duplicateRound = currentRound.copyAndReset();
+    }
   }
 
   bool isMatchOver() {
-    // TODO: Multiple rounds per match
-    return currentRound.isOver();
+    return numCompletedRounds >= numRounds;
+  }
+
+  static int impsForRounds(BridgeRound round, BridgeRound duplicateRound) {
+    return impsForScoreDifference(round.contractScoreForPlayer(0) -
+        duplicateRound.contractScoreForPlayer(0));
+  }
+
+  // Running IMP total for players 0 and 2, over rounds whose duplicate
+  // replay has finished.
+  int totalImpsForPlayer0() {
+    int total = 0;
+    for (int i = 0;
+        i < previousRounds.length && i < previousDuplicateRounds.length;
+        i++) {
+      if (previousDuplicateRounds[i].isOver()) {
+        total += impsForRounds(previousRounds[i], previousDuplicateRounds[i]);
+      }
+    }
+    if (!_isCurrentRoundArchived &&
+        currentRound.isOver() &&
+        duplicateRound.isOver()) {
+      total += impsForRounds(currentRound, duplicateRound);
+    }
+    return total;
   }
 }
 

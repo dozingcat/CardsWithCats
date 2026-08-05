@@ -99,6 +99,8 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedTrumpCards = false;
   bool useTintedHeartsPointCards = false;
   bool useTintedHeartsReceivedCards = false;
+  bool rotateBridgeDummyToTop = false;
+  int bridgeRoundsPerMatch = 4;
 
   @override
   void initState() {
@@ -132,7 +134,11 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedTrumpCards = preferences.getBool("tintedTrumpCards") ?? true;
       useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
       useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
-
+      rotateBridgeDummyToTop = preferences.getBool("bridgeRotateDummyToTop") ?? true;
+      bridgeRoundsPerMatch = preferences.getInt("bridgeRoundsPerMatch") ?? 4;
+      if (![1, 4, 8].contains(bridgeRoundsPerMatch)) {
+        bridgeRoundsPerMatch = 4;
+      }
 
       statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
@@ -223,6 +229,20 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedHeartsReceivedCards = enabled;
     });
     preferences.setBool("tintedHeartsReceivedCards", enabled);
+  }
+
+  void setRotateBridgeDummyToTopEnabled(bool enabled) {
+    setState(() {
+      rotateBridgeDummyToTop = enabled;
+    });
+    preferences.setBool("bridgeRotateDummyToTop", enabled);
+  }
+
+  void setBridgeRoundsPerMatch(int numRounds) {
+    setState(() {
+      bridgeRoundsPerMatch = numRounds;
+    });
+    preferences.setInt("bridgeRoundsPerMatch", numRounds);
   }
 
   void _showMainMenu() {
@@ -348,7 +368,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   BridgeMatch _createBridgeMatch() {
     catIndices = randomizedCatImageIndices(rng);
-    return BridgeMatch(Random());
+    return BridgeMatch(Random(), numRounds: bridgeRoundsPerMatch);
   }
 
   void _continueGame() {
@@ -744,6 +764,41 @@ class _MyHomePageState extends State<MyHomePage> {
                                 rules.trickScoring = scoring;
                               }
                           )])),
+
+                          const ListTile(
+                              title: Text("Bridge",
+                                  style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+                          CheckboxListTile(
+                            dense: true,
+                            title: const Text("Show dummy at top", style: labelStyle),
+                            value: rotateBridgeDummyToTop,
+                            onChanged: (bool? checked) {
+                              setRotateBridgeDummyToTopEnabled(checked == true);
+                            },
+                          ),
+                          const ListTile(
+                              title: Text("Rounds per match:",
+                                  style: TextStyle(fontSize: baseFontSize * 0.8))),
+                          Padding(padding: const EdgeInsets.only(left: 32), child: Row(children: [
+                            DropdownButton<int>(
+                              items: [
+                                for (final n in [1, 4, 8])
+                                  DropdownMenuItem(
+                                      value: n,
+                                      child: Text("$n",
+                                          style: const TextStyle(
+                                              fontSize: baseFontSize * 0.8,
+                                              color: Colors.blue,
+                                              fontWeight: FontWeight.bold))),
+                              ],
+                              value: bridgeRoundsPerMatch,
+                              onChanged: (int? value) {
+                                if (value != null) {
+                                  setBridgeRoundsPerMatch(value);
+                                }
+                              },
+                            ),
+                          ])),
                         ],
             ))))),
             _paddingAll(20, ElevatedButton(onPressed: _showMainMenu, child: const Text("OK"))),
@@ -848,7 +903,10 @@ class _MyHomePageState extends State<MyHomePage> {
         Padding(padding: layout.padding, child: Stack(children: [
           // Text(layout.displaySize.shortestSide.toString()),
           _gameTable(layout),
-          ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
+          // The bridge display draws its own player images so that it can
+          // rotate them along with the hands when the dummy is shown at top.
+          if (matchType != GameType.bridge)
+            ...aiIndices.map((i) => AiPlayerImage(layout: layout, playerIndex: i, catImageIndex: catIndices[i])),
           if (matchType == GameType.hearts)
             HeartsMatchDisplay(
               initialMatchFn: _initialHeartsMatch,
@@ -899,6 +957,7 @@ class _MyHomePageState extends State<MyHomePage> {
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
               tintTrumpCards: useTintedTrumpCards,
+              rotateDummyToTop: rotateBridgeDummyToTop,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
             ),

@@ -520,11 +520,15 @@ class DisplayedHand {
   int playerIndex;
   List<PlayingCard> cards;
   HandDisplayStyle displayStyle;
+  // If false, side hands are drawn close to the display edge instead of
+  // leaving room for a player avatar.
+  bool leaveAvatarSpace;
 
   DisplayedHand({
     required this.playerIndex,
     required this.cards,
     this.displayStyle = HandDisplayStyle.normal,
+    this.leaveAvatarSpace = true,
   });
 }
 
@@ -617,7 +621,7 @@ class TrickCards extends StatelessWidget {
       // there now, so we have to compute the card rects as if it were.
       final previousHandCards = [...dh.cards, cards.last];
       startRect =
-          playerHandCardRects(layout, previousHandCards, suitOrder!, playerIndex: animPlayer, displayStyle: dh.displayStyle)[cards.last]!;
+          playerHandCardRects(layout, previousHandCards, suitOrder!, playerIndex: animPlayer, displayStyle: dh.displayStyle, leaveAvatarSpace: dh.leaveAvatarSpace)[cards.last]!;
     }
 
     cardWidgets.add(TweenAnimationBuilder(
@@ -763,6 +767,7 @@ class PlayerHandCards extends StatelessWidget {
   final int playerIndex;
   final HandDisplayStyle displayStyle;
   final double scaleMultiplier;
+  final bool leaveAvatarSpace;
 
   const PlayerHandCards({
     super.key,
@@ -777,11 +782,12 @@ class PlayerHandCards extends StatelessWidget {
     this.playerIndex = 0,
     this.displayStyle = HandDisplayStyle.normal,
     this.scaleMultiplier = 1,
+    this.leaveAvatarSpace = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier);
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
 
     double rotation = (playerIndex == 1)
         ? pi / 2
@@ -790,7 +796,7 @@ class PlayerHandCards extends StatelessWidget {
         : 0;
 
     if (animateFromCards != null) {
-      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier);
+      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
       return TweenAnimationBuilder(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 200),
@@ -839,6 +845,9 @@ class PlayerHandParams {
   final void Function(PlayingCard)? onCardClicked;
   final List<PlayingCard>? animateFromCards;
   final HandDisplayStyle displayStyle;
+  // If false, side hands are drawn close to the display edge instead of
+  // leaving room for a player avatar.
+  final bool leaveAvatarSpace;
 
   PlayerHandParams({
     this.key,
@@ -848,6 +857,7 @@ class PlayerHandParams {
     this.animateFromCards,
     this.onCardClicked,
     this.displayStyle = HandDisplayStyle.normal,
+    this.leaveAvatarSpace = true,
   });
 }
 
@@ -893,6 +903,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
         playerIndex: ph.playerIndex,
         displayStyle: ph.displayStyle,
         scaleMultiplier: scaleMultiplier,
+        leaveAvatarSpace: ph.leaveAvatarSpace,
       ).values.toList(growable: false);
       if (ph.playerIndex == 1 || ph.playerIndex == 3) {
         for (int i = 0; i < rects.length; i++) {
@@ -962,6 +973,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
         onCardClicked: ph.onCardClicked,
         displayStyle: ph.displayStyle,
         scaleMultiplier: scaleMultiplier,
+        leaveAvatarSpace: ph.leaveAvatarSpace,
       ))
     ]);
   }
@@ -1054,7 +1066,7 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {required int playerIndex, double scaleMultiplier = 1.0}
+    {required int playerIndex, double scaleMultiplier = 1.0, bool leaveAvatarSpace = true}
     ) {
   if (!(playerIndex == 1 || playerIndex == 3)) {
     throw Exception("invalid playerIndex: $playerIndex");
@@ -1085,7 +1097,9 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
   final actualCardHeight = scale * preferredCardHeight;
 
   // final xCenter = 0.05 * ds.width + actualCardWidth / 2;
-  final xCenter = layout.playerHeight + actualCardWidth / 2;
+  final edgeInset =
+      leaveAvatarSpace ? layout.playerHeight : 0.2 * layout.playerHeight;
+  final xCenter = edgeInset + actualCardWidth / 2;
   final yDistanceBetweenCenters = cardOverlapFraction * actualCardHeight;
 
   if (playerIndex == 1) {
@@ -1225,13 +1239,13 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {int playerIndex = 0, double scaleMultiplier = 1}
+    {int playerIndex = 0, double scaleMultiplier = 1, bool leaveAvatarSpace = true}
 ) {
   if (playerIndex == 0 || playerIndex == 2) {
     return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
   }
   else {
-    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
+    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
   }
   throw Exception();
 }
@@ -1240,10 +1254,10 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal, scaleMultiplier = 1.0}) {
+    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal, scaleMultiplier = 1.0, bool leaveAvatarSpace = true}) {
   return switch (displayStyle) {
     HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
-    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
+    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace),
   };
 }
 

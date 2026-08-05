@@ -363,4 +363,181 @@ void main() {
       expect(contract.isVulnerable, false);
     });
   });
+
+  group("Match", () {
+    void passOutRound(BridgeRound round) {
+      for (int i = 0; i < 4; i++) {
+        round.addBid(PlayerBid(round.currentBidder(), BidAction.pass()));
+      }
+    }
+
+    void bidAndPlayOutRound(BridgeRound round, Random rng) {
+      round.addBid(
+          PlayerBid(round.currentBidder(), BidAction.contract(1, Suit.clubs)));
+      for (int i = 0; i < 3; i++) {
+        round.addBid(PlayerBid(round.currentBidder(), BidAction.pass()));
+      }
+      while (!round.isOver()) {
+        final legal = round.legalPlaysForCurrentPlayer();
+        round.playCard(legal[rng.nextInt(legal.length)]);
+      }
+    }
+
+    test("Match lasts 4 rounds with rotating dealer", () {
+      final match = BridgeMatch(Random(17));
+      expect(match.numRounds, 4);
+      final startDealer = match.currentRound.dealer;
+      const expectedVulnerabilities = [
+        Vulnerability.neither,
+        Vulnerability.nsOnly,
+        Vulnerability.ewOnly,
+        Vulnerability.both,
+      ];
+      for (int i = 0; i < 4; i++) {
+        expect(match.currentRoundNumber, i + 1);
+        expect(match.currentRound.dealer, (startDealer + i) % 4);
+        expect(match.currentRound.vulnerability, expectedVulnerabilities[i]);
+        expect(match.duplicateRound.vulnerability, expectedVulnerabilities[i]);
+        expect(match.isMatchOver(), false);
+        passOutRound(match.currentRound);
+        passOutRound(match.duplicateRound);
+        expect(match.numCompletedRounds, i + 1);
+        match.finishRound();
+      }
+      expect(match.isMatchOver(), true);
+      expect(match.numCompletedRounds, 4);
+      expect(match.currentRoundNumber, 4);
+      expect(match.previousRounds.length, 4);
+      expect(match.previousDuplicateRounds.length, 4);
+    });
+
+    test("Starting dealer varies with rng", () {
+      final dealers = <int>{};
+      for (int seed = 0; seed < 20; seed++) {
+        dealers.add(BridgeMatch(Random(seed)).currentRound.dealer);
+      }
+      expect(dealers, {0, 1, 2, 3});
+    });
+
+    test("Single-round match ends after one round", () {
+      final match = BridgeMatch(Random(17), numRounds: 1);
+      expect(match.numRounds, 1);
+      expect(match.currentRoundNumber, 1);
+      expect(match.isMatchOver(), false);
+      passOutRound(match.currentRound);
+      passOutRound(match.duplicateRound);
+      expect(match.isMatchOver(), true);
+      match.finishRound();
+      expect(match.previousRounds.length, 1);
+      expect(match.currentRoundNumber, 1);
+    });
+
+    test("Single-round match vulnerability varies with rng", () {
+      final vulnerabilities = <Vulnerability>{};
+      for (int seed = 0; seed < 30; seed++) {
+        vulnerabilities.add(
+            BridgeMatch(Random(seed), numRounds: 1).currentRound.vulnerability);
+      }
+      expect(vulnerabilities, Vulnerability.values.toSet());
+    });
+
+    test("8-round match repeats the vulnerability cycle", () {
+      final match = BridgeMatch(Random(17), numRounds: 8);
+      final startDealer = match.currentRound.dealer;
+      for (int i = 0; i < 8; i++) {
+        expect(match.currentRound.dealer, (startDealer + i) % 4);
+        expect(match.currentRound.vulnerability,
+            Vulnerability.values[i % 4]);
+        passOutRound(match.currentRound);
+        passOutRound(match.duplicateRound);
+        match.finishRound();
+      }
+      expect(match.isMatchOver(), true);
+      expect(match.previousRounds.length, 8);
+    });
+
+    test("finishRound throws if the round is not over", () {
+      final match = BridgeMatch(Random(17));
+      expect(() => match.finishRound(), throwsException);
+    });
+
+    test("IMP total compares each round to its duplicate", () {
+      final rng = Random(42);
+      final match = BridgeMatch(rng);
+
+      bidAndPlayOutRound(match.currentRound, rng);
+      // Duplicate round hasn't finished; no IMPs yet.
+      expect(match.totalImpsForPlayer0(), 0);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+
+      final expectedImps = impsForScoreDifference(
+          match.currentRound.contractScoreForPlayer(0) -
+              match.duplicateRound.contractScoreForPlayer(0));
+      expect(match.totalImpsForPlayer0(), expectedImps);
+
+      // Total persists after the round is archived and a new one dealt.
+      match.finishRound();
+      expect(match.totalImpsForPlayer0(), expectedImps);
+      expect(match.currentRound.isOver(), false);
+
+      // A second finished round adds its IMPs to the total.
+      bidAndPlayOutRound(match.currentRound, rng);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+      final round2Imps = impsForScoreDifference(
+          match.currentRound.contractScoreForPlayer(0) -
+              match.duplicateRound.contractScoreForPlayer(0));
+      expect(match.totalImpsForPlayer0(), expectedImps + round2Imps);
+    });
+
+    test("Serialization preserves rounds and IMP total", () {
+      final rng = Random(23);
+      final match = BridgeMatch(rng);
+      bidAndPlayOutRound(match.currentRound, rng);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+      match.finishRound();
+      bidAndPlayOutRound(match.currentRound, rng);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+
+      final restored =
+          BridgeMatch.fromJson(jsonDecode(jsonEncode(match.toJson())), rng);
+      expect(restored.numRounds, match.numRounds);
+      expect(restored.previousRounds.length, 1);
+      expect(restored.previousDuplicateRounds.length, 1);
+      expect(restored.currentRoundNumber, 2);
+      expect(restored.numCompletedRounds, 2);
+      expect(restored.currentRound.vulnerability, Vulnerability.nsOnly);
+      expect(restored.duplicateRound.vulnerability, Vulnerability.nsOnly);
+      expect(restored.totalImpsForPlayer0(), match.totalImpsForPlayer0());
+    });
+
+    test("Contract vulnerability follows round vulnerability", () {
+      final rng = Random(7);
+      final match = BridgeMatch(rng);
+      for (int i = 0; i < 4; i++) {
+        // The declarer is the dealer, who opens 1C in bidAndPlayOutRound.
+        final dealer = match.currentRound.dealer;
+        bidAndPlayOutRound(match.currentRound, rng);
+        final contract = match.currentRound.contract!;
+        expect(contract.declarer, dealer);
+        expect(contract.isVulnerable,
+            match.currentRound.vulnerability.isPlayerVulnerable(dealer));
+        bidAndPlayOutRound(match.duplicateRound, rng);
+        match.finishRound();
+      }
+    });
+
+    test("Reads legacy JSON without duplicate rounds", () {
+      final match = BridgeMatch(Random(5));
+      final json = jsonDecode(jsonEncode(match.toJson()));
+      json.remove("numRounds");
+      json.remove("previousDuplicateRounds");
+      json.remove("duplicateRound");
+
+      final restored = BridgeMatch.fromJson(json, Random(5));
+      expect(restored.numRounds, 4);
+      expect(restored.previousDuplicateRounds, isEmpty);
+      expect(restored.duplicateRound.isOver(), false);
+      expect(restored.totalImpsForPlayer0(), 0);
+    });
+  });
 }
