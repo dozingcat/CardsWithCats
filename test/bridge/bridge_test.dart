@@ -363,4 +363,109 @@ void main() {
       expect(contract.isVulnerable, false);
     });
   });
+
+  group("Match", () {
+    void passOutRound(BridgeRound round) {
+      for (int i = 0; i < 4; i++) {
+        round.addBid(PlayerBid(round.currentBidder(), BidAction.pass()));
+      }
+    }
+
+    void bidAndPlayOutRound(BridgeRound round, Random rng) {
+      round.addBid(
+          PlayerBid(round.currentBidder(), BidAction.contract(1, Suit.clubs)));
+      for (int i = 0; i < 3; i++) {
+        round.addBid(PlayerBid(round.currentBidder(), BidAction.pass()));
+      }
+      while (!round.isOver()) {
+        final legal = round.legalPlaysForCurrentPlayer();
+        round.playCard(legal[rng.nextInt(legal.length)]);
+      }
+    }
+
+    test("Match lasts 4 rounds with rotating dealer", () {
+      final match = BridgeMatch(Random(17));
+      expect(match.numRounds, 4);
+      for (int i = 0; i < 4; i++) {
+        expect(match.currentRoundNumber, i + 1);
+        expect(match.currentRound.dealer, i % 4);
+        expect(match.isMatchOver(), false);
+        passOutRound(match.currentRound);
+        passOutRound(match.duplicateRound);
+        expect(match.numCompletedRounds, i + 1);
+        match.finishRound();
+      }
+      expect(match.isMatchOver(), true);
+      expect(match.numCompletedRounds, 4);
+      expect(match.currentRoundNumber, 4);
+      expect(match.previousRounds.length, 4);
+      expect(match.previousDuplicateRounds.length, 4);
+    });
+
+    test("finishRound throws if the round is not over", () {
+      final match = BridgeMatch(Random(17));
+      expect(() => match.finishRound(), throwsException);
+    });
+
+    test("IMP total compares each round to its duplicate", () {
+      final rng = Random(42);
+      final match = BridgeMatch(rng);
+
+      bidAndPlayOutRound(match.currentRound, rng);
+      // Duplicate round hasn't finished; no IMPs yet.
+      expect(match.totalImpsForPlayer0(), 0);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+
+      final expectedImps = impsForScoreDifference(
+          match.currentRound.contractScoreForPlayer(0) -
+              match.duplicateRound.contractScoreForPlayer(0));
+      expect(match.totalImpsForPlayer0(), expectedImps);
+
+      // Total persists after the round is archived and a new one dealt.
+      match.finishRound();
+      expect(match.totalImpsForPlayer0(), expectedImps);
+      expect(match.currentRound.isOver(), false);
+
+      // A second finished round adds its IMPs to the total.
+      bidAndPlayOutRound(match.currentRound, rng);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+      final round2Imps = impsForScoreDifference(
+          match.currentRound.contractScoreForPlayer(0) -
+              match.duplicateRound.contractScoreForPlayer(0));
+      expect(match.totalImpsForPlayer0(), expectedImps + round2Imps);
+    });
+
+    test("Serialization preserves rounds and IMP total", () {
+      final rng = Random(23);
+      final match = BridgeMatch(rng);
+      bidAndPlayOutRound(match.currentRound, rng);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+      match.finishRound();
+      bidAndPlayOutRound(match.currentRound, rng);
+      bidAndPlayOutRound(match.duplicateRound, rng);
+
+      final restored =
+          BridgeMatch.fromJson(jsonDecode(jsonEncode(match.toJson())), rng);
+      expect(restored.numRounds, match.numRounds);
+      expect(restored.previousRounds.length, 1);
+      expect(restored.previousDuplicateRounds.length, 1);
+      expect(restored.currentRoundNumber, 2);
+      expect(restored.numCompletedRounds, 2);
+      expect(restored.totalImpsForPlayer0(), match.totalImpsForPlayer0());
+    });
+
+    test("Reads legacy JSON without duplicate rounds", () {
+      final match = BridgeMatch(Random(5));
+      final json = jsonDecode(jsonEncode(match.toJson()));
+      json.remove("numRounds");
+      json.remove("previousDuplicateRounds");
+      json.remove("duplicateRound");
+
+      final restored = BridgeMatch.fromJson(json, Random(5));
+      expect(restored.numRounds, 4);
+      expect(restored.previousDuplicateRounds, isEmpty);
+      expect(restored.duplicateRound.isOver(), false);
+      expect(restored.totalImpsForPlayer0(), 0);
+    });
+  });
 }

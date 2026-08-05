@@ -78,20 +78,23 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   bool showScoreOverlay = false;
   late BridgeMatch match;
   late StreamSubscription matchUpdateSubscription;
-  late BridgeRound duplicateRound;
 
   BridgeRound get round => match.currentRound;
+  BridgeRound get duplicateRound => match.duplicateRound;
 
   @override
   void initState() {
     super.initState();
     match = widget.initialMatchFn();
-    duplicateRound = match.currentRound.copyAndReset();
     matchUpdateSubscription = widget.matchUpdateStream.listen((event) {
       if (event is BridgeMatch) {
         _updateMatch(event);
       }
     });
+    if (round.isOver() && !duplicateRound.isOver()) {
+      // Restored from a save made before the duplicate round finished.
+      _runDuplicateRound();
+    }
     _scheduleNextActionIfNeeded();
   }
 
@@ -269,34 +272,42 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   void _runDuplicateRound() {
-    duplicateRound = round.copyAndReset();
+    final dup = round.copyAndReset();
+    match.duplicateRound = dup;
     const delayDuration = Duration(milliseconds: 10);
     // print("*** Starting duplicate round");
 
     void runNextStep() {
-      if (duplicateRound.status == .bidding) {
-        final playerIndex = duplicateRound.currentBidder();
+      if (!identical(dup, match.duplicateRound)) {
+        // A newer duplicate round replaced this one; stop.
+        return;
+      }
+      if (dup.status == .bidding) {
+        final playerIndex = dup.currentBidder();
         final bid = selectSaycBid(
-          duplicateRound.players[playerIndex].hand,
-          duplicateRound.bidHistory.map((b) => b.action).toList(),
+          dup.players[playerIndex].hand,
+          dup.bidHistory.map((b) => b.action).toList(),
         );
         final playerBid = PlayerBid(playerIndex, bid.action);
         // print("*** Bid: ${playerBid.action}");
         setState(() {
-          duplicateRound.addBid(playerBid);
+          dup.addBid(playerBid);
         });
       }
       else {
         // This should possibly be async.
-        final card = computeCard(CardToPlayRequest.fromRound(duplicateRound));
+        final card = computeCard(CardToPlayRequest.fromRound(dup));
         // print("*** Play: $card");
         setState(() {
-          duplicateRound.playCard(card);
+          dup.playCard(card);
         });
       }
 
-      if (!duplicateRound.isOver()) {
+      if (!dup.isOver()) {
         Future.delayed(delayDuration, runNextStep);
+      } else {
+        // Save so the completed duplicate round and IMP totals persist.
+        widget.saveMatchFn(match);
       }
     }
 
@@ -1037,10 +1048,23 @@ class EndOfRoundDialog extends StatelessWidget {
       ]),
       if (onReplayDuplicateRound != null) makeRow([
         Transform.scale(scale: 0.5, child:
-          ElevatedButton(
-            onPressed: onReplayDuplicateRound,
-            child: const Text("Replay duplicate round"),
-          )),
+        ElevatedButton(
+          onPressed: onReplayDuplicateRound,
+          child: const Text("Replay duplicate round"),
+        )),
+      ]),
+      makeRow([
+        Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text("Total IMPs: ${plusPrefixIfPositive(match.totalImpsForPlayer0())}",
+                style: const TextStyle(fontSize: 16))),
+      ]),
+      if (match.isMatchOver()) makeRow([
+        Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(matchResultDescription(match.totalImpsForPlayer0()),
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold))),
       ]),
     ];
   }
@@ -1061,6 +1085,12 @@ class EndOfRoundDialog extends StatelessWidget {
                   children: [
                     makeRow([
                       Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                              "Round ${match.currentRoundNumber} of ${match.numRounds}")),
+                    ]),
+                    makeRow([
+                      Padding(
                           padding: const EdgeInsets.all(10),
                           child: Text("$roundResultDesc: ${formatRoundScore(round)}",
                               style: const TextStyle(fontSize: 18))),
@@ -1079,7 +1109,9 @@ class EndOfRoundDialog extends StatelessWidget {
                       ),
                     ]),
                     if (duplicateRound.isOver()) ...rowsForDuplicateRound(),
-                    if (match.isMatchOver())
+                    // Buttons appear when the duplicate round finishes, so
+                    // that every archived round has a completed duplicate.
+                    if (duplicateRound.isOver() && match.isMatchOver())
                       makeRow([
                           paddingAll(
                               15,
@@ -1095,7 +1127,7 @@ class EndOfRoundDialog extends StatelessWidget {
                               )),
                         ],
                       ),
-                    if (!match.isMatchOver())
+                    if (duplicateRound.isOver() && !match.isMatchOver())
                       makeRow([
                           paddingAll(
                               15,
@@ -1135,6 +1167,15 @@ String roundResultDescription(BridgeRound round) {
       ? "made ${tricksOver + contract.bid.count}"
       : "down ${-tricksOver}";
   return "$contractDesc, $bidResultDesc";
+}
+
+String matchResultDescription(int totalImps) {
+  if (totalImps == 0) {
+    return "Match tied";
+  }
+  final imps = totalImps.abs();
+  final impsDesc = "$imps IMP${imps == 1 ? '' : 's'}";
+  return totalImps > 0 ? "You won by $impsDesc!" : "You lost by $impsDesc";
 }
 
 String plusPrefixIfPositive(int n) => "${(n > 0) ? '+' : ''}$n";
