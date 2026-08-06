@@ -388,10 +388,26 @@ class DDSolver {
       }
       return ordered;
     }
+    // Leading: try suits where we hold the highest remaining card first —
+    // cash-out lines give the earliest cutoffs.
+    final rest = <int>[];
     for (int s = 0; s < 4; s++) {
       final h = holdings[player * 4 + s];
-      if (h != 0) _addSuitMoves(moves, player, s, h);
+      if (h == 0) continue;
+      int allSuit = 0;
+      for (int p = 0; p < _numPlayers; p++) {
+        allSuit |= holdings[p * 4 + s];
+      }
+      final suitMoves = <int>[];
+      _addSuitMoves(suitMoves, player, s, h);
+      if (_highestBit(h) == _highestBit(allSuit)) {
+        moves.add(suitMoves[0]);
+        rest.addAll(suitMoves.skip(1));
+      } else {
+        rest.addAll(suitMoves);
+      }
     }
+    moves.addAll(rest);
     return moves;
   }
 
