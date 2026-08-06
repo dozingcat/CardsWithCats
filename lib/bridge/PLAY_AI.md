@@ -82,12 +82,13 @@ inference.
 | MC with *deterministic* heuristic rollouts vs old AI | 100 | **-1.37 +/- 0.56** |
 | ... with eps=0.2 noise | 100 | +0.40 +/- 0.51 |
 | **MCDD (rounds=10, dd=7, bid) vs old AI** | 100 | **+2.28 +/- 0.53** |
-| MCDD vs MC with maxtricks rollouts | 100 | +1.58 +/- 0.48 |
+| MCDD vs MC with maxtricks rollouts (seed 42; pooled with the seed-43 run below: ~+0.8 +/- 0.3) | 100 | +1.58 +/- 0.48 |
 | MCDD without bidding inference vs with | 100 | -0.66 +/- 0.48 |
 | maxtricks MC with bidding inference vs without | 100 | -0.03 +/- 0.49 |
 | MCDD rounds=20/dd=8 vs rounds=10/dd=7 (~8x compute) | 60 | +0.25 +/- 0.59 |
-| MCDD dd=6 vs dd=7, equal rounds (3.5x cheaper) | 100 | -0.36 +/- 0.47 |
-| MCDD dd=6 vs dd=7, app config (4x cheaper) | 24 | -0.17 +/- 1.01 |
+| MCDD dd=6 vs dd=7, equal rounds, 300 boards seed 43 | 300 | **-0.73 +/- 0.27** |
+| MCDD dd=7 vs maxtricks MC, seed 43 | 200 | +0.47 +/- 0.33 |
+| MCDD dd=6 vs maxtricks MC, seed 43 | 200 | -0.11 +/- 0.34 |
 
 Two negative results shaped the final design:
 
@@ -127,17 +128,23 @@ also never wastes an honor between equals.
 ## App configuration
 
 `computeCard` in `bridge_ui.dart` runs `chooseCardMonteCarloDD` with up
-to 50 sampled deals, double-dummy solving from 6 tricks out, and a 2.2s
-time budget (the old Monte Carlo remains as a defensive fallback). The
-dd=7 equivalent beat the previously shipped configuration by
-+2.83 +/- 1.00 IMPs/board (12 boards, 8 wins 1 loss 3 ties); dd=6
-matches dd=7 within noise in both equal-rounds and equal-budget
-comparisons while being ~4x cheaper, averaging ~40ms per play with a
-max of ~0.5s on a desktop M4 — comfortable headroom for slower mobile
-hardware. The 2.2s budget is enforced between candidates as well as
-between sampled deals, so slow devices degrade to fewer sampled deals
-rather than longer thinks; if no sampled deal completes at all, the
-move falls back to the heuristic policy.
+to 50 sampled deals, double-dummy solving from 7 tricks out, and a 2.2s
+time budget (the old Monte Carlo remains as a defensive fallback). It
+beat the previously shipped configuration by +2.83 +/- 1.00 IMPs/board
+(12 boards, 8 wins 1 loss 3 ties) and averages ~150ms per play (max
+~2.2s) on a desktop M4. The budget is enforced between candidates as
+well as between sampled deals, so slow devices degrade to fewer sampled
+deals rather than longer thinks; if no sampled deal completes at all,
+the move falls back to the heuristic policy.
+
+dd=6 was tried as a ~4x cheaper alternative and initially looked like a
+wash in 100-board comparisons, but a 300-board head-to-head measured it
+-0.73 +/- 0.27 behind dd=7 — it gives back most of MCDD's edge over a
+maxtricks-rollout MC (dd=6 measured dead even with maxtricks on 200
+boards; dd=7 measured +0.5 to +0.8 pooled across seeds). Moral: with
+~+/-0.5-IMP error bars at 100 boards, differences under ~1 IMP need
+200-300+ boards to resolve. If a low-end device needs a cheaper config,
+cut `maxRounds` before cutting `ddTricksLimit`.
 
 ## Known limitations / future ideas
 
