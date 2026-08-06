@@ -86,6 +86,8 @@ inference.
 | MCDD without bidding inference vs with | 100 | -0.66 +/- 0.48 |
 | maxtricks MC with bidding inference vs without | 100 | -0.03 +/- 0.49 |
 | MCDD rounds=20/dd=8 vs rounds=10/dd=7 (~8x compute) | 60 | +0.25 +/- 0.59 |
+| MCDD dd=6 vs dd=7, equal rounds (3.5x cheaper) | 100 | -0.36 +/- 0.47 |
+| MCDD dd=6 vs dd=7, app config (4x cheaper) | 24 | -0.17 +/- 1.01 |
 
 Two negative results shaped the final design:
 
@@ -125,17 +127,17 @@ also never wastes an honor between equals.
 ## App configuration
 
 `computeCard` in `bridge_ui.dart` runs `chooseCardMonteCarloDD` with up
-to 50 sampled deals, double-dummy solving from 7 tricks out, and a 2.2s
-time budget (the old Monte Carlo remains as a defensive fallback). At
-these settings it beat the previously shipped configuration by
-+2.83 +/- 1.00 IMPs/board (12 boards, 8 wins 1 loss 3 ties). After the
-solver throughput work (shared tables, quick-trick bounds, node limits,
-mid-round deadline checks) the same configuration averages ~120ms per
-play with a max of ~1.6s on a desktop M4; the 2.2s budget is enforced
-between candidates as well as between sampled deals, so slower mobile
-devices degrade to fewer sampled deals rather than longer thinks. If the
-Monte Carlo completes no sampled deal at all within budget, the move
-falls back to the heuristic policy.
+to 50 sampled deals, double-dummy solving from 6 tricks out, and a 2.2s
+time budget (the old Monte Carlo remains as a defensive fallback). The
+dd=7 equivalent beat the previously shipped configuration by
++2.83 +/- 1.00 IMPs/board (12 boards, 8 wins 1 loss 3 ties); dd=6
+matches dd=7 within noise in both equal-rounds and equal-budget
+comparisons while being ~4x cheaper, averaging ~40ms per play with a
+max of ~0.5s on a desktop M4 — comfortable headroom for slower mobile
+hardware. The 2.2s budget is enforced between candidates as well as
+between sampled deals, so slow devices degrade to fewer sampled deals
+rather than longer thinks; if no sampled deal completes at all, the
+move falls back to the heuristic policy.
 
 ## Known limitations / future ideas
 
