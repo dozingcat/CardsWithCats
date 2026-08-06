@@ -77,6 +77,7 @@ inference.
 | MC with *deterministic* heuristic rollouts vs old AI | 100 | **-1.37 +/- 0.56** |
 | ... with eps=0.2 noise | 100 | +0.40 +/- 0.51 |
 | **MCDD (rounds=10, dd=7, bid) vs old AI** | 100 | **+2.28 +/- 0.53** |
+| MCDD vs MC with maxtricks rollouts | 100 | +1.58 +/- 0.48 |
 | MCDD without bidding inference vs with | 100 | -0.66 +/- 0.48 |
 | MCDD rounds=20/dd=8 vs rounds=10/dd=7 (~8x compute) | 60 | +0.25 +/- 0.59 |
 
