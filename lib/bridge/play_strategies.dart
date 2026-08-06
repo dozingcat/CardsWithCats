@@ -13,6 +13,10 @@
 ///     rpr=N                      rollouts per sampled deal (default 10)
 ///     ms=N                       time budget in milliseconds (default none)
 ///     bid                        constrain sampled deals by the auction
+///   mcdd                       Monte Carlo with exact endgame evaluation:
+///                              heuristic preroll, then double-dummy solve.
+///     rounds=N, ms=N, bid/nobid  as for mc (bid defaults ON here)
+///     dd=K                       tricks left at which to solve (default 8)
 /// Example: "mc:rollout=heuristic:eps=0.1:rounds=30:rpr=5:ms=2500"
 library;
 
@@ -80,6 +84,20 @@ PlayStrategy makeStrategy(String spec) {
       final useBid = options.containsKey("bid");
       PlayingCard choose(CardToPlayRequest req, Random rng) {
         return chooseCardMonteCarlo(req, mcParams, rolloutFn, rng,
+                useBiddingInference: useBid)
+            .bestCard;
+      }
+      return PlayStrategy(spec, choose);
+    case "mcdd":
+      final maxRounds = int.parse(options["rounds"] ?? "20");
+      final ddLimit = int.parse(options["dd"] ?? "8");
+      final ms = options.containsKey("ms") ? int.parse(options["ms"]!) : null;
+      final useBid = !options.containsKey("nobid");
+      PlayingCard choose(CardToPlayRequest req, Random rng) {
+        return chooseCardMonteCarloDD(req, rng,
+                maxRounds: maxRounds,
+                ddTricksLimit: ddLimit,
+                maxTimeMillis: ms,
                 useBiddingInference: useBid)
             .bestCard;
       }
