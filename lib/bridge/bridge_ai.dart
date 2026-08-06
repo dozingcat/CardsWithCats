@@ -464,13 +464,29 @@ MonteCarloResult chooseCardMonteCarloDD(
   final filter =
       useBiddingInference ? BiddingDealFilter.fromRequest(cardReq) : null;
 
+  // A pathological solve gives up after this many search nodes rather
+  // than blowing the latency budget; the whole sampled deal is then
+  // discarded (a per-candidate skip would bias the equities).
+  const solveNodeLimit = 3000000;
+
   int numRounds = 0;
+  final roundEquities = List.generate(legalPlays.length, (_) => 0.0);
+  outer:
   for (int i = 0; i < maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
     if (hypoRound == null) {
       break;
     }
+    // Solves of the same sampled deal share position bounds.
+    final sharedTable = <int, int>{};
     for (int ci = 0; ci < legalPlays.length; ci++) {
+      // Deadline check between candidates; an unfinished deal's partial
+      // sums in roundEquities are simply never committed.
+      if (numRounds > 0 &&
+          maxTimeMillis != null &&
+          timeFn() - startTime >= maxTimeMillis) {
+        break outer;
+      }
       final round = hypoRound.copy();
       round.playCard(legalPlays[ci]);
       while (!round.isOver() &&
@@ -484,18 +500,25 @@ MonteCarloResult chooseCardMonteCarloDD(
       } else {
         final hands = [for (final p in round.players) p.hand];
         final solver = DDSolver.fromHands(
-            hands, contract.bid.trump, round.currentTrick.leader);
+            hands, contract.bid.trump, round.currentTrick.leader,
+            sharedTable: sharedTable);
         for (final c in round.currentTrick.cards) {
           solver.addTrickCard(c);
         }
-        final nsFuture = solver.solve();
+        final nsFuture = solver.solveWithNodeLimit(solveNodeLimit);
+        if (nsFuture == null) {
+          continue outer; // discard this deal
+        }
         final future = 13 - round.previousTricks.length;
         declarerTricks = round.numTricksWonByDeclarer() +
             (declarerSideIsNS ? nsFuture : future - nsFuture);
       }
       final declarerScore = contract.scoreForTricksTaken(declarerTricks);
-      playEquities[ci] +=
-          playerIsDeclarerSide ? declarerScore : -declarerScore;
+      roundEquities[ci] =
+          (playerIsDeclarerSide ? declarerScore : -declarerScore).toDouble();
+    }
+    for (int ci = 0; ci < legalPlays.length; ci++) {
+      playEquities[ci] += roundEquities[ci];
     }
     numRounds += 1;
     if (maxTimeMillis != null && timeFn() - startTime >= maxTimeMillis) {
@@ -503,8 +526,10 @@ MonteCarloResult chooseCardMonteCarloDD(
     }
   }
   if (numRounds == 0) {
+    // Nothing completed within budget: fall back to the heuristic policy
+    // rather than a random card.
     return MonteCarloResult.rolloutFailed(
-      bestCard: chooseCardRandom(cardReq, rng),
+      bestCard: prerollFn(cardReq, rng),
       cardEquities: const {},
       numRounds: 0,
       numRollouts: 0,

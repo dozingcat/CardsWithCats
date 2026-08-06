@@ -13,6 +13,10 @@ import '../cards/card.dart';
 
 const int _numPlayers = 4;
 
+class _SearchAborted implements Exception {
+  const _SearchAborted();
+}
+
 /// Mutable solver state. Create one per position via [DDSolver.fromHands]
 /// and call [solve]; not reentrant.
 class DDSolver {
@@ -23,7 +27,7 @@ class DDSolver {
   final List<int> trickSuits = List.filled(4, 0);
   final List<int> trickRanks = List.filled(4, 0);
   int trickCount = 0;
-  final Map<int, int> _transposition = {};
+  final Map<int, int> _transposition;
 
   // Debug toggles for isolating search bugs; see scripts/dd_debug.dart.
   bool debugSimpleMovegen = false;
@@ -32,18 +36,27 @@ class DDSolver {
   bool debugNoEquivalenceClasses = false;
   bool debugClearTTBetweenPasses = false;
 
-  DDSolver._(this.holdings, this.trump, this.leader);
+  int _nodesRemaining = 1 << 60;
 
+  DDSolver._(this.holdings, this.trump, this.leader, Map<int, int>? shared)
+      : _transposition = shared ?? {};
+
+  /// [sharedTable] lets several solves of the *same deal* (e.g. different
+  /// candidate plays) reuse each other's position bounds. Positions are
+  /// keyed by remaining holdings and leader, so sharing across solves with
+  /// the same trump suit is sound; never share across different deals or
+  /// trump suits.
   static DDSolver fromHands(
-      List<List<PlayingCard>> hands, Suit? trumpSuit, int leader) {
+      List<List<PlayingCard>> hands, Suit? trumpSuit, int leader,
+      {Map<int, int>? sharedTable}) {
     final holdings = List.filled(16, 0);
     for (int p = 0; p < _numPlayers; p++) {
       for (final c in hands[p]) {
         holdings[p * 4 + c.suit.index] |= 1 << c.rank.index;
       }
     }
-    return DDSolver._(
-        holdings, trumpSuit == null ? -1 : trumpSuit.index, leader);
+    return DDSolver._(holdings, trumpSuit == null ? -1 : trumpSuit.index,
+        leader, sharedTable);
   }
 
   /// Adds a card already played to the current (partial) trick, in play
@@ -87,6 +100,20 @@ class DDSolver {
     return lo;
   }
 
+  /// Like [solve], but gives up and returns null once the search has
+  /// visited [maxNodes] nodes. Lets callers with a latency budget skip a
+  /// pathologically slow position instead of stalling.
+  int? solveWithNodeLimit(int maxNodes) {
+    _nodesRemaining = maxNodes;
+    try {
+      return solve();
+    } on _SearchAborted {
+      return null;
+    } finally {
+      _nodesRemaining = 1 << 60;
+    }
+  }
+
   /// Alpha-beta: returns NS tricks in [0, tricksLeft]. `alpha`/`beta`
   /// bound NS tricks from this point on.
   int _search(int alpha, int beta) {
@@ -115,6 +142,24 @@ class DDSolver {
         if (lower > alpha) alpha = lower;
         if (upper < beta) beta = upper;
       }
+      // Quick-trick bounds: the leader's bankable masters give a lower
+      // bound for their side without any search.
+      final qt = _quickTricks(player);
+      if (nsToMove) {
+        if (qt > lower) lower = qt;
+      } else {
+        final bound = tricksLeft - qt;
+        if (bound < upper) upper = bound;
+      }
+      if (lower >= upper || lower >= beta || upper <= alpha) {
+        _transposition[key] =
+            ((ttMove + 1) << 16) | (lower << 8) | upper;
+        if (lower >= beta) return lower;
+        if (upper <= alpha) return upper;
+        return lower; // lower == upper
+      }
+      if (lower > alpha) alpha = lower;
+      if (upper < beta) beta = upper;
       final result = _searchMoves(player, nsToMove, alpha, beta, ttMove);
       if (result <= alpha) {
         if (result < upper) upper = result;
@@ -133,7 +178,34 @@ class DDSolver {
 
   int _bestMoveOut = -1;
 
+  /// Tricks the player on lead can bank unassisted: the maximal top run of
+  /// each suit's remaining cards held in their own hand. Cashing a master
+  /// keeps the lead, so the run is guaranteed. In a trump contract only
+  /// master trumps count (side-suit masters can be ruffed).
+  int _quickTricks(int player) {
+    int total = 0;
+    final base = player * 4;
+    for (int s = 0; s < 4; s++) {
+      if (trump >= 0 && s != trump) continue;
+      final mine = holdings[base + s];
+      if (mine == 0) continue;
+      int others = 0;
+      for (int p = 0; p < _numPlayers; p++) {
+        if (p != player) others |= holdings[p * 4 + s];
+      }
+      int rem = mine | others;
+      while (rem != 0) {
+        final topBit = 1 << _highestBit(rem);
+        if (mine & topBit == 0) break;
+        total++;
+        rem &= ~topBit;
+      }
+    }
+    return total;
+  }
+
   int _searchMoves(int player, bool nsToMove, int alpha, int beta, int ttMove) {
+    if (--_nodesRemaining < 0) throw const _SearchAborted();
     final moves = _candidateMoves(player);
     if (ttMove >= 0) {
       final idx = moves.indexOf(ttMove);

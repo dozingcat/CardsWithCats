@@ -35,9 +35,14 @@ generation; an exact last-seat reduction (win as cheaply as possible, duck
 with the lowest, or unblock with the highest). Validated by fuzzing
 against an unpruned reference solver (`DDReferenceSolver`).
 
-Timing on random deals: ~1ms at 6 tricks remaining, ~25ms at 8, ~200ms at
-9, seconds beyond. The default preroll boundary of 8 keeps worst-case
-per-play cost well inside an interactive budget.
+Timing on random deals: ~1ms at 6 tricks remaining, ~12ms at 8, ~34ms at
+9, ~1-7s at 10-12 (desktop M4, JIT). Three throughput features matter in
+MCDD use: solves of the same sampled deal share a transposition table
+(candidates converge into the same endgames), quick-trick bounds prune
+cash-out positions without search (5x at depth 9+), and
+`solveWithNodeLimit` abandons pathological positions so a latency budget
+is a guarantee, not a hope (the sampled deal is then discarded to avoid
+biasing equities).
 
 ### The heuristic policy (`heuristic_play.dart`)
 
@@ -123,17 +128,23 @@ also never wastes an honor between equals.
 to 50 sampled deals, double-dummy solving from 7 tricks out, and a 2.2s
 time budget (the old Monte Carlo remains as a defensive fallback). At
 these settings it beat the previously shipped configuration by
-+2.83 +/- 1.00 IMPs/board (12 boards, 8 wins 1 loss 3 ties); average
-play time 313ms, max observed 2.3s.
++2.83 +/- 1.00 IMPs/board (12 boards, 8 wins 1 loss 3 ties). After the
+solver throughput work (shared tables, quick-trick bounds, node limits,
+mid-round deadline checks) the same configuration averages ~120ms per
+play with a max of ~1.6s on a desktop M4; the 2.2s budget is enforced
+between candidates as well as between sampled deals, so slower mobile
+devices degrade to fewer sampled deals rather than longer thinks. If the
+Monte Carlo completes no sampled deal at all within budget, the move
+falls back to the heuristic policy.
 
 ## Known limitations / future ideas
 
 - Double-dummy defenders "see" declarer's cards within each sampled deal
   (standard for this architecture); genuinely deceptive plays are neither
   made nor anticipated.
-- The solver could be pushed 1-2 tricks deeper with stronger move
-  ordering (winner ordering at lead nodes, quick-trick bounds); that
-  would let the preroll boundary move later or rounds increase.
+- The solver could be pushed further with partition search or
+  finer-grained quick-trick bounds (partner entries, ruff counting);
+  that would let the preroll boundary move later.
 - Deal sampling is rejection-based; heavily constrained auctions
   occasionally fall back to best-effort samples. Weighted dealing (deal
   honors to fit HCP windows directly) would raise the hit rate.
