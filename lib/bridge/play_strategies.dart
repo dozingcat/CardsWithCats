@@ -4,12 +4,16 @@
 /// A strategy spec is a name optionally followed by colon-separated options:
 ///   random                     uniform random legal play
 ///   maxtricks                  cheap positional heuristic (legacy rollout fn)
+///   heuristic                  rule-based policy (lib/bridge/heuristic_play)
 ///   mc                         Monte Carlo; options:
-///     rollout=random|maxtricks   policy used inside rollouts (default random)
+///     rollout=random|maxtricks|heuristic   rollout policy (default random)
+///     eps=X                      probability of a random card per rollout
+///                                play, to de-bias deterministic policies
 ///     rounds=N                   sampled deals (default 20)
 ///     rpr=N                      rollouts per sampled deal (default 10)
 ///     ms=N                       time budget in milliseconds (default none)
-/// Example: "mc:rollout=maxtricks:rounds=30:rpr=5:ms=2500"
+///     bid                        constrain sampled deals by the auction
+/// Example: "mc:rollout=heuristic:eps=0.1:rounds=30:rpr=5:ms=2500"
 library;
 
 import 'dart:math';
@@ -18,6 +22,7 @@ import 'package:cards_with_cats/cards/card.dart';
 
 import '../cards/rollout.dart';
 import 'bridge_ai.dart';
+import 'heuristic_play.dart';
 
 class PlayStrategy {
   final String name;
@@ -26,15 +31,22 @@ class PlayStrategy {
   PlayStrategy(this.name, this.chooseCard);
 }
 
-ChooseCardFn _rolloutFnNamed(String name) {
+ChooseCardFn _rolloutFnNamed(String name, double epsilon) {
+  ChooseCardFn base;
   switch (name) {
     case "random":
-      return chooseCardRandom;
+      base = chooseCardRandom;
     case "maxtricks":
-      return chooseCardToMaximizeTricks;
+      base = chooseCardToMaximizeTricks;
+    case "heuristic":
+      base = chooseCardHeuristic;
     default:
       throw ArgumentError("Unknown rollout policy: $name");
   }
+  if (epsilon <= 0) return base;
+  return (req, rng) => rng.nextDouble() < epsilon
+      ? chooseCardRandom(req, rng)
+      : base(req, rng);
 }
 
 PlayStrategy makeStrategy(String spec) {
@@ -54,16 +66,22 @@ PlayStrategy makeStrategy(String spec) {
       return PlayStrategy(spec, chooseCardRandom);
     case "maxtricks":
       return PlayStrategy(spec, chooseCardToMaximizeTricks);
+    case "heuristic":
+      return PlayStrategy(spec, chooseCardHeuristic);
     case "mc":
-      final rolloutFn = _rolloutFnNamed(options["rollout"] ?? "random");
+      final rolloutFn = _rolloutFnNamed(options["rollout"] ?? "random",
+          double.parse(options["eps"] ?? "0"));
       final mcParams = MonteCarloParams(
         maxRounds: int.parse(options["rounds"] ?? "20"),
         rolloutsPerRound: int.parse(options["rpr"] ?? "10"),
         maxTimeMillis:
             options.containsKey("ms") ? int.parse(options["ms"]!) : null,
       );
+      final useBid = options.containsKey("bid");
       PlayingCard choose(CardToPlayRequest req, Random rng) {
-        return chooseCardMonteCarlo(req, mcParams, rolloutFn, rng).bestCard;
+        return chooseCardMonteCarlo(req, mcParams, rolloutFn, rng,
+                useBiddingInference: useBid)
+            .bestCard;
       }
       return PlayStrategy(spec, choose);
     default:
