@@ -22,12 +22,21 @@ void printd(String msg) {
 }
 
 PlayingCard computeCard(final CardToPlayRequest req) {
-  final mcParams = MonteCarloParams(
-      maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
-  final result =
-      chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
-  printd("Computed play: ${result.toString()}");
-  return result.bestCard;
+  try {
+    // Monte Carlo with bid-aware deal sampling and exact double-dummy
+    // endgame evaluation; see lib/bridge/PLAY_AI.md.
+    final result = chooseCardMonteCarloDD(req, Random(),
+        maxRounds: 50, ddTricksLimit: 7, maxTimeMillis: 2200);
+    printd("Computed play: ${result.toString()}");
+    return result.bestCard;
+  } catch (e) {
+    printd("MCDD failed ($e), falling back");
+    final mcParams = MonteCarloParams(
+        maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
+    final result =
+        chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
+    return result.bestCard;
+  }
 }
 
 class BridgeMatchDisplay extends StatefulWidget {
