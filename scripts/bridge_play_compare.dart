@@ -28,9 +28,12 @@ import 'package:cards_with_cats/bridge/sayc/selfplay.dart' show isLegalCall;
 class StrategyStats {
   int cardsPlayed = 0;
   int elapsedMicros = 0;
+  int maxMicros = 0;
 
   double get avgMillisPerPlay =>
       cardsPlayed == 0 ? 0 : elapsedMicros / cardsPlayed / 1000;
+
+  double get maxMillisPerPlay => maxMicros / 1000;
 }
 
 /// Plays out `round` (bidding already complete). Seats in `teamASeats` use
@@ -51,6 +54,9 @@ void playRound(BridgeRound round, PlayStrategy a, PlayStrategy b,
     final stats = isTeamA ? statsA : statsB;
     stats.cardsPlayed += 1;
     stats.elapsedMicros += watch.elapsedMicroseconds;
+    if (watch.elapsedMicroseconds > stats.maxMicros) {
+      stats.maxMicros = watch.elapsedMicroseconds;
+    }
     round.playCard(card);
   }
 }
@@ -173,8 +179,10 @@ void main(List<String> args) {
   print("total point diff to A: $totalPointDiff");
   print("boards won A/B/tied: $boardsWonByA/$boardsWonByB/$boardsTied");
   print("avg ms/play: A ${statsA.avgMillisPerPlay.toStringAsFixed(2)} "
-      "(${statsA.cardsPlayed} plays), "
+      "(max ${statsA.maxMillisPerPlay.toStringAsFixed(0)}, "
+      "${statsA.cardsPlayed} plays), "
       "B ${statsB.avgMillisPerPlay.toStringAsFixed(2)} "
-      "(${statsB.cardsPlayed} plays)");
+      "(max ${statsB.maxMillisPerPlay.toStringAsFixed(0)}, "
+      "${statsB.cardsPlayed} plays)");
   print("elapsed: ${(overallWatch.elapsedMilliseconds / 1000).toStringAsFixed(1)}s");
 }

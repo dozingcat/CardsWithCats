@@ -41,6 +41,25 @@ void main() {
     expect(result.bestCard, c("QS")[0]);
   });
 
+  test("mcdd finds the finesse", () {
+    final req = CardToPlayRequest(
+      declarerHand: c("3S 2S AH KH QH JH TH AD KD QD AC KC QC"),
+      hand: c("AS QS 6S 5S 4S 3H 2H 4D 3D 2D 4C 3C 2C"),
+      previousTricks: [],
+      currentTrick: TrickInProgress(1, c("7S")),
+      bidHistory: [
+        PlayerBid(0, BidAction.noTrump(3)),
+        PlayerBid(1, BidAction.pass()),
+        PlayerBid(2, BidAction.pass()),
+        PlayerBid(3, BidAction.pass()),
+      ],
+      vulnerability: Vulnerability.neither,
+    );
+    final result =
+        chooseCardMonteCarloDD(req, Random(17), maxRounds: 20);
+    expect(result.bestCard, c("QS")[0]);
+  });
+
   test("bidding filter constrains sampled deals", () {
     // Seat 0 opened a 15-17 1NT and everyone passed. From the opening
     // leader's view, sampled deals should give seat 0 a hand consistent
