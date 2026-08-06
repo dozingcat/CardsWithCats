@@ -79,6 +79,7 @@ inference.
 | **MCDD (rounds=10, dd=7, bid) vs old AI** | 100 | **+2.28 +/- 0.53** |
 | MCDD vs MC with maxtricks rollouts | 100 | +1.58 +/- 0.48 |
 | MCDD without bidding inference vs with | 100 | -0.66 +/- 0.48 |
+| maxtricks MC with bidding inference vs without | 100 | -0.03 +/- 0.49 |
 | MCDD rounds=20/dd=8 vs rounds=10/dd=7 (~8x compute) | 60 | +0.25 +/- 0.59 |
 
 Two negative results shaped the final design:
@@ -95,6 +96,12 @@ Two negative results shaped the final design:
 - **Exact evaluation is what actually fixes it.** Solving the endgame
   double-dummy rewards the *potential* of a position rather than what a
   mediocre policy extracts from it. This is the GIB-style architecture.
+
+Bid-aware sampling and exact evaluation compound rather than add:
+attached to the old rollout-based MC, bidding inference measured exactly
+zero (-0.03 +/- 0.49), while inside MCDD it is worth ~+0.7 — sharper
+deal samples only pay off when the evaluator is accurate enough to
+exploit the difference.
 
 Scaling is steeply diminishing: quadrupling sampled deals *and* moving
 the solve boundary a trick earlier (~8x compute) added +0.25 +/- 0.59.
