@@ -76,9 +76,9 @@ inference.
 | heuristic policy standalone vs maxtricks | 100 | +2.32 +/- 0.61 |
 | MC with *deterministic* heuristic rollouts vs old AI | 100 | **-1.37 +/- 0.56** |
 | ... with eps=0.2 noise | 100 | +0.40 +/- 0.51 |
-| MCDD (rounds=10, dd=7, bid) vs old AI | 100 | TBD_HEADLINE |
-| MCDD without bidding inference vs with | 100 | TBD_BID |
-| MCDD rounds=20/dd=8 vs rounds=10/dd=7 | 60 | TBD_SCALING |
+| **MCDD (rounds=10, dd=7, bid) vs old AI** | 100 | **+2.28 +/- 0.53** |
+| MCDD without bidding inference vs with | 100 | -0.66 +/- 0.48 |
+| MCDD rounds=20/dd=8 vs rounds=10/dd=7 (~8x compute) | 60 | +0.25 +/- 0.59 |
 
 Two negative results shaped the final design:
 
@@ -95,6 +95,11 @@ Two negative results shaped the final design:
   double-dummy rewards the *potential* of a position rather than what a
   mediocre policy extracts from it. This is the GIB-style architecture.
 
+Scaling is steeply diminishing: quadrupling sampled deals *and* moving
+the solve boundary a trick earlier (~8x compute) added +0.25 +/- 0.59.
+Most of the value is in the architecture, not the knob settings, so the
+app spends its budget on more sampled deals at the cheap dd=7 boundary.
+
 ### The reported blunder
 
 `scripts/k432_check.dart` reconstructs the reported bug: a defender
@@ -106,7 +111,12 @@ also never wastes an honor between equals.
 
 ## App configuration
 
-`computeCard` in `bridge_ui.dart` uses TBD_APP_CONFIG.
+`computeCard` in `bridge_ui.dart` runs `chooseCardMonteCarloDD` with up
+to 50 sampled deals, double-dummy solving from 7 tricks out, and a 2.2s
+time budget (the old Monte Carlo remains as a defensive fallback). At
+these settings it beat the previously shipped configuration by
++2.83 +/- 1.00 IMPs/board (12 boards, 8 wins 1 loss 3 ties); average
+play time 313ms, max observed 2.3s.
 
 ## Known limitations / future ideas
 
