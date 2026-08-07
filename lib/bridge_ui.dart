@@ -325,42 +325,49 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   void _continueDuplicateRound(BridgeRound dup) async {
     // print("*** Starting duplicate round");
-    while (!dup.isOver()) {
-      // Stop if a newer duplicate round replaced this one, or the widget
-      // is gone.
-      if (!identical(dup, match.duplicateRound) || !mounted) {
-        return;
-      }
-      if (dup.status == .bidding) {
-        final playerIndex = dup.currentBidder();
-        final bid = selectSaycBid(
-          dup.players[playerIndex].hand,
-          dup.bidHistory.map((b) => b.action).toList(),
-          vulnerability: dup.vulnerability,
-        );
-        // print("*** Bid: ${bid.action}");
-        dup.addBid(PlayerBid(playerIndex, bid.action));
-      } else {
-        final card =
-            await compute(computeCard, CardToPlayRequest.fromRound(dup));
+    try {
+      while (!dup.isOver()) {
+        // Stop if a newer duplicate round replaced this one, or the widget
+        // is gone.
         if (!identical(dup, match.duplicateRound) || !mounted) {
           return;
         }
-        // print("*** Play: $card");
-        dup.playCard(card);
+        if (dup.status == .bidding) {
+          final playerIndex = dup.currentBidder();
+          final bid = selectSaycBid(
+            dup.players[playerIndex].hand,
+            dup.bidHistory.map((b) => b.action).toList(),
+            vulnerability: dup.vulnerability,
+          );
+          // print("*** Bid: ${bid.action}");
+          dup.addBid(PlayerBid(playerIndex, bid.action));
+        } else {
+          final card =
+              await compute(computeCard, CardToPlayRequest.fromRound(dup));
+          if (!identical(dup, match.duplicateRound) || !mounted) {
+            return;
+          }
+          // print("*** Play: $card");
+          dup.playCard(card);
+        }
+        if (round.isOver()) {
+          // The duplicate progress indicator is visible; update it.
+          setState(() {});
+        }
+        await Future.delayed(const Duration(milliseconds: 10));
       }
-      if (round.isOver()) {
-        // The duplicate progress indicator is visible; update it.
+      if (mounted) {
         setState(() {});
       }
-      await Future.delayed(const Duration(milliseconds: 10));
+      // Save so the completed duplicate round and IMP totals persist.
+      widget.saveMatchFn(match);
+    } finally {
+      // Clear even on abnormal exit so the safety-net restarts aren't
+      // blocked by a stale reference.
+      if (identical(_runningDuplicate, dup)) {
+        _runningDuplicate = null;
+      }
     }
-    _runningDuplicate = null;
-    if (mounted) {
-      setState(() {});
-    }
-    // Save so the completed duplicate round and IMP totals persist.
-    widget.saveMatchFn(match);
   }
 
   List<Suit> _suitDisplayOrder() {
@@ -420,7 +427,11 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     });
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
-    _runDuplicateRound();
+    // Safety net only: the replay normally started at the round's
+    // beginning and must not be restarted if it's running or done.
+    if (!duplicateRound.isOver() && _runningDuplicate == null) {
+      _runDuplicateRound();
+    }
   }
 
   bool _isPlayerControlledByHuman(int pnum) {
