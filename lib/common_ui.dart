@@ -611,10 +611,14 @@ class TrickCards extends StatelessWidget {
     final cardsWithoutLast = cards.sublist(0, cards.length - 1);
     List<Widget> cardWidgets =
         List.of(_staticTrickCards(layout, leader, numPlayers, cardsWithoutLast));
+    // animPlayer is the "internal" player index, not accounting for any display adjustment
+    // (e.g. moving the dummy to the top in bridge).
     final animPlayer = (leader + cards.length - 1) % numPlayers;
     final endRect = layout.trickCardAreaForPlayer(animPlayer);
     var startRect = layout.cardOriginAreaForPlayer(animPlayer);
     List<DisplayedHand> matchingDisplayedHands = displayedHands != null ? displayedHands!.where((d) => d.playerIndex == animPlayer).toList() : [];
+    bool startsFromVisibleHand = false;
+    int? playerDisplayIndex;
     if (matchingDisplayedHands.isNotEmpty) {
       final dh = matchingDisplayedHands[0];
       // We want to know where the card was drawn in the player's hand. It's not
@@ -622,6 +626,8 @@ class TrickCards extends StatelessWidget {
       final previousHandCards = [...dh.cards, cards.last];
       startRect =
           playerHandCardRects(layout, previousHandCards, suitOrder!, playerIndex: animPlayer, displayStyle: dh.displayStyle, leaveAvatarSpace: dh.leaveAvatarSpace)[cards.last]!;
+      startsFromVisibleHand = true;
+      playerDisplayIndex = dh.playerIndex;
     }
 
     cardWidgets.add(TweenAnimationBuilder(
@@ -629,10 +635,14 @@ class TrickCards extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         onEnd: onTrickCardAnimationFinished,
         builder: (BuildContext context, double frac, Widget? child) {
+          double rotation = 0;
           Rect animRect = Rect.lerp(startRect, endRect, frac)!;
-          // Starting size for human player is determined by where the card was shown before.
-          // For AI players make the card grow as it comes from their card origin.
-          if (animPlayer != 0) {
+          // Starting size and rotation for visible cards is determined by where the card was shown before.
+          // For cards whose hand isn't shown, make it grow as it comes from the player's card origin.
+          if (startsFromVisibleHand) {
+            rotation = cardRotationForPlayerIndex(playerDisplayIndex ?? 1) * (1 - frac);
+          }
+          else {
             final scale = 0.25 + (0.75 * frac);
             animRect = Rect.fromCenter(center: animRect.center, width: startRect.width * scale, height: startRect.height * scale);
           }
@@ -641,6 +651,7 @@ class TrickCards extends StatelessWidget {
               card: cards.last,
               isTrump: cards.last.suit == trumpSuit,
               backgroundColor: cardBackgroundColors?[cards.last],
+              rotation: rotation,
           );
         }));
 
@@ -755,6 +766,16 @@ enum HandDisplayStyle {
   dummy,
 }
 
+double cardRotationForPlayerIndex(int playerIndex) {
+  if (playerIndex == 1) {
+    return -pi / 2;
+  }
+  if (playerIndex == 3) {
+    return pi / 2;
+  }
+  return 0;
+}
+
 class PlayerHandCards extends StatelessWidget {
   final Layout layout;
   final List<Suit> suitDisplayOrder;
@@ -789,11 +810,7 @@ class PlayerHandCards extends StatelessWidget {
   Widget build(BuildContext context) {
     final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
 
-    double rotation = (playerIndex == 1)
-        ? pi / 2
-        : (playerIndex == 3)
-        ? -pi / 2
-        : 0;
+    double rotation = cardRotationForPlayerIndex(playerIndex);
 
     if (animateFromCards != null) {
       final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
