@@ -6,6 +6,9 @@ import "../cards/rollout.dart";
 import "../cards/trick.dart";
 import "bridge.dart";
 import "bridge.dart" as bridge;
+import "dd_solver.dart";
+import "heuristic_play.dart";
+import "sayc/sayc_bidding.dart" show BidMeaning, HandAnalysis, explainSaycAuction;
 
 class CardToPlayRequest {
   final List<PlayingCard> hand;
@@ -83,8 +86,13 @@ class CardToPlayRequest {
 typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
 
 List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
-  // Possibly use groupsOfEffectivelyIdenticalCards
-  return req.legalPlays();
+  // Cards that are interchangeable for trick-taking (e.g. the queen and
+  // jack of a suit when holding both) need only one representative; play
+  // the cheapest. This shrinks the branching factor and stops equity noise
+  // from picking a wastefully high equal.
+  final groups = groupsOfEffectivelyIdenticalCards(
+      req.legalPlays(), req.previousTricks);
+  return [for (final g in groups) g.last];
 }
 
 PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
@@ -242,13 +250,35 @@ CardDistributionRequest makeCardDistributionRequest(
 }
 
 BridgeRound? possibleRound(
-    CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng) {
-  final dist = possibleCardDistribution(distReq, rng);
+    CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng,
+    {BiddingDealFilter? filter}) {
+  List<List<PlayingCard>>? dist;
+  if (filter == null) {
+    dist = possibleCardDistribution(distReq, rng);
+  } else {
+    // Rejection-sample against the constraints the auction placed on the
+    // hidden hands; if nothing qualifies, fall back to the sample that
+    // satisfied the most seats.
+    List<List<PlayingCard>>? best;
+    int bestSatisfied = -1;
+    for (int attempt = 0; attempt < 100; attempt++) {
+      final candidate = possibleCardDistribution(distReq, rng);
+      if (candidate == null) continue;
+      final satisfied = filter.numSatisfiedSeats(candidate);
+      if (satisfied > bestSatisfied) {
+        bestSatisfied = satisfied;
+        best = candidate;
+      }
+      if (satisfied == filter.numConstrainedSeats) break;
+    }
+    dist = best;
+  }
   if (dist == null) {
     return null;
   }
+  final hands = dist;
   final resultPlayers =
-      List.generate(dist.length, (pnum) => BridgePlayer(dist[pnum]));
+      List.generate(hands.length, (pnum) => BridgePlayer(hands[pnum]));
   return BridgeRound()
     ..status = BridgeRoundStatus.playing
     ..players = resultPlayers
@@ -260,9 +290,76 @@ BridgeRound? possibleRound(
     ..dealer = cardReq.bidHistory[0].player;
 }
 
+/// Constraints that the auction places on the hidden hands, used to make
+/// Monte Carlo deal samples consistent with the bidding. Each hidden seat's
+/// original 13 cards (current sample plus the cards it already played) must
+/// satisfy the seat's accumulated bid meanings.
+class BiddingDealFilter {
+  // Absolute seat -> accumulated constraints; null for seats whose cards
+  // are already known to the player (self, visible dummy/declarer) or that
+  // showed nothing.
+  final List<BidMeaning?> _meaningForSeat;
+  final List<List<PlayingCard>> _playedBySeat;
+
+  BiddingDealFilter._(this._meaningForSeat, this._playedBySeat);
+
+  int get numConstrainedSeats =>
+      _meaningForSeat.where((m) => m != null).length;
+
+  /// Builds the filter, or null if the auction can't be interpreted or
+  /// constrains nothing hidden.
+  static BiddingDealFilter? fromRequest(CardToPlayRequest req) {
+    if (req.bidHistory.isEmpty) return null;
+    final dealer = req.bidHistory[0].player;
+    final actions = [for (final b in req.bidHistory) b.action];
+    Map<int, BidMeaning> bySeatFromDealer;
+    try {
+      bySeatFromDealer = explainSaycAuction(actions).players;
+    } catch (e) {
+      return null;
+    }
+    final knownSeats = <int>{req.currentPlayerIndex()};
+    if (req.dummyHand != null) knownSeats.add(req.contract.dummy);
+    if (req.declarerHand != null) knownSeats.add(req.contract.declarer);
+
+    final meanings = List<BidMeaning?>.filled(numPlayers, null);
+    for (int seat = 0; seat < numPlayers; seat++) {
+      if (knownSeats.contains(seat)) continue;
+      final m = bySeatFromDealer[(seat - dealer + numPlayers) % numPlayers];
+      if (m == null) continue;
+      meanings[seat] = m;
+    }
+    if (meanings.every((m) => m == null)) return null;
+
+    final played = List.generate(numPlayers, (_) => <PlayingCard>[]);
+    void record(List<PlayingCard> cards, int leader) {
+      for (int i = 0; i < cards.length; i++) {
+        played[(leader + i) % numPlayers].add(cards[i]);
+      }
+    }
+
+    for (final t in req.previousTricks) {
+      record(t.cards, t.leader);
+    }
+    record(req.currentTrick.cards, req.currentTrick.leader);
+    return BiddingDealFilter._(meanings, played);
+  }
+
+  int numSatisfiedSeats(List<List<PlayingCard>> dist) {
+    int satisfied = 0;
+    for (int seat = 0; seat < numPlayers; seat++) {
+      final meaning = _meaningForSeat[seat];
+      if (meaning == null) continue;
+      final original = [...dist[seat], ..._playedBySeat[seat]];
+      if (meaning.satisfiedBy(HandAnalysis(original))) satisfied++;
+    }
+    return satisfied;
+  }
+}
+
 MonteCarloResult chooseCardMonteCarlo(CardToPlayRequest cardReq,
     MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
-    {int Function()? timeFn}) {
+    {int Function()? timeFn, bool useBiddingInference = false}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
   final startTime = timeFn();
   final legalPlays = cardsToConsiderPlaying(cardReq, rng);
@@ -274,13 +371,15 @@ MonteCarloResult chooseCardMonteCarlo(CardToPlayRequest cardReq,
   final pnum = cardReq.currentPlayerIndex();
   final playEquities = List.generate(legalPlays.length, (_) => 0.0);
   final distReq = makeCardDistributionRequest(cardReq);
+  final filter =
+      useBiddingInference ? BiddingDealFilter.fromRequest(cardReq) : null;
   int numRounds = 0;
   int numRollouts = 0;
   int numRolloutCardsPlayed = 0;
   final cardsPerRollout = 52 -
       (4 * cardReq.previousTricks.length + cardReq.currentTrick.cards.length);
   for (int i = 0; i < mcParams.maxRounds; i++) {
-    final hypoRound = possibleRound(cardReq, distReq, rng);
+    final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
     if (hypoRound == null) {
       print("MC failed to generate round, falling back to random");
       final bestCard = chooseCardRandom(cardReq, rng);
@@ -329,4 +428,133 @@ void doRollout(BridgeRound round, ChooseCardFn chooseFn, Random rng) {
     final cardToPlay = chooseFn(req, rng);
     round.playCard(cardToPlay);
   }
+}
+
+/// Monte Carlo with exact endgame evaluation: samples deals consistent with
+/// the auction, and evaluates each candidate play on each sampled deal by
+/// playing forward with a cheap policy until at most [ddTricksLimit] tricks
+/// remain, then solving the rest double-dummy. This rewards plays whose
+/// payoff needs *correct* continuation (finesses, establishment, endplays),
+/// which policy rollouts systematically miss.
+MonteCarloResult chooseCardMonteCarloDD(
+  CardToPlayRequest cardReq,
+  Random rng, {
+  int maxRounds = 20,
+  int? maxTimeMillis,
+  bool useBiddingInference = true,
+  int ddTricksLimit = 8,
+  ChooseCardFn? prerollFn,
+  int Function()? timeFn,
+}) {
+  timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
+  final startTime = timeFn();
+  final legalPlays = cardsToConsiderPlaying(cardReq, rng);
+  assert(legalPlays.isNotEmpty);
+  if (legalPlays.length == 1) {
+    return MonteCarloResult.rolloutNotNeeded(bestCard: legalPlays[0]);
+  }
+  prerollFn ??= chooseCardHeuristic;
+
+  final pnum = cardReq.currentPlayerIndex();
+  final contract = cardReq.contract;
+  final declarerSideIsNS = contract.declarer % 2 == 0;
+  final playerIsDeclarerSide = pnum % 2 == contract.declarer % 2;
+  final playEquities = List.generate(legalPlays.length, (_) => 0.0);
+  final distReq = makeCardDistributionRequest(cardReq);
+  final filter =
+      useBiddingInference ? BiddingDealFilter.fromRequest(cardReq) : null;
+
+  // A pathological solve gives up after this many search nodes rather
+  // than blowing the latency budget; the whole sampled deal is then
+  // discarded (a per-candidate skip would bias the equities).
+  const solveNodeLimit = 3000000;
+
+  int numRounds = 0;
+  final roundEquities = List.generate(legalPlays.length, (_) => 0.0);
+  outer:
+  for (int i = 0; i < maxRounds; i++) {
+    final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
+    if (hypoRound == null) {
+      break;
+    }
+    // Solves of the same sampled deal share position bounds.
+    final sharedTable = <int, int>{};
+    for (int ci = 0; ci < legalPlays.length; ci++) {
+      // Deadline check between candidates; an unfinished deal's partial
+      // sums in roundEquities are simply never committed.
+      if (numRounds > 0 &&
+          maxTimeMillis != null &&
+          timeFn() - startTime >= maxTimeMillis) {
+        break outer;
+      }
+      final round = hypoRound.copy();
+      round.playCard(legalPlays[ci]);
+      while (!round.isOver() &&
+          13 - round.previousTricks.length > ddTricksLimit) {
+        final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
+        round.playCard(prerollFn(req, rng));
+      }
+      int declarerTricks;
+      if (round.isOver()) {
+        declarerTricks = round.numTricksWonByDeclarer();
+      } else {
+        final hands = [for (final p in round.players) p.hand];
+        final solver = DDSolver.fromHands(
+            hands, contract.bid.trump, round.currentTrick.leader,
+            sharedTable: sharedTable);
+        for (final c in round.currentTrick.cards) {
+          solver.addTrickCard(c);
+        }
+        final nsFuture = solver.solveWithNodeLimit(solveNodeLimit);
+        if (nsFuture == null) {
+          continue outer; // discard this deal
+        }
+        final future = 13 - round.previousTricks.length;
+        declarerTricks = round.numTricksWonByDeclarer() +
+            (declarerSideIsNS ? nsFuture : future - nsFuture);
+      }
+      final declarerScore = contract.scoreForTricksTaken(declarerTricks);
+      roundEquities[ci] =
+          (playerIsDeclarerSide ? declarerScore : -declarerScore).toDouble();
+    }
+    for (int ci = 0; ci < legalPlays.length; ci++) {
+      playEquities[ci] += roundEquities[ci];
+    }
+    numRounds += 1;
+    if (maxTimeMillis != null && timeFn() - startTime >= maxTimeMillis) {
+      break;
+    }
+  }
+  if (numRounds == 0) {
+    // Nothing completed within budget: fall back to the heuristic policy
+    // rather than a random card.
+    return MonteCarloResult.rolloutFailed(
+      bestCard: prerollFn(cardReq, rng),
+      cardEquities: const {},
+      numRounds: 0,
+      numRollouts: 0,
+      numRolloutCardsPlayed: 0,
+      elapsedMillis: timeFn() - startTime,
+    );
+  }
+  // Best equity; break exact ties toward the lower card.
+  int best = 0;
+  for (int ci = 1; ci < legalPlays.length; ci++) {
+    final d = playEquities[ci] - playEquities[best];
+    if (d > 1e-9 ||
+        (d.abs() <= 1e-9 &&
+            legalPlays[ci].rank.index < legalPlays[best].rank.index)) {
+      best = ci;
+    }
+  }
+  return MonteCarloResult(
+    resultType: MonteCarloResultType.rollout_success,
+    bestCard: legalPlays[best],
+    cardEquities: Map.fromIterables(
+        legalPlays, playEquities.map((e) => e / numRounds)),
+    numRounds: numRounds,
+    numRollouts: numRounds * legalPlays.length,
+    numRolloutCardsPlayed: 0,
+    elapsedMillis: timeFn() - startTime,
+  );
 }
