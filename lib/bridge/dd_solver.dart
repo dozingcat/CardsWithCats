@@ -29,13 +29,6 @@ class DDSolver {
   int trickCount = 0;
   final Map<int, int> _transposition;
 
-  // Debug toggles for isolating search bugs; see scripts/dd_debug.dart.
-  bool debugSimpleMovegen = false;
-  bool debugDisableTT = false;
-  bool debugNoLastSeatReduction = false;
-  bool debugNoEquivalenceClasses = false;
-  bool debugClearTTBetweenPasses = false;
-
   int _nodesRemaining = 1 << 60;
 
   DDSolver._(this.holdings, this.trump, this.leader, Map<int, int>? shared)
@@ -87,7 +80,6 @@ class DDSolver {
     if (remainingTricks == 0) return 0;
     int lo = 0, hi = remainingTricks;
     while (lo < hi) {
-      if (debugClearTTBetweenPasses) _transposition.clear();
       final target = (lo + hi + 1) ~/ 2;
       // Window (target-1, target): result >= target means NS make it.
       final value = _search(target - 1, target);
@@ -131,7 +123,7 @@ class DDSolver {
       final key = _positionHash(player);
       int lower = 0, upper = tricksLeft;
       int ttMove = -1;
-      final cached = debugDisableTT ? null : _transposition[key];
+      final cached = _transposition[key];
       if (cached != null) {
         lower = (cached >> 8) & 0xff;
         upper = cached & 0xff;
@@ -336,46 +328,10 @@ class DDSolver {
     return best;
   }
 
-  /// Testing hook for [_candidateMoves].
-  List<int> debugCandidateMoves(int player) => _candidateMoves(player);
-
-  /// Plays a card without searching (testing hook).
-  void debugPlay(int suit, int rank) {
-    final player = (leader + trickCount) % _numPlayers;
-    holdings[player * 4 + suit] &= ~(1 << rank);
-    trickSuits[trickCount] = suit;
-    trickRanks[trickCount] = rank;
-    trickCount++;
-    if (trickCount == 4) {
-      final winner = (leader + _trickWinnerOffset()) % _numPlayers;
-      trickCount = 0;
-      leader = winner;
-    }
-  }
-
   /// Legal moves for [player], one per equivalence class, encoded as
   /// (suit << 4) | rank, in a search-friendly order.
   List<int> _candidateMoves(int player) {
     final moves = <int>[];
-    if (debugSimpleMovegen) {
-      if (trickCount > 0) {
-        final ledSuit = trickSuits[0];
-        final h = holdings[player * 4 + ledSuit];
-        if (h != 0) {
-          for (int r = 12; r >= 0; r--) {
-            if (h & (1 << r) != 0) moves.add((ledSuit << 4) | r);
-          }
-          return moves;
-        }
-      }
-      for (int s = 0; s < 4; s++) {
-        final h = holdings[player * 4 + s];
-        for (int r = 12; r >= 0; r--) {
-          if (h & (1 << r) != 0) moves.add((s << 4) | r);
-        }
-      }
-      return moves;
-    }
     if (trickCount > 0) {
       final ledSuit = trickSuits[0];
       final winnerOffset = _partialWinnerOffset();
@@ -401,7 +357,7 @@ class DDSolver {
             cheapestWinner = m;
           }
         }
-        if (!debugNoLastSeatReduction && trickCount == 3) {
+        if (trickCount == 3) {
           // Last to play: only three plays can matter — win (or overtake
           // partner) as cheaply as possible, duck with the lowest, or
           // unblock by throwing the highest. Higher winners are dominated
@@ -486,12 +442,6 @@ class DDSolver {
   /// Adds one representative per equivalence class: ranks are equivalent
   /// when no other hand holds a rank strictly between them.
   void _addSuitMoves(List<int> moves, int player, int suit, int hand) {
-    if (debugNoEquivalenceClasses) {
-      for (int r = 12; r >= 0; r--) {
-        if (hand & (1 << r) != 0) moves.add((suit << 4) | r);
-      }
-      return;
-    }
     int others = 0;
     for (int p = 0; p < _numPlayers; p++) {
       if (p != player) others |= holdings[p * 4 + suit];
