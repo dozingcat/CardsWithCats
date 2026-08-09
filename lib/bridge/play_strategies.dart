@@ -17,6 +17,11 @@
 ///                              heuristic preroll, then double-dummy solve.
 ///     rounds=N, ms=N, bid/nobid  as for mc (bid defaults ON here)
 ///     dd=K                       tricks left at which to solve (default 8)
+///     margin=X, dmargin=X        honor-waste guard margins (points/deal)
+///                                for declarer / defenders; an unsupported
+///                                K/Q lead defers to the heuristic unless
+///                                decisively better (defaults 5 / 18;
+///                                0 disables)
 /// Example: "mc:rollout=heuristic:eps=0.1:rounds=30:rpr=5:ms=2500"
 library;
 
@@ -93,12 +98,16 @@ PlayStrategy makeStrategy(String spec) {
       final ddLimit = int.parse(options["dd"] ?? "8");
       final ms = options.containsKey("ms") ? int.parse(options["ms"]!) : null;
       final useBid = !options.containsKey("nobid");
+      final margin = double.parse(options["margin"] ?? "5");
+      final dmargin = double.parse(options["dmargin"] ?? "18");
       PlayingCard choose(CardToPlayRequest req, Random rng) {
         return chooseCardMonteCarloDD(req, rng,
                 maxRounds: maxRounds,
                 ddTricksLimit: ddLimit,
                 maxTimeMillis: ms,
-                useBiddingInference: useBid)
+                useBiddingInference: useBid,
+                equityMargin: margin,
+                defenderEquityMargin: dmargin)
             .bestCard;
       }
       return PlayStrategy(spec, choose);

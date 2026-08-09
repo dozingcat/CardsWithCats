@@ -146,11 +146,40 @@ boards; dd=7 measured +0.5 to +0.8 pooled across seeds). Moral: with
 200-300+ boards to resolve. If a low-end device needs a cheaper config,
 cut `maxRounds` before cutting `ddTricksLimit`.
 
+## The honor-waste guard
+
+Double-dummy evaluation is blind to the main real-world cost of leading
+an unsupported high honor: every sampled declarer already knows where it
+is, so the lead is rarely punished and sometimes shows a small spurious
+edge that a non-clairvoyant declarer would never realize (the classic
+GIB-family artifact — `scripts/lead_scan.dart` measured unsupported K/Q
+leads on ~7% of defender leads, several into a higher visible dummy
+honor). When the equity-best play is a lead of an effectively
+unsupported K or Q with a lower card available, MCDD now leads low from
+the same suit instead, unless the honor is decisively better: by more
+than a margin (5 points/deal for declarer, 18 for defenders, whose honor
+locations are the ones DD leaks) AND by a statistically significant
+paired difference across the sampled deals. Genuine coups clear that bar
+(verified examples: cashing a king before dummy's ace gets ruffed;
+leading Q from QT65 to pin dummy's singleton jack) and are still made.
+
+Calibration was delicate and measured (200 boards each):
+- Broadly preferring the heuristic's card on any near-tie: -0.86 IMPs/bd.
+- Guard deferring to the heuristic's (cross-suit) lead: -0.32.
+- Guard deferring to low card of the same suit: **-0.10 +/- 0.16** (zero),
+  while cutting flagged unsupported-honor leads by ~75% at 10 sampled
+  deals (and ~40% at 50, where survivors have decisive DD support).
+
+Lesson: suppress only the exact artifact pattern and keep the sampling
+engine's suit selection; every broader deferral to conventional play
+costs measurable equity.
+
 ## Known limitations / future ideas
 
 - Double-dummy defenders "see" declarer's cards within each sampled deal
   (standard for this architecture); genuinely deceptive plays are neither
-  made nor anticipated.
+  made nor anticipated. The honor-waste guard above patches the most
+  visible symptom; second-hand and discard honor waste are not guarded.
 - The solver could be pushed further with partition search or
   finer-grained quick-trick bounds (partner entries, ruff counting);
   that would let the preroll boundary move later.
