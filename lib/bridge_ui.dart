@@ -22,12 +22,21 @@ void printd(String msg) {
 }
 
 PlayingCard computeCard(final CardToPlayRequest req) {
-  final mcParams = MonteCarloParams(
-      maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
-  final result =
-      chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
-  printd("Computed play: ${result.toString()}");
-  return result.bestCard;
+  try {
+    // Monte Carlo with bid-aware deal sampling and exact double-dummy
+    // endgame evaluation; see lib/bridge/PLAY_AI.md.
+    final result = chooseCardMonteCarloDD(req, Random(),
+        maxRounds: 50, ddTricksLimit: 7, maxTimeMillis: 2200);
+    printd("Computed play: ${result.toString()}");
+    return result.bestCard;
+  } catch (e) {
+    printd("MCDD failed ($e), falling back");
+    final mcParams = MonteCarloParams(
+        maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
+    final result =
+        chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
+    return result.bestCard;
+  }
 }
 
 class BridgeMatchDisplay extends StatefulWidget {
@@ -115,8 +124,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         _updateMatch(event);
       }
     });
-    if (round.isOver() && !duplicateRound.isOver()) {
-      // Restored from a save made before the duplicate round finished.
+    if (!duplicateRound.isOver()) {
+      // Covers both a fresh round and a save made before the duplicate
+      // round finished.
       _runDuplicateRound();
     }
     _scheduleNextActionIfNeeded();
@@ -151,6 +161,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       match = widget.createMatchFn();
     }
     widget.saveMatchFn(match);
+    if (!duplicateRound.isOver()) {
+      _runDuplicateRound();
+    }
     _scheduleNextActionIfNeeded();
   }
 
@@ -162,10 +175,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       _scheduleNextActionIfNeeded();
     }
     widget.saveMatchFn(match);
-
-    if (round.isPassedOut()) {
-      _runDuplicateRound();
-    }
   }
 
   void _makeBidForAiPlayer() {
@@ -273,7 +282,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
-      if (round.isOver()) {
+      if (round.isOver() &&
+          !duplicateRound.isOver() &&
+          _runningDuplicate == null) {
+        // Safety net: normally the replay started at the round's beginning.
         _runDuplicateRound();
       }
       // _updateStatsIfMatchOrRoundOver();
@@ -296,48 +308,66 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     // TODO
   }
 
+  // The duplicate round in progress, if any. Used to avoid double-starting
+  // a replay that's already running.
+  BridgeRound? _runningDuplicate;
+
+  /// (Re)starts the AI replay of the current deal. The replay involves no
+  /// human input, so it's kicked off as soon as a round starts and runs
+  /// concurrently with the human's play (each AI card computed off the UI
+  /// thread); by the time the round ends it's usually already finished.
   void _runDuplicateRound() {
     final dup = round.copyAndReset();
     match.duplicateRound = dup;
-    const delayDuration = Duration(milliseconds: 10);
+    _runningDuplicate = dup;
+    _continueDuplicateRound(dup);
+  }
+
+  void _continueDuplicateRound(BridgeRound dup) async {
     // print("*** Starting duplicate round");
-
-    void runNextStep() {
-      if (!identical(dup, match.duplicateRound)) {
-        // A newer duplicate round replaced this one; stop.
-        return;
-      }
-      if (dup.status == .bidding) {
-        final playerIndex = dup.currentBidder();
-        final bid = selectSaycBid(
-          dup.players[playerIndex].hand,
-          dup.bidHistory.map((b) => b.action).toList(),
-          vulnerability: dup.vulnerability,
-        );
-        final playerBid = PlayerBid(playerIndex, bid.action);
-        // print("*** Bid: ${playerBid.action}");
-        setState(() {
-          dup.addBid(playerBid);
-        });
-      }
-      else {
-        // This should possibly be async.
-        final card = computeCard(CardToPlayRequest.fromRound(dup));
-        // print("*** Play: $card");
-        setState(() {
+    try {
+      while (!dup.isOver()) {
+        // Stop if a newer duplicate round replaced this one, or the widget
+        // is gone.
+        if (!identical(dup, match.duplicateRound) || !mounted) {
+          return;
+        }
+        if (dup.status == .bidding) {
+          final playerIndex = dup.currentBidder();
+          final bid = selectSaycBid(
+            dup.players[playerIndex].hand,
+            dup.bidHistory.map((b) => b.action).toList(),
+            vulnerability: dup.vulnerability,
+          );
+          // print("*** Bid: ${bid.action}");
+          dup.addBid(PlayerBid(playerIndex, bid.action));
+        } else {
+          final card =
+              await compute(computeCard, CardToPlayRequest.fromRound(dup));
+          if (!identical(dup, match.duplicateRound) || !mounted) {
+            return;
+          }
+          // print("*** Play: $card");
           dup.playCard(card);
-        });
+        }
+        if (round.isOver()) {
+          // The duplicate progress indicator is visible; update it.
+          setState(() {});
+        }
+        await Future.delayed(const Duration(milliseconds: 10));
       }
-
-      if (!dup.isOver()) {
-        Future.delayed(delayDuration, runNextStep);
-      } else {
-        // Save so the completed duplicate round and IMP totals persist.
-        widget.saveMatchFn(match);
+      if (mounted) {
+        setState(() {});
+      }
+      // Save so the completed duplicate round and IMP totals persist.
+      widget.saveMatchFn(match);
+    } finally {
+      // Clear even on abnormal exit so the safety-net restarts aren't
+      // blocked by a stale reference.
+      if (identical(_runningDuplicate, dup)) {
+        _runningDuplicate = null;
       }
     }
-
-    Future.delayed(delayDuration, runNextStep);
   }
 
   List<Suit> _suitDisplayOrder() {
@@ -397,7 +427,11 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     });
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
-    _runDuplicateRound();
+    // Safety net only: the replay normally started at the round's
+    // beginning and must not be restarted if it's running or done.
+    if (!duplicateRound.isOver() && _runningDuplicate == null) {
+      _runDuplicateRound();
+    }
   }
 
   bool _isPlayerControlledByHuman(int pnum) {
