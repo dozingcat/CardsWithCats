@@ -205,7 +205,9 @@ rounds=50 lead scan drops to near-baseline (10 flags, 4 against the
 heuristic's judgment), and the poster-child "genuine coup" K-from-K2
 lead is re-ranked from best to worst. Average play cost rose from ~22ms
 to ~214ms at rounds=10 (the app's 2.2s budget copes by sampling fewer
-deals on slow devices).
+deals on slow devices). At the app configuration (2.2s budget) the win
+holds: +1.03 +/- 0.59 IMPs/board (60 boards, 24-7-29), with average
+play time ~415ms on a desktop M4.
 
 ## Known limitations / future ideas
 
