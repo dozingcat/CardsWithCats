@@ -565,57 +565,61 @@ MonteCarloResult chooseCardMonteCarloDD(
   // knows where it is, so the lead is rarely punished and often shows a
   // small spurious edge that a real (non-clairvoyant) declarer wouldn't
   // realize. When the equity-best play is a *lead* of a K or Q with no
-  // effective touching honor and a lower card available, lead low from
-  // the same suit instead, unless the honor lead is decisively better:
-  // by more than the margin AND by a statistically significant paired
-  // difference across sampled deals (genuine coups — cashing before a
-  // ruff, unblocks — clear that bar). All other decisions remain pure
-  // equity: a broad prefer-the-heuristic rule measured -0.86 IMPs/board,
-  // and deferring to the heuristic's cross-suit lead choice within this
-  // guard still measured -0.32.
+  // effective touching honor and a lower card available, play the
+  // best-scoring candidate that doesn't match that pattern instead,
+  // unless the honor lead is decisively better: by more than the margin
+  // AND by a statistically significant paired difference across sampled
+  // deals (genuine coups — cashing before a ruff, pins, unblocks — clear
+  // that bar). All other decisions remain pure equity: deferring to the
+  // heuristic policy instead measured -0.86 IMPs/board applied broadly
+  // and -0.32 within this guard; falling back along the measured-equity
+  // ranking measured +-0. See PLAY_AI.md.
   final margin = playerIsDeclarerSide ? equityMargin : defenderEquityMargin;
   if (margin > 0 && cardReq.currentTrick.cards.isEmpty) {
-    final bCard = legalPlays[best];
-    if (bCard.rank == Rank.king || bCard.rank == Rank.queen) {
-      final suitCards = sortedCardsInSuit(cardReq.hand, bCard.suit);
-      final hasHigher =
-          suitCards.any((c) => c.rank.index > bCard.rank.index);
-      final hasLower =
-          suitCards.any((c) => c.rank.index < bCard.rank.index);
-      final groups = groupsOfEffectivelyIdenticalCards(
-          suitCards, cardReq.previousTricks);
-      final group = groups.firstWhere((g) => g.contains(bCard));
-      final unsupported = group.length == 1 && !hasHigher;
-      if (unsupported && hasLower) {
-        // Compare against the lowest candidate of the *same* suit: the
-        // suit choice (where sampling genuinely outperforms heuristics)
-        // is kept; only the card within the suit is downgraded.
-        int guideIndex = -1;
-        for (int ci = 0; ci < legalPlays.length; ci++) {
-          final c = legalPlays[ci];
-          if (c.suit == bCard.suit &&
-              (guideIndex < 0 ||
-                  c.rank.index < legalPlays[guideIndex].rank.index)) {
-            guideIndex = ci;
-          }
+    // Matches the artifact pattern: a lead of a K or Q with no effective
+    // touching honor, no higher card, and a lower card available in the
+    // suit.
+    bool isArtifactLead(PlayingCard c) {
+      if (c.rank != Rank.king && c.rank != Rank.queen) return false;
+      final suitCards = sortedCardsInSuit(cardReq.hand, c.suit);
+      if (suitCards.any((x) => x.rank.index > c.rank.index)) return false;
+      if (!suitCards.any((x) => x.rank.index < c.rank.index)) return false;
+      final groups =
+          groupsOfEffectivelyIdenticalCards(suitCards, cardReq.previousTricks);
+      return groups.firstWhere((g) => g.contains(c)).length == 1;
+    }
+
+    if (isArtifactLead(legalPlays[best])) {
+      // Fall back to the best-scoring candidate that is NOT itself an
+      // artifact lead; the honor keeps the lead only if it beats that
+      // candidate decisively.
+      int fallback = -1;
+      for (int ci = 0; ci < legalPlays.length; ci++) {
+        if (ci == best || isArtifactLead(legalPlays[ci])) continue;
+        if (fallback < 0 ||
+            playEquities[ci] - playEquities[fallback] > 1e-9 ||
+            ((playEquities[ci] - playEquities[fallback]).abs() <= 1e-9 &&
+                legalPlays[ci].rank.index <
+                    legalPlays[fallback].rank.index)) {
+          fallback = ci;
         }
-        if (guideIndex >= 0 && guideIndex != best) {
-          final n = perRoundEquities.length;
-          final meanDiff =
-              (playEquities[best] - playEquities[guideIndex]) / numRounds;
-          bool decisive = meanDiff > margin;
-          if (decisive && n >= 2) {
-            double sumSq = 0;
-            for (final round in perRoundEquities) {
-              final d = round[best] - round[guideIndex] - meanDiff;
-              sumSq += d * d;
-            }
-            final stderr = sqrt(sumSq / (n - 1) / n);
-            decisive = meanDiff > 2 * stderr;
+      }
+      if (fallback >= 0) {
+        final n = perRoundEquities.length;
+        final meanDiff =
+            (playEquities[best] - playEquities[fallback]) / numRounds;
+        bool decisive = meanDiff > margin;
+        if (decisive && n >= 2) {
+          double sumSq = 0;
+          for (final round in perRoundEquities) {
+            final d = round[best] - round[fallback] - meanDiff;
+            sumSq += d * d;
           }
-          if (!decisive) {
-            best = guideIndex;
-          }
+          final stderr = sqrt(sumSq / (n - 1) / n);
+          decisive = meanDiff > 2 * stderr;
+        }
+        if (!decisive) {
+          best = fallback;
         }
       }
     }
