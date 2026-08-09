@@ -20,11 +20,14 @@ Card play is Monte Carlo over hidden information, in three layers:
    whose gaps have all been played) evaluate as a single candidate, the
    cheapest of the group.
 3. **Evaluation** (`chooseCardMonteCarloDD`): each candidate play is tried
-   on each sampled deal; the position is played forward with the cheap
-   heuristic policy until at most K tricks remain (default 8), and the
-   remainder is solved *exactly* with the double-dummy solver. The
-   declarer's total tricks convert to a contract score, averaged across
-   deals. Exact equity ties break toward the lowest card.
+   on each sampled deal and the resulting position is solved *exactly*
+   with the double-dummy solver, to full depth when a node budget allows
+   (the usual case); positions too complex for that are played forward
+   with the cheap heuristic policy until at most K tricks remain (default
+   8) and solved from there. The declarer's total tricks convert to a
+   contract score, averaged across deals. Exact equity ties break toward
+   the lowest card, and an honor-waste guard (below) filters one class of
+   double-dummy artifact from chosen leads.
 
 ### The double-dummy solver (`dd_solver.dart`)
 
@@ -60,8 +63,11 @@ policy for MCDD and is available standalone as the `heuristic` strategy.
 bid once by the SAYC engine, then played in two rooms with the strategies'
 sides swapped, and scored by IMPs exactly as a team-of-four match. Both
 rooms share RNG seeds (common random numbers), so identical strategies
-score exactly zero and shared noise cancels. Strategy specs are documented
-in `play_strategies.dart`:
+score exactly zero and shared noise cancels. Boards run in parallel
+across isolates (`--jobs`, default cores-2); randomness is seeded per
+board, so results are identical for any job count. Per-play timing stats
+inflate slightly under contention — calibrate app budgets with
+`--jobs 1`. Strategy specs are documented in `play_strategies.dart`:
 
     dart run scripts/bridge_play_compare.dart --deals 100 \
         mcdd:rounds=10:dd=7 mc:rollout=random:rounds=20:rpr=10
@@ -89,6 +95,10 @@ inference.
 | MCDD dd=6 vs dd=7, equal rounds, 300 boards seed 43 | 300 | **-0.73 +/- 0.27** |
 | MCDD dd=7 vs maxtricks MC, seed 43 | 200 | +0.47 +/- 0.33 |
 | MCDD dd=6 vs maxtricks MC, seed 43 | 200 | -0.11 +/- 0.34 |
+| honor-waste guard (final form) vs no guard, seed 11 | 200 | +0.05 +/- 0.20 |
+| full-depth solving vs preroll-only, seed 11 | 200 | **+1.27 +/- 0.30** |
+| full-depth vs preroll-only at app config (2.2s), seed 5 | 60 | +1.03 +/- 0.59 |
+| **final engine vs maxtricks MC, seed 21** | 300 | **+2.07 +/- 0.27** |
 
 Two negative results shaped the final design:
 
@@ -128,14 +138,15 @@ also never wastes an honor between equals.
 ## App configuration
 
 `computeCard` in `bridge_ui.dart` runs `chooseCardMonteCarloDD` with up
-to 50 sampled deals, double-dummy solving from 7 tricks out, and a 2.2s
-time budget (the old Monte Carlo remains as a defensive fallback). It
-beat the previously shipped configuration by +2.83 +/- 1.00 IMPs/board
-(12 boards, 8 wins 1 loss 3 ties) and averages ~150ms per play (max
-~2.2s) on a desktop M4. The budget is enforced between candidates as
-well as between sampled deals, so slow devices degrade to fewer sampled
-deals rather than longer thinks; if no sampled deal completes at all,
-the move falls back to the heuristic policy.
+to 50 sampled deals, full-depth solving where affordable (preroll from
+7 tricks out otherwise), and a 2.2s time budget (the old Monte Carlo
+remains as a defensive fallback). The original MCDD configuration beat
+the previously shipped one by +2.83 +/- 1.00 IMPs/board; with
+full-depth solving, average play time is ~415ms (max ~2.4s) on a
+desktop M4. The budget is enforced between candidates as well as
+between sampled deals, so slow devices degrade to fewer sampled deals
+rather than longer thinks; if no sampled deal completes at all, the
+move falls back to the heuristic policy.
 
 dd=6 was tried as a ~4x cheaper alternative and initially looked like a
 wash in 100-board comparisons, but a 300-board head-to-head measured it
