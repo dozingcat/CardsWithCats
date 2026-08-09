@@ -209,6 +209,10 @@ deals on slow devices). At the app configuration (2.2s budget) the win
 holds: +1.03 +/- 0.59 IMPs/board (60 boards, 24-7-29), with average
 play time ~415ms on a desktop M4.
 
+With full-depth solving, the engine's direct margin over an MC with
+maxtricks rollouts (the strongest pre-project baseline) is
+**+2.07 +/- 0.27 IMPs/board** (300 boards, seed 21, 156-48-96).
+
 ## Known limitations / future ideas
 
 - Double-dummy defenders "see" declarer's cards within each sampled deal
