@@ -319,7 +319,14 @@ class BiddingDealFilter {
       return null;
     }
     final knownSeats = <int>{req.currentPlayerIndex()};
-    if (req.dummyHand != null) knownSeats.add(req.contract.dummy);
+    // On the opening lead the dummy hasn't been revealed, and the deal
+    // sampler doesn't fix its cards, so its auction constraints must
+    // still apply.
+    final dummyRevealed =
+        req.previousTricks.isNotEmpty || req.currentTrick.cards.isNotEmpty;
+    if (req.dummyHand != null && dummyRevealed) {
+      knownSeats.add(req.contract.dummy);
+    }
     if (req.declarerHand != null) knownSeats.add(req.contract.declarer);
 
     final meanings = List<BidMeaning?>.filled(numPlayers, null);
@@ -444,6 +451,8 @@ MonteCarloResult chooseCardMonteCarloDD(
   bool useBiddingInference = true,
   int ddTricksLimit = 8,
   ChooseCardFn? prerollFn,
+  double equityMargin = 5,
+  double defenderEquityMargin = 18,
   int Function()? timeFn,
 }) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
@@ -471,6 +480,9 @@ MonteCarloResult chooseCardMonteCarloDD(
 
   int numRounds = 0;
   final roundEquities = List.generate(legalPlays.length, (_) => 0.0);
+  // Per-committed-round equities, for the paired significance test in the
+  // guide-preference step below.
+  final perRoundEquities = <List<double>>[];
   outer:
   for (int i = 0; i < maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
@@ -520,6 +532,7 @@ MonteCarloResult chooseCardMonteCarloDD(
     for (int ci = 0; ci < legalPlays.length; ci++) {
       playEquities[ci] += roundEquities[ci];
     }
+    perRoundEquities.add(List.of(roundEquities));
     numRounds += 1;
     if (maxTimeMillis != null && timeFn() - startTime >= maxTimeMillis) {
       break;
@@ -545,6 +558,66 @@ MonteCarloResult chooseCardMonteCarloDD(
         (d.abs() <= 1e-9 &&
             legalPlays[ci].rank.index < legalPlays[best].rank.index)) {
       best = ci;
+    }
+  }
+  // Honor-waste guard. Double-dummy evaluation is blind to the main cost
+  // of leading an unsupported high honor: every sampled declarer already
+  // knows where it is, so the lead is rarely punished and often shows a
+  // small spurious edge that a real (non-clairvoyant) declarer wouldn't
+  // realize. When the equity-best play is a *lead* of a K or Q with no
+  // effective touching honor and a lower card available, lead low from
+  // the same suit instead, unless the honor lead is decisively better:
+  // by more than the margin AND by a statistically significant paired
+  // difference across sampled deals (genuine coups — cashing before a
+  // ruff, unblocks — clear that bar). All other decisions remain pure
+  // equity: a broad prefer-the-heuristic rule measured -0.86 IMPs/board,
+  // and deferring to the heuristic's cross-suit lead choice within this
+  // guard still measured -0.32.
+  final margin = playerIsDeclarerSide ? equityMargin : defenderEquityMargin;
+  if (margin > 0 && cardReq.currentTrick.cards.isEmpty) {
+    final bCard = legalPlays[best];
+    if (bCard.rank == Rank.king || bCard.rank == Rank.queen) {
+      final suitCards = sortedCardsInSuit(cardReq.hand, bCard.suit);
+      final hasHigher =
+          suitCards.any((c) => c.rank.index > bCard.rank.index);
+      final hasLower =
+          suitCards.any((c) => c.rank.index < bCard.rank.index);
+      final groups = groupsOfEffectivelyIdenticalCards(
+          suitCards, cardReq.previousTricks);
+      final group = groups.firstWhere((g) => g.contains(bCard));
+      final unsupported = group.length == 1 && !hasHigher;
+      if (unsupported && hasLower) {
+        // Compare against the lowest candidate of the *same* suit: the
+        // suit choice (where sampling genuinely outperforms heuristics)
+        // is kept; only the card within the suit is downgraded.
+        int guideIndex = -1;
+        for (int ci = 0; ci < legalPlays.length; ci++) {
+          final c = legalPlays[ci];
+          if (c.suit == bCard.suit &&
+              (guideIndex < 0 ||
+                  c.rank.index < legalPlays[guideIndex].rank.index)) {
+            guideIndex = ci;
+          }
+        }
+        if (guideIndex >= 0 && guideIndex != best) {
+          final n = perRoundEquities.length;
+          final meanDiff =
+              (playEquities[best] - playEquities[guideIndex]) / numRounds;
+          bool decisive = meanDiff > margin;
+          if (decisive && n >= 2) {
+            double sumSq = 0;
+            for (final round in perRoundEquities) {
+              final d = round[best] - round[guideIndex] - meanDiff;
+              sumSq += d * d;
+            }
+            final stderr = sqrt(sumSq / (n - 1) / n);
+            decisive = meanDiff > 2 * stderr;
+          }
+          if (!decisive) {
+            best = guideIndex;
+          }
+        }
+      }
     }
   }
   return MonteCarloResult(
