@@ -100,6 +100,7 @@ PlayStrategy makeStrategy(String spec) {
       final useBid = !options.containsKey("nobid");
       final margin = double.parse(options["margin"] ?? "5");
       final dmargin = double.parse(options["dmargin"] ?? "18");
+      final fullSolve = !options.containsKey("nofull");
       PlayingCard choose(CardToPlayRequest req, Random rng) {
         return chooseCardMonteCarloDD(req, rng,
                 maxRounds: maxRounds,
@@ -107,7 +108,8 @@ PlayStrategy makeStrategy(String spec) {
                 maxTimeMillis: ms,
                 useBiddingInference: useBid,
                 equityMargin: margin,
-                defenderEquityMargin: dmargin)
+                defenderEquityMargin: dmargin,
+                tryFullDepthSolve: fullSolve)
             .bestCard;
       }
       return PlayStrategy(spec, choose);

@@ -453,6 +453,7 @@ MonteCarloResult chooseCardMonteCarloDD(
   ChooseCardFn? prerollFn,
   double equityMargin = 5,
   double defenderEquityMargin = 18,
+  bool tryFullDepthSolve = true,
   int Function()? timeFn,
 }) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
@@ -477,12 +478,26 @@ MonteCarloResult chooseCardMonteCarloDD(
   // than blowing the latency budget; the whole sampled deal is then
   // discarded (a per-candidate skip would bias the equities).
   const solveNodeLimit = 3000000;
+  // Full-depth solve attempts get a smaller budget: an abort here is
+  // routine (it just switches this call to preroll mode) and must stay
+  // around ~100ms. Solves that fit are typically 5-50ms.
+  const fullSolveNodeLimit = 1500000;
 
   int numRounds = 0;
   final roundEquities = List.generate(legalPlays.length, (_) => 0.0);
   // Per-committed-round equities, for the paired significance test in the
   // guide-preference step below.
   final perRoundEquities = <List<double>>[];
+  // Prerolling with the heuristic policy before solving injects a little
+  // follow-up competence bias back into the evaluation: a candidate whose
+  // continuation the heuristic misplays gets systematically undervalued,
+  // occasionally inverting decisions. So first try to solve candidate
+  // positions to full depth (cheap in trump-heavy or cash-out positions
+  // thanks to the solver's quick-trick bounds); only if a full solve
+  // aborts on its node budget fall back to preroll-then-solve for the
+  // rest of this call. A deal is always evaluated one way for all
+  // candidates: on a mid-deal abort the deal is discarded and resampled.
+  bool tryFullSolve = tryFullDepthSolve;
   outer:
   for (int i = 0; i < maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
@@ -501,10 +516,12 @@ MonteCarloResult chooseCardMonteCarloDD(
       }
       final round = hypoRound.copy();
       round.playCard(legalPlays[ci]);
-      while (!round.isOver() &&
-          13 - round.previousTricks.length > ddTricksLimit) {
-        final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
-        round.playCard(prerollFn(req, rng));
+      if (!tryFullSolve) {
+        while (!round.isOver() &&
+            13 - round.previousTricks.length > ddTricksLimit) {
+          final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
+          round.playCard(prerollFn(req, rng));
+        }
       }
       int declarerTricks;
       if (round.isOver()) {
@@ -517,9 +534,13 @@ MonteCarloResult chooseCardMonteCarloDD(
         for (final c in round.currentTrick.cards) {
           solver.addTrickCard(c);
         }
-        final nsFuture = solver.solveWithNodeLimit(solveNodeLimit);
+        final nsFuture = solver.solveWithNodeLimit(
+            tryFullSolve ? fullSolveNodeLimit : solveNodeLimit);
         if (nsFuture == null) {
-          continue outer; // discard this deal
+          if (tryFullSolve) {
+            tryFullSolve = false;
+          }
+          continue outer; // discard this deal and resample
         }
         final future = 13 - round.previousTricks.length;
         declarerTricks = round.numTricksWonByDeclarer() +

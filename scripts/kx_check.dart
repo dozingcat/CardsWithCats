@@ -1,6 +1,10 @@
-/// Reproduces a scanned blunder: East (seat 1), defending 3D by North,
-/// leads the king from K2 of spades into dummy's visible AQ9876. Prints
-/// MCDD candidate equities at increasing sample counts.
+/// East (seat 1), defending 3D by North, leads the king from K2 of spades
+/// into dummy's visible AQ9876. Under preroll-based evaluation this
+/// scored as a decisive winner (and was rationalized as cashing before
+/// partner ruffs dummy's ace); full-depth solving exposed it as preroll
+/// bias — the exact evaluation ranks the king lead worst. Kept as a
+/// regression case for evaluation quality. Prints MCDD candidate
+/// equities at increasing sample counts.
 library;
 
 import 'dart:math';

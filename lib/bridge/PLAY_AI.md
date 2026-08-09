@@ -160,9 +160,11 @@ best-scoring candidate that doesn't match that pattern, unless the honor
 is decisively better: by more than a margin (5 points/deal for declarer,
 18 for defenders, whose honor locations are the ones DD leaks) AND by a
 statistically significant paired difference across the sampled deals.
-Genuine coups clear that bar (verified examples: cashing a king before
-dummy's ace gets ruffed; leading Q from QT65 to pin dummy's singleton
-jack) and are still made.
+Genuine coups clear that bar and are still made. (Caution from later
+work: several "decisive" honor leads that survived this guard —
+including one confidently rationalized as a cash before a ruff — turned
+out to be preroll-bias artifacts, exposed and fixed by full-depth
+solving below.)
 
 Calibration was delicate and measured (200 boards each):
 - Broadly preferring the heuristic's card on any near-tie: -0.86 IMPs/bd.
@@ -177,6 +179,33 @@ Calibration was delicate and measured (200 boards each):
 Lesson: suppress only the exact artifact pattern and fall back along the
 measured-equity ranking, not to conventional play; every deferral to the
 heuristic's judgment costs measurable equity.
+
+## Full-depth solving (preroll bias)
+
+A reported oddity (dummy ducking with a master K-x behind it, in a
+cold 4S) exposed a deeper evaluation bug: prerolling with the heuristic
+policy before the endgame solve re-introduces follow-up competence bias
+in miniature. A candidate whose continuation the heuristic misplays
+during the preroll window (e.g. cashing away a tenace instead of
+finessing) is systematically undervalued — enough to invert decisions.
+An exact per-layout audit (`scripts/weird_duck_check.dart`) showed MCDD
+preferring the duck by ~30 points/deal while true double-dummy said
+winning the K was better; the entire gap was preroll misplay in the
+win-the-K branch.
+
+Fix: try to solve each candidate position to *full depth* first (the
+solver's quick-trick bounds make this 5-50ms in most positions); only
+when a solve exceeds a ~1.5M-node budget does the call fall back to
+preroll-then-solve, and then consistently for all remaining deals.
+Measured impact at equal sampled deals: **+1.27 +/- 0.30 IMPs/board**
+(200 boards, 79-34-87) — the preroll bias had been costing more than an
+IMP per board. It also turned out to be the true source of most
+"decisive" unsupported-honor leads: with full-depth evaluation the
+rounds=50 lead scan drops to near-baseline (10 flags, 4 against the
+heuristic's judgment), and the poster-child "genuine coup" K-from-K2
+lead is re-ranked from best to worst. Average play cost rose from ~22ms
+to ~214ms at rounds=10 (the app's 2.2s budget copes by sampling fewer
+deals on slow devices).
 
 ## Known limitations / future ideas
 
