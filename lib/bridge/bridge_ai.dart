@@ -319,7 +319,14 @@ class BiddingDealFilter {
       return null;
     }
     final knownSeats = <int>{req.currentPlayerIndex()};
-    if (req.dummyHand != null) knownSeats.add(req.contract.dummy);
+    // On the opening lead the dummy hasn't been revealed, and the deal
+    // sampler doesn't fix its cards, so its auction constraints must
+    // still apply.
+    final dummyRevealed =
+        req.previousTricks.isNotEmpty || req.currentTrick.cards.isNotEmpty;
+    if (req.dummyHand != null && dummyRevealed) {
+      knownSeats.add(req.contract.dummy);
+    }
     if (req.declarerHand != null) knownSeats.add(req.contract.declarer);
 
     final meanings = List<BidMeaning?>.filled(numPlayers, null);
@@ -444,6 +451,9 @@ MonteCarloResult chooseCardMonteCarloDD(
   bool useBiddingInference = true,
   int ddTricksLimit = 8,
   ChooseCardFn? prerollFn,
+  double equityMargin = 5,
+  double defenderEquityMargin = 18,
+  bool tryFullDepthSolve = true,
   int Function()? timeFn,
 }) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
@@ -468,9 +478,26 @@ MonteCarloResult chooseCardMonteCarloDD(
   // than blowing the latency budget; the whole sampled deal is then
   // discarded (a per-candidate skip would bias the equities).
   const solveNodeLimit = 3000000;
+  // Full-depth solve attempts get a smaller budget: an abort here is
+  // routine (it just switches this call to preroll mode) and must stay
+  // around ~100ms. Solves that fit are typically 5-50ms.
+  const fullSolveNodeLimit = 1500000;
 
   int numRounds = 0;
   final roundEquities = List.generate(legalPlays.length, (_) => 0.0);
+  // Per-committed-round equities, for the paired significance test in the
+  // guide-preference step below.
+  final perRoundEquities = <List<double>>[];
+  // Prerolling with the heuristic policy before solving injects a little
+  // follow-up competence bias back into the evaluation: a candidate whose
+  // continuation the heuristic misplays gets systematically undervalued,
+  // occasionally inverting decisions. So first try to solve candidate
+  // positions to full depth (cheap in trump-heavy or cash-out positions
+  // thanks to the solver's quick-trick bounds); only if a full solve
+  // aborts on its node budget fall back to preroll-then-solve for the
+  // rest of this call. A deal is always evaluated one way for all
+  // candidates: on a mid-deal abort the deal is discarded and resampled.
+  bool tryFullSolve = tryFullDepthSolve;
   outer:
   for (int i = 0; i < maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
@@ -489,10 +516,12 @@ MonteCarloResult chooseCardMonteCarloDD(
       }
       final round = hypoRound.copy();
       round.playCard(legalPlays[ci]);
-      while (!round.isOver() &&
-          13 - round.previousTricks.length > ddTricksLimit) {
-        final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
-        round.playCard(prerollFn(req, rng));
+      if (!tryFullSolve) {
+        while (!round.isOver() &&
+            13 - round.previousTricks.length > ddTricksLimit) {
+          final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
+          round.playCard(prerollFn(req, rng));
+        }
       }
       int declarerTricks;
       if (round.isOver()) {
@@ -505,9 +534,13 @@ MonteCarloResult chooseCardMonteCarloDD(
         for (final c in round.currentTrick.cards) {
           solver.addTrickCard(c);
         }
-        final nsFuture = solver.solveWithNodeLimit(solveNodeLimit);
+        final nsFuture = solver.solveWithNodeLimit(
+            tryFullSolve ? fullSolveNodeLimit : solveNodeLimit);
         if (nsFuture == null) {
-          continue outer; // discard this deal
+          if (tryFullSolve) {
+            tryFullSolve = false;
+          }
+          continue outer; // discard this deal and resample
         }
         final future = 13 - round.previousTricks.length;
         declarerTricks = round.numTricksWonByDeclarer() +
@@ -520,6 +553,7 @@ MonteCarloResult chooseCardMonteCarloDD(
     for (int ci = 0; ci < legalPlays.length; ci++) {
       playEquities[ci] += roundEquities[ci];
     }
+    perRoundEquities.add(List.of(roundEquities));
     numRounds += 1;
     if (maxTimeMillis != null && timeFn() - startTime >= maxTimeMillis) {
       break;
@@ -545,6 +579,70 @@ MonteCarloResult chooseCardMonteCarloDD(
         (d.abs() <= 1e-9 &&
             legalPlays[ci].rank.index < legalPlays[best].rank.index)) {
       best = ci;
+    }
+  }
+  // Honor-waste guard. Double-dummy evaluation is blind to the main cost
+  // of leading an unsupported high honor: every sampled declarer already
+  // knows where it is, so the lead is rarely punished and often shows a
+  // small spurious edge that a real (non-clairvoyant) declarer wouldn't
+  // realize. When the equity-best play is a *lead* of a K or Q with no
+  // effective touching honor and a lower card available, play the
+  // best-scoring candidate that doesn't match that pattern instead,
+  // unless the honor lead is decisively better: by more than the margin
+  // AND by a statistically significant paired difference across sampled
+  // deals (genuine coups — cashing before a ruff, pins, unblocks — clear
+  // that bar). All other decisions remain pure equity: deferring to the
+  // heuristic policy instead measured -0.86 IMPs/board applied broadly
+  // and -0.32 within this guard; falling back along the measured-equity
+  // ranking measured +-0. See PLAY_AI.md.
+  final margin = playerIsDeclarerSide ? equityMargin : defenderEquityMargin;
+  if (margin > 0 && cardReq.currentTrick.cards.isEmpty) {
+    // Matches the artifact pattern: a lead of a K or Q with no effective
+    // touching honor, no higher card, and a lower card available in the
+    // suit.
+    bool isArtifactLead(PlayingCard c) {
+      if (c.rank != Rank.king && c.rank != Rank.queen) return false;
+      final suitCards = sortedCardsInSuit(cardReq.hand, c.suit);
+      if (suitCards.any((x) => x.rank.index > c.rank.index)) return false;
+      if (!suitCards.any((x) => x.rank.index < c.rank.index)) return false;
+      final groups =
+          groupsOfEffectivelyIdenticalCards(suitCards, cardReq.previousTricks);
+      return groups.firstWhere((g) => g.contains(c)).length == 1;
+    }
+
+    if (isArtifactLead(legalPlays[best])) {
+      // Fall back to the best-scoring candidate that is NOT itself an
+      // artifact lead; the honor keeps the lead only if it beats that
+      // candidate decisively.
+      int fallback = -1;
+      for (int ci = 0; ci < legalPlays.length; ci++) {
+        if (ci == best || isArtifactLead(legalPlays[ci])) continue;
+        if (fallback < 0 ||
+            playEquities[ci] - playEquities[fallback] > 1e-9 ||
+            ((playEquities[ci] - playEquities[fallback]).abs() <= 1e-9 &&
+                legalPlays[ci].rank.index <
+                    legalPlays[fallback].rank.index)) {
+          fallback = ci;
+        }
+      }
+      if (fallback >= 0) {
+        final n = perRoundEquities.length;
+        final meanDiff =
+            (playEquities[best] - playEquities[fallback]) / numRounds;
+        bool decisive = meanDiff > margin;
+        if (decisive && n >= 2) {
+          double sumSq = 0;
+          for (final round in perRoundEquities) {
+            final d = round[best] - round[fallback] - meanDiff;
+            sumSq += d * d;
+          }
+          final stderr = sqrt(sumSq / (n - 1) / n);
+          decisive = meanDiff > 2 * stderr;
+        }
+        if (!decisive) {
+          best = fallback;
+        }
+      }
     }
   }
   return MonteCarloResult(

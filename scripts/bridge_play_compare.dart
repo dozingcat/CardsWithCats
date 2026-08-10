@@ -8,15 +8,20 @@
 /// passed out are skipped (bidding is identical in both rooms, so they
 /// can never produce a difference).
 ///
+/// Boards are played in parallel across isolates. All randomness is
+/// seeded per board, so results are identical regardless of --jobs.
+///
 /// Usage:
 ///   dart run scripts/bridge_play_compare.dart [options] <specA> <specB>
 ///     --deals N     boards to play (default 100)
 ///     --seed N      RNG seed (default 42)
+///     --jobs N      worker isolates (default: cores - 2)
 ///     --quiet       suppress per-board output
 /// Strategy specs are described in lib/bridge/play_strategies.dart.
 library;
 
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:cards_with_cats/bridge/bridge.dart';
@@ -34,6 +39,12 @@ class StrategyStats {
       cardsPlayed == 0 ? 0 : elapsedMicros / cardsPlayed / 1000;
 
   double get maxMillisPerPlay => maxMicros / 1000;
+
+  void merge(int cards, int micros, int maxM) {
+    cardsPlayed += cards;
+    elapsedMicros += micros;
+    if (maxM > maxMicros) maxMicros = maxM;
+  }
 }
 
 /// Plays out `round` (bidding already complete). Seats in `teamASeats` use
@@ -83,9 +94,71 @@ bool bidRound(BridgeRound round) {
   return true;
 }
 
-void main(List<String> args) {
+BridgeRound _dealAndBid(int seed, int board) {
+  final dealRng = Random(seed * 1000003 + board);
+  final round = BridgeRound.deal(board % 4, dealRng)
+    ..vulnerability = vulnerabilityForRoundIndex(board);
+  return round;
+}
+
+/// One played board's outcome, sendable across isolates.
+typedef BoardResult = ({
+  int board,
+  int imps,
+  int scoreDiff,
+  String description,
+  int aCards,
+  int aMicros,
+  int aMaxMicros,
+  int bCards,
+  int bMicros,
+  int bMaxMicros,
+});
+
+BoardResult _playBoard(String specA, String specB, int seed, int board) {
+  final a = makeStrategy(specA);
+  final b = makeStrategy(specB);
+  final open = _dealAndBid(seed, board);
+  bidRound(open);
+  final closed = open.copyAndReset();
+  for (final bid in open.bidHistory) {
+    closed.addBid(bid);
+  }
+  final statsA = StrategyStats();
+  final statsB = StrategyStats();
+  // Open room: A holds N-S. Closed room: A holds E-W. Both rooms use the
+  // same RNG seed (common random numbers): identical strategies then play
+  // identically and score zero, and the shared noise cancels in the
+  // difference for similar strategies.
+  playRound(open, a, b, {0, 2}, Random(seed * 7 + board), statsA, statsB);
+  playRound(closed, b, a, {0, 2}, Random(seed * 7 + board), statsB, statsA);
+  final scoreDiff =
+      open.contractScoreForPlayer(0) - closed.contractScoreForPlayer(0);
+  final c = open.contract!;
+  final made = open.tricksTakenByDeclarerOverContract();
+  final madeClosed = closed.tricksTakenByDeclarerOverContract();
+  final description = "${c.bid} by ${"NESW"[c.declarer]}"
+      "${c.doubled != DoubledType.none ? 'X' : ''} "
+      "open ${made >= 0 ? '+' : ''}$made closed "
+      "${madeClosed >= 0 ? '+' : ''}$madeClosed";
+  return (
+    board: board,
+    imps: impsForScoreDifference(scoreDiff),
+    scoreDiff: scoreDiff,
+    description: description,
+    aCards: statsA.cardsPlayed,
+    aMicros: statsA.elapsedMicros,
+    aMaxMicros: statsA.maxMicros,
+    bCards: statsB.cardsPlayed,
+    bMicros: statsB.elapsedMicros,
+    bMaxMicros: statsB.maxMicros,
+  );
+}
+
+void main(List<String> args) async {
   int numDeals = 100;
   int seed = 42;
+  int jobs = max(1, Platform.numberOfProcessors - 2);
   bool quiet = false;
   final specs = <String>[];
   for (int i = 0; i < args.length; i++) {
@@ -94,6 +167,8 @@ void main(List<String> args) {
         numDeals = int.parse(args[++i]);
       case "--seed":
         seed = int.parse(args[++i]);
+      case "--jobs":
+        jobs = max(1, int.parse(args[++i]));
       case "--quiet":
         quiet = true;
       default:
@@ -104,66 +179,67 @@ void main(List<String> args) {
     print("Expected exactly two strategy specs, got $specs");
     exit(1);
   }
-  final a = makeStrategy(specs[0]);
-  final b = makeStrategy(specs[1]);
-  print("A: ${a.name}");
-  print("B: ${b.name}");
+  // Instantiate here to fail fast on bad specs.
+  print("A: ${makeStrategy(specs[0]).name}");
+  print("B: ${makeStrategy(specs[1]).name}");
+
+  final overallWatch = Stopwatch()..start();
+
+  // Bidding is cheap; pre-scan sequentially for the boards the play phase
+  // will use, so results match a sequential run exactly.
+  final playable = <int>[];
+  int passedOut = 0;
+  int biddingFailed = 0;
+  for (int board = 0; playable.length < numDeals; board++) {
+    final round = _dealAndBid(seed, board);
+    if (!bidRound(round)) {
+      biddingFailed++;
+    } else if (round.isPassedOut()) {
+      passedOut++;
+    } else {
+      playable.add(board);
+    }
+  }
+
+  // Fan boards out across worker isolates.
+  final results = List<BoardResult?>.filled(playable.length, null);
+  int nextIndex = 0;
+  Future<void> worker() async {
+    while (true) {
+      final i = nextIndex++;
+      if (i >= playable.length) return;
+      final board = playable[i];
+      results[i] = await Isolate.run(
+          () => _playBoard(specs[0], specs[1], seed, board));
+    }
+  }
+
+  await Future.wait([for (int w = 0; w < jobs; w++) worker()]);
+  overallWatch.stop();
 
   final statsA = StrategyStats();
   final statsB = StrategyStats();
   final impResults = <int>[];
   int totalPointDiff = 0;
-  int passedOut = 0;
-  int biddingFailed = 0;
   int boardsWonByA = 0, boardsWonByB = 0, boardsTied = 0;
-  final overallWatch = Stopwatch()..start();
-
-  for (int board = 0; impResults.length < numDeals; board++) {
-    final dealRng = Random(seed * 1000003 + board);
-    final open = BridgeRound.deal(board % 4, dealRng)
-      ..vulnerability = vulnerabilityForRoundIndex(board);
-    if (!bidRound(open)) {
-      biddingFailed++;
-      continue;
-    }
-    if (open.isPassedOut()) {
-      passedOut++;
-      continue;
-    }
-    final closed = open.copyAndReset();
-    for (final bid in open.bidHistory) {
-      closed.addBid(bid);
-    }
-    // Open room: A holds N-S. Closed room: A holds E-W. Both rooms use the
-    // same RNG seed (common random numbers): identical strategies then play
-    // identically and score zero, and the shared noise cancels in the
-    // difference for similar strategies.
-    playRound(open, a, b, {0, 2}, Random(seed * 7 + board), statsA, statsB);
-    playRound(closed, b, a, {0, 2}, Random(seed * 7 + board), statsB, statsA);
-    final scoreDiff =
-        open.contractScoreForPlayer(0) - closed.contractScoreForPlayer(0);
-    final imps = impsForScoreDifference(scoreDiff);
-    impResults.add(imps);
-    totalPointDiff += scoreDiff;
-    if (imps > 0) {
+  for (final r in results) {
+    if (r == null) continue;
+    impResults.add(r.imps);
+    totalPointDiff += r.scoreDiff;
+    if (r.imps > 0) {
       boardsWonByA++;
-    } else if (imps < 0) {
+    } else if (r.imps < 0) {
       boardsWonByB++;
     } else {
       boardsTied++;
     }
+    statsA.merge(r.aCards, r.aMicros, r.aMaxMicros);
+    statsB.merge(r.bCards, r.bMicros, r.bMaxMicros);
     if (!quiet) {
-      final c = open.contract!;
-      final made = open.tricksTakenByDeclarerOverContract();
-      final madeClosed = closed.tricksTakenByDeclarerOverContract();
-      print("board ${impResults.length}: ${c.bid} by ${"NESW"[c.declarer]}"
-          "${c.doubled != DoubledType.none ? 'X' : ''} "
-          "open ${made >= 0 ? '+' : ''}$made closed "
-          "${madeClosed >= 0 ? '+' : ''}$madeClosed -> "
-          "${imps >= 0 ? '+' : ''}$imps IMPs to A");
+      print("board ${impResults.length}: ${r.description} -> "
+          "${r.imps >= 0 ? '+' : ''}${r.imps} IMPs to A");
     }
   }
-  overallWatch.stop();
 
   final n = impResults.length;
   final mean = impResults.fold(0, (s, x) => s + x) / n;
@@ -184,5 +260,6 @@ void main(List<String> args) {
       "B ${statsB.avgMillisPerPlay.toStringAsFixed(2)} "
       "(max ${statsB.maxMillisPerPlay.toStringAsFixed(0)}, "
       "${statsB.cardsPlayed} plays)");
-  print("elapsed: ${(overallWatch.elapsedMilliseconds / 1000).toStringAsFixed(1)}s");
+  print("elapsed: ${(overallWatch.elapsedMilliseconds / 1000).toStringAsFixed(1)}s "
+      "($jobs jobs)");
 }
