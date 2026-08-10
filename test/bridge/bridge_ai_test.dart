@@ -41,6 +41,42 @@ void main() {
     expect(result.bestCard, c("QS")[0]);
   });
 
+  test("candidate leads use the top of touching honors", () {
+    final bids = [
+      PlayerBid(0, BidAction.noTrump(3)),
+      PlayerBid(1, BidAction.pass()),
+      PlayerBid(2, BidAction.pass()),
+      PlayerBid(3, BidAction.pass()),
+    ];
+    final hand = c("AS KS QS 2S 5H 4H 3H 2H 4D 3D 2D 3C 2C");
+    final rng = Random(17);
+
+    // Leading: the AKQ group is represented by the ace (conventional
+    // top-of-sequence lead), low groups by their cheapest card.
+    final leadReq = CardToPlayRequest(
+      hand: hand,
+      previousTricks: [],
+      currentTrick: TrickInProgress(1),
+      bidHistory: bids,
+      vulnerability: Vulnerability.neither,
+    );
+    final leads = cardsToConsiderPlaying(leadReq, rng).toSet();
+    expect(leads, containsAll(c("AS 2S 2H 2D 2C")));
+    expect(leads, isNot(contains(c("QS")[0])));
+    expect(leads, isNot(contains(c("KS")[0])));
+
+    // Following to a spade lead: lowest of equals as before.
+    final followReq = CardToPlayRequest(
+      hand: hand,
+      previousTricks: [],
+      currentTrick: TrickInProgress(0, c("5S")),
+      bidHistory: bids,
+      vulnerability: Vulnerability.neither,
+    );
+    final follows = cardsToConsiderPlaying(followReq, rng).toSet();
+    expect(follows, c("QS 2S").toSet());
+  });
+
   test("mcdd finds the finesse", () {
     final req = CardToPlayRequest(
       declarerHand: c("3S 2S AH KH QH JH TH AD KD QD AC KC QC"),
