@@ -1,3 +1,4 @@
+import 'package:cards_with_cats/bridge/bridge_stats.dart';
 import 'package:cards_with_cats/ohhell/ohhell_stats.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
@@ -30,6 +31,7 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
   late HeartsStats heartsStats;
   late SpadesStats spadesStats;
   late OhHellStats ohHellStats;
+  late BridgeStats bridgeStats;
   GameType selectedMatchType = GameType.hearts;
   var loaded = false;
 
@@ -43,6 +45,7 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
     heartsStats = (await widget.statsStore.readHeartsStats()) ?? HeartsStats.empty();
     spadesStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
     ohHellStats = (await widget.statsStore.readOhHellStats()) ?? OhHellStats.empty();
+    bridgeStats = (await widget.statsStore.readBridgeStats()) ?? BridgeStats.empty();
     setState(() {loaded = true;});
   }
 
@@ -93,6 +96,8 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
                             spadesStatsTable(spadesStats, widget.layout) :
                         selectedMatchType == GameType.ohHell ?
                             ohHellStatsTable(ohHellStats, widget.layout) :
+                        selectedMatchType == GameType.bridge ?
+                            bridgeStatsTable(bridgeStats, widget.layout) :
                         const SizedBox(),
               ))))),
 
@@ -177,6 +182,40 @@ Widget spadesStatsTable(SpadesStats stats, Layout layout) {
         statsTableRow("Opp. average bid", oppAverageBid?.toStringAsFixed(2) ?? "--"),
         statsTableRow("Opp. nil made/attempted", oppNilBids),
         statsTableRow("Opp. average bags", oppAvgBags?.toStringAsFixed(2) ?? "--"),
+      ]);
+}
+
+Widget bridgeStatsTable(BridgeStats stats, Layout layout) {
+  String plusPrefix(int n) => n > 0 ? "+$n" : n.toString();
+  final avgImpsPerRound =
+      stats.numRounds > 0 ? stats.netRoundImps / stats.numRounds : null;
+  final contracts = "${stats.numContractsMade}/${stats.numContracts}";
+  final oppContracts =
+      "${stats.numOpposingContractsMade}/${stats.numOpposingContracts}";
+  final games = "${stats.numGameContractsMade}/${stats.numGameContracts}";
+  final oppGames =
+      "${stats.numOpposingGameContractsMade}/${stats.numOpposingGameContracts}";
+  final slams = "${stats.numSlamContractsMade}/${stats.numSlamContracts}";
+  final oppSlams =
+      "${stats.numOpposingSlamContractsMade}/${stats.numOpposingSlamContracts}";
+
+  return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      children: [
+        statsTableRow("Matches played", stats.numMatches.toString()),
+        statsTableRow("Matches won", stats.numMatchesWon.toString()),
+        statsTableRow("Matches tied", stats.numMatchesTied.toString()),
+        statsTableRow("Net match IMPs", plusPrefix(stats.netMatchImps)),
+        statsTableRow("Rounds played", stats.numRounds.toString()),
+        statsTableRow("Average IMPs/round",
+            avgImpsPerRound?.toStringAsFixed(2) ?? "--"),
+        statsTableRow("Contracts made/played", contracts),
+        statsTableRow("Games made/played", games),
+        statsTableRow("Slams made/played", slams),
+        statsTableRow("Opp. contracts made/played", oppContracts),
+        statsTableRow("Opp. games made/played", oppGames),
+        statsTableRow("Opp. slams made/played", oppSlams),
       ]);
 }
 
