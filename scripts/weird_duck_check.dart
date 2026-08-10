@@ -3,7 +3,16 @@
 /// Trick 1: W leads AD, dummy low, E low — declarer drops the QD from QT.
 /// Trick 2: W continues a low diamond — dummy ducks with K6, losing to
 /// East's jack.
-/// Prints MCDD candidate equities at both decision points.
+///
+/// Both decision points are evaluated two ways:
+///   preroll:   the pre-fix evaluation — play forward with the heuristic
+///              policy until 7 tricks remain, then solve exactly. Its
+///              preference for the trick-2 duck (~+30 points) was preroll
+///              bias: the heuristic misplayed the win-the-K continuations.
+///   fullsolve: solve each candidate position exactly from the decision
+///              point (the shipped default).
+/// A per-layout audit then shows ground truth: for sampled layouts, the
+/// exact declarer-trick difference of ducking vs winning.
 library;
 
 import 'dart:math';
@@ -39,6 +48,19 @@ void printEquities(String label, MonteCarloResult result) {
       '${e.key}=${e.value.toStringAsFixed(1)}').join(' ')}");
 }
 
+void evaluateBothWays(String label, CardToPlayRequest req) {
+  for (final rounds in [20, 100]) {
+    printEquities(
+        "$label preroll   rounds=$rounds",
+        chooseCardMonteCarloDD(req, Random(3),
+            maxRounds: rounds, ddTricksLimit: 7, tryFullDepthSolve: false));
+    printEquities(
+        "$label fullsolve rounds=$rounds",
+        chooseCardMonteCarloDD(req, Random(3),
+            maxRounds: rounds, ddTricksLimit: 7));
+  }
+}
+
 void main() {
   // Declarer (seat 2) fourth to trick 1: AD led, dummy played the 4, E
   // the 2. Declarer holds QT of diamonds.
@@ -50,11 +72,7 @@ void main() {
     bidHistory: bids,
     vulnerability: Vulnerability.neither,
   );
-  for (final rounds in [20, 100]) {
-    printEquities("trick1 declarer rounds=$rounds",
-        chooseCardMonteCarloDD(reqA, Random(3), maxRounds: rounds,
-            ddTricksLimit: 7));
-  }
+  evaluateBothWays("trick1 declarer", reqA);
 
   // Dummy (seat 0) second to trick 2: W won the ace and continues the 3.
   // Dummy holds K6 of diamonds; East's JD is still out.
@@ -68,15 +86,11 @@ void main() {
     bidHistory: bids,
     vulnerability: Vulnerability.neither,
   );
-  for (final rounds in [20, 100]) {
-    printEquities("trick2 dummy   rounds=$rounds",
-        chooseCardMonteCarloDD(reqB, Random(3), maxRounds: rounds,
-            ddTricksLimit: 7));
-  }
+  evaluateBothWays("trick2 dummy  ", reqB);
 
   // Per-layout audit of the trick-2 duck: sample deals consistent with
   // the position and compare double-dummy declarer tricks after ducking
-  // (6D) vs winning (KD).
+  // (6D) vs winning (KD). Negative diffs mean ducking costs tricks.
   final distReq = makeCardDistributionRequest(reqB);
   final filter = BiddingDealFilter.fromRequest(reqB);
   final rng = Random(9);
