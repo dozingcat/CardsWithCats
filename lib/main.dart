@@ -972,6 +972,7 @@ class _MyHomePageState extends State<MyHomePage> {
               layout: layout,
               statsStore: statsStore,
               onClose: _showMainMenu,
+              initialGameType: matchType,
           ),
           if (dialogMode == DialogMode.none) _menuIcon(),
 

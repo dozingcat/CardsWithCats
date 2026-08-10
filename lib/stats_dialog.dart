@@ -12,12 +12,15 @@ class StatsDialog extends StatefulWidget {
   final Layout layout;
   final StatsStore statsStore;
   final void Function() onClose;
+  // The dropdown starts on this game if set (e.g. the match in progress).
+  final GameType? initialGameType;
 
   const StatsDialog({
     Key? key,
     required this.layout,
     required this.statsStore,
     required this.onClose,
+    this.initialGameType,
   }) : super(key: key);
 
   @override
@@ -38,6 +41,7 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    selectedMatchType = widget.initialGameType ?? GameType.hearts;
     _loadStats();
   }
 
@@ -186,9 +190,16 @@ Widget spadesStatsTable(SpadesStats stats, Layout layout) {
 }
 
 Widget bridgeStatsTable(BridgeStats stats, Layout layout) {
-  String plusPrefix(int n) => n > 0 ? "+$n" : n.toString();
-  final avgImpsPerRound =
-      stats.numRounds > 0 ? stats.netRoundImps / stats.numRounds : null;
+  // Signed to two decimals; exactly zero shows without a sign.
+  String? signedAverage(int total, int count) {
+    if (count == 0) return null;
+    final s = (total / count).toStringAsFixed(2);
+    if (s == "0.00" || s == "-0.00") return "0.00";
+    return total > 0 ? "+$s" : s;
+  }
+
+  final avgImpsPerMatch = signedAverage(stats.netMatchImps, stats.numMatches);
+  final avgImpsPerRound = signedAverage(stats.netRoundImps, stats.numRounds);
   final contracts = "${stats.numContractsMade}/${stats.numContracts}";
   final oppContracts =
       "${stats.numOpposingContractsMade}/${stats.numOpposingContracts}";
@@ -206,10 +217,9 @@ Widget bridgeStatsTable(BridgeStats stats, Layout layout) {
         statsTableRow("Matches played", stats.numMatches.toString()),
         statsTableRow("Matches won", stats.numMatchesWon.toString()),
         statsTableRow("Matches tied", stats.numMatchesTied.toString()),
-        statsTableRow("Net match IMPs", plusPrefix(stats.netMatchImps)),
+        statsTableRow("Average IMPs/match", avgImpsPerMatch ?? "--"),
         statsTableRow("Rounds played", stats.numRounds.toString()),
-        statsTableRow("Average IMPs/round",
-            avgImpsPerRound?.toStringAsFixed(2) ?? "--"),
+        statsTableRow("Average IMPs/round", avgImpsPerRound ?? "--"),
         statsTableRow("Contracts made/played", contracts),
         statsTableRow("Games made/played", games),
         statsTableRow("Slams made/played", slams),
