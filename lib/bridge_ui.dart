@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cards_with_cats/bridge/bridge_stats.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
@@ -154,6 +155,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _startRound() {
     _clearMoods();
     isClaimingRemainingTricks = false;
+    _statsUpdatePending = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -175,6 +177,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       _scheduleNextActionIfNeeded();
     }
     widget.saveMatchFn(match);
+    if (round.isPassedOut()) {
+      _updateStatsIfMatchOrRoundOver();
+    }
   }
 
   void _makeBidForAiPlayer() {
@@ -288,7 +293,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         // Safety net: normally the replay started at the round's beginning.
         _runDuplicateRound();
       }
-      // _updateStatsIfMatchOrRoundOver();
+      _updateStatsIfMatchOrRoundOver();
     }
   }
 
@@ -304,8 +309,32 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     // TODO
   }
 
+  // Set when the human's round ends; stats are recorded once both the
+  // round and its duplicate replay have finished (the replay usually
+  // completes first, but not always). Deliberately not persisted:
+  // restoring a save made after a round ended skips that round's stats
+  // rather than risk double counting.
+  bool _statsUpdatePending = false;
+
   void _updateStatsIfMatchOrRoundOver() {
-    // TODO
+    if (round.isOver()) {
+      _statsUpdatePending = true;
+      _updateStatsIfPendingAndDuplicateDone();
+    }
+  }
+
+  void _updateStatsIfPendingAndDuplicateDone() async {
+    if (!_statsUpdatePending || !round.isOver() || !duplicateRound.isOver()) {
+      return;
+    }
+    _statsUpdatePending = false;
+    final currentStats =
+        (await widget.statsStore.readBridgeStats()) ?? BridgeStats.empty();
+    var newStats = currentStats.updateFromRound(round, duplicateRound);
+    if (match.isMatchOver()) {
+      newStats = newStats.updateFromMatch(match);
+    }
+    widget.statsStore.writeBridgeStats(newStats);
   }
 
   // The duplicate round in progress, if any. Used to avoid double-starting
@@ -361,6 +390,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       }
       // Save so the completed duplicate round and IMP totals persist.
       widget.saveMatchFn(match);
+      _updateStatsIfPendingAndDuplicateDone();
     } finally {
       // Clear even on abnormal exit so the safety-net restarts aren't
       // blocked by a stale reference.
@@ -432,6 +462,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     if (!duplicateRound.isOver() && _runningDuplicate == null) {
       _runDuplicateRound();
     }
+    _updateStatsIfMatchOrRoundOver();
   }
 
   bool _isPlayerControlledByHuman(int pnum) {

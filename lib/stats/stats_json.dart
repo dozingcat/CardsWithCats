@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as Path;
 
+import 'package:cards_with_cats/bridge/bridge_stats.dart';
 import 'package:cards_with_cats/hearts/hearts_stats.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
@@ -15,6 +16,7 @@ class JsonFileStatsStore implements StatsStore {
   String heartsPath() => Path.join(baseDirectory.path, "hearts.json");
   String spadesPath() => Path.join(baseDirectory.path, "spades.json");
   String ohHellPath() => Path.join(baseDirectory.path, "ohhell.json");
+  String bridgePath() => Path.join(baseDirectory.path, "bridge.json");
 
   JsonFileStatsStore({required this.baseDirectory});
 
@@ -63,6 +65,22 @@ class JsonFileStatsStore implements StatsStore {
   Future<void> writeOhHellStats(OhHellStats stats) async {
     final file = File(ohHellPath());
     print("Writing Oh Hell stats to $file");
+    await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
+  }
+
+  @override
+  Future<BridgeStats?> readBridgeStats() async {
+    final json = await readJsonFromFile(bridgePath());
+    if (json != null) {
+      return BridgeStats.fromJson(json);
+    }
+    return null;
+  }
+
+  @override
+  Future<void> writeBridgeStats(BridgeStats stats) async {
+    final file = File(bridgePath());
+    print("Writing bridge stats to $file");
     await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
   }
 }
