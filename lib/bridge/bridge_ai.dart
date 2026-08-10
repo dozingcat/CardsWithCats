@@ -89,10 +89,18 @@ List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // Cards that are interchangeable for trick-taking (e.g. the queen and
   // jack of a suit when holding both) need only one representative; play
   // the cheapest. This shrinks the branching factor and stops equity noise
-  // from picking a wastefully high equal.
+  // from picking a wastefully high equal. Exception: when *leading* from
+  // a group of touching honors, represent it by its top card — leading Q
+  // from AKQ is equivalent double-dummy but conventionally backwards.
+  final leading = req.currentTrick.cards.isEmpty;
   final groups = groupsOfEffectivelyIdenticalCards(
       req.legalPlays(), req.previousTricks);
-  return [for (final g in groups) g.last];
+  return [
+    for (final g in groups)
+      leading && g.length >= 2 && g.first.rank.index >= Rank.ten.index
+          ? g.first
+          : g.last
+  ];
 }
 
 PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
@@ -605,6 +613,26 @@ MonteCarloResult chooseCardMonteCarloDD(
       final suitCards = sortedCardsInSuit(cardReq.hand, c.suit);
       if (suitCards.any((x) => x.rank.index > c.rank.index)) return false;
       if (!suitCards.any((x) => x.rank.index < c.rank.index)) return false;
+      // A master can't be captured, so cashing it is never the artifact
+      // (e.g. continuing a now-master king after the ace and queen have
+      // been played). Higher cards seen in play or in a visible hand of
+      // our own side don't threaten it.
+      final seen = <PlayingCard>{};
+      for (final t in cardReq.previousTricks) {
+        seen.addAll(t.cards);
+      }
+      final partnerVisible =
+          playerIsDeclarerSide ? (cardReq.dummyHand ?? cardReq.declarerHand) : null;
+      bool isMaster = true;
+      for (var r = c.rank; r != Rank.ace && isMaster;) {
+        r = r.nextHigherRank();
+        final higher = PlayingCard(r, c.suit);
+        if (!seen.contains(higher) &&
+            !(partnerVisible?.contains(higher) ?? false)) {
+          isMaster = false;
+        }
+      }
+      if (isMaster) return false;
       final groups =
           groupsOfEffectivelyIdenticalCards(suitCards, cardReq.previousTricks);
       return groups.firstWhere((g) => g.contains(c)).length == 1;

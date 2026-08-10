@@ -191,6 +191,16 @@ Lesson: suppress only the exact artifact pattern and fall back along the
 measured-equity ranking, not to conventional play; every deferral to the
 heuristic's judgment costs measurable equity.
 
+Re-measured after full-depth solving landed: the guard remains
+worthwhile — +0.31 +/- 0.18 IMPs/board vs guard-off (200 boards; free
+to mildly positive), while still halving flagged unsupported-honor
+leads (25 -> 12 at 50 sampled deals; into-dummy-honor leads 8 -> 2),
+because exact evaluation still leaves plenty of genuine ties. Two
+naturalness refinements: a K/Q that has become the *master* is exempt
+(cashing it is never the artifact), and lead candidates from groups of
+touching honors are represented by the top card (lead A from AKQ, not
+the double-dummy-equivalent Q).
+
 ## Full-depth solving (preroll bias)
 
 A reported oddity (dummy ducking with a master K-x behind it, in a
