@@ -236,6 +236,12 @@ maxtricks rollouts (the strongest pre-project baseline) is
 - Deal sampling is rejection-based; heavily constrained auctions
   occasionally fall back to best-effort samples. Weighted dealing (deal
   honors to fit HCP windows directly) would raise the hit rate.
+- Deal sampling draws no inference from opponents' *card choices* (only
+  bids and shown voids). E.g. in the weird_duck_check position, a human
+  reads West's ace-then-low continuation for the location of the jack;
+  the sampler keeps it 50/50, which is exactly why the duck-vs-win
+  equities there are nearly tied. Weighting layouts by the plausibility
+  of the observed defensive carding would be the next inference layer.
 - Opening leads are made before dummy is visible with no bidding-free
   information; lead conventions live in the heuristic policy, not MCDD
   candidates.

@@ -95,9 +95,15 @@ void main() {
   final filter = BiddingDealFilter.fromRequest(reqB);
   final rng = Random(9);
   final diffCounts = <int, int>{};
+  // Split by which defender holds the outstanding JD: with East (seat 1)
+  // ducking should tend to cost a trick, with West (seat 3) it tends to
+  // gain one (declarer's T scores en passant and the K stays master).
+  final diffCountsByJd = {1: <int, int>{}, 3: <int, int>{}};
   for (int i = 0; i < 40; i++) {
     final hypo = possibleRound(reqB, distReq, rng, filter: filter);
     if (hypo == null) break;
+    final jd = c("JD")[0];
+    final jdHolder = hypo.players[1].hand.contains(jd) ? 1 : 3;
     final tricks = <int>[];
     for (final play in c("6D KD")) {
       final round = hypo.copy();
@@ -113,7 +119,12 @@ void main() {
     }
     final diff = tricks[0] - tricks[1]; // duck minus win
     diffCounts[diff] = (diffCounts[diff] ?? 0) + 1;
+    diffCountsByJd[jdHolder]![diff] =
+        (diffCountsByJd[jdHolder]![diff] ?? 0) + 1;
   }
-  print("duck-vs-win declarer trick diff distribution: "
-      "${(diffCounts.keys.toList()..sort()).map((k) => '$k:${diffCounts[k]}').join(' ')}");
+  String fmt(Map<int, int> m) =>
+      (m.keys.toList()..sort()).map((k) => '$k:${m[k]}').join(' ');
+  print("duck-vs-win declarer trick diff distribution: ${fmt(diffCounts)}");
+  print("  when East holds JD: ${fmt(diffCountsByJd[1]!)}");
+  print("  when West holds JD: ${fmt(diffCountsByJd[3]!)}");
 }
