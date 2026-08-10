@@ -79,7 +79,10 @@ void main(List<String> args) {
       final isDefender = seat % 2 != contract.declarer % 2;
       final isLead = round.currentTrick.cards.isEmpty;
       final card = chooseCardMonteCarloDD(req, Random(seed + d),
-              maxRounds: mcRounds, ddTricksLimit: 7, equityMargin: margin)
+              maxRounds: mcRounds,
+              ddTricksLimit: 7,
+              equityMargin: margin,
+              defenderEquityMargin: margin == 0 ? 0 : 18)
           .bestCard;
 
       if (isDefender && isLead) {

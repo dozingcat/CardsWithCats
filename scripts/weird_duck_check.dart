@@ -80,11 +80,11 @@ void main() {
   //   holds the jack, declarer's ten scores en passant and the K plus QC
   //   later provide two heart pitches, replacing the heart finesse with a
   //   diamond finesse (near-tied equities, resolving toward the K).
-  // - With the QC weakened to 6C (variant due to Brian), only one pitch
-  //   exists, the heart finesse is needed in both lines, and ducking is
-  //   strictly wrong: it never gains and loses a trick whenever East has
-  //   the jack. Full-depth evaluation prefers the K decisively; preroll
-  //   evaluation still ducks — a sharp regression case for preroll bias.
+  // - With the QC weakened to 6C, only one pitch exists, the heart finesse is
+  //   needed in both lines, and ducking is strictly wrong: it never gains,
+  //   and loses a trick whenever East has the jack. Full-depth evaluation
+  //   prefers the K decisively; preroll evaluation still ducks — a sharp
+  //   regression case for preroll bias.
   for (final (clubs, label) in [("QC", "QC variant"), ("6C", "6C variant")]) {
     final reqB = CardToPlayRequest(
       hand: c("AS 8S 5S 2S JH 7H KD 6D $clubs 5C 4C 3C"),
