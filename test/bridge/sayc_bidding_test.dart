@@ -1049,6 +1049,19 @@ void main() {
           "2S"); // free advance over their raise
     });
 
+    test("balancing 1NT is lighter than a direct overcall", () {
+      final h = ["1H", "pass", "pass"];
+      // 12 balanced with a stopper reopens...
+      expect(openingBid("A43", "A43", "A43", "5432", history: h), "1NT");
+      // ...10 doesn't, and neither does 12 without a stopper.
+      expect(openingBid("K43", "A43", "K43", "T432", history: h), "Pass");
+      expect(openingBid("A43", "432", "A43", "A432", history: h), "Pass");
+      // 17+ balanced doubles first (too strong for the balancing 1NT).
+      expect(openingBid("AQ3", "A43", "KQ3", "Q432", history: h), "Double");
+      // Direct seat is unchanged: 12 with a stopper passes.
+      expect(openingBid("A43", "A43", "A43", "5432", history: ["1H"]), "Pass");
+    });
+
     test("1NT overcaller answers systems-on responses", () {
       // Direct overcall: complete the transfer.
       expect(

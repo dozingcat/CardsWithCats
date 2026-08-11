@@ -3538,7 +3538,8 @@ Suit? _overcallSuitChoice(HandAnalysis hand, Set<Suit> excluded) {
 }
 
 /// Direct (or balancing) action after an opponent's opening bid.
-List<SaycRule> directActionRules(ContractBid opening) {
+List<SaycRule> directActionRules(ContractBid opening,
+    {bool balancing = false}) {
   if (opening.trump == null) {
     // Simplified defense to their notrump: natural 2-level bid with a good
     // 6-card suit; no conventional defenses (Cappelletti/DONT) yet.
@@ -3568,12 +3569,19 @@ List<SaycRule> directActionRules(ContractBid opening) {
   final rules = <SaycRule>[];
 
   // 1NT (or 2NT over a weak two) overcall: 15-18 balanced with a stopper.
+  // In the balancing (passout) seat a reopening 1NT is lighter, 11-16;
+  // 17+ balanced doubles first instead.
   if (opening.count <= 2) {
+    final lighter = balancing && opening.count == 1;
     rules.add(SaycRule(
       BidAction.noTrump(opening.count),
       BidMeaning(
-        description: "Notrump overcall: balanced with a $theirName stopper",
-        hcp: const Range(low: 15, high: 18),
+        description: lighter
+            ? "Balancing notrump: balanced with a $theirName stopper"
+            : "Notrump overcall: balanced with a $theirName stopper",
+        hcp: lighter
+            ? const Range(low: 11, high: 16)
+            : const Range(low: 15, high: 18),
         balanced: true,
       ),
       require: (h) => h.hasStopper(theirSuit),
@@ -5102,7 +5110,12 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     if (opening.bidType != BidType.contract) return null;
     final openBid = opening.contractBid!;
     if (partnerActions.isEmpty && myActions.isEmpty) {
-      if (oppActions.length == 1) return directActionRules(openBid);
+      if (oppActions.length == 1) {
+        // If the call before us was a pass (their opening was followed by
+        // two passes), we're in the balancing seat.
+        return directActionRules(openBid,
+            balancing: calls[n - 1].bidType == BidType.pass);
+      }
       if (oppActions.length == 2 &&
           isSuitBid(oppActions[0]) &&
           oppActions[1].bidType == BidType.contract) {
