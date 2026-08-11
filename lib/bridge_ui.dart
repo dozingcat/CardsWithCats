@@ -102,8 +102,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       return 0;
     }
     // Normal orientation while bidding and when showing all hands after the
-    // round ends.
-    if (round.status != BridgeRoundStatus.playing || round.isOver()) {
+    // round ends. Keep any rotation until the final trick is done animating.
+    if (animationMode == AnimationMode.none && (round.status != BridgeRoundStatus.playing || round.isOver())) {
       return 0;
     }
     final contract = round.contract;
@@ -706,7 +706,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return !widget.dialogVisible && round.isOver();
+    // animationMode check allows the last trick animation to complete.
+    return !widget.dialogVisible && round.isOver() && animationMode == AnimationMode.none;
   }
 
   void _showMainMenuAfterMatch() {
