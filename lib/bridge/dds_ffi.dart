@@ -99,6 +99,7 @@ class DdsBackend {
   static DdsBackend? _tryLoad(String path) {
     try {
       final lib = DynamicLibrary.open(path);
+      print("DDS backend loaded from $path");
       // These come from dds_shim.cpp in our libdds build: process-wide
       // once-only initialization and exclusive thread-index slots (see
       // the threading note above).
@@ -118,6 +119,11 @@ class DdsBackend {
         calloc<_DdsFutureTricks>(),
       );
     } catch (e) {
+      // Opt-in path (DDS_LIB was set), so a failure is worth reporting.
+      // Common causes: a relative path (the app's working directory is
+      // not the repo — use an absolute path) and the macOS app sandbox
+      // blocking dlopen outside the bundle.
+      print("DDS backend failed to load from $path: $e");
       return null;
     }
   }
