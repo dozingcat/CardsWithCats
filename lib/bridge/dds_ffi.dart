@@ -1,10 +1,11 @@
 /// Dart FFI binding to the dds-bridge/dds double-dummy solver (v2.9.0),
 /// used as an optional fast backend for MCDD's exact evaluations. Build
-/// the library with scripts/dds_compare/build_libdds.sh and opt in by
-/// setting the DDS_LIB environment variable to its path (each isolate
-/// loads it independently; loading is a no-op when the variable is unset
-/// or the library is missing, and callers fall back to the pure-Dart
-/// DDSolver).
+/// the library with scripts/dds_compare/build_libdds.sh; it is loaded
+/// from the platform default location when present (macOS: bundled in
+/// Contents/Frameworks by a Runner build phase; Android: libdds.so from
+/// jniLibs), and the DDS_LIB environment variable overrides the path for
+/// development. When no library can be loaded, callers fall back to the
+/// pure-Dart DDSolver. Each isolate loads independently.
 ///
 /// Threading: DDS is thread-safe only when concurrent calls use distinct
 /// thread indices, and its memory must be initialized exactly once per
@@ -83,20 +84,30 @@ class DdsBackend {
   static DdsBackend? _instance;
   static bool _loadAttempted = false;
 
-  /// The process-wide backend, or null when unavailable. Loads lazily
-  /// from the DDS_LIB environment variable on first use.
+  /// The process-wide backend, or null when unavailable. Loads lazily on
+  /// first use: the DDS_LIB environment variable if set, otherwise the
+  /// platform's default bundled location.
   static DdsBackend? get instance {
     if (!_loadAttempted) {
       _loadAttempted = true;
-      final path = Platform.environment["DDS_LIB"];
-      if (path != null && path.isNotEmpty) {
-        _instance = _tryLoad(path);
+      final envPath = Platform.environment["DDS_LIB"];
+      if (envPath != null && envPath.isNotEmpty) {
+        _instance = _tryLoad(envPath, verbose: true);
+      } else if (Platform.isAndroid) {
+        // The loader resolves bare names against the app's jniLibs.
+        _instance = _tryLoad("libdds.so", verbose: false);
+      } else if (Platform.isMacOS) {
+        final path = "${File(Platform.resolvedExecutable).parent.path}"
+            "/../Frameworks/libdds.dylib";
+        if (File(path).existsSync()) {
+          _instance = _tryLoad(path, verbose: false);
+        }
       }
     }
     return _instance;
   }
 
-  static DdsBackend? _tryLoad(String path) {
+  static DdsBackend? _tryLoad(String path, {required bool verbose}) {
     try {
       final lib = DynamicLibrary.open(path);
       print("DDS backend loaded from $path");
@@ -119,11 +130,13 @@ class DdsBackend {
         calloc<_DdsFutureTricks>(),
       );
     } catch (e) {
-      // Opt-in path (DDS_LIB was set), so a failure is worth reporting.
-      // Common causes: a relative path (the app's working directory is
-      // not the repo — use an absolute path) and the macOS app sandbox
-      // blocking dlopen outside the bundle.
-      print("DDS backend failed to load from $path: $e");
+      if (verbose) {
+        // DDS_LIB was set explicitly, so a failure is worth reporting.
+        // Common causes: a relative path (the app's working directory is
+        // not the repo — use an absolute path) and the macOS app sandbox
+        // blocking dlopen outside the bundle in sandboxed builds.
+        print("DDS backend failed to load from $path: $e");
+      }
       return null;
     }
   }

@@ -270,11 +270,17 @@ call is synchronous). All slots busy → solve returns null → pure-Dart
 fallback. Binding validated against DDSolver on 5000+ random positions
 (zero mismatches); `dds_isolate_probe.dart` covers the isolate cases.
 
-Not yet done for production/mobile: per-platform library builds and
-bundling (Android CMake via Gradle, iOS static lib/xcframework, macOS
-bundle + entitlements), loading from the app bundle instead of the
-DDS_LIB environment variable, and capping DDS memory on low-RAM devices
-(SetResources instead of SetMaxThreads in the shim).
+Platform integration: `build_libdds.sh` (host or `android`) produces
+the libraries locally — outputs are gitignored, so run it before
+building the app with dds support. macOS embeds `native/libdds.dylib`
+into Contents/Frameworks via an "Embed libdds" Runner build phase
+(copy + codesign, skipped when the dylib is absent so builds never
+break); Android cross-builds `libdds.so` for arm64-v8a, armeabi-v7a,
+and x86_64 into jniLibs, where the loader finds it by name. The shim
+caps DDS memory on Android (SetResources) since DDS otherwise sizes
+transposition tables from free RAM. DDS_LIB remains a development
+override; iOS (which requires static linking and
+DynamicLibrary.process()) is not yet done.
 
 ## Known limitations / future ideas
 

@@ -27,7 +27,13 @@ static int usableThreads = 0;
 extern "C" void DdsEnsureInit() {
   static std::once_flag flag;
   std::call_once(flag, [] {
+#ifdef __ANDROID__
+    // On mobile, bound total memory: DDS otherwise sizes its per-thread
+    // transposition tables from free RAM (up to 160MB per thread).
+    SetResources(256, DDS_SHIM_MAX_THREADS);
+#else
     SetMaxThreads(DDS_SHIM_MAX_THREADS);
+#endif
     DDSInfo info;
     GetDDSInfo(&info);
     usableThreads = info.noOfThreads;
