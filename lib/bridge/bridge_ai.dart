@@ -7,6 +7,7 @@ import "../cards/trick.dart";
 import "bridge.dart";
 import "bridge.dart" as bridge;
 import "dd_solver.dart";
+import "dds_ffi.dart";
 import "heuristic_play.dart";
 import "sayc/sayc_bidding.dart" show BidMeaning, HandAnalysis, explainSaycAuction;
 
@@ -462,6 +463,7 @@ MonteCarloResult chooseCardMonteCarloDD(
   double equityMargin = 5,
   double defenderEquityMargin = 18,
   bool tryFullDepthSolve = true,
+  bool useDdsBackend = true,
   int Function()? timeFn,
 }) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
@@ -506,6 +508,10 @@ MonteCarloResult chooseCardMonteCarloDD(
   // rest of this call. A deal is always evaluated one way for all
   // candidates: on a mid-deal abort the deal is discarded and resampled.
   bool tryFullSolve = tryFullDepthSolve;
+  // When the native dds library is available (see dds_ffi.dart), every
+  // candidate position solves to full depth in microseconds: no preroll,
+  // no node budget. Falls back to the pure-Dart solver otherwise.
+  final dds = useDdsBackend ? DdsBackend.instance : null;
   outer:
   for (int i = 0; i < maxRounds; i++) {
     final hypoRound = possibleRound(cardReq, distReq, rng, filter: filter);
@@ -524,7 +530,7 @@ MonteCarloResult chooseCardMonteCarloDD(
       }
       final round = hypoRound.copy();
       round.playCard(legalPlays[ci]);
-      if (!tryFullSolve) {
+      if (!tryFullSolve && dds == null) {
         while (!round.isOver() &&
             13 - round.previousTricks.length > ddTricksLimit) {
           final req = CardToPlayRequest.fromRoundWithSharedReferences(round);
@@ -536,14 +542,18 @@ MonteCarloResult chooseCardMonteCarloDD(
         declarerTricks = round.numTricksWonByDeclarer();
       } else {
         final hands = [for (final p in round.players) p.hand];
-        final solver = DDSolver.fromHands(
-            hands, contract.bid.trump, round.currentTrick.leader,
-            sharedTable: sharedTable);
-        for (final c in round.currentTrick.cards) {
-          solver.addTrickCard(c);
+        int? nsFuture = dds?.solve(hands, contract.bid.trump,
+            round.currentTrick.leader, round.currentTrick.cards);
+        if (nsFuture == null) {
+          final solver = DDSolver.fromHands(
+              hands, contract.bid.trump, round.currentTrick.leader,
+              sharedTable: sharedTable);
+          for (final c in round.currentTrick.cards) {
+            solver.addTrickCard(c);
+          }
+          nsFuture = solver.solveWithNodeLimit(
+              tryFullSolve ? fullSolveNodeLimit : solveNodeLimit);
         }
-        final nsFuture = solver.solveWithNodeLimit(
-            tryFullSolve ? fullSolveNodeLimit : solveNodeLimit);
         if (nsFuture == null) {
           if (tryFullSolve) {
             tryFullSolve = false;
