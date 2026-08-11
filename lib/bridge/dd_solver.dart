@@ -31,6 +31,10 @@ class DDSolver {
 
   int _nodesRemaining = 1 << 60;
 
+  /// Nodes visited by [solve] since construction (not meaningful after
+  /// [solveWithNodeLimit], which repurposes the counter as a budget).
+  int get nodesSearched => (1 << 60) - _nodesRemaining;
+
   DDSolver._(this.holdings, this.trump, this.leader, Map<int, int>? shared)
       : _transposition = shared ?? {};
 

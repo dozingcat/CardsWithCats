@@ -13,7 +13,7 @@
 // is the DDS bitmask (bits 2..14) of hand H's remaining cards in suit S,
 // suits in DDS order S,H,D,C.
 // Output: one line per position with the maximum tricks for the side of
-// the player to move, or "ERR <code>".
+// the player to move and the nodes searched, or "ERR <code>".
 
 #include <cstdio>
 #include <string>
@@ -48,7 +48,7 @@ int main() {
     if (res != RETURN_NO_FAULT) {
       printf("ERR %d\n", res);
     } else {
-      printf("%d\n", fut.score[0]);
+      printf("%d %d\n", fut.score[0], fut.nodes);
     }
     fflush(stdout);
   }

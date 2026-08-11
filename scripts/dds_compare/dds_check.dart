@@ -127,6 +127,7 @@ void main(List<String> args) async {
 
   // Solve ours.
   final ourNs = <int>[];
+  int ourNodes = 0;
   final ourWatch = Stopwatch()..start();
   for (final p in positions) {
     final solver = DDSolver.fromHands(p.hands, p.trump, p.leader);
@@ -134,6 +135,7 @@ void main(List<String> args) async {
       solver.addTrickCard(c);
     }
     ourNs.add(solver.solve());
+    ourNodes += solver.nodesSearched;
   }
   ourWatch.stop();
 
@@ -157,6 +159,7 @@ void main(List<String> args) async {
   }
 
   int mismatches = 0;
+  int ddsNodes = 0;
   for (int i = 0; i < positions.length; i++) {
     final p = positions[i];
     if (ddsOut[i].startsWith("ERR")) {
@@ -164,7 +167,9 @@ void main(List<String> args) async {
       mismatches++;
       continue;
     }
-    final score = int.parse(ddsOut[i]);
+    final ddsParts = ddsOut[i].split(" ");
+    final score = int.parse(ddsParts[0]);
+    ddsNodes += int.parse(ddsParts[1]);
     final mover = (p.leader + p.trickCards.length) % 4;
     final ddsNs = mover % 2 == 0 ? score : p.depth - score;
     if (ddsNs != ourNs[i]) {
@@ -178,5 +183,9 @@ void main(List<String> args) async {
       "$mismatches mismatches");
   print("time: ours ${ourWatch.elapsedMilliseconds}ms, "
       "dds ${ddsWatch.elapsedMilliseconds}ms");
+  print("nodes: ours $ourNodes, dds $ddsNodes "
+      "(ratio ${(ourNodes / max(1, ddsNodes)).toStringAsFixed(1)}x); "
+      "ns/node: ours ${(ourWatch.elapsedMicroseconds * 1000 / max(1, ourNodes)).toStringAsFixed(0)}, "
+      "dds ${(ddsWatch.elapsedMicroseconds * 1000 / max(1, ddsNodes)).toStringAsFixed(0)}");
   exit(mismatches == 0 ? 0 : 1);
 }
