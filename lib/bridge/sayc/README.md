@@ -227,7 +227,10 @@ consulted.
   takeout; trump-stack hands trap-pass and convert partner's reopening
   double. Over 4-level preempts a double is optional/penalty-leaning (4+
   cards with 6+ HCP in their suit, 12+ points). Balancing seat is treated
-  like direct seat.
+  like direct seat, except that a reopening 1NT over a one-level suit
+  opening is lighter: 11-16 balanced with a stopper (17+ balanced doubles
+  first). Suit overcalls and doubles are not yet lightened in the
+  balancing seat.
 - Advancing a forced takeout double includes the penalty pass: with 4+
   trumps (5+ HCP among them) and 8+ HCP, the double is converted rather
   than advanced. Advances never jump past game; a takeout double is
@@ -238,7 +241,12 @@ consulted.
   or better and the overcaller chooses 3NT with a stopper, signs off at
   the cheapest level with a minimum, or raises to game with 13+), and
   3NT needs only 12 opposite a sound overcall of a preempt; systems on
-  over partner's 1NT overcall.
+  over partner's 1NT overcall (direct or balancing), with the overcaller
+  answering Stayman and completing transfers like a 1NT opener. Opposite
+  the lighter balancing 1NT the advancer's strength thresholds rise by a
+  king (invite 11-12, game 13+, Stayman 11+; transfers stay
+  any-strength), and a sub-15 balancer declines invites by falling
+  through to pass.
 - Responder over an overcall: raises keep their uncontested meanings (major
   raises take priority over a negative double); negative doubles show 4+
   cards in the unbid major (exactly four at the one level — with five, bid

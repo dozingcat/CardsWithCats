@@ -1049,6 +1049,60 @@ void main() {
           "2S"); // free advance over their raise
     });
 
+    test("balancing 1NT is lighter than a direct overcall", () {
+      final h = ["1H", "pass", "pass"];
+      // 12 balanced with a stopper reopens...
+      expect(openingBid("A43", "A43", "A43", "5432", history: h), "1NT");
+      // ...10 doesn't, and neither does 12 without a stopper.
+      expect(openingBid("K43", "A43", "K43", "T432", history: h), "Pass");
+      expect(openingBid("A43", "432", "A43", "A432", history: h), "Pass");
+      // 17+ balanced doubles first (too strong for the balancing 1NT).
+      expect(openingBid("AQ3", "A43", "KQ3", "Q432", history: h), "Double");
+      // Direct seat is unchanged: 12 with a stopper passes.
+      expect(openingBid("A43", "A43", "A43", "5432", history: ["1H"]), "Pass");
+    });
+
+    test("advancer needs a king extra opposite a balancing 1NT", () {
+      final h = ["1H", "pass", "pass", "1NT", "pass"];
+      // 10 opposite 11-16 is not a game force (was 3NT on 21 combined).
+      expect(openingBid("K43", "Q43", "KJ4", "J432", history: h), "Pass");
+      // 11-12 invites, 13+ bids game.
+      expect(openingBid("K43", "Q43", "KJ4", "Q432", history: h), "2NT");
+      expect(openingBid("A43", "QJ3", "KJ4", "Q432", history: h), "3NT");
+      // Stayman also needs the extra values.
+      expect(openingBid("K43", "QJ32", "K43", "432", history: h), "Pass");
+      // Opposite a direct 1NT overcall the usual thresholds apply.
+      expect(
+          openingBid("K43", "Q43", "KJ4", "J432",
+              history: ["1D", "1NT", "pass"]),
+          "3NT");
+    });
+
+    test("1NT overcaller answers systems-on responses", () {
+      // Direct overcall: complete the transfer.
+      expect(
+          openingBid("K64", "T92", "AQ3", "KQ52",
+              history: ["1D", "1NT", "pass", "2H", "pass"]),
+          "2S");
+      // Balancing 1NT after 1H-pass-pass: partner's 2H is still a
+      // transfer to spades, not a raise of their suit.
+      expect(
+          openingBid("K64", "T92", "AQ3", "KQ52",
+              history: ["1H", "pass", "pass", "1NT", "pass", "2H", "pass"]),
+          "2S");
+      // Stayman gets answered too.
+      expect(
+          openingBid("K64", "QJT9", "AQ3", "KQ5",
+              history: ["1D", "1NT", "pass", "2C", "pass"]),
+          "2H");
+      // Advancer with a weak hand passes the completed transfer.
+      expect(
+          openingBid("Q9872", "43", "862", "743",
+              history: ["1H", "pass", "pass", "1NT", "pass", "2H", "pass",
+                  "2S", "pass"]),
+          "Pass");
+    });
+
     test("strong advance of a minor overcall", () {
       final h = ["1H", "2C", "2H"];
       // 13+ with a big fit and no heart stopper: game in the minor.

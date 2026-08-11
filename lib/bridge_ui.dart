@@ -83,6 +83,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool isClaimingRemainingTricks = false;
+  // Flag to keep the bidding dialog visible after bidding is completed, until
+  // the player starts the round.
   bool showPostBidDialog = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
@@ -102,8 +104,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       return 0;
     }
     // Normal orientation while bidding and when showing all hands after the
-    // round ends.
-    if (round.status != BridgeRoundStatus.playing || round.isOver()) {
+    // round ends. Keep any rotation until the final trick is done animating.
+    if (animationMode == AnimationMode.none && (round.status != BridgeRoundStatus.playing || round.isOver())) {
       return 0;
     }
     final contract = round.contract;
@@ -285,6 +287,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       setState(() {
         round.playCard(card);
         animationMode = AnimationMode.movingTrickCard;
+        // Hide the bidding dialog if it's still visible, which can happen
+        // if the human player leads the first trick without dismissing it.
+        showPostBidDialog = false;
       });
       widget.saveMatchFn(match);
       if (round.isOver() &&
@@ -302,11 +307,55 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   void _updateMoodsAfterTrick() {
-    // TODO
+    playerMoods.clear();
+    if (match.isMatchOver()) {
+      switch (match.winningTeam()) {
+        case 0:
+          playerMoods[2] = .veryHappy;
+          playerMoods[1] = playerMoods[3] = .mad;
+          break;
+        case 1:
+          playerMoods[1] = playerMoods[3] = .veryHappy;
+          playerMoods[2] = .mad;
+      }
+    }
+    else if (round.isOver() && duplicateRound.isOver()) {
+      int impDiff = BridgeMatch.impsForRounds(round, duplicateRound);
+      // "Very happy" threshold is making a game when it went down in the
+      // duplicate round, which is 400+50 -> 10 IMPs. Going down one extra trick
+      // when vulnerable is 3 IMPs, "happy" needs slightly more than that.
+      if (impDiff >= 10) {
+        playerMoods[2] = .veryHappy;
+        playerMoods[1] = playerMoods[3] = .mad;
+      }
+      else if (impDiff >= 4) {
+        playerMoods[2] = .happy;
+        playerMoods[1] = playerMoods[3] = .mad;
+      }
+      else if (impDiff <= -10) {
+        playerMoods[1] = playerMoods[3] = .veryHappy;
+        playerMoods[2] = .mad;
+      }
+      else if (impDiff <= -4) {
+        playerMoods[1] = playerMoods[3] = .happy;
+        playerMoods[2] = .mad;
+      }
+    }
+    // Intentionally not setting moods during play when a contract is made or
+    // defeated, since that could be expected (e.g. when preempting to prevent
+    // the opponents' game, going down is expected and may give positive IMPs).
   }
 
+  // Since there's always an AI winner and loser, playing happy/sad sounds for
+  // them would be redundant. Instead only play a mad sound if a round is over
+  // and one of the sides is "mad" because they lost by several IMPs.
   void _playSoundsForMoods() {
-    // TODO
+    if (match.isMatchOver()) {
+      return;
+    }
+    if (playerMoods.containsValue(Mood.mad)) {
+      widget.soundPlayer.playMadSound();
+    }
   }
 
   // Set when the human's round ends; stats are recorded once both the
@@ -693,12 +742,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldShowBidDialog() {
-    return !widget.dialogVisible && !round.isPassedOut() && (round.status == BridgeRoundStatus.bidding || showPostBidDialog);
-  }
-
-  bool _shouldShowPostBidDialog() {
-    return false;
-    return !widget.dialogVisible && showPostBidDialog;
+    return !widget.dialogVisible
+        && !round.isPassedOut()
+        && (round.status == BridgeRoundStatus.bidding || showPostBidDialog);
   }
 
   bool _shouldShowClaimTricksDialog() {
@@ -706,7 +752,80 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return !widget.dialogVisible && round.isOver();
+    // animationMode check allows the last trick animation to complete.
+    return !widget.dialogVisible && round.isOver() && animationMode == AnimationMode.none;
+  }
+
+  bool _isPlayInProgress() {
+    return round.status == BridgeRoundStatus.playing &&
+        round.contract != null &&
+        !round.isOver() &&
+        !showPostBidDialog &&
+        !isClaimingRemainingTricks;
+  }
+
+  bool _shouldShowScoreOverlayToggle() {
+    return !widget.dialogVisible && _isPlayInProgress();
+  }
+
+  bool _shouldShowScoreOverlay() {
+    return showScoreOverlay && !widget.dialogVisible && _isPlayInProgress();
+  }
+
+  Widget _scoreOverlayButton() {
+    return Opacity(opacity: 0.6, child: Padding(
+      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
+      child: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            showScoreOverlay = !showScoreOverlay;
+          });
+        },
+        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
+      ),
+    ));
+  }
+
+  Widget _scoreOverlay() {
+    final contract = round.contract!;
+    final declarerTricks = round.numTricksWonByDeclarer();
+    final defenderTricks = round.previousTricks.length - declarerTricks;
+    final declarerIsNS = contract.declarer % 2 == 0;
+    final nsTricks = declarerIsNS ? declarerTricks : defenderTricks;
+    final ewTricks = declarerIsNS ? defenderTricks : declarerTricks;
+
+    final message = [
+      contractDescription(contract),
+      "Vulnerable: ${vulnerabilityDescription(round.vulnerability)}",
+      "N-S tricks: $nsTricks",
+      "E-W tricks: $ewTricks",
+    ].join("\n");
+
+    final overlay = Center(
+        child: Container(
+            decoration: BoxDecoration(
+                color: const Color.fromARGB(208, 255, 255, 255),
+                border: Border.all(
+                  color: const Color.fromARGB(128, 0, 0, 0),
+                ),
+                borderRadius: const BorderRadius.all(Radius.circular(20))),
+            child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Text(message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color.fromARGB(224, 0, 0, 0),
+                      fontSize: 18,
+                    )))));
+
+    return TweenAnimationBuilder(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 250),
+      child: overlay,
+      builder: (BuildContext context, double opacity, Widget? child) {
+        return Opacity(opacity: opacity, child: child);
+      },
+    );
   }
 
   void _showMainMenuAfterMatch() {
@@ -751,6 +870,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
             onReplayDuplicateRound: _runDuplicateRound,
           ),
+        PlayerMoods(layout: layout, moods: playerMoods, durationMillis: 5000),
+        if (_shouldShowScoreOverlay()) _scoreOverlay(),
+        if (_shouldShowScoreOverlayToggle()) _scoreOverlayButton(),
       ],
     );
   }
@@ -954,20 +1076,7 @@ class _BidDialogState extends State<BidDialog> {
       if (widget.round.contract == null) {
         return "The hand is passed out.";
       }
-      final contract = widget.round.contract!;
-      String declarerDesc = switch (contract.declarer) {
-        0 => "South",
-        1 => "West",
-        2 => "North",
-        3 => "East",
-        _ => throw Error(),
-      };
-      String doubledDesc = switch (contract.doubled) {
-        DoubledType.none => "",
-        DoubledType.doubled => " doubled",
-        DoubledType.redoubled => " redoubled",
-      };
-      return "The contract is ${contract.bid.symbolString()}$doubledDesc by $declarerDesc";
+      return "The contract is ${contractDescription(widget.round.contract!)}";
     }
 
     List<Widget> postBidRows() {
@@ -1286,6 +1395,17 @@ String roundResultDescription(BridgeRound round) {
       ? "made ${tricksOver + contract.bid.count}"
       : "down ${-tricksOver}";
   return "$contractDesc, $bidResultDesc";
+}
+
+String contractDescription(Contract contract) {
+  const declarerNames = ["South", "West", "North", "East"];
+  String doubledDesc = switch (contract.doubled) {
+    DoubledType.none => "",
+    DoubledType.doubled => " doubled",
+    DoubledType.redoubled => " redoubled",
+  };
+  return "${contract.bid.symbolString()}$doubledDesc"
+      " by ${declarerNames[contract.declarer]}";
 }
 
 String vulnerabilityDescription(Vulnerability v) => switch (v) {
