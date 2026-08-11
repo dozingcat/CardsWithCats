@@ -710,6 +710,78 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return !widget.dialogVisible && round.isOver() && animationMode == AnimationMode.none;
   }
 
+  bool _isPlayInProgress() {
+    return round.status == BridgeRoundStatus.playing &&
+        round.contract != null &&
+        !round.isOver() &&
+        !showPostBidDialog &&
+        !isClaimingRemainingTricks;
+  }
+
+  bool _shouldShowScoreOverlayToggle() {
+    return !widget.dialogVisible && _isPlayInProgress();
+  }
+
+  bool _shouldShowScoreOverlay() {
+    return showScoreOverlay && !widget.dialogVisible && _isPlayInProgress();
+  }
+
+  Widget _scoreOverlayButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
+      child: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            showScoreOverlay = !showScoreOverlay;
+          });
+        },
+        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
+      ),
+    );
+  }
+
+  Widget _scoreOverlay() {
+    final contract = round.contract!;
+    final declarerTricks = round.numTricksWonByDeclarer();
+    final defenderTricks = round.previousTricks.length - declarerTricks;
+    final declarerIsNS = contract.declarer % 2 == 0;
+    final nsTricks = declarerIsNS ? declarerTricks : defenderTricks;
+    final ewTricks = declarerIsNS ? defenderTricks : declarerTricks;
+
+    final message = [
+      contractDescription(contract),
+      "Vulnerable: ${vulnerabilityDescription(round.vulnerability)}",
+      "N-S tricks: $nsTricks",
+      "E-W tricks: $ewTricks",
+    ].join("\n");
+
+    final overlay = Center(
+        child: Container(
+            decoration: BoxDecoration(
+                color: const Color.fromARGB(208, 255, 255, 255),
+                border: Border.all(
+                  color: const Color.fromARGB(128, 0, 0, 0),
+                ),
+                borderRadius: const BorderRadius.all(Radius.circular(20))),
+            child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Text(message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color.fromARGB(224, 0, 0, 0),
+                      fontSize: 18,
+                    )))));
+
+    return TweenAnimationBuilder(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 250),
+      child: overlay,
+      builder: (BuildContext context, double opacity, Widget? child) {
+        return Opacity(opacity: opacity, child: child);
+      },
+    );
+  }
+
   void _showMainMenuAfterMatch() {
     widget.saveMatchFn(null);
     widget.mainMenuFn();
@@ -752,6 +824,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
             onReplayDuplicateRound: _runDuplicateRound,
           ),
+        if (_shouldShowScoreOverlay()) _scoreOverlay(),
+        if (_shouldShowScoreOverlayToggle()) _scoreOverlayButton(),
       ],
     );
   }
@@ -955,20 +1029,7 @@ class _BidDialogState extends State<BidDialog> {
       if (widget.round.contract == null) {
         return "The hand is passed out.";
       }
-      final contract = widget.round.contract!;
-      String declarerDesc = switch (contract.declarer) {
-        0 => "South",
-        1 => "West",
-        2 => "North",
-        3 => "East",
-        _ => throw Error(),
-      };
-      String doubledDesc = switch (contract.doubled) {
-        DoubledType.none => "",
-        DoubledType.doubled => " doubled",
-        DoubledType.redoubled => " redoubled",
-      };
-      return "The contract is ${contract.bid.symbolString()}$doubledDesc by $declarerDesc";
+      return "The contract is ${contractDescription(widget.round.contract!)}";
     }
 
     List<Widget> postBidRows() {
@@ -1287,6 +1348,17 @@ String roundResultDescription(BridgeRound round) {
       ? "made ${tricksOver + contract.bid.count}"
       : "down ${-tricksOver}";
   return "$contractDesc, $bidResultDesc";
+}
+
+String contractDescription(Contract contract) {
+  const declarerNames = ["South", "West", "North", "East"];
+  String doubledDesc = switch (contract.doubled) {
+    DoubledType.none => "",
+    DoubledType.doubled => " doubled",
+    DoubledType.redoubled => " redoubled",
+  };
+  return "${contract.bid.symbolString()}$doubledDesc"
+      " by ${declarerNames[contract.declarer]}";
 }
 
 String vulnerabilityDescription(Vulnerability v) => switch (v) {
