@@ -321,19 +321,22 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     }
     else if (round.isOver() && duplicateRound.isOver()) {
       int impDiff = BridgeMatch.impsForRounds(round, duplicateRound);
-      if (impDiff >= 6) {
+      // "Very happy" threshold is making a game when it went down in the
+      // duplicate round, which is 400+50 -> 10 IMPs. Going down one extra trick
+      // when vulnerable is 3 IMPs, "happy" needs slightly more than that.
+      if (impDiff >= 10) {
         playerMoods[2] = .veryHappy;
         playerMoods[1] = playerMoods[3] = .mad;
       }
-      else if (impDiff >= 2) {
+      else if (impDiff >= 4) {
         playerMoods[2] = .happy;
         playerMoods[1] = playerMoods[3] = .mad;
       }
-      else if (impDiff <= -6) {
+      else if (impDiff <= -10) {
         playerMoods[1] = playerMoods[3] = .veryHappy;
         playerMoods[2] = .mad;
       }
-      else if (impDiff <= -2) {
+      else if (impDiff <= -4) {
         playerMoods[1] = playerMoods[3] = .happy;
         playerMoods[2] = .mad;
       }
