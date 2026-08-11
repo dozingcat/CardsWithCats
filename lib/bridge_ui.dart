@@ -1376,7 +1376,7 @@ class EndOfRoundDialog extends StatelessWidget {
                     ]),
                     makeRow([
                       Padding(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.only(top: 10, left: 10, right: 10),
                           child: Text("$roundResultDesc: ${formatRoundScore(round)}",
                               style: const TextStyle(fontSize: 18))),
                     ]),
@@ -1386,9 +1386,7 @@ class EndOfRoundDialog extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Text(
                                 "Double dummy: ${contractResultDescription(round.contract!, doubleDummyDeclarerTricks!)}",
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade700))),
+                                style: const TextStyle(fontSize: 11))),
                       ]),
                     makeRow([
                       const Padding(
