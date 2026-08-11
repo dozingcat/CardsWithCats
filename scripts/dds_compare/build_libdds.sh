@@ -10,19 +10,18 @@
 #   sh scripts/dds_compare/build_libdds.sh android   # NDK cross-builds ->
 #                                                    # android/app/src/main/jniLibs/<abi>/
 #
-# The dds source is cloned to a temporary directory unless DDS_SRC points
-# at an existing checkout of tag v2.9.0. Android needs ANDROID_NDK_HOME or
-# an NDK under ~/Library/Android/sdk/ndk. Build outputs are gitignored;
-# run this script locally before building the app with dds support.
+# Builds from the vendored sources in third_party/dds (override with
+# DDS_SRC to point at another checkout). Android needs ANDROID_NDK_HOME
+# or an NDK under ~/Library/Android/sdk/ndk. Build outputs are
+# gitignored; run this script locally before building the app with dds
+# support.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MODE="${1:-host}"
 
 if [ -z "$DDS_SRC" ]; then
-  DDS_SRC="$(mktemp -d)/dds"
-  echo "Cloning dds v2.9.0 into $DDS_SRC"
-  git clone -q --depth 1 --branch v2.9.0 https://github.com/dds-bridge/dds.git "$DDS_SRC"
+  DDS_SRC="$REPO_DIR/third_party/dds"
 fi
 
 COMMON="-O2 -std=c++11 -DDDS_THREADS_STL -I$DDS_SRC/include -I$DDS_SRC/src"
