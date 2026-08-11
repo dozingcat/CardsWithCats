@@ -1062,6 +1062,22 @@ void main() {
       expect(openingBid("A43", "A43", "A43", "5432", history: ["1H"]), "Pass");
     });
 
+    test("advancer needs a king extra opposite a balancing 1NT", () {
+      final h = ["1H", "pass", "pass", "1NT", "pass"];
+      // 10 opposite 11-16 is not a game force (was 3NT on 21 combined).
+      expect(openingBid("K43", "Q43", "KJ4", "J432", history: h), "Pass");
+      // 11-12 invites, 13+ bids game.
+      expect(openingBid("K43", "Q43", "KJ4", "Q432", history: h), "2NT");
+      expect(openingBid("A43", "QJ3", "KJ4", "Q432", history: h), "3NT");
+      // Stayman also needs the extra values.
+      expect(openingBid("K43", "QJ32", "K43", "432", history: h), "Pass");
+      // Opposite a direct 1NT overcall the usual thresholds apply.
+      expect(
+          openingBid("K43", "Q43", "KJ4", "J432",
+              history: ["1D", "1NT", "pass"]),
+          "3NT");
+    });
+
     test("1NT overcaller answers systems-on responses", () {
       // Direct overcall: complete the transfer.
       expect(

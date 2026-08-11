@@ -704,7 +704,10 @@ List<SaycRule> _minorResponseRules(ContractBid opening) {
   return rules;
 }
 
-List<SaycRule> oneNtResponseRules() {
+/// [hcpShift] raises the strength thresholds; used opposite a balancing
+/// 1NT, whose 11-16 range averages about a king below an opening 15-17
+/// (transfers are unaffected: they promise shape, not strength).
+List<SaycRule> oneNtResponseRules({int hcpShift = 0}) {
   const noMajor = {
     Suit.spades: Range(high: 3),
     Suit.hearts: Range(high: 3),
@@ -732,24 +735,25 @@ List<SaycRule> oneNtResponseRules() {
       BidAction.contract(2, Suit.clubs),
       BidMeaning(
         description: "Stayman: at least one 4-card major, invitational or better",
-        hcp: const Range(low: 8),
+        hcp: Range(low: 8 + hcpShift),
         artificial: true,
       ),
       ignoreInfo: true,
       require: (h) =>
-          h.hcp >= 8 &&
+          h.hcp >= 8 + hcpShift &&
           (h.count(Suit.spades) == 4 || h.count(Suit.hearts) == 4),
     ),
     SaycRule(
       BidAction.pass(),
       BidMeaning(
-          description: "Too weak to invite game", hcp: const Range(high: 7)),
+          description: "Too weak to invite game",
+          hcp: Range(high: 7 + hcpShift)),
     ),
     SaycRule(
       BidAction.noTrump(2),
       BidMeaning(
         description: "Invites 3NT; no 4-card major",
-        hcp: const Range(low: 8, high: 9),
+        hcp: Range(low: 8 + hcpShift, high: 9 + hcpShift),
         suitLengths: noMajor,
       ),
     ),
@@ -757,7 +761,7 @@ List<SaycRule> oneNtResponseRules() {
       BidAction.noTrump(3),
       BidMeaning(
         description: "To play; no 4-card major",
-        hcp: const Range(low: 10, high: 15),
+        hcp: Range(low: 10 + hcpShift, high: 15 + hcpShift),
         suitLengths: noMajor,
       ),
     ),
@@ -765,7 +769,7 @@ List<SaycRule> oneNtResponseRules() {
       BidAction.noTrump(4),
       BidMeaning(
         description: "Quantitative: invites 6NT",
-        hcp: const Range(low: 16, high: 17),
+        hcp: Range(low: 16 + hcpShift, high: 17 + hcpShift),
         suitLengths: noMajor,
       ),
     ),
@@ -773,7 +777,7 @@ List<SaycRule> oneNtResponseRules() {
       BidAction.contract(4, Suit.clubs),
       BidMeaning(
         description: "Gerber: asking for aces, slam-going",
-        hcp: const Range(low: 18),
+        hcp: Range(low: 18 + hcpShift),
         artificial: true,
         suitLengths: noMajor,
       ),
@@ -4034,12 +4038,14 @@ List<SaycRule> advanceDoubleRules(
 
 /// Advance partner's overcall; `over` is the last bid in the auction.
 List<SaycRule>? advanceOvercallRules(
-    ContractBid theirOpening, ContractBid overcall, ContractBid over) {
+    ContractBid theirOpening, ContractBid overcall, ContractBid over,
+    {bool balancingNt = false}) {
   if (overcall.trump == null) {
     if (over == overcall) {
       if (overcall.count == 1) {
-        // Systems on over partner's 1NT overcall.
-        return oneNtResponseRules();
+        // Systems on over partner's 1NT overcall. Opposite the lighter
+        // balancing 1NT (11-16), strength thresholds rise by a king.
+        return oneNtResponseRules(hcpShift: balancingNt ? 3 : 0);
       }
       // 2NT overcall of their weak two (15-18): simple raise-or-pass.
       return [
@@ -5143,7 +5149,20 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
             openBid, last, calls[n - 1].bidType == BidType.pass);
       }
       if (action.bidType == BidType.contract) {
-        return advanceOvercallRules(openBid, action.contractBid!, last);
+        // Partner acted in the balancing seat if their call followed two
+        // passes.
+        int partnerCallIndex = -1;
+        for (int i = 0; i < n; i++) {
+          if ((n - i) % 4 == 2 && calls[i].bidType != BidType.pass) {
+            partnerCallIndex = i;
+            break;
+          }
+        }
+        final balancing = partnerCallIndex >= 2 &&
+            calls[partnerCallIndex - 1].bidType == BidType.pass &&
+            calls[partnerCallIndex - 2].bidType == BidType.pass;
+        return advanceOvercallRules(openBid, action.contractBid!, last,
+            balancingNt: balancing);
       }
     }
     if (myActions.length == 1 &&

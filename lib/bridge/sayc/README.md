@@ -242,10 +242,11 @@ consulted.
   the cheapest level with a minimum, or raises to game with 13+), and
   3NT needs only 12 opposite a sound overcall of a preempt; systems on
   over partner's 1NT overcall (direct or balancing), with the overcaller
-  answering Stayman and completing transfers like a 1NT opener. Known
-  simplification: the systems-on invite/game thresholds assume a 15-17
-  notrump, so they run aggressive opposite the lighter balancing 1NT
-  (a sub-15 balancer declines invites by falling through to pass).
+  answering Stayman and completing transfers like a 1NT opener. Opposite
+  the lighter balancing 1NT the advancer's strength thresholds rise by a
+  king (invite 11-12, game 13+, Stayman 11+; transfers stay
+  any-strength), and a sub-15 balancer declines invites by falling
+  through to pass.
 - Responder over an overcall: raises keep their uncontested meanings (major
   raises take priority over a negative double); negative doubles show 4+
   cards in the unbid major (exactly four at the one level — with five, bid
