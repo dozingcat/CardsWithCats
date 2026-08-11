@@ -5154,6 +5154,27 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
             openBid, myActions[0].contractBid!, last, last == cue);
       }
     }
+    if (myActions.length == 1 &&
+        myActions[0] == BidAction.noTrump(1) &&
+        partnerActions.length == 1 &&
+        partnerActions[0].bidType == BidType.contract &&
+        oppActions.length <= 2 &&
+        calls[n - 1].bidType == BidType.pass) {
+      // Partner responded to my 1NT overcall (direct or balancing) with
+      // systems on; answer as a 1NT opener would (Stayman, transfer
+      // completions, Gerber). Only when the opponents haven't bid over
+      // the response.
+      ContractBid? last;
+      for (int i = n - 1; i >= 0; i--) {
+        if (calls[i].bidType == BidType.contract) {
+          last = calls[i].contractBid;
+          break;
+        }
+      }
+      if (last != null && last == partnerActions[0].contractBid) {
+        return oneNtRebidRules(partnerActions[0]);
+      }
+    }
     return null;
   }
 
