@@ -241,6 +241,41 @@ With full-depth solving, the engine's direct margin over an MC with
 maxtricks rollouts (the strongest pre-project baseline) is
 **+2.07 +/- 0.27 IMPs/board** (300 boards, seed 21, 156-48-96).
 
+## Native dds backend (FFI)
+
+`lib/bridge/dds_ffi.dart` binds SolveBoard from a libdds dynamic library
+(dds-bridge/dds v2.9.0 built by `scripts/dds_compare/build_libdds.sh`).
+Opt in by setting `DDS_LIB` to the library path; when unset or
+unloadable, everything falls back to the pure-Dart `DDSolver`, so
+platforms without the library are unaffected. With the backend active,
+MCDD solves every candidate position to full depth — no preroll, no
+node budget.
+
+Measured at mcdd:rounds=10:dd=7 over 100 boards, dds vs pure Dart:
+**+1.46 +/- 0.40 IMPs/board** (48-17-35) — the pure side pays the
+preroll-bias tax whenever its node budget forces a fallback, the dds
+side never does — at ~26ms vs ~767ms average per play under a fully
+parallel harness (~10ms vs ~130ms uncontended). The speed headroom is
+the point for mobile: full evaluation quality on slow devices, and an
+order of magnitude less CPU per play.
+
+The delicate part was multi-isolate safety, handled by a shim compiled
+into our libdds build (`dds_shim.cpp`): DDS thread memory must be
+initialized exactly once per process (a second SetMaxThreads corrupts
+in-flight state, and GetDDSInfo crashes if called before init), and
+concurrent solves need exclusive thread indices — a round-robin
+dispenser is insufficient because solves finish out of order, so every
+solve brackets acquire/release of a slot (safe against leaks: the FFI
+call is synchronous). All slots busy → solve returns null → pure-Dart
+fallback. Binding validated against DDSolver on 5000+ random positions
+(zero mismatches); `dds_isolate_probe.dart` covers the isolate cases.
+
+Not yet done for production/mobile: per-platform library builds and
+bundling (Android CMake via Gradle, iOS static lib/xcframework, macOS
+bundle + entitlements), loading from the app bundle instead of the
+DDS_LIB environment variable, and capping DDS memory on low-RAM devices
+(SetResources instead of SetMaxThreads in the shim).
+
 ## Known limitations / future ideas
 
 - Double-dummy defenders "see" declarer's cards within each sampled deal

@@ -10,8 +10,11 @@
 /// thread indices, and its memory must be initialized exactly once per
 /// process. Both are handled by a shim compiled into our libdds build
 /// (scripts/dds_compare/dds_shim.cpp): once-only init via std::call_once
-/// and a round-robin atomic thread-index dispenser. Safe for up to 16
-/// concurrently solving isolates; beyond that, indices can collide.
+/// and exclusive acquire/release thread-index slots. Every solve
+/// brackets its SolveBoard call with acquire/release (safe: the native
+/// call is synchronous, so an isolate can't abandon a held slot); if all
+/// slots are busy, solve() returns null and the caller falls back to the
+/// pure-Dart solver.
 library;
 
 import 'dart:ffi';
@@ -56,6 +59,8 @@ typedef _VoidC = Void Function();
 typedef _VoidDart = void Function();
 typedef _IntC = Int32 Function();
 typedef _IntDart = int Function();
+typedef _ReleaseC = Void Function(Int32);
+typedef _ReleaseDart = void Function(int);
 typedef _SolveBoardC = Int32 Function(
     _DdsDeal, Int32, Int32, Int32, Pointer<_DdsFutureTricks>, Int32);
 typedef _SolveBoardDart = int Function(
@@ -66,12 +71,14 @@ int _ddsRank(Rank r) => r.index + 2;
 
 class DdsBackend {
   final _SolveBoardDart _solveBoard;
+  final _IntDart _acquireThreadIndex;
+  final _ReleaseDart _releaseThreadIndex;
   final Pointer<_DdsDeal> _deal;
   final Pointer<_DdsFutureTricks> _fut;
-  final int _threadIndex;
   int nodesSearched = 0;
 
-  DdsBackend._(this._solveBoard, this._deal, this._fut, this._threadIndex);
+  DdsBackend._(this._solveBoard, this._acquireThreadIndex,
+      this._releaseThreadIndex, this._deal, this._fut);
 
   static DdsBackend? _instance;
   static bool _loadAttempted = false;
@@ -93,20 +100,22 @@ class DdsBackend {
     try {
       final lib = DynamicLibrary.open(path);
       // These come from dds_shim.cpp in our libdds build: process-wide
-      // once-only initialization and a round-robin thread index, so
-      // multiple isolates can use the library safely (see the threading
-      // note above).
+      // once-only initialization and exclusive thread-index slots (see
+      // the threading note above).
       final ensureInit = lib.lookupFunction<_VoidC, _VoidDart>("DdsEnsureInit");
-      final nextThreadIndex =
-          lib.lookupFunction<_IntC, _IntDart>("DdsNextThreadIndex");
+      final acquire =
+          lib.lookupFunction<_IntC, _IntDart>("DdsAcquireThreadIndex");
+      final release = lib
+          .lookupFunction<_ReleaseC, _ReleaseDart>("DdsReleaseThreadIndex");
       final solveBoard =
           lib.lookupFunction<_SolveBoardC, _SolveBoardDart>("SolveBoard");
       ensureInit();
       return DdsBackend._(
         solveBoard,
+        acquire,
+        release,
         calloc<_DdsDeal>(),
         calloc<_DdsFutureTricks>(),
-        nextThreadIndex(),
       );
     } catch (e) {
       return null;
@@ -139,7 +148,16 @@ class DdsBackend {
         totalCards++;
       }
     }
-    final res = _solveBoard(deal, -1, 1, 1, _fut, _threadIndex);
+    final threadIndex = _acquireThreadIndex();
+    if (threadIndex < 0) {
+      return null; // all DDS slots busy; caller falls back
+    }
+    final int res;
+    try {
+      res = _solveBoard(deal, -1, 1, 1, _fut, threadIndex);
+    } finally {
+      _releaseThreadIndex(threadIndex);
+    }
     if (res != 1) {
       return null;
     }
