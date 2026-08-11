@@ -35,8 +35,15 @@ Bitmask hands; zero-window alpha-beta with a binary search over the trick
 target; transposition table at trick boundaries storing (lower, upper)
 bound pairs plus the best move for ordering; equivalence-class move
 generation; an exact last-seat reduction (win as cheaply as possible, duck
-with the lowest, or unblock with the highest). Validated by fuzzing
-against an unpruned reference solver (`DDReferenceSolver`).
+with the lowest, or unblock with the highest). Validated two ways: by
+fuzzing against an unpruned reference solver (`DDReferenceSolver`), and
+externally against the established dds-bridge/dds C++ solver
+(`scripts/dds_compare/`) — 5000+ random positions at 2-12 tricks with
+mixed trumps, leaders, and partial tricks, zero disagreements. DDS
+remains far faster at depth (~1000x at 11-12 tricks; it has two decades
+of optimization including partition search), which is why MCDD's
+full-depth solves carry a node budget rather than assuming full deals
+are cheap.
 
 Timing on random deals: ~1ms at 6 tricks remaining, ~12ms at 8, ~34ms at
 9, ~1-7s at 10-12 (desktop M4, JIT). Three throughput features matter in
