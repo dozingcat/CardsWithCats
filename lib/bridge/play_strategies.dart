@@ -17,6 +17,8 @@
 ///                              heuristic preroll, then double-dummy solve.
 ///     rounds=N, ms=N, bid/nobid  as for mc (bid defaults ON here)
 ///     dd=K                       tricks left at which to solve (default 8)
+///     nodds                      don't use the native dds backend even if
+///                                DDS_LIB is set (see dds_ffi.dart)
 ///     margin=X, dmargin=X        honor-waste guard margins (points/deal)
 ///                                for declarer / defenders; an unsupported
 ///                                K/Q lead defers to the heuristic unless
@@ -101,6 +103,7 @@ PlayStrategy makeStrategy(String spec) {
       final margin = double.parse(options["margin"] ?? "5");
       final dmargin = double.parse(options["dmargin"] ?? "18");
       final fullSolve = !options.containsKey("nofull");
+      final useDds = !options.containsKey("nodds");
       PlayingCard choose(CardToPlayRequest req, Random rng) {
         return chooseCardMonteCarloDD(req, rng,
                 maxRounds: maxRounds,
@@ -109,7 +112,8 @@ PlayStrategy makeStrategy(String spec) {
                 useBiddingInference: useBid,
                 equityMargin: margin,
                 defenderEquityMargin: dmargin,
-                tryFullDepthSolve: fullSolve)
+                tryFullDepthSolve: fullSolve,
+                useDdsBackend: useDds)
             .bestCard;
       }
       return PlayStrategy(spec, choose);

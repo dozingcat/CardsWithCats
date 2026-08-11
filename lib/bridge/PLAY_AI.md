@@ -35,8 +35,15 @@ Bitmask hands; zero-window alpha-beta with a binary search over the trick
 target; transposition table at trick boundaries storing (lower, upper)
 bound pairs plus the best move for ordering; equivalence-class move
 generation; an exact last-seat reduction (win as cheaply as possible, duck
-with the lowest, or unblock with the highest). Validated by fuzzing
-against an unpruned reference solver (`DDReferenceSolver`).
+with the lowest, or unblock with the highest). Validated two ways: by
+fuzzing against an unpruned reference solver (`DDReferenceSolver`), and
+externally against the established dds-bridge/dds C++ solver
+(`scripts/dds_compare/`) — 5000+ random positions at 2-12 tricks with
+mixed trumps, leaders, and partial tricks, zero disagreements. DDS
+remains far faster at depth (~1000x at 11-12 tricks; it has two decades
+of optimization including partition search), which is why MCDD's
+full-depth solves carry a node budget rather than assuming full deals
+are cheap.
 
 Timing on random deals: ~1ms at 6 tricks remaining, ~12ms at 8, ~34ms at
 9, ~1-7s at 10-12 (desktop M4, JIT). Three throughput features matter in
@@ -233,6 +240,47 @@ play time ~415ms on a desktop M4.
 With full-depth solving, the engine's direct margin over an MC with
 maxtricks rollouts (the strongest pre-project baseline) is
 **+2.07 +/- 0.27 IMPs/board** (300 boards, seed 21, 156-48-96).
+
+## Native dds backend (FFI)
+
+`lib/bridge/dds_ffi.dart` binds SolveBoard from a libdds dynamic library
+(dds-bridge/dds v2.9.0 built by `scripts/dds_compare/build_libdds.sh`).
+Opt in by setting `DDS_LIB` to the library path; when unset or
+unloadable, everything falls back to the pure-Dart `DDSolver`, so
+platforms without the library are unaffected. With the backend active,
+MCDD solves every candidate position to full depth — no preroll, no
+node budget.
+
+Measured at mcdd:rounds=10:dd=7 over 100 boards, dds vs pure Dart:
+**+1.46 +/- 0.40 IMPs/board** (48-17-35) — the pure side pays the
+preroll-bias tax whenever its node budget forces a fallback, the dds
+side never does — at ~26ms vs ~767ms average per play under a fully
+parallel harness (~10ms vs ~130ms uncontended). The speed headroom is
+the point for mobile: full evaluation quality on slow devices, and an
+order of magnitude less CPU per play.
+
+The delicate part was multi-isolate safety, handled by a shim compiled
+into our libdds build (`dds_shim.cpp`): DDS thread memory must be
+initialized exactly once per process (a second SetMaxThreads corrupts
+in-flight state, and GetDDSInfo crashes if called before init), and
+concurrent solves need exclusive thread indices — a round-robin
+dispenser is insufficient because solves finish out of order, so every
+solve brackets acquire/release of a slot (safe against leaks: the FFI
+call is synchronous). All slots busy → solve returns null → pure-Dart
+fallback. Binding validated against DDSolver on 5000+ random positions
+(zero mismatches); `dds_isolate_probe.dart` covers the isolate cases.
+
+Platform integration: `build_libdds.sh` (host or `android`) produces
+the libraries locally — outputs are gitignored, so run it before
+building the app with dds support. macOS embeds `native/libdds.dylib`
+into Contents/Frameworks via an "Embed libdds" Runner build phase
+(copy + codesign, skipped when the dylib is absent so builds never
+break); Android cross-builds `libdds.so` for arm64-v8a, armeabi-v7a,
+and x86_64 into jniLibs, where the loader finds it by name. The shim
+caps DDS memory on Android (SetResources) since DDS otherwise sizes
+transposition tables from free RAM. DDS_LIB remains a development
+override; iOS (which requires static linking and
+DynamicLibrary.process()) is not yet done.
 
 ## Known limitations / future ideas
 

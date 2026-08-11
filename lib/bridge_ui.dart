@@ -15,6 +15,8 @@ import 'cards/card.dart';
 import 'cards/rollout.dart';
 import 'bridge/bridge.dart';
 import 'bridge/bridge_ai.dart';
+import 'bridge/dd_solver.dart';
+import 'bridge/dds_ffi.dart';
 
 const debugOutput = false;
 
@@ -38,6 +40,28 @@ PlayingCard computeCard(final CardToPlayRequest req) {
         chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
     return result.bestCard;
   }
+}
+
+class DdResultRequest {
+  final List<List<PlayingCard>> hands;
+  final Suit? trump;
+  final int leader;
+  final int declarer;
+
+  DdResultRequest(this.hands, this.trump, this.leader, this.declarer);
+}
+
+/// Tricks the declaring side takes double-dummy from the opening lead, or
+/// null if no solver can answer within budget. Run via compute().
+int? computeDoubleDummyDeclarerTricks(DdResultRequest req) {
+  int? ns =
+      DdsBackend.instance?.solve(req.hands, req.trump, req.leader, const []);
+  // Without the native backend a full-deal solve can be very slow; give
+  // the pure-Dart solver a bounded budget and omit the result on abort.
+  ns ??= DDSolver.fromHands(req.hands, req.trump, req.leader)
+      .solveWithNodeLimit(5000000);
+  if (ns == null) return null;
+  return req.declarer % 2 == 0 ? ns : 13 - ns;
 }
 
 class BridgeMatchDisplay extends StatefulWidget {
@@ -356,6 +380,33 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     if (playerMoods.containsValue(Mood.mad)) {
       widget.soundPlayer.playMadSound();
     }
+  }
+
+  // Double-dummy result of the finished round's contract, computed once
+  // per round in a background isolate for the end-of-round dialog.
+  BridgeRound? _ddResultRound;
+  int? _ddDeclarerTricks;
+  bool _ddComputeInFlight = false;
+
+  void _ensureDoubleDummyResult() {
+    if (!round.isOver() || round.contract == null) return;
+    if (identical(_ddResultRound, round) || _ddComputeInFlight) return;
+    _ddComputeInFlight = true;
+    final target = round;
+    final req = DdResultRequest(
+      [for (int p = 0; p < 4; p++) target.originalHandForPlayer(p)],
+      target.contract!.bid.trump,
+      (target.contract!.declarer + 1) % 4,
+      target.contract!.declarer,
+    );
+    compute(computeDoubleDummyDeclarerTricks, req).then((tricks) {
+      _ddComputeInFlight = false;
+      if (!mounted) return;
+      setState(() {
+        _ddResultRound = target;
+        _ddDeclarerTricks = tricks;
+      });
+    });
   }
 
   // Set when the human's round ends; stats are recorded once both the
@@ -836,6 +887,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
+    _ensureDoubleDummyResult();
     final showAllHands = false;
 
     return Stack(
@@ -866,6 +918,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             layout: layout,
             match: match,
             duplicateRound: duplicateRound,
+            doubleDummyDeclarerTricks:
+                identical(_ddResultRound, round) ? _ddDeclarerTricks : null,
             onContinue: () => setState(_startRound),
             onMainMenu: _showMainMenuAfterMatch,
             onReplayDuplicateRound: _runDuplicateRound,
@@ -1225,6 +1279,8 @@ class EndOfRoundDialog extends StatelessWidget {
   final Layout layout;
   final BridgeMatch match;
   final BridgeRound duplicateRound;
+  // Declarer-side tricks with best play by everyone, if computed.
+  final int? doubleDummyDeclarerTricks;
   final Function() onContinue;
   final Function() onMainMenu;
   // For testing to see how the AI plays the hand over multiple runs.
@@ -1235,6 +1291,7 @@ class EndOfRoundDialog extends StatelessWidget {
     required this.layout,
     required this.match,
     required this.duplicateRound,
+    this.doubleDummyDeclarerTricks,
     required this.onContinue,
     required this.onMainMenu,
     this.onReplayDuplicateRound,
@@ -1319,10 +1376,18 @@ class EndOfRoundDialog extends StatelessWidget {
                     ]),
                     makeRow([
                       Padding(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.only(top: 10, left: 10, right: 10),
                           child: Text("$roundResultDesc: ${formatRoundScore(round)}",
                               style: const TextStyle(fontSize: 18))),
                     ]),
+                    if (doubleDummyDeclarerTricks != null)
+                      makeRow([
+                        Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                                "Double dummy: ${contractResultDescription(round.contract!, doubleDummyDeclarerTricks!)}",
+                                style: const TextStyle(fontSize: 11))),
+                      ]),
                     makeRow([
                       const Padding(
                         padding: EdgeInsets.only(),
@@ -1375,6 +1440,12 @@ class EndOfRoundDialog extends StatelessWidget {
           Opacity(opacity: val.clamp(0.0, 1.0), child: child),
     );
   }
+}
+
+/// "made 4" / "down 2" for taking [tricks] against [contract].
+String contractResultDescription(Contract contract, int tricks) {
+  final over = tricks - contract.bid.numTricksRequired;
+  return over >= 0 ? "made ${over + contract.bid.count}" : "down ${-over}";
 }
 
 String roundResultDescription(BridgeRound round) {

@@ -45,3 +45,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/app/.cxx
+native/
+android/app/src/main/jniLibs/
