@@ -83,6 +83,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool isClaimingRemainingTricks = false;
+  // Flag to keep the bidding dialog visible after bidding is completed, until
+  // the player starts the round.
   bool showPostBidDialog = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
@@ -285,6 +287,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       setState(() {
         round.playCard(card);
         animationMode = AnimationMode.movingTrickCard;
+        // Hide the bidding dialog if it's still visible, which can happen
+        // if the human player leads the first trick without dismissing it.
+        showPostBidDialog = false;
       });
       widget.saveMatchFn(match);
       if (round.isOver() &&
@@ -734,12 +739,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldShowBidDialog() {
-    return !widget.dialogVisible && !round.isPassedOut() && (round.status == BridgeRoundStatus.bidding || showPostBidDialog);
-  }
-
-  bool _shouldShowPostBidDialog() {
-    return false;
-    return !widget.dialogVisible && showPostBidDialog;
+    return !widget.dialogVisible
+        && !round.isPassedOut()
+        && (round.status == BridgeRoundStatus.bidding || showPostBidDialog);
   }
 
   bool _shouldShowClaimTricksDialog() {
@@ -768,7 +770,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   Widget _scoreOverlayButton() {
-    return Padding(
+    return Opacity(opacity: 0.6, child: Padding(
       padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
       child: FloatingActionButton(
         onPressed: () {
@@ -778,7 +780,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         },
         child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
       ),
-    );
+    ));
   }
 
   Widget _scoreOverlay() {
