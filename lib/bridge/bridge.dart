@@ -838,6 +838,18 @@ class BridgeMatch {
     }
     return total;
   }
+
+  // Returns 0 for N/S win, 1 for E/W, null if tied or if the match isn't over.
+  int? winningTeam() {
+    if (!isMatchOver()) {
+      return null;
+    }
+    int imps = totalImpsForPlayer0();
+    if (imps == 0) {
+      return null;
+    }
+    return imps > 0 ? 0 : 1;
+  }
 }
 
 int impsForScoreDifference(int diff) {

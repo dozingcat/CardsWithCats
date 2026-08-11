@@ -426,12 +426,23 @@ class MoodBubble extends StatelessWidget {
 class PlayerMoods extends StatelessWidget {
   final Layout layout;
   final Map<int, Mood> moods;
+  // If set, mood bubbles fade out after the specified duration.
+  // Fading in and out takes 1 second each, in between the moods are shown
+  // at full opacity for this duration.
+  final int? durationMillis;
+  final int fadeInOutMillis;
 
-  const PlayerMoods({Key? key, required this.layout, required this.moods}) : super(key: key);
+  const PlayerMoods({
+    super.key,
+    required this.layout,
+    required this.moods,
+    this.durationMillis,
+    this.fadeInOutMillis = 1000,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (moods.isEmpty) return Container();
+    if (moods.isEmpty) return const SizedBox.shrink();
     final nonHuman = moods.entries.where((elem) => elem.key != 0);
     final moodWidgets = Stack(children: [
       ...nonHuman.map((elem) => MoodBubble(
@@ -441,12 +452,33 @@ class PlayerMoods extends StatelessWidget {
           ))
     ]);
 
-    return TweenAnimationBuilder(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 1000),
-      child: moodWidgets,
-      builder: (context, double val, child) => Opacity(opacity: val, child: child),
-    );
+    if (durationMillis == null) {
+      return TweenAnimationBuilder(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: Duration(milliseconds: fadeInOutMillis),
+        child: moodWidgets,
+        builder: (context, double val, child) => Opacity(opacity: val, child: child),
+      );
+    }
+    else {
+      // Add 2 seconds for the fade in/out. The tween value is is milliseconds.
+      int fullDuration = 2 * fadeInOutMillis + durationMillis!;
+      return TweenAnimationBuilder(
+        tween: Tween(begin: 0.0, end: fullDuration.toDouble()),
+        duration: Duration(milliseconds: fullDuration),
+        child: moodWidgets,
+        builder: (context, double val, child) {
+          double opacity = 1.0;
+          if (val < fadeInOutMillis) {
+            opacity = val / fadeInOutMillis;
+          }
+          else if (val > fullDuration - fadeInOutMillis) {
+            opacity = (fullDuration - val) / fadeInOutMillis;
+          }
+          return Opacity(opacity: opacity.clamp(0, 1), child: child);
+        },
+      );
+    }
   }
 }
 

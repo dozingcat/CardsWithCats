@@ -302,11 +302,52 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   void _updateMoodsAfterTrick() {
-    // TODO
+    playerMoods.clear();
+    if (match.isMatchOver()) {
+      switch (match.winningTeam()) {
+        case 0:
+          playerMoods[2] = .veryHappy;
+          playerMoods[1] = playerMoods[3] = .mad;
+          break;
+        case 1:
+          playerMoods[1] = playerMoods[3] = .veryHappy;
+          playerMoods[2] = .mad;
+      }
+    }
+    else if (round.isOver() && duplicateRound.isOver()) {
+      int impDiff = BridgeMatch.impsForRounds(round, duplicateRound);
+      if (impDiff >= 6) {
+        playerMoods[2] = .veryHappy;
+        playerMoods[1] = playerMoods[3] = .mad;
+      }
+      else if (impDiff >= 2) {
+        playerMoods[2] = .happy;
+        playerMoods[1] = playerMoods[3] = .mad;
+      }
+      else if (impDiff <= -6) {
+        playerMoods[1] = playerMoods[3] = .veryHappy;
+        playerMoods[2] = .mad;
+      }
+      else if (impDiff <= -2) {
+        playerMoods[1] = playerMoods[3] = .happy;
+        playerMoods[2] = .mad;
+      }
+    }
+    // Intentionally not setting moods during play when a contract is made or
+    // defeated, since that could be expected (e.g. when preempting to prevent
+    // the opponents' game, going down is expected and may give positive IMPs).
   }
 
+  // Since there's always an AI winner and loser, playing happy/sad sounds for
+  // them would be redundant. Instead only play a mad sound if a round is over
+  // and one of the sides is "mad" because they lost by several IMPs.
   void _playSoundsForMoods() {
-    // TODO
+    if (match.isMatchOver()) {
+      return;
+    }
+    if (playerMoods.containsValue(Mood.mad)) {
+      widget.soundPlayer.playMadSound();
+    }
   }
 
   // Set when the human's round ends; stats are recorded once both the
@@ -824,6 +865,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
             onReplayDuplicateRound: _runDuplicateRound,
           ),
+        PlayerMoods(layout: layout, moods: playerMoods, durationMillis: 5000),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
         if (_shouldShowScoreOverlayToggle()) _scoreOverlayButton(),
       ],

@@ -391,6 +391,8 @@ class SpadesMatch {
     }
   }
 
+  // Single points for bags don't count in determining the winner so 528 to 526
+  // is still tied, and we need to keep playing rounds until the tie is broken.
   bool isMatchOver() {
     int high = scores.reduce(max);
     if (high < rules.pointLimit) {
