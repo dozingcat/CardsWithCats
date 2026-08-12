@@ -1,4 +1,5 @@
-// Small shim compiled into our libdds build (see build_libdds.sh) to make
+// Small shim compiled into our libdds build (see build_libdds.sh in
+// this directory) to make
 // the library safe to use from multiple Dart isolates in one process:
 //
 // - DdsEnsureInit initializes thread memory exactly once process-wide.

@@ -3,12 +3,11 @@
 # FFI (lib/bridge/dds_ffi.dart).
 #
 # Usage:
-#   sh scripts/dds_compare/build_libdds.sh           # host build -> native/
-#   sh scripts/dds_compare/build_libdds.sh macos     # host build AND copy
-#                                                    # where the macOS app
-#                                                    # build phase finds it
-#   sh scripts/dds_compare/build_libdds.sh android   # NDK cross-builds ->
-#                                                    # android/app/src/main/jniLibs/<abi>/
+#   sh cpp/build_libdds.sh           # host build -> native/
+#   sh cpp/build_libdds.sh macos     # host build; the macOS app's Embed
+#                                    # libdds build phase picks it up
+#   sh cpp/build_libdds.sh android   # NDK cross-builds ->
+#                                    # android/app/src/main/jniLibs/<abi>/
 #
 # Builds from the vendored sources in third_party/dds (override with
 # DDS_SRC to point at another checkout). Android needs ANDROID_NDK_HOME
@@ -17,7 +16,7 @@
 # support.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 MODE="${1:-host}"
 
 if [ -z "$DDS_SRC" ]; then

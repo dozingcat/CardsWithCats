@@ -9,7 +9,7 @@ Contents: `LICENSE` (Apache 2.0), `include/`, and the `.cpp`/`.h` files
 from `src/`. Build-system files, Windows resources, and docs from the
 upstream repository are omitted; **no source files are modified**.
 Local additions live outside this directory: the isolate-safety shim is
-`scripts/dds_compare/dds_shim.cpp`, and `scripts/dds_compare/build_libdds.sh`
+`cpp/dds_shim.cpp`, and `cpp/build_libdds.sh`
 builds the library for macOS (`native/`) and Android (`jniLibs/`).
 
 Version note: v2.9.0 rather than the newer DDS3 line by choice — DDS3

@@ -244,7 +244,7 @@ maxtricks rollouts (the strongest pre-project baseline) is
 ## Native dds backend (FFI)
 
 `lib/bridge/dds_ffi.dart` binds SolveBoard from a libdds dynamic library
-(dds-bridge/dds v2.9.0 built by `scripts/dds_compare/build_libdds.sh`).
+(dds-bridge/dds v2.9.0 built by `cpp/build_libdds.sh`).
 Opt in by setting `DDS_LIB` to the library path; when unset or
 unloadable, everything falls back to the pure-Dart `DDSolver`, so
 platforms without the library are unaffected. With the backend active,
@@ -260,7 +260,7 @@ the point for mobile: full evaluation quality on slow devices, and an
 order of magnitude less CPU per play.
 
 The delicate part was multi-isolate safety, handled by a shim compiled
-into our libdds build (`dds_shim.cpp`): DDS thread memory must be
+into our libdds build (`cpp/dds_shim.cpp`): DDS thread memory must be
 initialized exactly once per process (a second SetMaxThreads corrupts
 in-flight state, and GetDDSInfo crashes if called before init), and
 concurrent solves need exclusive thread indices — a round-robin

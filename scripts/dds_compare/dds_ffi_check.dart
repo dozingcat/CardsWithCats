@@ -35,7 +35,7 @@ void main(List<String> args) {
   final dds = DdsBackend.instance;
   if (dds == null) {
     print("DDS backend unavailable; set DDS_LIB to the built library "
-        "(scripts/dds_compare/build_libdds.sh)");
+        "(cpp/build_libdds.sh)");
     exit(1);
   }
 
