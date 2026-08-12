@@ -107,6 +107,7 @@ inference.
 | full-depth solving vs preroll-only, seed 11 | 200 | **+1.27 +/- 0.30** |
 | full-depth vs preroll-only at app config (2.2s), seed 5 | 60 | +1.03 +/- 0.59 |
 | **final engine vs maxtricks MC, seed 21** | 300 | **+2.07 +/- 0.27** |
+| **final engine with dds backend vs maxtricks MC, seed 41** | 300 | **+3.35 +/- 0.28** |
 
 Two negative results shaped the final design:
 
@@ -273,7 +274,11 @@ preroll-bias tax whenever its node budget forces a fallback, the dds
 side never does — at ~26ms vs ~767ms average per play under a fully
 parallel harness (~10ms vs ~130ms uncontended). The speed headroom is
 the point for mobile: full evaluation quality on slow devices, and an
-order of magnitude less CPU per play.
+order of magnitude less CPU per play. Against the original
+maxtricks-rollout MC baseline, the dds-backed engine measures
+**+3.35 +/- 0.28 IMPs/board** (300 boards, 205-22-73) at ~28ms per
+play — the cumulative gain of the whole project, delivered at roughly
+the compute cost of the AI it replaced.
 
 The delicate part was multi-isolate safety, handled by a shim compiled
 into our libdds build (`cpp/dds_shim.cpp`): DDS thread memory must be
