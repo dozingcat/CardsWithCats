@@ -270,17 +270,17 @@ call is synchronous). All slots busy → solve returns null → pure-Dart
 fallback. Binding validated against DDSolver on 5000+ random positions
 (zero mismatches); `dds_isolate_probe.dart` covers the isolate cases.
 
-Platform integration: `build_libdds.sh` (host or `android`) produces
-the libraries locally — outputs are gitignored, so run it before
-building the app with dds support. macOS embeds `native/libdds.dylib`
-into Contents/Frameworks via an "Embed libdds" Runner build phase
-(copy + codesign, skipped when the dylib is absent so builds never
-break); Android cross-builds `libdds.so` for arm64-v8a, armeabi-v7a,
-and x86_64 into jniLibs, where the loader finds it by name. The shim
-caps DDS memory on Android (SetResources) since DDS otherwise sizes
-transposition tables from free RAM. DDS_LIB remains a development
-override; iOS (which requires static linking and
-DynamicLibrary.process()) is not yet done.
+Platform integration: dds builds hermetically from the vendored
+sources (third_party/dds plus cpp/dds_shim.cpp) as part of the app
+build. Android compiles it per ABI via Gradle externalNativeBuild
+(android/app/CMakeLists.txt); macOS's "Embed libdds" Runner phase runs
+cpp/build_libdds.sh when sources are newer than native/libdds.dylib,
+then copies and codesigns it into Contents/Frameworks. A C++ error
+fails the app build on both platforms. The shim caps DDS memory on
+Android (SetResources) since DDS otherwise sizes transposition tables
+from free RAM. DDS_LIB remains a development override for command-line
+tools; iOS (which requires static linking and DynamicLibrary.process())
+is not yet done.
 
 ## Known limitations / future ideas
 

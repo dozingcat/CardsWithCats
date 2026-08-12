@@ -3,17 +3,14 @@
 # FFI (lib/bridge/dds_ffi.dart).
 #
 # Usage:
-#   sh cpp/build_libdds.sh           # host build -> native/
-#   sh cpp/build_libdds.sh macos     # host build; the macOS app's Embed
-#                                    # libdds build phase picks it up
-#   sh cpp/build_libdds.sh android   # NDK cross-builds ->
-#                                    # android/app/src/main/jniLibs/<abi>/
+#   sh cpp/build_libdds.sh    # host build -> native/
 #
 # Builds from the vendored sources in third_party/dds (override with
-# DDS_SRC to point at another checkout). Android needs ANDROID_NDK_HOME
-# or an NDK under ~/Library/Android/sdk/ndk. Build outputs are
-# gitignored; run this script locally before building the app with dds
-# support.
+# DDS_SRC to point at another checkout). The output is gitignored. App
+# builds run this automatically: the macOS Runner's "Embed libdds"
+# phase invokes it when sources are newer than the dylib, and Android
+# compiles the same sources itself via android/app/CMakeLists.txt. Run
+# manually only for command-line use (DDS_LIB=native/libdds.dylib).
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -37,33 +34,8 @@ build_host() {
   clang++ $COMMON $SHARED $SOURCES -o "$OUT_DIR/$LIB"
 }
 
-build_android() {
-  if [ -z "$ANDROID_NDK_HOME" ]; then
-    ANDROID_NDK_HOME="$(ls -d "$HOME"/Library/Android/sdk/ndk/* 2>/dev/null | sort -V | tail -1)"
-  fi
-  if [ -z "$ANDROID_NDK_HOME" ] || [ ! -d "$ANDROID_NDK_HOME" ]; then
-    echo "Android NDK not found; set ANDROID_NDK_HOME" >&2
-    exit 1
-  fi
-  TOOLCHAIN="$(ls -d "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin | head -1)"
-  echo "Using NDK toolchain $TOOLCHAIN"
-  for ABI_TRIPLE in \
-      "arm64-v8a aarch64-linux-android21" \
-      "armeabi-v7a armv7a-linux-androideabi21" \
-      "x86_64 x86_64-linux-android21"; do
-    set -- $ABI_TRIPLE
-    ABI="$1"; TRIPLE="$2"
-    OUT_DIR="$REPO_DIR/android/app/src/main/jniLibs/$ABI"
-    mkdir -p "$OUT_DIR"
-    echo "Building $OUT_DIR/libdds.so"
-    "$TOOLCHAIN/clang++" --target="$TRIPLE" $COMMON -shared -fPIC \
-      -static-libstdc++ $SOURCES -o "$OUT_DIR/libdds.so"
-  done
-}
-
 case "$MODE" in
   host|macos) build_host ;;
-  android) build_android ;;
-  *) echo "Unknown mode: $MODE (use host, macos, or android)" >&2; exit 1 ;;
+  *) echo "Unknown mode: $MODE" >&2; exit 1 ;;
 esac
 echo "Done"

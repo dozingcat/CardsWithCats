@@ -315,7 +315,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DYLIB=\"$SRCROOT/../native/libdds.dylib\"\nDEST=\"$BUILT_PRODUCTS_DIR/$FRAMEWORKS_FOLDER_PATH\"\nif [ -f \"$DYLIB\" ]; then\n  mkdir -p \"$DEST\"\n  cp \"$DYLIB\" \"$DEST/libdds.dylib\"\n  codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$DEST/libdds.dylib\"\nfi\n";
+			shellScript = "set -e\ncd \"$SRCROOT/..\"\nDYLIB=\"native/libdds.dylib\"\n# Rebuild when missing or when any dds/shim source is newer.\nif [ ! -f \"$DYLIB\" ] || [ -n \"$(find third_party/dds cpp \\( -name '*.cpp' -o -name '*.h' -o -name '*.sh' \\) -newer \"$DYLIB\" -print -quit)\" ]; then\n  sh cpp/build_libdds.sh\nfi\nDEST=\"$BUILT_PRODUCTS_DIR/$FRAMEWORKS_FOLDER_PATH\"\nmkdir -p \"$DEST\"\ncp \"$DYLIB\" \"$DEST/libdds.dylib\"\ncodesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$DEST/libdds.dylib\"\n";
 		};
 		3399D490228B24CF009A79C7 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
