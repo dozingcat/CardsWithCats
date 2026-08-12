@@ -1,0 +1,3 @@
+# This prevents the dds C++ code from being counted in Github's language chart
+third_party/** linguist-vendored
+

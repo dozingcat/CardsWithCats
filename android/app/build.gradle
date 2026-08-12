@@ -47,6 +47,18 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_static"
+            }
+        }
+    }
+
+    // Native dds double-dummy solver (see lib/bridge/dds_ffi.dart).
+    externalNativeBuild {
+        cmake {
+            path = "CMakeLists.txt"
+        }
     }
 
     signingConfigs {

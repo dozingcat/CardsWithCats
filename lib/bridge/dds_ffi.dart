@@ -1,6 +1,6 @@
 /// Dart FFI binding to the dds-bridge/dds double-dummy solver (v2.9.0),
 /// used as an optional fast backend for MCDD's exact evaluations. Build
-/// the library with scripts/dds_compare/build_libdds.sh; it is loaded
+/// the library with cpp/build_libdds.sh; it is loaded
 /// from the platform default location when present (macOS: bundled in
 /// Contents/Frameworks by a Runner build phase; Android: libdds.so from
 /// jniLibs), and the DDS_LIB environment variable overrides the path for
@@ -10,7 +10,7 @@
 /// Threading: DDS is thread-safe only when concurrent calls use distinct
 /// thread indices, and its memory must be initialized exactly once per
 /// process. Both are handled by a shim compiled into our libdds build
-/// (scripts/dds_compare/dds_shim.cpp): once-only init via std::call_once
+/// (cpp/dds_shim.cpp): once-only init via std::call_once
 /// and exclusive acquire/release thread-index slots. Every solve
 /// brackets its SolveBoard call with acquire/release (safe: the native
 /// call is synchronous, so an isolate can't abandon a held slot); if all

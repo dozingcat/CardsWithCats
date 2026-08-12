@@ -1,9 +1,10 @@
 // Batch driver for cross-checking lib/bridge/dd_solver.dart against the
 // established dds-bridge/dds solver (tested with v2.9.0).
 //
-// Build (from a checkout of dds-bridge/dds at tag v2.9.0):
-//   clang++ -O2 -std=c++11 -DDDS_THREADS_STL -I<dds>/include \
-//       scripts/dds_compare/dds_driver.cpp <dds>/src/*.cpp -o dds_driver
+// Build (against the vendored sources in third_party/dds):
+//   clang++ -O2 -std=c++11 -DDDS_THREADS_STL -Ithird_party/dds/include \
+//       -Ithird_party/dds/src scripts/dds_compare/dds_driver.cpp \
+//       third_party/dds/src/*.cpp -o dds_driver
 //
 // Protocol: one position per input line, all numbers decimal:
 //   trump first ntrick [suit rank]*ntrick m00 m01 ... m33
