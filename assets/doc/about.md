@@ -118,4 +118,7 @@ available [here](https://github.com/dozingcat/CardsWithCats).
 https://totalnonsense.com/open-source-vector-playing-cards/ \
 Copyright 2011,2024 – Chris Aguilar – conjurenation@gmail.com \
 Licensed under: LGPL 3.0 – https://www.gnu.org/licenses/lgpl-3.0.html
+- dds double dummy solver: https://github.com/dds-bridge/dds \
+(c) Bo Haglund 2006-2014, (c) Bo Haglund / Soren Hein 2014-2018
+Licensed under Apache 2.0 - https://www.apache.org/licenses/LICENSE-2.0
 - Sounds by Boojie, Ginger, and Sauerkraut
