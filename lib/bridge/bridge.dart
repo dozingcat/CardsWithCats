@@ -820,23 +820,37 @@ class BridgeMatch {
         duplicateRound.contractScoreForPlayer(0));
   }
 
-  // Running IMP total for players 0 and 2, over rounds whose duplicate
-  // replay has finished.
-  int totalImpsForPlayer0() {
+  // IMPs for N/s over rounds whose duplicate replay has finished.
+  List<int> netImpsPerRoundForPlayer0() {
+    final imps = <int>[];
     int total = 0;
     for (int i = 0;
         i < previousRounds.length && i < previousDuplicateRounds.length;
         i++) {
       if (previousDuplicateRounds[i].isOver()) {
-        total += impsForRounds(previousRounds[i], previousDuplicateRounds[i]);
+        imps.add(impsForRounds(previousRounds[i], previousDuplicateRounds[i]));
       }
     }
     if (!_isCurrentRoundArchived &&
         currentRound.isOver() &&
         duplicateRound.isOver()) {
-      total += impsForRounds(currentRound, duplicateRound);
+      imps.add(impsForRounds(currentRound, duplicateRound));
     }
-    return total;
+    return imps;
+  }
+
+  int netImpsForPlayer0() {
+    return netImpsPerRoundForPlayer0().fold(0, (a, b) => a + b);
+  }
+
+  // Negative IMPs for N/S become positive for E/W,
+  // e.g. [3, 0, 2, -4] => [5, 4]
+  List<int> totalImpsPerTeam() {
+    final netImps = netImpsPerRoundForPlayer0();
+    return [
+      netImps.where((imps) => imps > 0).fold(0, (a, b) => a + b),
+      netImps.where((imps) => imps < 0).fold(0, (a, b) => a - b),
+    ];
   }
 
   // Returns 0 for N/S win, 1 for E/W, null if tied or if the match isn't over.
@@ -844,7 +858,7 @@ class BridgeMatch {
     if (!isMatchOver()) {
       return null;
     }
-    int imps = totalImpsForPlayer0();
+    int imps = netImpsForPlayer0();
     if (imps == 0) {
       return null;
     }

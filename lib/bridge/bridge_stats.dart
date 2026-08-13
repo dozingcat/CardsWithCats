@@ -183,7 +183,7 @@ class BridgeStats {
 
   /// Updates stats for a finished match (all duplicate replays done).
   BridgeStats updateFromMatch(BridgeMatch match) {
-    final imps = match.totalImpsForPlayer0();
+    final imps = match.netImpsForPlayer0();
     return copyWith(
       numMatches: numMatches + 1,
       numMatchesWon: numMatchesWon + (imps > 0 ? 1 : 0),

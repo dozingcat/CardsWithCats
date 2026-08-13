@@ -2,7 +2,7 @@ Comments or bug reports: [bnenning@gmail.com](mailto:bnenning@gmail.com)
 
 ## General
 
-In both Hearts and Spades, each player is dealt 13 cards and plays them in a series of "tricks".
+In all games, each player is dealt a hand of cards and plays them in a series of "tricks".
 In each trick, one player leads by playing a card. Each other player then plays a card, in
 clockwise order. You must play a card of the same suit as the card that was led if possible; if not
 you may play any card. Whoever plays the highest card of the suit that was led takes the cards in
@@ -102,6 +102,42 @@ If "Always 13", the match lasts until one player reaches 100 points rather than 
 of rounds.
 - **Score 1 point per trick**: Can be set to have players score 1 point per trick always, never, or
 only when they make their exact bid.
+
+## Bridge
+
+Bridge is a game played by two teams of partners. Your partner is at the top of the screen and the
+opponents are on the sides. A round begins with an "auction", where players bid to set the trump
+suit (or to have no trump suit, "NT") and to say how many tricks they will win with that
+trump. See [here](https://www.acbl.org/learn/) for more detailed rules.
+
+### Bidding
+The bidding system that the AI players use is mostly [Standard American Yellow Card](https://www.bridgebum.com/sayc.php) (SAYC),
+including:
+- 5-card majors with limit raises and Jacoby 2NT
+- Negative doubles
+- Weak opening two-bids, strong 2♣
+- Weak jump overcalls
+- 1NT opening with 15-17 points, Stayman and Jacoby transfers
+- Blackwood and Gerber
+
+You can see the meaning of a bid that a player (including yourself) has made by tapping it in the
+bid table. If you make a bid that's not interpreted how you expected, you can use the "Undo last bid"
+button to rewind the auction to your most recent action.
+
+The AI players do not currently use any conventions for playing cards (e.g. playing high then low to
+indicate an even number of cards).
+
+### Scoring
+Matches are scored as "duplicate teams". Each hand you play is also played separately by AI. The
+difference between your score for the hand and the score that the AI player gets for the same
+hand is converted to [International Match Points](https://en.wikipedia.org/wiki/International_Match_Points) (IMPs). 
+
+For example, suppose you bid and make a contract of 2♠, while in the duplicate hand the player in
+your position also bids 2♠ but fails to make it by one trick. Your score is +110, and your AI
+counterpart's score is -50. The difference is 160 points in your favor, which translates to +4 IMPs.
+
+The length of a match is set in the preferences and can be 1, 4, or 8 hands. The winner of the match
+is determined by the IMPs accumulated over all hands.
 
 ## License
 
