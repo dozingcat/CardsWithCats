@@ -1530,29 +1530,28 @@ class _DuplicateRoundDetailsDialogState
       final cardIndex = (playerIndex - trick.leader) % 4;
       final card = trick.cards[cardIndex];
       final isWinner = playerIndex == trick.winner;
-      return Column(mainAxisSize: MainAxisSize.min, children: [
-        Text("SWNE"[playerIndex],
-            style:
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 2),
-        Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                  color: isWinner ? Colors.amber : Colors.transparent,
-                  width: 2.5),
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Image.asset("assets/cards/solid/${card.toString()}.webp",
-                height: 64)),
-      ]);
+      return Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+                color: isWinner ? Colors.amber : Colors.transparent,
+                width: 2.5),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Image.asset("assets/cards/solid/${card.toString()}.webp",
+              height: 64));
     }
+
+    // Arrow in the center of the cross pointing at the trick leader's card.
+    final leadArrow = RotatedBox(
+        quarterTurns: (trick.leader + 2) % 4,
+        child: const Icon(Icons.arrow_upward, size: 24, color: Colors.black54));
 
     // Cross layout matching the table: N top, W left, E right, S bottom.
     return Column(mainAxisSize: MainAxisSize.min, children: [
       seatCard(2),
       Row(mainAxisSize: MainAxisSize.min, children: [
         seatCard(1),
-        const SizedBox(width: 56),
+        SizedBox(width: 56, child: Center(child: leadArrow)),
         seatCard(3),
       ]),
       seatCard(0),

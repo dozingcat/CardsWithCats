@@ -62,6 +62,14 @@ void main() {
             Colors.amber;
     expect(find.byWidgetPredicate(hasWinnerBorder), findsOneWidget);
 
+    // The center arrow points at the trick leader's card position.
+    int arrowQuarterTurns() => tester
+        .widget<RotatedBox>(find.ancestor(
+            of: find.byIcon(Icons.arrow_upward),
+            matching: find.byType(RotatedBox)))
+        .quarterTurns;
+    expect(arrowQuarterTurns(), (round.previousTricks[0].leader + 2) % 4);
+
     // Back arrow is disabled on the first trick.
     final leftButton = tester.widget<IconButton>(
         find.widgetWithIcon(IconButton, Icons.chevron_left));
@@ -71,6 +79,7 @@ void main() {
     await tester.pump();
     expect(find.text("Trick 2 of 13"), findsOneWidget);
     expect(find.byWidgetPredicate(hasWinnerBorder), findsOneWidget);
+    expect(arrowQuarterTurns(), (round.previousTricks[1].leader + 2) % 4);
 
     await tester.tap(find.byIcon(Icons.chevron_left));
     await tester.pump();
