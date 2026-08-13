@@ -33,15 +33,19 @@ enum Suit {
   static Suit fromChar(String ch) {
     switch (ch) {
       case 'C':
+      case 'c':
       case '♣':
         return clubs;
       case 'D':
+      case 'd':
       case '♦':
         return diamonds;
       case 'H':
+      case 'h':
       case '♥':
         return hearts;
       case 'S':
+      case 's':
       case '♠':
         return spades;
       default:

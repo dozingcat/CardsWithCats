@@ -467,17 +467,17 @@ void main() {
 
       bidAndPlayOutRound(match.currentRound, rng);
       // Duplicate round hasn't finished; no IMPs yet.
-      expect(match.totalImpsForPlayer0(), 0);
+      expect(match.netImpsForPlayer0(), 0);
       bidAndPlayOutRound(match.duplicateRound, rng);
 
       final expectedImps = impsForScoreDifference(
           match.currentRound.contractScoreForPlayer(0) -
               match.duplicateRound.contractScoreForPlayer(0));
-      expect(match.totalImpsForPlayer0(), expectedImps);
+      expect(match.netImpsForPlayer0(), expectedImps);
 
       // Total persists after the round is archived and a new one dealt.
       match.finishRound();
-      expect(match.totalImpsForPlayer0(), expectedImps);
+      expect(match.netImpsForPlayer0(), expectedImps);
       expect(match.currentRound.isOver(), false);
 
       // A second finished round adds its IMPs to the total.
@@ -486,7 +486,7 @@ void main() {
       final round2Imps = impsForScoreDifference(
           match.currentRound.contractScoreForPlayer(0) -
               match.duplicateRound.contractScoreForPlayer(0));
-      expect(match.totalImpsForPlayer0(), expectedImps + round2Imps);
+      expect(match.netImpsForPlayer0(), expectedImps + round2Imps);
     });
 
     test("Serialization preserves rounds and IMP total", () {
@@ -507,7 +507,7 @@ void main() {
       expect(restored.numCompletedRounds, 2);
       expect(restored.currentRound.vulnerability, Vulnerability.nsOnly);
       expect(restored.duplicateRound.vulnerability, Vulnerability.nsOnly);
-      expect(restored.totalImpsForPlayer0(), match.totalImpsForPlayer0());
+      expect(restored.netImpsForPlayer0(), match.netImpsForPlayer0());
     });
 
     test("Contract vulnerability follows round vulnerability", () {
@@ -537,7 +537,7 @@ void main() {
       expect(restored.numRounds, 4);
       expect(restored.previousDuplicateRounds, isEmpty);
       expect(restored.duplicateRound.isOver(), false);
-      expect(restored.totalImpsForPlayer0(), 0);
+      expect(restored.netImpsForPlayer0(), 0);
     });
   });
 }

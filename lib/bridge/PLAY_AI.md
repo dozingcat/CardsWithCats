@@ -103,9 +103,11 @@ inference.
 | MCDD dd=7 vs maxtricks MC, seed 43 | 200 | +0.47 +/- 0.33 |
 | MCDD dd=6 vs maxtricks MC, seed 43 | 200 | -0.11 +/- 0.34 |
 | honor-waste guard (final form) vs no guard, seed 11 | 200 | +0.05 +/- 0.20 |
+| honor-waste guard vs no guard with dds backend, seed 37 | 300 | +0.09 +/- 0.07 |
 | full-depth solving vs preroll-only, seed 11 | 200 | **+1.27 +/- 0.30** |
 | full-depth vs preroll-only at app config (2.2s), seed 5 | 60 | +1.03 +/- 0.59 |
 | **final engine vs maxtricks MC, seed 21** | 300 | **+2.07 +/- 0.27** |
+| **final engine with dds backend vs maxtricks MC, seed 41** | 300 | **+3.35 +/- 0.28** |
 
 Two negative results shaped the final design:
 
@@ -198,7 +200,7 @@ Lesson: suppress only the exact artifact pattern and fall back along the
 measured-equity ranking, not to conventional play; every deferral to the
 heuristic's judgment costs measurable equity.
 
-Re-measured after full-depth solving landed: the guard remains
+Re-measured after full-depth solving landed: the guard remained
 worthwhile — +0.31 +/- 0.18 IMPs/board vs guard-off (200 boards; free
 to mildly positive), while still halving flagged unsupported-honor
 leads (25 -> 12 at 50 sampled deals; into-dummy-honor leads 8 -> 2),
@@ -207,6 +209,21 @@ naturalness refinements: a K/Q that has become the *master* is exempt
 (cashing it is never the artifact), and lead candidates from groups of
 touching honors are represented by the top card (lead A from AKQ, not
 the double-dummy-equivalent Q).
+
+Re-measured again with the native dds backend (universal full-depth
+solves, no budget aborts): the guard is now vestigial where dds is
+active — +0.09 +/- 0.07 IMPs/board with 289 of 300 boards identical,
+and the lead scan produces byte-identical output with the guard on or
+off (12 flags at 50 sampled deals, mostly heuristic-endorsed, zero
+into a higher dummy honor). Each layer of the fix made the previous
+one more redundant: the guard cut the original artifact ~70%,
+full-depth solving cut most of the rest, and dds-everywhere finished
+it — the old noise-decided near-ties are now exact ties, settled by
+the ordinary lowest-card tie-break. The guard is kept as insurance for
+the pure-Dart fallback path (iOS, or any platform where the library
+fails to load), where budget aborts and preroll fallbacks still occur;
+when that path becomes vestigial too, the guard can be deleted with
+it.
 
 ## Full-depth solving (preroll bias)
 
@@ -257,7 +274,11 @@ preroll-bias tax whenever its node budget forces a fallback, the dds
 side never does — at ~26ms vs ~767ms average per play under a fully
 parallel harness (~10ms vs ~130ms uncontended). The speed headroom is
 the point for mobile: full evaluation quality on slow devices, and an
-order of magnitude less CPU per play.
+order of magnitude less CPU per play. Against the original
+maxtricks-rollout MC baseline, the dds-backed engine measures
+**+3.35 +/- 0.28 IMPs/board** (300 boards, 205-22-73) at ~28ms per
+play — the cumulative gain of the whole project, delivered at roughly
+the compute cost of the AI it replaced.
 
 The delicate part was multi-isolate safety, handled by a shim compiled
 into our libdds build (`cpp/dds_shim.cpp`): DDS thread memory must be

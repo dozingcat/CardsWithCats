@@ -922,7 +922,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
                 identical(_ddResultRound, round) ? _ddDeclarerTricks : null,
             onContinue: () => setState(_startRound),
             onMainMenu: _showMainMenuAfterMatch,
-            onReplayDuplicateRound: _runDuplicateRound,
+            // Uncomment to show button to replay duplicate round.
+            // onReplayDuplicateRound: _runDuplicateRound,
           ),
         PlayerMoods(layout: layout, moods: playerMoods, durationMillis: 5000),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
@@ -1310,6 +1311,7 @@ class EndOfRoundDialog extends StatelessWidget {
     int myScore = round.contractScoreForPlayer(0);
     int dupScore = duplicateRound.contractScoreForPlayer(0);
     int scoreDiff = myScore - dupScore;
+    final [nsImps, ewImps] = match.totalImpsPerTeam();
 
     return [
       makeRow([
@@ -1337,16 +1339,16 @@ class EndOfRoundDialog extends StatelessWidget {
           child: const Text("Replay duplicate round"),
         )),
       ]),
-      makeRow([
+      if (match.numRounds > 1) makeRow([
         Padding(
             padding: const EdgeInsets.only(top: 10),
-            child: Text("Total IMPs: ${plusPrefixIfPositive(match.totalImpsForPlayer0())}",
+            child: Text("Match IMPs: $nsImps – $ewImps",
                 style: const TextStyle(fontSize: 16))),
       ]),
       if (match.isMatchOver()) makeRow([
         Padding(
             padding: const EdgeInsets.only(top: 10),
-            child: Text(matchResultDescription(match.totalImpsForPlayer0()),
+            child: Text(matchResultDescription(match.netImpsForPlayer0()),
                 style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold))),
       ]),
