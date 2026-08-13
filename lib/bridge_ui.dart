@@ -110,6 +110,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   // Flag to keep the bidding dialog visible after bidding is completed, until
   // the player starts the round.
   bool showPostBidDialog = false;
+  // Replaces the end-of-round dialog with the duplicate round details dialog.
+  bool showDuplicateRoundDetails = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -181,6 +183,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _startRound() {
     _clearMoods();
     isClaimingRemainingTricks = false;
+    showDuplicateRoundDetails = false;
     _statsUpdatePending = false;
     if (round.isOver()) {
       match.finishRound();
@@ -913,7 +916,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
           ),
         if (_shouldShowClaimTricksDialog())
           ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
-        if (_shouldShowEndOfRoundDialog())
+        if (_shouldShowEndOfRoundDialog() && !showDuplicateRoundDetails)
           EndOfRoundDialog(
             layout: layout,
             match: match,
@@ -924,6 +927,15 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
             // Uncomment to show button to replay duplicate round.
             // onReplayDuplicateRound: _runDuplicateRound,
+            onShowDetails: duplicateRound.isOver()
+                ? () => setState(() => showDuplicateRoundDetails = true)
+                : null,
+          ),
+        if (_shouldShowEndOfRoundDialog() && showDuplicateRoundDetails)
+          DuplicateRoundDetailsDialog(
+            layout: layout,
+            round: duplicateRound,
+            onClose: () => setState(() => showDuplicateRoundDetails = false),
           ),
         PlayerMoods(layout: layout, moods: playerMoods, durationMillis: 5000),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
@@ -935,60 +947,34 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
 const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
-class BidDialog extends StatefulWidget {
-  final Layout layout;
+/// The auction as a table, one column per seat, with tap-to-explain of any
+/// call's SAYC meaning. Used while bidding (BidDialog, with "You"/cat image
+/// headers) and when reviewing a finished round (with seat letter headers).
+class BidHistoryTable extends StatefulWidget {
   final BridgeRound round;
-  final void Function(PlayerBid) onBid;
-  final void Function() onResetBids;
-  final void Function() onConfirmContract;
-  final List<int> catImageIndices;
+  // Exactly four header cells, in player index order.
+  final List<Widget> headerCells;
 
-  const BidDialog({
+  const BidHistoryTable({
     super.key,
-    required this.layout,
     required this.round,
-    required this.onBid,
-    required this.onResetBids,
-    required this.onConfirmContract,
-    required this.catImageIndices,
+    required this.headerCells,
   });
 
   @override
-  State<BidDialog> createState() => _BidDialogState();
+  State<BidHistoryTable> createState() => _BidHistoryTableState();
 }
 
-class _BidDialogState extends State<BidDialog> {
-  ContractBid contractBid = ContractBid(1, Suit.clubs);
+class _BidHistoryTableState extends State<BidHistoryTable> {
   int? explainBidRow;
   int explainBidColumn = 0;
-  String bidExplanation = "";
 
   @override
   Widget build(BuildContext context) {
-    const adjustBidTextStyle = TextStyle(fontSize: 18, height: 0);
-    const headerFontSize = 14.0;
-    const cellPad = 4.0;
-    const rowPadding = 15.0;
-
-    Widget headerCell(String msg) => paddingAll(
-        cellPad,
-        Text(msg,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-                fontSize: headerFontSize, fontWeight: FontWeight.bold)));
-
-    Widget catImageCell(int imageIndex) {
-      const imageHeight = headerFontSize * 1.3;
-      const padding = headerFontSize * 0.85;
-      return paddingHorizontal(padding,
-          Image.asset(catImageForIndex(imageIndex), height: imageHeight));
-    }
-
     final bidHistory = widget.round.bidHistory;
     final dealer = widget.round.dealer;
     final isBiddingOver = widget.round.contract != null || widget.round.isPassedOut();
     final numberOfBidRows = ((dealer + bidHistory.length + (isBiddingOver ? 0 : 1)) / 4).ceil();
-    final hasHumanBid = bidHistory.any((b) => b.player == 0);
 
     Widget bidCell({required int rowIndex, required int playerIndex}) {
       int bidIndex = 4 * rowIndex + playerIndex - dealer;
@@ -1037,6 +1023,81 @@ class _BidDialogState extends State<BidDialog> {
         )),
       ));
     }
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      paddingAll(
+          10,
+          Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            defaultColumnWidth: const IntrinsicColumnWidth(),
+            children: [
+              TableRow(children: widget.headerCells),
+              ...[
+                for (var row = 0; row < numberOfBidRows; row += 1)
+                  TableRow(children: [
+                    bidCell(rowIndex: row, playerIndex: 0),
+                    bidCell(rowIndex: row, playerIndex: 1),
+                    bidCell(rowIndex: row, playerIndex: 2),
+                    bidCell(rowIndex: row, playerIndex: 3),
+                  ])
+              ]
+            ],
+          )),
+      if (explainBidRow != null) bidExplanation(),
+    ]);
+  }
+}
+
+class BidDialog extends StatefulWidget {
+  final Layout layout;
+  final BridgeRound round;
+  final void Function(PlayerBid) onBid;
+  final void Function() onResetBids;
+  final void Function() onConfirmContract;
+  final List<int> catImageIndices;
+
+  const BidDialog({
+    super.key,
+    required this.layout,
+    required this.round,
+    required this.onBid,
+    required this.onResetBids,
+    required this.onConfirmContract,
+    required this.catImageIndices,
+  });
+
+  @override
+  State<BidDialog> createState() => _BidDialogState();
+}
+
+class _BidDialogState extends State<BidDialog> {
+  ContractBid contractBid = ContractBid(1, Suit.clubs);
+
+  @override
+  Widget build(BuildContext context) {
+    const adjustBidTextStyle = TextStyle(fontSize: 18, height: 0);
+    const headerFontSize = 14.0;
+    const cellPad = 4.0;
+    const rowPadding = 15.0;
+
+    Widget headerCell(String msg) => paddingAll(
+        cellPad,
+        Text(msg,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+                fontSize: headerFontSize, fontWeight: FontWeight.bold)));
+
+    Widget catImageCell(int imageIndex) {
+      const imageHeight = headerFontSize * 1.3;
+      const padding = headerFontSize * 0.85;
+      return paddingHorizontal(padding,
+          Image.asset(catImageForIndex(imageIndex), height: imageHeight));
+    }
+
+    final bidHistory = widget.round.bidHistory;
+    final dealer = widget.round.dealer;
+    final isBiddingOver = widget.round.contract != null || widget.round.isPassedOut();
+    final hasHumanBid = bidHistory.any((b) => b.player == 0);
 
     bool canDecrementBid() {
       return contractBid.count > 1;
@@ -1117,16 +1178,6 @@ class _BidDialogState extends State<BidDialog> {
       });
     }
 
-    final bidRows = <TableRow>[];
-    for (var row = 0; row < numberOfBidRows; row++) {
-      bidRows.add(TableRow(children: [
-        bidCell(rowIndex: row, playerIndex: 0),
-        bidCell(rowIndex: row, playerIndex: 1),
-        bidCell(rowIndex: row, playerIndex: 2),
-        bidCell(rowIndex: row, playerIndex: 3),
-      ]));
-    }
-
     String contractMessage() {
       if (widget.round.contract == null) {
         return "The hand is passed out.";
@@ -1161,34 +1212,12 @@ class _BidDialogState extends State<BidDialog> {
                           child: Text(
                               "Vulnerable: ${vulnerabilityDescription(widget.round.vulnerability)}",
                               style: const TextStyle(fontSize: 12))),
-                      paddingAll(
-                          10,
-                          Table(
-                            defaultVerticalAlignment:
-                                TableCellVerticalAlignment.middle,
-                            defaultColumnWidth: const IntrinsicColumnWidth(),
-                            children: [
-                              TableRow(children: [
-                                paddingHorizontal(cellPad, headerCell("You")),
-                                catImageCell(widget.catImageIndices[1]),
-                                catImageCell(widget.catImageIndices[2]),
-                                catImageCell(widget.catImageIndices[3]),
-                              ]),
-                              ...[
-                                for (var row = 0;
-                                    row < numberOfBidRows;
-                                    row += 1)
-                                  TableRow(children: [
-                                    bidCell(rowIndex: row, playerIndex: 0),
-                                    bidCell(rowIndex: row, playerIndex: 1),
-                                    bidCell(rowIndex: row, playerIndex: 2),
-                                    bidCell(rowIndex: row, playerIndex: 3),
-                                  ])
-                              ]
-                            ],
-                          )
-                      ),
-                      if (explainBidRow != null) bidExplanation(),
+                      BidHistoryTable(round: widget.round, headerCells: [
+                        paddingHorizontal(cellPad, headerCell("You")),
+                        catImageCell(widget.catImageIndices[1]),
+                        catImageCell(widget.catImageIndices[2]),
+                        catImageCell(widget.catImageIndices[3]),
+                      ]),
 
                       if (!isBiddingOver) ...[
                         Row(
@@ -1286,6 +1315,8 @@ class EndOfRoundDialog extends StatelessWidget {
   final Function() onMainMenu;
   // For testing to see how the AI plays the hand over multiple runs.
   final Function()? onReplayDuplicateRound;
+  // Switches to the duplicate round details dialog.
+  final Function()? onShowDetails;
 
   const EndOfRoundDialog({
     super.key,
@@ -1296,6 +1327,7 @@ class EndOfRoundDialog extends StatelessWidget {
     required this.onContinue,
     required this.onMainMenu,
     this.onReplayDuplicateRound,
+    this.onShowDetails,
   });
 
   Row makeRow(List<Widget> children) {
@@ -1330,6 +1362,12 @@ class EndOfRoundDialog extends StatelessWidget {
         paddingAll(
             0,
             Text("IMPs: ${plusPrefixIfPositive(impsForScoreDifference(scoreDiff))}")
+        ),
+      ]),
+      if (onShowDetails != null) makeRow([
+        TextButton(
+          onPressed: onShowDetails,
+          child: const Text("Show details", style: TextStyle(fontSize: 12)),
         ),
       ]),
       if (onReplayDuplicateRound != null) makeRow([
@@ -1441,6 +1479,140 @@ class EndOfRoundDialog extends StatelessWidget {
       builder: (context, val, child) =>
           Opacity(opacity: val.clamp(0.0, 1.0), child: child),
     );
+  }
+}
+
+/// Shows what happened in the duplicate round, with tabs for the auction
+/// (as a BidHistoryTable with seat letter headers) and the play (one trick
+/// at a time with the winning card highlighted).
+class DuplicateRoundDetailsDialog extends StatefulWidget {
+  final Layout layout;
+  final BridgeRound round;
+  final Function() onClose;
+
+  const DuplicateRoundDetailsDialog({
+    super.key,
+    required this.layout,
+    required this.round,
+    required this.onClose,
+  });
+
+  @override
+  State<DuplicateRoundDetailsDialog> createState() =>
+      _DuplicateRoundDetailsDialogState();
+}
+
+class _DuplicateRoundDetailsDialogState
+    extends State<DuplicateRoundDetailsDialog> {
+  int selectedTabIndex = 0;
+  int trickIndex = 0;
+
+  Widget biddingTab() {
+    Widget headerCell(String msg) => paddingAll(
+        4,
+        Text(msg,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)));
+
+    return BidHistoryTable(round: widget.round, headerCells: [
+      for (int p = 0; p < 4; p++) headerCell("SWNE"[p]),
+    ]);
+  }
+
+  Widget playTab() {
+    final tricks = widget.round.previousTricks;
+    if (tricks.isEmpty) {
+      return paddingAll(20, const Text("No cards were played."));
+    }
+    final trick = tricks[trickIndex];
+
+    Widget seatCard(int playerIndex) {
+      final cardIndex = (playerIndex - trick.leader) % 4;
+      final card = trick.cards[cardIndex];
+      final isWinner = playerIndex == trick.winner;
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        Text("SWNE"[playerIndex],
+            style:
+                const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: isWinner ? Colors.amber : Colors.transparent,
+                  width: 2.5),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Image.asset("assets/cards/solid/${card.toString()}.webp",
+                height: 64)),
+      ]);
+    }
+
+    // Cross layout matching the table: N top, W left, E right, S bottom.
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      seatCard(2),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        seatCard(1),
+        const SizedBox(width: 56),
+        seatCard(3),
+      ]),
+      seatCard(0),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: trickIndex > 0
+              ? () => setState(() => trickIndex -= 1)
+              : null,
+        ),
+        Text("Trick ${trickIndex + 1} of ${tricks.length}",
+            style: const TextStyle(fontSize: 12)),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: trickIndex < tricks.length - 1
+              ? () => setState(() => trickIndex += 1)
+              : null,
+        ),
+      ]),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+        child: Transform.scale(
+            scale: widget.layout.dialogScale(),
+            child: Dialog(
+                insetPadding: EdgeInsets.zero,
+                backgroundColor: dialogBackgroundColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    paddingAll(
+                        10,
+                        ToggleButtons(
+                          isSelected: [
+                            selectedTabIndex == 0,
+                            selectedTabIndex == 1
+                          ],
+                          onPressed: (index) =>
+                              setState(() => selectedTabIndex = index),
+                          borderRadius: BorderRadius.circular(5),
+                          constraints: const BoxConstraints(
+                              minHeight: 30, minWidth: 70),
+                          children: const [
+                            Text("Bidding", style: TextStyle(fontSize: 12)),
+                            Text("Play", style: TextStyle(fontSize: 12)),
+                          ],
+                        )),
+                    if (selectedTabIndex == 0) biddingTab(),
+                    if (selectedTabIndex == 1) playTab(),
+                    paddingAll(
+                        10,
+                        ElevatedButton(
+                          onPressed: widget.onClose,
+                          child: const Text("Back"),
+                        )),
+                  ],
+                ))));
   }
 }
 
