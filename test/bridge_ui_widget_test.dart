@@ -22,19 +22,36 @@ BridgeRound playedOutRound(Random rng) {
   return round;
 }
 
+BridgeRound passedOutRound(Random rng) {
+  final round = BridgeMatch(rng).currentRound;
+  for (int i = 0; i < 4; i++) {
+    round.addBid(PlayerBid(round.currentBidder(), BidAction.pass()));
+  }
+  return round;
+}
+
+// shortestSide of 350 gives dialogScale() of 1.0, so the dialog fits the
+// test surface and its controls are tappable.
 Layout testLayout() => Layout()
-  ..displaySize = const Size(800, 600)
-  ..playerHeight = 75
+  ..displaySize = const Size(350, 350)
+  ..playerHeight = 44
   ..padding = EdgeInsets.zero;
 
-Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+Widget wrapDialog(BridgeRound round, BridgeRound duplicateRound,
+        {Function()? onClose}) =>
+    MaterialApp(
+        home: Scaffold(
+            body: RoundDetailsDialog(
+                layout: testLayout(),
+                round: round,
+                duplicateRound: duplicateRound,
+                onClose: onClose ?? () {})));
 
 void main() {
   testWidgets("details dialog shows bidding table with seat letters",
       (tester) async {
     final round = playedOutRound(Random(17));
-    await tester.pumpWidget(wrap(DuplicateRoundDetailsDialog(
-        layout: testLayout(), round: round, onClose: () {})));
+    await tester.pumpWidget(wrapDialog(round, passedOutRound(Random(17))));
 
     for (final seat in ["S", "W", "N", "E"]) {
       expect(find.text(seat), findsOneWidget);
@@ -43,13 +60,14 @@ void main() {
     expect(find.text(BidAction.contract(1, Suit.clubs).symbolString()),
         findsOneWidget);
     expect(find.text(BidAction.pass().symbolString()), findsNWidgets(3));
+    // The contract result for the player's round shows below the toggle.
+    expect(find.text(roundResultDescription(round)), findsOneWidget);
   });
 
   testWidgets("play tab navigates tricks and highlights the winner",
       (tester) async {
     final round = playedOutRound(Random(17));
-    await tester.pumpWidget(wrap(DuplicateRoundDetailsDialog(
-        layout: testLayout(), round: round, onClose: () {})));
+    await tester.pumpWidget(wrapDialog(round, passedOutRound(Random(17))));
 
     await tester.tap(find.text("Play"));
     await tester.pump();
@@ -86,11 +104,41 @@ void main() {
     expect(find.text("Trick 1 of 13"), findsOneWidget);
   });
 
+  testWidgets("round toggle switches to the duplicate round", (tester) async {
+    final round = playedOutRound(Random(17));
+    await tester.pumpWidget(wrapDialog(round, passedOutRound(Random(17))));
+
+    // Advance into the player's round so we can verify the trick position
+    // resets when switching rounds.
+    await tester.tap(find.text("Play"));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pump();
+    expect(find.text("Trick 2 of 13"), findsOneWidget);
+
+    await tester.tap(find.text("Duplicate"));
+    await tester.pump();
+    expect(find.text("Passed out"), findsOneWidget);
+    expect(find.text("No cards were played."), findsOneWidget);
+
+    // Bidding tab for the duplicate round shows its four passes.
+    await tester.tap(find.text("Bidding"));
+    await tester.pump();
+    expect(find.text(BidAction.pass().symbolString()), findsNWidgets(4));
+
+    // Back on the player's round, the trick position starts over.
+    await tester.tap(find.text("Your round"));
+    await tester.pump();
+    await tester.tap(find.text("Play"));
+    await tester.pump();
+    expect(find.text("Trick 1 of 13"), findsOneWidget);
+  });
+
   testWidgets("back button invokes onClose", (tester) async {
     final round = playedOutRound(Random(17));
     bool closed = false;
-    await tester.pumpWidget(wrap(DuplicateRoundDetailsDialog(
-        layout: testLayout(), round: round, onClose: () => closed = true)));
+    await tester.pumpWidget(wrapDialog(round, passedOutRound(Random(17)),
+        onClose: () => closed = true));
 
     await tester.tap(find.text("Back"));
     expect(closed, isTrue);

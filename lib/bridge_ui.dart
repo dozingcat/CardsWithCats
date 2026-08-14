@@ -110,8 +110,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   // Flag to keep the bidding dialog visible after bidding is completed, until
   // the player starts the round.
   bool showPostBidDialog = false;
-  // Replaces the end-of-round dialog with the duplicate round details dialog.
-  bool showDuplicateRoundDetails = false;
+  // Replaces the end-of-round dialog with the round details dialog.
+  bool showRoundDetails = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -183,7 +183,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   void _startRound() {
     _clearMoods();
     isClaimingRemainingTricks = false;
-    showDuplicateRoundDetails = false;
+    showRoundDetails = false;
     _statsUpdatePending = false;
     if (round.isOver()) {
       match.finishRound();
@@ -916,7 +916,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
           ),
         if (_shouldShowClaimTricksDialog())
           ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
-        if (_shouldShowEndOfRoundDialog() && !showDuplicateRoundDetails)
+        if (_shouldShowEndOfRoundDialog() && !showRoundDetails)
           EndOfRoundDialog(
             layout: layout,
             match: match,
@@ -928,14 +928,15 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             // Uncomment to show button to replay duplicate round.
             // onReplayDuplicateRound: _runDuplicateRound,
             onShowDetails: duplicateRound.isOver()
-                ? () => setState(() => showDuplicateRoundDetails = true)
+                ? () => setState(() => showRoundDetails = true)
                 : null,
           ),
-        if (_shouldShowEndOfRoundDialog() && showDuplicateRoundDetails)
-          DuplicateRoundDetailsDialog(
+        if (_shouldShowEndOfRoundDialog() && showRoundDetails)
+          RoundDetailsDialog(
             layout: layout,
-            round: duplicateRound,
-            onClose: () => setState(() => showDuplicateRoundDetails = false),
+            round: round,
+            duplicateRound: duplicateRound,
+            onClose: () => setState(() => showRoundDetails = false),
           ),
         PlayerMoods(layout: layout, moods: playerMoods, durationMillis: 5000),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
@@ -1481,30 +1482,34 @@ class EndOfRoundDialog extends StatelessWidget {
   }
 }
 
-/// Shows what happened in the duplicate round, with tabs for the auction
-/// (as a BidHistoryTable with seat letter headers) and the play (one trick
-/// at a time with the winning card highlighted).
-class DuplicateRoundDetailsDialog extends StatefulWidget {
+/// Shows what happened in the player's round or the duplicate round, with
+/// tabs for the auction (as a BidHistoryTable with seat letter headers) and
+/// the play (one trick at a time with the winning card highlighted).
+class RoundDetailsDialog extends StatefulWidget {
   final Layout layout;
   final BridgeRound round;
+  final BridgeRound duplicateRound;
   final Function() onClose;
 
-  const DuplicateRoundDetailsDialog({
+  const RoundDetailsDialog({
     super.key,
     required this.layout,
     required this.round,
+    required this.duplicateRound,
     required this.onClose,
   });
 
   @override
-  State<DuplicateRoundDetailsDialog> createState() =>
-      _DuplicateRoundDetailsDialogState();
+  State<RoundDetailsDialog> createState() => _RoundDetailsDialogState();
 }
 
-class _DuplicateRoundDetailsDialogState
-    extends State<DuplicateRoundDetailsDialog> {
+class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
+  bool showDuplicate = false;
   int selectedTabIndex = 0;
   int trickIndex = 0;
+
+  BridgeRound get selectedRound =>
+      showDuplicate ? widget.duplicateRound : widget.round;
 
   Widget biddingTab() {
     Widget headerCell(String msg) => paddingAll(
@@ -1513,13 +1518,13 @@ class _DuplicateRoundDetailsDialogState
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)));
 
-    return BidHistoryTable(round: widget.round, headerCells: [
+    return BidHistoryTable(round: selectedRound, headerCells: [
       for (int p = 0; p < 4; p++) headerCell("SWNE"[p]),
     ]);
   }
 
   Widget playTab() {
-    final tricks = widget.round.previousTricks;
+    final tricks = selectedRound.previousTricks;
     if (tricks.isEmpty) {
       return paddingAll(20, const Text("No cards were played."));
     }
@@ -1585,21 +1590,48 @@ class _DuplicateRoundDetailsDialogState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     paddingAll(
-                        10,
-                        ToggleButtons(
-                          isSelected: [
-                            selectedTabIndex == 0,
-                            selectedTabIndex == 1
+                        8,
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(
+                                value: false,
+                                label: Text("Your round",
+                                    style: TextStyle(fontSize: 12))),
+                            ButtonSegment(
+                                value: true,
+                                label: Text("Duplicate",
+                                    style: TextStyle(fontSize: 12))),
                           ],
-                          onPressed: (index) =>
-                              setState(() => selectedTabIndex = index),
-                          borderRadius: BorderRadius.circular(5),
-                          constraints: const BoxConstraints(
-                              minHeight: 30, minWidth: 70),
-                          children: const [
-                            Text("Bidding", style: TextStyle(fontSize: 12)),
-                            Text("Play", style: TextStyle(fontSize: 12)),
+                          showSelectedIcon: false,
+                          style: const ButtonStyle(
+                              visualDensity: VisualDensity.compact),
+                          selected: {showDuplicate},
+                          onSelectionChanged: (selection) => setState(() {
+                            showDuplicate = selection.first;
+                            trickIndex = 0;
+                          }),
+                        )),
+                    Text(roundResultDescription(selectedRound),
+                        style: const TextStyle(fontSize: 14)),
+                    paddingAll(
+                        8,
+                        SegmentedButton<int>(
+                          segments: const [
+                            ButtonSegment(
+                                value: 0,
+                                label: Text("Bidding",
+                                    style: TextStyle(fontSize: 12))),
+                            ButtonSegment(
+                                value: 1,
+                                label: Text("Play",
+                                    style: TextStyle(fontSize: 12))),
                           ],
+                          showSelectedIcon: false,
+                          style: const ButtonStyle(
+                              visualDensity: VisualDensity.compact),
+                          selected: {selectedTabIndex},
+                          onSelectionChanged: (selection) => setState(
+                              () => selectedTabIndex = selection.first),
                         )),
                     if (selectedTabIndex == 0) biddingTab(),
                     if (selectedTabIndex == 1) playTab(),
