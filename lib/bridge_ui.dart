@@ -1000,10 +1000,9 @@ class _BidHistoryTableState extends State<BidHistoryTable> {
           },
           child: Container(
             color: isExplainingBid ? Colors.white : Colors.transparent,
-            child: Text(
+            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(
               bidHistory[bidIndex].action.symbolString(),
-              style: TextStyle(fontWeight: isExplainingBid ? FontWeight.bold : FontWeight.normal),
-              textAlign: TextAlign.center)),
+              textAlign: TextAlign.center))),
       );
     }
 
