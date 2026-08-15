@@ -1256,9 +1256,15 @@ void main() {
 
     test("no invitational jump into game when advancing a high double", () {
       final h = ["1D", "3C", "pass", "pass", "X", "pass"];
-      // 11 total points: a "jump" over a three-level double would commit to
-      // game, so just bid the suit.
-      expect(openingBid("AJ4", "AJ432", "432", "32", history: h), "3H");
+      final history = h.map(BidAction.fromString).toList();
+      // With no jump available below game, the cheap advance covers all
+      // hands below game-forcing strength, with a range that says so.
+      final weak = selectSaycBid(hand("AJ4", "J5432", "432", "32"), history);
+      expect(weak.action.toString(), "3H"); // 6 total
+      expect(weak.meaning.totalPoints, const Range(high: 11));
+      final invite = selectSaycBid(hand("AJ4", "AJ432", "432", "32"), history);
+      expect(invite.action.toString(), "3H"); // 11 total
+      expect(invite.meaning.totalPoints, const Range(high: 11));
       // With real game values, bid it.
       expect(openingBid("AJ4", "AKJ32", "432", "32", history: h), "4H");
     });

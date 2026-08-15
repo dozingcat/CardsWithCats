@@ -3969,23 +3969,27 @@ List<SaycRule> advanceDoubleRules(
       final level = cheapestLevel(suit, over);
       final name = _suitNames[suit]!;
       if (tier == "cheap") {
+        // When the invitational jump would land in game (see the jump tier)
+        // it doesn't exist, and the cheap advance covers everything below
+        // game-forcing strength.
+        final maxPoints = level + 1 < (_isMajor(suit) ? 4 : 5) ? 8 : 11;
         rules.add(SaycRule(
           BidAction.contract(level, suit),
           BidMeaning(
             description: redoubled
-                ? "Advance of the takeout double over the redouble: best suit ($name), 0-8 points"
+                ? "Advance of the takeout double over the redouble: best suit ($name), 0-$maxPoints points"
                 : forced
-                    ? "Forced advance of the takeout double: best suit ($name), 0-8 points"
-                    : "Advance of the takeout double: best suit ($name), 6-8 points",
+                    ? "Forced advance of the takeout double: best suit ($name), 0-$maxPoints points"
+                    : "Advance of the takeout double: best suit ($name), 6-$maxPoints points",
             totalPoints: (forced || redoubled)
-                ? const Range(high: 8)
-                : const Range(low: 6, high: 8),
+                ? Range(high: maxPoints)
+                : Range(low: 6, high: maxPoints),
           ),
           require: (h) => best(h) == suit,
         ));
       } else if (tier == "jump") {
         // An invitational jump must land below game; hands worth game use
-        // the "game" tier, and others just bid the suit.
+        // the "game" tier.
         if (level + 1 >= (_isMajor(suit) ? 4 : 5)) continue;
         rules.add(SaycRule(
           BidAction.contract(level + 1, suit),
