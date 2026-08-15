@@ -304,6 +304,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    widget.saveMatchFn(match);
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
   }

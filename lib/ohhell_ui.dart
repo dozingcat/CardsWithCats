@@ -294,6 +294,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    widget.saveMatchFn(match);
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
   }
