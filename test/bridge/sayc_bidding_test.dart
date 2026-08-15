@@ -656,6 +656,25 @@ void main() {
           "3D"); // 17 total
     });
 
+    test("game rebid after 1NT response with self-sufficient major", () {
+      // 21 HCP + 2 length points: the invitational 3S could be passed.
+      expect(
+          openingBid("KQJT76", "AQT", "QT", "AK",
+              history: ["1S", "pass", "1NT", "pass"]),
+          "4S");
+      // 17 total still invites.
+      expect(
+          openingBid("KQJT42", "K2", "Q54", "A2",
+              history: ["1S", "pass", "1NT", "pass"]),
+          "3S");
+      // Responder respects the game rebid instead of "accepting" 4H
+      // with an illegal second 4H.
+      expect(
+          openingBid("Q32", "K2", "Q432", "J432",
+              history: ["1H", "pass", "1NT", "pass", "4H", "pass"]),
+          "Pass");
+    });
+
     test("game rebid with self-sufficient major and 19+", () {
       // 20 HCP + 3 length points: too strong for the invitational single
       // jump, which partner may pass.

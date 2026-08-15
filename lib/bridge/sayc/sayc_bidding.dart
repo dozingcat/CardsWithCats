@@ -1647,6 +1647,17 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
       ignoreInfo: true,
       require: (h) => h.count(mySuit) >= 6 && h.totalPoints <= 15,
     ),
+    if (_isMajor(mySuit))
+      SaycRule(
+        BidAction.contract(4, mySuit),
+        BidMeaning(
+          description: "Game rebid: self-sufficient $name suit, 19-21",
+          totalPoints: const Range(low: 19, high: 21),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
+      ),
     SaycRule(
       BidAction.contract(3, mySuit),
       BidMeaning(
@@ -1655,7 +1666,8 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
         suitLengths: {mySuit: const Range(low: 6)},
       ),
       ignoreInfo: true,
-      require: (h) => h.count(mySuit) >= 6,
+      require: (h) =>
+          h.count(mySuit) >= 6 && (h.totalPoints <= 18 || !_isMajor(mySuit)),
     ),
     SaycRule(
       BidAction.noTrump(2),
@@ -2405,23 +2417,27 @@ List<SaycRule> _responderRebidAfterSuitRules(
           )
         ];
       }
-      return [
-        SaycRule(
-          oGame,
-          BidMeaning(
-              description: "Accepting the invitation",
-              totalPoints: const Range(low: 8, high: 9)),
-          ignoreInfo: true,
-          require: (h) => h.totalPoints >= 8,
-        ),
-        SaycRule(
-          BidAction.pass(),
-          BidMeaning(
-              description: "Declining the invitation",
-              totalPoints: const Range(low: 6, high: 7)),
-          ignoreInfo: true,
-        ),
-      ];
+      if (rebid.count == 3) {
+        return [
+          SaycRule(
+            oGame,
+            BidMeaning(
+                description: "Accepting the invitation",
+                totalPoints: const Range(low: 8, high: 9)),
+            ignoreInfo: true,
+            require: (h) => h.totalPoints >= 8,
+          ),
+          SaycRule(
+            BidAction.pass(),
+            BidMeaning(
+                description: "Declining the invitation",
+                totalPoints: const Range(low: 6, high: 7)),
+            ignoreInfo: true,
+          ),
+        ];
+      }
+      // Opener jumped to game (or beyond) himself.
+      return passOnly("Respecting partner's signoff");
     }
     if (rebid == ContractBid.noTrump(2)) {
       // 18-19.
