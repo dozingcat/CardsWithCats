@@ -237,6 +237,13 @@ SelfPlayResult runDeal(List<List<PlayingCard>> hands) {
     if (meaning != null) {
       _lintAdvertisement(
           HandAnalysis(hands[seat]), seat, call, meaning, history, findings);
+      // Not a failure, but worth monitoring: a rule set existed for this
+      // auction but no rule matched the hand, so the fallback bidder acted.
+      if (meaning.description.startsWith("No rule matched")) {
+        findings.add(SelfPlayFinding("no-rule-matched",
+            "seat $seat (${HandAnalysis(hands[seat]).totalPoints} points) "
+            "chose $call after '${_fmt(history)}'"));
+      }
     }
     history.add(call);
     if (history.length >= _maxCalls) {

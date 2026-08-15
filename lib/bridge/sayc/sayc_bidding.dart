@@ -1210,9 +1210,10 @@ List<SaycRule>? openerRebidRules(BidAction opening, BidAction response,
   return null;
 }
 
-List<SaycRule>? oneNtRebidRules(BidAction response) {
+List<SaycRule>? oneNtRebidRules(BidAction response,
+    {Range ntRange = const Range(low: 15, high: 17)}) {
   if (response == BidAction.contract(4, Suit.clubs)) {
-    return gerberAnswerRules(const Range(low: 15, high: 17));
+    return gerberAnswerRules(ntRange);
   }
   if (response == BidAction.contract(2, Suit.clubs)) {
     // Stayman.
@@ -1221,7 +1222,7 @@ List<SaycRule>? oneNtRebidRules(BidAction response) {
         BidAction.contract(2, Suit.hearts),
         BidMeaning(
           description: "4 hearts (may also hold 4 spades)",
-          hcp: const Range(low: 15, high: 17),
+          hcp: ntRange,
           suitLengths: {Suit.hearts: const Range(low: 4, high: 5)},
         ),
       ),
@@ -1229,7 +1230,7 @@ List<SaycRule>? oneNtRebidRules(BidAction response) {
         BidAction.contract(2, Suit.spades),
         BidMeaning(
           description: "4 spades, fewer than 4 hearts",
-          hcp: const Range(low: 15, high: 17),
+          hcp: ntRange,
           suitLengths: {
             Suit.spades: const Range(low: 4, high: 5),
             Suit.hearts: const Range(high: 3),
@@ -1240,7 +1241,7 @@ List<SaycRule>? oneNtRebidRules(BidAction response) {
         BidAction.contract(2, Suit.diamonds),
         BidMeaning(
           description: "Denies a 4-card major",
-          hcp: const Range(low: 15, high: 17),
+          hcp: ntRange,
           artificial: true,
           suitLengths: {
             Suit.spades: const Range(high: 3),
@@ -1269,18 +1270,19 @@ List<SaycRule>? oneNtRebidRules(BidAction response) {
     ];
   }
   if (response == BidAction.noTrump(2)) {
+    // Accept with the top two points of the range, decline below.
     return [
       SaycRule(
         BidAction.noTrump(3),
         BidMeaning(
             description: "Accepting the invitation",
-            hcp: const Range(low: 16, high: 17)),
+            hcp: Range(low: ntRange.high! - 1, high: ntRange.high)),
       ),
       SaycRule(
         BidAction.pass(),
         BidMeaning(
             description: "Declining the invitation",
-            hcp: const Range(low: 15, high: 15)),
+            hcp: Range(low: ntRange.low, high: ntRange.high! - 2)),
       ),
     ];
   }
@@ -1290,13 +1292,13 @@ List<SaycRule>? oneNtRebidRules(BidAction response) {
         BidAction.noTrump(6),
         BidMeaning(
             description: "Accepting the slam invitation",
-            hcp: const Range(low: 17, high: 17)),
+            hcp: Range(low: ntRange.high, high: ntRange.high)),
       ),
       SaycRule(
         BidAction.pass(),
         BidMeaning(
             description: "Declining the slam invitation",
-            hcp: const Range(low: 15, high: 16)),
+            hcp: Range(low: ntRange.low, high: ntRange.high! - 1)),
       ),
     ];
   }
@@ -5157,15 +5159,42 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
       return result(BidAction.pass(), "Fallback: game already reached; passing");
     }
     if (combined >= 25) {
+      // Game in a minor needs eleven tricks: prefer nine in notrump unless
+      // clearly strong (28+ combined) with an unbalanced hand.
+      SaycBid? minorGame(Suit minor) {
+        if (combined >= 28 &&
+            !analysis.isBalanced &&
+            cheapestLevel(minor, lastBid) <= 5) {
+          return result(BidAction.contract(5, minor),
+              "Fallback: bidding game in our minor fit");
+        }
+        if (cheapestLevel(null, lastBid) <= 3) {
+          return result(BidAction.noTrump(3),
+              "Fallback: 3NT over game in a minor");
+        }
+        if (combined >= 28 && cheapestLevel(minor, lastBid) <= 5) {
+          return result(BidAction.contract(5, minor),
+              "Fallback: bidding game in our minor fit");
+        }
+        return null;
+      }
+
       if (lastBid.trump != null && analysis.count(lastBid.trump!) >= 4) {
-        return result(
-            BidAction.contract(gameLevel(lastBid.trump), lastBid.trump!),
-            "Fallback: raising to game (25+ combined points, 4+ support)");
+        if (_isMajor(lastBid.trump!)) {
+          return result(BidAction.contract(4, lastBid.trump!),
+              "Fallback: raising to game (25+ combined points, 4+ support)");
+        }
+        final g = minorGame(lastBid.trump!);
+        if (g != null) return g;
       }
       final fit = findBestFit();
       if (fit != null && cheapestLevel(fit, lastBid) <= gameLevel(fit)) {
-        return result(BidAction.contract(gameLevel(fit), fit),
-            "Fallback: bidding game in our known fit");
+        if (_isMajor(fit)) {
+          return result(BidAction.contract(4, fit),
+              "Fallback: bidding game in our known fit");
+        }
+        final g = minorGame(fit);
+        if (g != null) return g;
       }
       if (cheapestLevel(null, lastBid) <= 3) {
         return result(BidAction.noTrump(3),
@@ -5363,7 +5392,22 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         }
       }
       if (last != null && last == partnerActions[0].contractBid) {
-        return oneNtRebidRules(partnerActions[0]);
+        // A direct 1NT overcall shows 15-18; a balancing one (after two
+        // passes) only 11-16. The continuation rules match on that range.
+        int myNtIndex = -1;
+        for (int i = 0; i < n; i++) {
+          if ((n - i) % 4 == 0 && calls[i] == BidAction.noTrump(1)) {
+            myNtIndex = i;
+            break;
+          }
+        }
+        final balancing = myNtIndex >= 2 &&
+            calls[myNtIndex - 1].bidType == BidType.pass &&
+            calls[myNtIndex - 2].bidType == BidType.pass;
+        return oneNtRebidRules(partnerActions[0],
+            ntRange: balancing
+                ? const Range(low: 11, high: 16)
+                : const Range(low: 15, high: 18));
       }
     }
     if (myActions.length == 1 &&
@@ -5516,10 +5560,12 @@ SaycBid selectSaycBid(List<PlayingCard> hand, List<BidAction> history,
   for (final rule in rules) {
     if (rule.matches(analysis)) return SaycBid(rule.action, rule.meaning);
   }
+  // A rule set exists for this auction but none of its rules fit the hand
+  // (a coverage hole, e.g. a hand too strong for every listed response).
+  // Let the heuristic fallback bidder act rather than passing blindly.
+  final fb = fallbackBid(hand, history);
   return SaycBid(
-    BidAction.pass(),
-    BidMeaning(description: "No rule matched; passing by default"),
-  );
+      fb.action, BidMeaning(description: "No rule matched; ${fb.meaning.description}"));
 }
 
 /// What `call` would show in this auction, independent of any hand. Returns

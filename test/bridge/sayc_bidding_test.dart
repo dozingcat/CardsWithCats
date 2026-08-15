@@ -1313,6 +1313,27 @@ void main() {
   });
 
   group("fallback bidder", () {
+    test("acts when a rule set exists but nothing matches", () {
+      // 19 HCP balanced responder: too strong for every response rule
+      // (2NT shows 13-15, 3NT 16-18); previously passed partner's opening.
+      expect(openingBid("Q98", "K64", "AKQ", "KQT9", history: ["1C", "pass"]),
+          "3NT");
+      // With a minor fit and game values but under 28 combined, the
+      // fallback prefers 3NT over five of the minor.
+      expect(openingBid("JT9", "A2", "JT6", "KQJ83", history: ["1C", "pass"]),
+          "3NT");
+    });
+
+    test("balancing 1NT continuations use the lighter range", () {
+      final stayman = ["1C", "pass", "pass", "1NT", "pass", "2C", "pass"];
+      expect(openingBid("KJ3", "K643", "543", "AJT", history: stayman), "2H");
+      final invite = ["1H", "pass", "pass", "1NT", "pass", "2NT", "pass"];
+      expect(openingBid("K432", "KJ2", "QJ2", "Q32", history: invite),
+          "Pass"); // 12 HCP: bottom of 11-16
+      expect(openingBid("AQ32", "KJ2", "KJ2", "Q32", history: invite),
+          "3NT"); // 16 HCP: top of the range accepts
+    });
+
     test("passes when game is reached", () {
       final result = selectSaycBid(
           hand("A432", "QJ32", "QJ2", "32"),
