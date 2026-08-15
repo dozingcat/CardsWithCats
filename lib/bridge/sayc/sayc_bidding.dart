@@ -2532,6 +2532,18 @@ List<SaycRule> _responderRebidAfterSuitRules(
           ),
         ];
       }
+      if (!oMajor && rebid.count == 4) {
+        // The double jump to four of the minor shows 19+ and forces to
+        // game; we have no suit of our own after 1NT, so raise.
+        return [
+          SaycRule(
+            BidAction.contract(5, oSuit),
+            BidMeaning(
+                description: "Raising the game-forcing rebid to game"),
+            ignoreInfo: true,
+          )
+        ];
+      }
       // Opener jumped to game (or beyond) himself.
       return passOnly("Respecting partner's signoff");
     }
@@ -2927,6 +2939,30 @@ List<SaycRule> _responderRebidAfterSuitRules(
     }
     // Jump rebid, 16-18.
     if (rebid.count >= 4) {
+      if (!oMajor && rebid.count == 4) {
+        // Opener's double jump to four of the minor shows 19+ and forces
+        // to game: bid our own self-sufficient major, else raise.
+        return [
+          SaycRule(
+            BidAction.contract(4, mySuit),
+            BidMeaning(
+              description: "Game in our self-sufficient major over the forcing raise",
+              suitLengths: {mySuit: const Range(low: 6)},
+            ),
+            ignoreInfo: true,
+            require: (h) =>
+                myMajor &&
+                h.count(mySuit) >= 6 &&
+                h.topHonorCount(mySuit) >= 2,
+          ),
+          SaycRule(
+            BidAction.contract(5, oSuit),
+            BidMeaning(
+                description: "Raising the game-forcing rebid to game"),
+            ignoreInfo: true,
+          ),
+        ];
+      }
       return passOnly("Respecting partner's game decision");
     }
     return [

@@ -679,6 +679,24 @@ void main() {
           "3D"); // 17 total
     });
 
+    test("the game-forcing 4m rebid is not passed", () {
+      // Weak responder raises to game.
+      expect(
+          openingBid("J87643", "T92", "T4", "53",
+              history: ["1C", "pass", "1S", "pass", "4C", "pass"]),
+          "5C");
+      // With a self-sufficient major, game there instead.
+      expect(
+          openingBid("KQJ876", "T92", "T4", "53",
+              history: ["1C", "pass", "1S", "pass", "4C", "pass"]),
+          "4S");
+      // Same after a 1NT response, where there is no suit to return to.
+      expect(
+          openingBid("Q32", "Q32", "32", "QJ432",
+              history: ["1D", "pass", "1NT", "pass", "4D", "pass"]),
+          "5D");
+    });
+
     test("strong rebids with a long minor", () {
       // 19+ with the unbid suits stopped: gamble 3NT.
       expect(
