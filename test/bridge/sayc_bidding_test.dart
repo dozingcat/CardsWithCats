@@ -1052,6 +1052,28 @@ void main() {
           "5C");
     });
 
+    test("of a takeout double over their redouble", () {
+      // Even with nothing, the advancer runs to a suit rather than leaving
+      // partner's takeout double in for a redoubled contract.
+      expect(openingBid("9642", "J843", "T74", "92", history: ["1S", "X", "XX"]),
+          "2H");
+      expect(openingBid("962", "J84", "T74", "9852", history: ["1S", "X", "XX"]),
+          "2C");
+    });
+
+    test("doubler rescues when their redouble is passed back around", () {
+      // Advancer's pass over the redouble asks the doubler to pick a suit;
+      // passing again would let the opponents play 1S redoubled.
+      expect(
+          openingBid("A8", "Q973", "QJ5", "KJ85",
+              history: ["1S", "X", "XX", "pass", "pass"]),
+          "2H");
+      expect(
+          openingBid("A8", "Q97", "QJ5", "KJ852",
+              history: ["1S", "X", "XX", "pass", "pass"]),
+          "2C");
+    });
+
     test("of an overcall", () {
       expect(openingBid("K32", "Q432", "432", "Q32", history: ["1D", "1S", "pass"]),
           "2S");

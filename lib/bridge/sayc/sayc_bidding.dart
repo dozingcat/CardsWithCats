@@ -3926,9 +3926,12 @@ List<SaycRule>? rhoDoubleRules(BidAction opening) {
 }
 
 /// Advance partner's takeout double. `over` is the last bid in the auction;
-/// when RHO passed the advance is forced.
+/// when RHO passed the advance is forced. When RHO redoubled, all passes are
+/// suppressed: even a worthless hand runs to a suit rather than offering to
+/// defend a redoubled contract.
 List<SaycRule> advanceDoubleRules(
-    ContractBid theirOpening, ContractBid over, bool forced) {
+    ContractBid theirOpening, ContractBid over, bool forced,
+    {bool redoubled = false}) {
   final theirSuit = theirOpening.trump;
   final excluded = <Suit>{
     if (theirSuit != null) theirSuit,
@@ -3952,7 +3955,7 @@ List<SaycRule> advanceDoubleRules(
       require: (h) => h.suitHcp(theirSuit) >= 5,
     ));
   }
-  if (!forced) {
+  if (!forced && !redoubled) {
     rules.add(SaycRule(
       BidAction.pass(),
       BidMeaning(
@@ -3969,11 +3972,14 @@ List<SaycRule> advanceDoubleRules(
         rules.add(SaycRule(
           BidAction.contract(level, suit),
           BidMeaning(
-            description: forced
-                ? "Forced advance of the takeout double: best suit ($name), 0-8 points"
-                : "Advance of the takeout double: best suit ($name), 6-8 points",
-            totalPoints:
-                forced ? const Range(high: 8) : const Range(low: 6, high: 8),
+            description: redoubled
+                ? "Advance of the takeout double over the redouble: best suit ($name), 0-8 points"
+                : forced
+                    ? "Forced advance of the takeout double: best suit ($name), 0-8 points"
+                    : "Advance of the takeout double: best suit ($name), 6-8 points",
+            totalPoints: (forced || redoubled)
+                ? const Range(high: 8)
+                : const Range(low: 6, high: 8),
           ),
           require: (h) => best(h) == suit,
         ));
@@ -4046,6 +4052,30 @@ List<SaycRule> advanceDoubleRules(
     ));
   }
   return rules;
+}
+
+/// After our takeout double was redoubled and both partner and the opener
+/// passed, passing again would leave the opponents in a redoubled contract
+/// they are happy with; run to the best unbid suit (the double promised
+/// support for all of them).
+List<SaycRule> doublerRedoubleRescueRules(ContractBid theirOpening) {
+  final theirSuit = theirOpening.trump!;
+  Suit? best(HandAnalysis h) =>
+      bestSuit(h, Suit.values.where((s) => s != theirSuit));
+
+  return [
+    for (final suit in Suit.values)
+      if (suit != theirSuit)
+        SaycRule(
+          BidAction.contract(cheapestLevel(suit, theirOpening), suit),
+          BidMeaning(
+            description:
+                "Rescuing the redoubled takeout double: best suit (${_suitNames[suit]})",
+            suitLengths: {suit: const Range(low: 3)},
+          ),
+          require: (h) => best(h) == suit,
+        ),
+  ];
 }
 
 /// Advance partner's overcall; `over` is the last bid in the auction.
@@ -5146,7 +5176,8 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         myActions.isEmpty &&
         oppActions.length <= 2 &&
         (calls[n - 1].bidType == BidType.pass ||
-            calls[n - 1].bidType == BidType.contract)) {
+            calls[n - 1].bidType == BidType.contract ||
+            calls[n - 1].bidType == BidType.redouble)) {
       final action = partnerActions[0];
       ContractBid? last;
       for (int i = n - 1; i >= 0; i--) {
@@ -5158,7 +5189,8 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       if (last == null) return null;
       if (action.bidType == BidType.double) {
         return advanceDoubleRules(
-            openBid, last, calls[n - 1].bidType == BidType.pass);
+            openBid, last, calls[n - 1].bidType == BidType.pass,
+            redoubled: calls[n - 1].bidType == BidType.redouble);
       }
       if (action.bidType == BidType.contract) {
         // Partner acted in the balancing seat if their call followed two
@@ -5218,6 +5250,19 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       if (last != null && last == partnerActions[0].contractBid) {
         return oneNtRebidRules(partnerActions[0]);
       }
+    }
+    if (myActions.length == 1 &&
+        myActions[0].bidType == BidType.double &&
+        partnerActions.isEmpty &&
+        oppActions.length == 2 &&
+        oppActions[1].bidType == BidType.redouble &&
+        openBid.trump != null &&
+        calls[n - 1].bidType == BidType.pass &&
+        calls[n - 2].bidType == BidType.pass) {
+      // My takeout double was redoubled, and partner's pass asked me to
+      // pick a suit; passing would end the auction in their redoubled
+      // contract.
+      return doublerRedoubleRescueRules(openBid);
     }
     return null;
   }
