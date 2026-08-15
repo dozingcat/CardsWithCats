@@ -656,6 +656,20 @@ void main() {
           "3D"); // 17 total
     });
 
+    test("game rebid with self-sufficient major and 19+", () {
+      // 20 HCP + 3 length points: too strong for the invitational single
+      // jump, which partner may pass.
+      expect(
+          openingBid("AJ", "AKQT742", "A", "Q54",
+              history: ["1H", "pass", "1S", "pass"]),
+          "4H");
+      // 16-18 still makes the invitational jump rebid.
+      expect(
+          openingBid("32", "AKQT42", "K2", "Q54",
+              history: ["1H", "pass", "1S", "pass"]),
+          "3H"); // 16 total
+    });
+
     test("reverses require 17+", () {
       expect(
           openingBid("K2", "AQ32", "AKQ32", "32",

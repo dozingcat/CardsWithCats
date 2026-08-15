@@ -1821,6 +1821,17 @@ List<SaycRule> _rebidAfterNewSuitRules(
       ignoreInfo: true,
       require: (h) => h.count(mySuit) >= 6 && h.totalPoints <= 15,
     ),
+    if (_isMajor(mySuit))
+      SaycRule(
+        BidAction.contract(4, mySuit),
+        BidMeaning(
+          description: "Game rebid: self-sufficient $myName suit, 19-21",
+          totalPoints: const Range(low: 19, high: 21),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
+      ),
     SaycRule(
       BidAction.contract(cheapestLevel(mySuit, response) + 1, mySuit),
       BidMeaning(
@@ -1829,7 +1840,8 @@ List<SaycRule> _rebidAfterNewSuitRules(
         suitLengths: {mySuit: const Range(low: 6)},
       ),
       ignoreInfo: true,
-      require: (h) => h.count(mySuit) >= 6,
+      require: (h) =>
+          h.count(mySuit) >= 6 && (h.totalPoints <= 18 || !_isMajor(mySuit)),
     ),
   ]);
   // Jump shifts: 18+, lower-ranking suits only.
