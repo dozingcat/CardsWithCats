@@ -1543,7 +1543,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Image.asset("assets/cards/solid/${card.toString()}.webp",
-              height: 64));
+              height: 72));
     }
 
     // Arrow in the center of the cross pointing at the trick leader's card.
@@ -1552,14 +1552,21 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
         child: const Icon(Icons.arrow_upward, size: 24, color: Colors.black54));
 
     // Cross layout matching the table: N top, W left, E right, S bottom.
+    // Arrow in the center points to the trick leader.
+    final trickCards = Row(mainAxisSize: MainAxisSize.min,
+      children: [
+        Center(child: seatCard(1)),
+        Column(children: [
+          seatCard(2),
+          SizedBox(height: 32, child: Center(child: leadArrow)),
+          seatCard(0),
+        ]),
+        Center(child: seatCard(3)),
+      ],
+    );
+
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      seatCard(2),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        seatCard(1),
-        SizedBox(width: 56, child: Center(child: leadArrow)),
-        seatCard(3),
-      ]),
-      seatCard(0),
+      trickCards,
       Row(mainAxisSize: MainAxisSize.min, children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
