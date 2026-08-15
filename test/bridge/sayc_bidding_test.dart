@@ -656,6 +656,20 @@ void main() {
           "3D"); // 17 total
     });
 
+    test("game rebid with self-sufficient major and 19+", () {
+      // 20 HCP + 3 length points: too strong for the invitational single
+      // jump, which partner may pass.
+      expect(
+          openingBid("AJ", "AKQT742", "A", "Q54",
+              history: ["1H", "pass", "1S", "pass"]),
+          "4H");
+      // 16-18 still makes the invitational jump rebid.
+      expect(
+          openingBid("32", "AKQT42", "K2", "Q54",
+              history: ["1H", "pass", "1S", "pass"]),
+          "3H"); // 16 total
+    });
+
     test("reverses require 17+", () {
       expect(
           openingBid("K2", "AQ32", "AKQ32", "32",
@@ -1036,6 +1050,28 @@ void main() {
     test("never jumps past game", () {
       expect(openingBid("65", "Q76", "KJ", "QJT876", history: ["4S", "X", "pass"]),
           "5C");
+    });
+
+    test("of a takeout double over their redouble", () {
+      // Even with nothing, the advancer runs to a suit rather than leaving
+      // partner's takeout double in for a redoubled contract.
+      expect(openingBid("9642", "J843", "T74", "92", history: ["1S", "X", "XX"]),
+          "2H");
+      expect(openingBid("962", "J84", "T74", "9852", history: ["1S", "X", "XX"]),
+          "2C");
+    });
+
+    test("doubler rescues when their redouble is passed back around", () {
+      // Advancer's pass over the redouble asks the doubler to pick a suit;
+      // passing again would let the opponents play 1S redoubled.
+      expect(
+          openingBid("A8", "Q973", "QJ5", "KJ85",
+              history: ["1S", "X", "XX", "pass", "pass"]),
+          "2H");
+      expect(
+          openingBid("A8", "Q97", "QJ5", "KJ852",
+              history: ["1S", "X", "XX", "pass", "pass"]),
+          "2C");
     });
 
     test("of an overcall", () {
