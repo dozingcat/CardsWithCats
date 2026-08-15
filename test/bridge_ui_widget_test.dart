@@ -126,12 +126,12 @@ void main() {
     await tester.pump();
     expect(find.text(BidAction.pass().symbolString()), findsNWidgets(4));
 
-    // Back on the player's round, the trick position starts over.
+    // Back on the player's round, the trick position is preserved.
     await tester.tap(find.text("Your round"));
     await tester.pump();
     await tester.tap(find.text("Play"));
     await tester.pump();
-    expect(find.text("Trick 1 of 13"), findsOneWidget);
+    expect(find.text("Trick 2 of 13"), findsOneWidget);
   });
 
   testWidgets("back button invokes onClose", (tester) async {

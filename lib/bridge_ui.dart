@@ -1546,11 +1546,6 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
               height: 72));
     }
 
-    // Arrow in the center of the cross pointing at the trick leader's card.
-    final leadArrow = RotatedBox(
-        quarterTurns: (trick.leader + 2) % 4,
-        child: const Icon(Icons.arrow_upward, size: 24, color: Colors.black54));
-
     // Cross layout matching the table: N top, W left, E right, S bottom.
     // Arrow in the center points to the trick leader.
     final trickCards = Row(mainAxisSize: MainAxisSize.min,
@@ -1558,7 +1553,9 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
         Center(child: seatCard(1)),
         Column(children: [
           seatCard(2),
-          SizedBox(height: 32, child: Center(child: leadArrow)),
+          SizedBox(height: 32, child: Center(child: RotatedBox(
+              quarterTurns: (trick.leader + 2) % 4,
+              child: const Icon(Icons.arrow_upward, size: 24, color: Colors.black54)))),
           seatCard(0),
         ]),
         Center(child: seatCard(3)),
