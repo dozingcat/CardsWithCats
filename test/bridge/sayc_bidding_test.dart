@@ -1312,17 +1312,35 @@ void main() {
     });
   });
 
-  group("fallback bidder", () {
-    test("acts when a rule set exists but nothing matches", () {
-      // 19 HCP balanced responder: too strong for every response rule
-      // (2NT shows 13-15, 3NT 16-18); previously passed partner's opening.
-      expect(openingBid("Q98", "K64", "AKQ", "KQT9", history: ["1C", "pass"]),
-          "3NT");
-      // With a minor fit and game values but under 28 combined, the
-      // fallback prefers 3NT over five of the minor.
-      expect(openingBid("JT9", "A2", "JT6", "KQJ83", history: ["1C", "pass"]),
-          "3NT");
+  group("response rule coverage", () {
+    test("19+ balanced over a minor bids 3NT", () {
+      final strong = selectSaycBid(hand("Q98", "K64", "AKQ", "KQT9"),
+          ["1C", "pass"].map(BidAction.fromString).toList());
+      expect(strong.action.toString(), "3NT");
+      expect(strong.meaning.hcp, const Range(low: 16));
     });
+
+    test("12 HCP with a length point makes the limit raise", () {
+      expect(openingBid("JT9", "A2", "JT6", "KQJ83", history: ["1C", "pass"]),
+          "3C");
+      expect(openingBid("K6", "A98", "AJT83", "763", history: ["1D", "pass"]),
+          "3D");
+      // 13 HCP balanced with support still prefers 2NT.
+      expect(openingBid("J98", "K64", "A32", "KQT9", history: ["1C", "pass"]),
+          "2NT");
+    });
+
+    test("flat game-force with 3-card support bids 2C on three", () {
+      final short2c = selectSaycBid(hand("953", "QJ87", "KJ4", "AQ4"),
+          ["1S", "pass"].map(BidAction.fromString).toList());
+      expect(short2c.action.toString(), "2C");
+      expect(short2c.meaning.suitLengths[Suit.clubs], const Range(low: 3));
+      expect(openingBid("J92", "A542", "A84", "A87", history: ["1S", "pass"]),
+          "2C");
+    });
+  });
+
+  group("fallback bidder", () {
 
     test("balancing 1NT continuations use the lighter range", () {
       final stayman = ["1C", "pass", "pass", "1NT", "pass", "2C", "pass"];

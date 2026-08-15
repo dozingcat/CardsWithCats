@@ -612,6 +612,20 @@ List<SaycRule> _majorResponseRules(ContractBid opening) {
       },
     ),
   ));
+  // Game-forcing values with nothing above matching (no fit for the major,
+  // no 5-card heart suit, no 4-card minor): the classic SAYC answer is two
+  // clubs on a 3-card suit, keeping 4M available as a preemptive raise.
+  rules.add(SaycRule(
+    BidAction.contract(2, Suit.clubs),
+    BidMeaning(
+      description: "Two-over-one: 4+ clubs (occasionally 3 with no other "
+          "forcing response), 10+ points, forcing",
+      totalPoints: const Range(low: 10),
+      suitLengths: {Suit.clubs: const Range(low: 3)},
+    ),
+    ignoreInfo: true,
+    require: (h) => h.totalPoints >= 13 && h.count(Suit.clubs) >= 3,
+  ));
   return rules;
 }
 
@@ -665,10 +679,11 @@ List<SaycRule> _minorResponseRules(ContractBid opening) {
     SaycRule(
       BidAction.contract(3, suit),
       BidMeaning(
-        description: "Limit raise: 4+ $name, 11-12 points, no 4-card major",
-        totalPoints: const Range(low: 11, high: 12),
+        description: "Limit raise: 4+ $name, 11-13 points, no 4-card major",
+        totalPoints: const Range(low: 11, high: 13),
         suitLengths: {suit: const Range(low: 4), ...noMajor},
       ),
+      require: (h) => h.hcp <= 12,
     ),
     SaycRule(
       BidAction.noTrump(2),
@@ -682,8 +697,8 @@ List<SaycRule> _minorResponseRules(ContractBid opening) {
     SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
-        description: "16-18 HCP, balanced, no 4-card major",
-        hcp: const Range(low: 16, high: 18),
+        description: "16+ HCP, balanced, no 4-card major",
+        hcp: const Range(low: 16),
         balanced: true,
         suitLengths: noMajor,
       ),
