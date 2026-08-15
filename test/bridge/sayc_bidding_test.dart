@@ -343,6 +343,29 @@ void main() {
     });
   });
 
+  group("preemptive major raises", () {
+    test("jump to game with 5+ trumps and less than Jacoby strength", () {
+      // 6 total points: preempt.
+      expect(openingBid("QT932", "32", "K432", "32", history: ["1S", "pass"]),
+          "4S");
+      // 11 total: still the preemptive raise, not a limit raise — with a
+      // ten-card fit the partnership belongs in game.
+      expect(openingBid("KT932", "32", "KQ42", "Q2", history: ["1S", "pass"]),
+          "4S");
+      // 12 with a singleton still splinters; 13+ still goes through
+      // Jacoby 2NT.
+      expect(openingBid("KT932", "2", "KQJ2", "Q32", history: ["1S", "pass"]),
+          "4H");
+      expect(openingBid("KT932", "A2", "KQ42", "Q2", history: ["1S", "pass"]),
+          "2NT");
+      // Only four trumps: the normal single raise.
+      expect(openingBid("T932", "A32", "Q432", "32", history: ["1S", "pass"]),
+          "2S");
+      expect(openingBid("32", "QT932", "K432", "32", history: ["1H", "pass"]),
+          "4H");
+    });
+  });
+
   group("responses to minor openings", () {
     test("four-four majors up the line", () {
       expect(openingBid("K432", "A432", "32", "Q32", history: ["1C", "pass"]),

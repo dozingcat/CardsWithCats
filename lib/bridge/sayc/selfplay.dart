@@ -173,16 +173,22 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
           "contract $contract with only $trumps combined trumps"));
     }
   }
-  BidAction? firstBid;
-  for (int i = 0; i < history.length; i++) {
-    if (i % 2 == side && history[i].bidType == BidType.contract) {
-      firstBid = history[i];
-      break;
-    }
-  }
+  final sideBids = [
+    for (int i = 0; i < history.length; i++)
+      if (i % 2 == side && history[i].bidType == BidType.contract)
+        history[i].contractBid!
+  ];
+  final firstBid = sideBids.isEmpty ? null : sideBids.first;
+  // A double-jump raise of the side's first suit (e.g. 1S-4S) is a
+  // preemptive raise, not a strength-showing auction.
+  final jumpRaised = firstBid != null &&
+      sideBids.skip(1).any((b) =>
+          b.trump != null &&
+          b.trump == firstBid.trump &&
+          b.count >= firstBid.count + 3);
   final preempted = firstBid != null &&
-      firstBid.contractBid!.trump != null &&
-      firstBid.contractBid!.count >= 2;
+      firstBid.trump != null &&
+      (firstBid.count >= 2 || jumpRaised);
   final atGame = contract.count >= _gameLevel(trump);
   if (atGame && !doubled && !preempted && combinedTotal(side) < 24) {
     findings.add(SelfPlayFinding(

@@ -548,6 +548,17 @@ List<SaycRule> _majorResponseRules(ContractBid opening) {
         suitLengths: {suit: const Range(low: 4)},
       ),
     ),
+    // With a ten-card fit the partnership belongs in game on trumps alone,
+    // so this covers everything below Jacoby/splinter strength, including
+    // hands that would otherwise make a limit raise.
+    SaycRule(
+      BidAction.contract(4, suit),
+      BidMeaning(
+        description: "Preemptive raise to game: 5+ $name, 6-12 points",
+        totalPoints: const Range(low: 6, high: 12),
+        suitLengths: {suit: const Range(low: 5)},
+      ),
+    ),
     SaycRule(
       BidAction.contract(2, suit),
       BidMeaning(
