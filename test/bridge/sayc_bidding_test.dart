@@ -1194,6 +1194,15 @@ void main() {
       expect(openingBid("KQ32", "K32", "AQ432", "2", history: h), "Pass");
     });
 
+    test("high reopening double needs support for the unbid majors", () {
+      final h = ["1D", "3C", "pass", "pass"];
+      // A double would force partner to the three level, and with 4-2 in
+      // the majors there is no safe landing spot.
+      expect(openingBid("AK32", "52", "QT987", "K2", history: h), "Pass");
+      // With both majors, reopen.
+      expect(openingBid("AK32", "K53", "QT987", "2", history: h), "Double");
+    });
+
     test("sandwich seat", () {
       expect(openingBid("KQ32", "2", "AJ32", "K432", history: ["1H", "pass", "2H"]),
           "Double");
@@ -1243,6 +1252,15 @@ void main() {
       final h = ["1D", "1S", "pass", "pass", "X", "pass"];
       expect(openingBid("AKJ32", "432", "32", "432", history: h), "Pass");
       expect(openingBid("432", "K432", "Q32", "432", history: h), "2H");
+    });
+
+    test("no invitational jump into game when advancing a high double", () {
+      final h = ["1D", "3C", "pass", "pass", "X", "pass"];
+      // 11 total points: a "jump" over a three-level double would commit to
+      // game, so just bid the suit.
+      expect(openingBid("AJ4", "AJ432", "432", "32", history: h), "3H");
+      // With real game values, bid it.
+      expect(openingBid("AJ4", "AKJ32", "432", "32", history: h), "4H");
     });
   });
 

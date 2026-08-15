@@ -3984,7 +3984,9 @@ List<SaycRule> advanceDoubleRules(
           require: (h) => best(h) == suit,
         ));
       } else if (tier == "jump") {
-        if (level + 1 > 4) continue; // never jump past game
+        // An invitational jump must land below game; hands worth game use
+        // the "game" tier, and others just bid the suit.
+        if (level + 1 >= (_isMajor(suit) ? 4 : 5)) continue;
         rules.add(SaycRule(
           BidAction.contract(level + 1, suit),
           BidMeaning(
@@ -4303,15 +4305,25 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall) {
   final theirSuit = overcall.trump!;
   final theirName = _suitNames[theirSuit]!;
 
+  // A one-level reopening double can be light and shape-flexible, but
+  // doubling a higher overcall forces partner to answer at that level, so
+  // it promises support for the unbid majors.
+  final unbidMajors = [Suit.spades, Suit.hearts]
+      .where((s) => s != mySuit && s != theirSuit && overcall.count >= 2);
   final rules = <SaycRule>[
     SaycRule(
       BidAction.double(),
       BidMeaning(
         description:
-            "Reopening takeout double: at most two $theirName (partner may pass for penalty)",
+            "Reopening takeout double: at most two $theirName"
+            "${unbidMajors.isNotEmpty ? ', support for the unbid majors' : ''}"
+            " (partner may pass for penalty)",
         totalPoints: const Range(low: 13, high: 21),
         artificial: true,
-        suitLengths: {theirSuit: const Range(high: 2)},
+        suitLengths: {
+          theirSuit: const Range(high: 2),
+          for (final s in unbidMajors) s: const Range(low: 3),
+        },
       ),
     ),
     SaycRule(
