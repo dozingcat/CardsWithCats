@@ -558,6 +558,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    widget.saveMatchFn(match);
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
     // Safety net only: the replay normally started at the round's

@@ -281,6 +281,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       isClaimingRemainingTricks = false;
     });
+    widget.saveMatchFn(match);
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
   }
