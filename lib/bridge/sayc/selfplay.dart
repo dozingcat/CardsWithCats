@@ -250,6 +250,14 @@ SelfPlayResult runDeal(List<List<PlayingCard>> hands) {
             "seat $seat (${HandAnalysis(hands[seat]).totalPoints} points) "
             "chose $call after '${_fmt(history)}'"));
       }
+      // Also monitored: auctions with no rule set at all, where the
+      // heuristic fallback acts and the call carries no meaning for
+      // partner's or opponents' inference.
+      if (meaning.description.startsWith("Fallback:") &&
+          call.bidType != BidType.pass) {
+        findings.add(SelfPlayFinding("fallback-used",
+            "seat $seat chose $call after '${_fmt(history)}'"));
+      }
     }
     history.add(call);
     if (history.length >= _maxCalls) {
