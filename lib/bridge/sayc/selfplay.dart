@@ -7,6 +7,8 @@
 ///   illegal-call     the chosen call is not legal in the auction
 ///   runaway-auction  the auction did not terminate
 ///   under-advertised the hand is below the minimums its own bid advertises
+///   over-advertised  the hand exceeds the maximums its own bid advertises
+///                    (partner may pass a hand that wanted to force on)
 ///
 /// Heuristic result-quality flags (judgment, not necessarily bugs):
 ///   thin-game        non-preemptive game with < 24 combined total points
@@ -27,6 +29,7 @@ const hardFailureCategories = {
   "illegal-call",
   "runaway-auction",
   "under-advertised",
+  "over-advertised",
 };
 
 const _maxCalls = 40;
@@ -106,6 +109,28 @@ void _lintAdvertisement(HandAnalysis hand, int seat, BidAction call,
         "under-advertised",
         "seat $seat bid $call after '${_fmt(history)}': "
         "${problems.join('; ')} [${meaning.description}]"));
+  }
+
+  final over = <String>[];
+  final hcpHigh = meaning.hcp?.high;
+  if (hcpHigh != null && hand.hcp > hcpHigh) {
+    over.add("shows at most $hcpHigh HCP, has ${hand.hcp}");
+  }
+  final totalHigh = meaning.totalPoints?.high;
+  if (totalHigh != null && hand.totalPoints > totalHigh) {
+    over.add("shows at most $totalHigh total points, has ${hand.totalPoints}");
+  }
+  for (final suit in Suit.values) {
+    final high = meaning.suitLengths[suit]?.high;
+    if (high != null && hand.count(suit) > high) {
+      over.add("shows at most $high ${suit.name}, has ${hand.count(suit)}");
+    }
+  }
+  if (over.isNotEmpty) {
+    findings.add(SelfPlayFinding(
+        "over-advertised",
+        "seat $seat bid $call after '${_fmt(history)}': "
+        "${over.join('; ')} [${meaning.description}]"));
   }
 }
 

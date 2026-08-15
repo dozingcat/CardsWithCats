@@ -290,7 +290,10 @@ int cheapestLevel(Suit? strain, ContractBid over) {
 // Opening bids
 // ---------------------------------------------------------------------------
 
-const Range _openingSuitPoints = Range(low: 13, high: 21);
+// One-level suit openings are 13+ total points; the ceiling is the 2C
+// opening's 22 HCP, so total points with length can exceed 21.
+const Range _openingSuitPoints = Range(low: 13);
+const Range _openingSuitHcp = Range(high: 21);
 
 List<SaycRule> openingRules() {
   final rules = <SaycRule>[
@@ -363,6 +366,7 @@ List<SaycRule> openingRules() {
       BidMeaning(
         description: "Opening hand with 5+ spades",
         totalPoints: _openingSuitPoints,
+        hcp: _openingSuitHcp,
         suitLengths: {Suit.spades: const Range(low: 5)},
       ),
       ignoreInfo: true,
@@ -376,6 +380,7 @@ List<SaycRule> openingRules() {
       BidMeaning(
         description: "Opening hand with 5+ hearts",
         totalPoints: _openingSuitPoints,
+        hcp: _openingSuitHcp,
         suitLengths: {Suit.hearts: const Range(low: 5)},
       ),
       ignoreInfo: true,
@@ -387,6 +392,7 @@ List<SaycRule> openingRules() {
         description: "Opening hand, 3+ diamonds "
             "(typically 4+; 3 only with exactly 4=4=3=2 shape), no 5-card major",
         totalPoints: _openingSuitPoints,
+        hcp: _openingSuitHcp,
         suitLengths: {
           Suit.spades: const Range(high: 4),
           Suit.hearts: const Range(high: 4),
@@ -405,6 +411,7 @@ List<SaycRule> openingRules() {
       BidMeaning(
         description: "Opening hand, 3+ clubs, no 5-card major",
         totalPoints: _openingSuitPoints,
+        hcp: _openingSuitHcp,
         suitLengths: {
           Suit.spades: const Range(high: 4),
           Suit.hearts: const Range(high: 4),
@@ -1601,7 +1608,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
             description: "Accepting game",
-            totalPoints: const Range(low: 19, high: 21)),
+            totalPoints: const Range(low: 19)),
         ignoreInfo: true,
       ),
     ];
@@ -1621,7 +1628,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
             description: "Accepting the game invitation",
-            totalPoints: const Range(low: 14, high: 21)),
+            totalPoints: const Range(low: 14)),
         ignoreInfo: true,
       ),
     ];
@@ -1651,13 +1658,40 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
       SaycRule(
         BidAction.contract(4, mySuit),
         BidMeaning(
-          description: "Game rebid: self-sufficient $name suit, 19-21",
-          totalPoints: const Range(low: 19, high: 21),
+          description: "Game rebid: self-sufficient $name suit, 19+",
+          totalPoints: const Range(low: 19),
           suitLengths: {mySuit: const Range(low: 6)},
         ),
         ignoreInfo: true,
         require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
       ),
+    // With a long minor and 19+, gamble 3NT with the other suits stopped;
+    // otherwise force with a jump to four of the minor.
+    if (!_isMajor(mySuit)) ...[
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+          description: "Long $name suit and 19+ points, other suits stopped",
+          totalPoints: const Range(low: 19),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.count(mySuit) >= 6 &&
+            h.totalPoints >= 19 &&
+            Suit.values.where((su) => su != mySuit).every(h.hasStopper),
+      ),
+      SaycRule(
+        BidAction.contract(4, mySuit),
+        BidMeaning(
+          description: "Game-forcing rebid: 6+ $name, 19+ points",
+          totalPoints: const Range(low: 19),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
+      ),
+    ],
     SaycRule(
       BidAction.contract(3, mySuit),
       BidMeaning(
@@ -1666,8 +1700,7 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
         suitLengths: {mySuit: const Range(low: 6)},
       ),
       ignoreInfo: true,
-      require: (h) =>
-          h.count(mySuit) >= 6 && (h.totalPoints <= 18 || !_isMajor(mySuit)),
+      require: (h) => h.count(mySuit) >= 6 && h.totalPoints <= 18,
     ),
     SaycRule(
       BidAction.noTrump(2),
@@ -1694,7 +1727,7 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
       BidAction.contract(3, s),
       BidMeaning(
         description: "Jump shift: 4+ ${_suitNames[s]}, 18+ points",
-        totalPoints: const Range(low: 18, high: 21),
+        totalPoints: const Range(low: 18),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
@@ -1727,7 +1760,7 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
     BidAction.pass(),
     BidMeaning(
         description: "Minimum with no better rebid",
-        totalPoints: const Range(low: 13, high: 15)),
+        totalPoints: const Range(low: 13, high: 16)),
     ignoreInfo: true,
   ));
   return rules;
@@ -1758,7 +1791,8 @@ List<SaycRule> _rebidAfterNewSuitRules(
         BidAction.contract(response.count + 2, partnerSuit),
         BidMeaning(
           description: "Jump raise: 4+ $pName, extra values",
-          totalPoints: const Range(low: 16, high: 18),
+          totalPoints:
+              partnerMajor ? const Range(low: 16, high: 18) : const Range(low: 16),
           suitLengths: {partnerSuit: const Range(low: 4)},
         ),
         ignoreInfo: true,
@@ -1793,7 +1827,7 @@ List<SaycRule> _rebidAfterNewSuitRules(
           BidAction.contract(1, major),
           BidMeaning(
             description: "Second suit: 4+ ${_suitNames[major]}",
-            totalPoints: const Range(low: 13, high: 18),
+            totalPoints: const Range(low: 13),
             suitLengths: {major: const Range(low: 4)},
           ),
           ignoreInfo: true,
@@ -1837,13 +1871,42 @@ List<SaycRule> _rebidAfterNewSuitRules(
       SaycRule(
         BidAction.contract(4, mySuit),
         BidMeaning(
-          description: "Game rebid: self-sufficient $myName suit, 19-21",
-          totalPoints: const Range(low: 19, high: 21),
+          description: "Game rebid: self-sufficient $myName suit, 19+",
+          totalPoints: const Range(low: 19),
           suitLengths: {mySuit: const Range(low: 6)},
         ),
         ignoreInfo: true,
         require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
       ),
+    // With a long minor and 19+, gamble 3NT with the unbid suits stopped;
+    // otherwise force with a jump to four of the minor.
+    if (!_isMajor(mySuit)) ...[
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+          description: "Long $myName suit and 19+ points, other suits stopped",
+          totalPoints: const Range(low: 19),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.count(mySuit) >= 6 &&
+            h.totalPoints >= 19 &&
+            Suit.values
+                .where((su) => su != mySuit && su != partnerSuit)
+                .every(h.hasStopper),
+      ),
+      SaycRule(
+        BidAction.contract(4, mySuit),
+        BidMeaning(
+          description: "Game-forcing rebid: 6+ $myName, 19+ points",
+          totalPoints: const Range(low: 19),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
+      ),
+    ],
     SaycRule(
       BidAction.contract(cheapestLevel(mySuit, response) + 1, mySuit),
       BidMeaning(
@@ -1852,8 +1915,7 @@ List<SaycRule> _rebidAfterNewSuitRules(
         suitLengths: {mySuit: const Range(low: 6)},
       ),
       ignoreInfo: true,
-      require: (h) =>
-          h.count(mySuit) >= 6 && (h.totalPoints <= 18 || !_isMajor(mySuit)),
+      require: (h) => h.count(mySuit) >= 6 && h.totalPoints <= 18,
     ),
   ]);
   // Jump shifts: 18+, lower-ranking suits only.
@@ -1869,7 +1931,7 @@ List<SaycRule> _rebidAfterNewSuitRules(
       BidAction.contract(jumpLevel, s),
       BidMeaning(
         description: "Jump shift: 4+ ${_suitNames[s]}, 18+ points",
-        totalPoints: const Range(low: 18, high: 21),
+        totalPoints: const Range(low: 18),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
@@ -1883,6 +1945,10 @@ List<SaycRule> _rebidAfterNewSuitRules(
     final level = cheapestLevel(s, response);
     if (level >= 3) continue;
     final isReverse = level >= 2 && _strainOrder(s) > _strainOrder(mySuit);
+    // Without a jump shift available in this suit, the simple second suit
+    // has no upper limit.
+    final hasJumpShift = _strainOrder(s) < _strainOrder(mySuit) &&
+        cheapestLevel(s, response) + 1 <= 3;
     rules.add(SaycRule(
       BidAction.contract(level, s),
       BidMeaning(
@@ -1890,7 +1956,9 @@ List<SaycRule> _rebidAfterNewSuitRules(
             "${isReverse ? ', reverse showing extra strength' : ''}",
         totalPoints: isReverse
             ? const Range(low: 17, high: 21)
-            : const Range(low: 13, high: 17),
+            : hasJumpShift
+                ? const Range(low: 13, high: 17)
+                : const Range(low: 13),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
@@ -1902,7 +1970,7 @@ List<SaycRule> _rebidAfterNewSuitRules(
     BidAction.contract(cheapestLevel(mySuit, response), mySuit),
     BidMeaning(
       description: "Suit rebid, minimum with no better option",
-      totalPoints: const Range(low: 13, high: 16),
+      totalPoints: const Range(low: 13),
       suitLengths: {mySuit: Range(low: _isMajor(mySuit) ? 5 : 3)},
     ),
     ignoreInfo: true,
@@ -2042,7 +2110,7 @@ List<SaycRule>? _responderRebidAfter1ntRules(
           BidAction.contract(4, major),
           BidMeaning(
             description: "Raise to game: 4 $name",
-            hcp: const Range(low: 10, high: 15),
+            hcp: const Range(low: 10),
             suitLengths: {major: const Range(low: 4)},
           ),
           ignoreInfo: true,
@@ -2063,7 +2131,7 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         BidAction.noTrump(3),
         BidMeaning(
             description: "To play, no major-suit fit",
-            hcp: const Range(low: 10, high: 15)),
+            hcp: const Range(low: 10)),
         ignoreInfo: true,
       ),
     ]);
@@ -2114,7 +2182,7 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         BidMeaning(
           description:
               "Choice of games: exactly 5 $name, opener corrects with a fit",
-          hcp: const Range(low: 10, high: 15),
+          hcp: const Range(low: 10),
           suitLengths: {major: const Range(low: 5, high: 5)},
         ),
         ignoreInfo: true,
@@ -2524,7 +2592,7 @@ List<SaycRule> _responderRebidAfterSuitRules(
           BidAction.contract(cheapestLevel(oSuit, rebid), oSuit),
           BidMeaning(
               description: "Preference to $oName, no extra values",
-              totalPoints: const Range(low: 6, high: 9)),
+              totalPoints: const Range(low: 6, high: 10)),
           ignoreInfo: true,
           require: (h) => h.count(oSuit) >= h.count(second),
         ),
@@ -3474,8 +3542,9 @@ List<SaycRule> _oneSuitOpenerThirdRules(
     // We rebid our own suit.
     final single = rebidBid.count == cheapestLevel(oSuit, responseBid);
     final threshold = single ? 14 : 17;
+    // The cheapest rebid is unlimited when the hand had no better option.
     final shown =
-        single ? const Range(low: 13, high: 15) : const Range(low: 16, high: 18);
+        single ? const Range(low: 13) : const Range(low: 16, high: 18);
     final gameLevel = _isMajor(oSuit) ? 4 : 5;
     if (r2.trump == oSuit &&
         r2.count == rebidBid.count + 1 &&
@@ -3546,14 +3615,14 @@ List<SaycRule> _oneSuitOpenerThirdRules(
   }
   if (r2 == ContractBid.noTrump(2)) {
     return inviteRules(
-        BidAction.noTrump(3), 15, const Range(low: 13, high: 18), false);
+        BidAction.noTrump(3), 15, const Range(low: 13), false);
   }
   if (r2.trump == rebidBid.trump &&
       r2.count == rebidBid.count + 2 &&
       r2.count < (_isMajor(rebidBid.trump!) ? 4 : 5)) {
     // Invitational jump raise of the second suit.
     return inviteRules(
-        suitGame(rebidBid.trump!), 15, const Range(low: 13, high: 18), false);
+        suitGame(rebidBid.trump!), 15, const Range(low: 13), false);
   }
   return defaultRules;
 }
@@ -3672,7 +3741,7 @@ List<SaycRule> directActionRules(ContractBid opening,
         BidMeaning(
           description:
               "Overcall of their preempt: 5+ ${_suitNames[suit]}, opening values",
-          totalPoints: const Range(low: 13, high: 17),
+          totalPoints: const Range(low: 13),
           suitLengths: {suit: const Range(low: 5)},
         ),
         ignoreInfo: true,
@@ -3910,7 +3979,7 @@ List<SaycRule> interferenceResponseRules(
       BidMeaning(
           description:
               "Game values with a ${_suitNames[overcallSuit]} stopper",
-          totalPoints: const Range(low: 13, high: 15)),
+          totalPoints: const Range(low: 13)),
       ignoreInfo: true,
       require: (h) => h.totalPoints >= 13 && h.hasStopper(overcallSuit),
     ));
@@ -4350,7 +4419,7 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall) {
       BidAction.contract(cheapestLevel(mySuit, overcall), mySuit),
       BidMeaning(
         description: "Reopening rebid: 6+ $myName",
-        totalPoints: const Range(low: 13, high: 16),
+        totalPoints: const Range(low: 13),
         suitLengths: {mySuit: const Range(low: 6)},
       ),
       ignoreInfo: true,
@@ -4379,7 +4448,7 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall) {
         description: "Second suit: 4+ ${_suitNames[s]}",
         totalPoints: isReverse
             ? const Range(low: 17, high: 21)
-            : const Range(low: 13, high: 18),
+            : const Range(low: 13),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
@@ -4415,7 +4484,7 @@ List<SaycRule> sandwichActionRules(ContractBid firstBid, ContractBid secondBid) 
         BidMeaning(
           description: "Overcall over their notrump response: "
               "5+ ${_suitNames[s]}, opening values",
-          totalPoints: const Range(low: 13, high: 17),
+          totalPoints: const Range(low: 13),
           suitLengths: {s: const Range(low: 5)},
         ),
         ignoreInfo: true,
@@ -4465,7 +4534,7 @@ List<SaycRule> sandwichActionRules(ContractBid firstBid, ContractBid secondBid) 
         BidMeaning(
           description:
               "Overcall of their raised suit: 5+ ${_suitNames[s]}, opening values",
-          totalPoints: const Range(low: 13, high: 17),
+          totalPoints: const Range(low: 13),
           suitLengths: {s: const Range(low: 5)},
         ),
         ignoreInfo: true,
@@ -4523,7 +4592,7 @@ List<SaycRule> sandwichActionRules(ContractBid firstBid, ContractBid secondBid) 
         BidAction.contract(level, s),
         BidMeaning(
           description: "Sandwich overcall: 5+ ${_suitNames[s]}, opening values",
-          totalPoints: const Range(low: 13, high: 17),
+          totalPoints: const Range(low: 13),
           suitLengths: {s: const Range(low: 5)},
         ),
         ignoreInfo: true,
@@ -4616,15 +4685,29 @@ List<SaycRule> negativeDoubleRebidRules(
       ignoreInfo: true,
       require: (h) => h.count(mySuit) >= 6 && h.totalPoints <= 15,
     ),
+    if (_isMajor(mySuit))
+      SaycRule(
+        BidAction.contract(4, mySuit),
+        BidMeaning(
+          description: "Game rebid: self-sufficient $myName suit, 19+",
+          totalPoints: const Range(low: 19),
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(mySuit) >= 6 && h.totalPoints >= 19,
+      ),
     SaycRule(
       BidAction.contract(cheapestLevel(mySuit, overcall) + 1, mySuit),
       BidMeaning(
         description: "6+ $myName, extra values",
-        totalPoints: const Range(low: 16, high: 18),
+        totalPoints: _isMajor(mySuit)
+            ? const Range(low: 16, high: 18)
+            : const Range(low: 16),
         suitLengths: {mySuit: const Range(low: 6)},
       ),
       ignoreInfo: true,
-      require: (h) => h.count(mySuit) >= 6,
+      require: (h) =>
+          h.count(mySuit) >= 6 && (h.totalPoints <= 18 || !_isMajor(mySuit)),
     ),
   ]);
   for (final s in Suit.values) {
@@ -4638,7 +4721,7 @@ List<SaycRule> negativeDoubleRebidRules(
         description: "Second suit: 4+ ${_suitNames[s]}",
         totalPoints: isReverse
             ? const Range(low: 17, high: 21)
-            : const Range(low: 13, high: 18),
+            : const Range(low: 13),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
@@ -4650,7 +4733,7 @@ List<SaycRule> negativeDoubleRebidRules(
     BidAction.contract(cheapestLevel(mySuit, overcall), mySuit),
     BidMeaning(
       description: "Suit rebid, no better option",
-      totalPoints: const Range(low: 13, high: 16),
+      totalPoints: const Range(low: 13),
       suitLengths: {mySuit: Range(low: _isMajor(mySuit) ? 5 : 3)},
     ),
     ignoreInfo: true,

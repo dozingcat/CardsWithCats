@@ -656,6 +656,29 @@ void main() {
           "3D"); // 17 total
     });
 
+    test("strong rebids with a long minor", () {
+      // 19+ with the unbid suits stopped: gamble 3NT.
+      expect(
+          openingBid("A2", "K2", "AK2", "AQJ432",
+              history: ["1C", "pass", "1H", "pass"]),
+          "3NT");
+      // 19+ without a spade stopper: force with a jump to four.
+      expect(
+          openingBid("32", "A2", "AK2", "KQJT65",
+              history: ["1C", "pass", "1H", "pass"]),
+          "4C");
+      // Same after a 1NT response.
+      expect(
+          openingBid("A2", "K2", "AQJT42", "K32",
+              history: ["1D", "pass", "1NT", "pass"]),
+          "3NT");
+      // 16-18 still makes the invitational jump.
+      expect(
+          openingBid("32", "K2", "A32", "AKJ432",
+              history: ["1C", "pass", "1H", "pass"]),
+          "3C");
+    });
+
     test("game rebid after 1NT response with self-sufficient major", () {
       // 21 HCP + 2 length points: the invitational 3S could be passed.
       expect(
@@ -1360,7 +1383,9 @@ void main() {
       expect(nt, contains("balanced"));
       final spade = describeSaycCall([], BidAction.fromString("1S"))!.summary();
       expect(spade, contains("5+ spades"));
-      expect(spade, contains("13-21 total points"));
+      // 13+ total points with the ceiling expressed in HCP (the 2C boundary).
+      expect(spade, contains("13+ total points"));
+      expect(spade, contains("<=21 HCP"));
       final weakTwo = describeSaycCall([], BidAction.fromString("2S"))!.summary();
       expect(weakTwo, contains("6 spades"));
       expect(weakTwo, contains("5-10 HCP"));
@@ -1878,7 +1903,8 @@ void main() {
       expect(ex.calls[0].meaning!.totalPoints, const Range(high: 12));
       expect(ex.calls[1].meaning!.suitLengths[Suit.spades],
           const Range(low: 5));
-      expect(ex.players[1]!.totalPoints, const Range(low: 13, high: 21));
+      expect(ex.players[1]!.totalPoints, const Range(low: 13));
+      expect(ex.players[1]!.hcp, const Range(high: 21));
     });
   });
 }
