@@ -1609,7 +1609,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                           selected: {showDuplicate},
                           onSelectionChanged: (selection) => setState(() {
                             showDuplicate = selection.first;
-                            trickIndex = 0;
+                            // Intentionally keep the trick index where it was.
                           }),
                         )),
                     Text(roundResultDescription(selectedRound),
