@@ -7,6 +7,8 @@
 ///   illegal-call     the chosen call is not legal in the auction
 ///   runaway-auction  the auction did not terminate
 ///   under-advertised the hand is below the minimums its own bid advertises
+///   over-advertised  the hand exceeds the maximums its own bid advertises
+///                    (partner may pass a hand that wanted to force on)
 ///
 /// Heuristic result-quality flags (judgment, not necessarily bugs):
 ///   thin-game        non-preemptive game with < 24 combined total points
@@ -27,6 +29,7 @@ const hardFailureCategories = {
   "illegal-call",
   "runaway-auction",
   "under-advertised",
+  "over-advertised",
 };
 
 const _maxCalls = 40;
@@ -107,6 +110,28 @@ void _lintAdvertisement(HandAnalysis hand, int seat, BidAction call,
         "seat $seat bid $call after '${_fmt(history)}': "
         "${problems.join('; ')} [${meaning.description}]"));
   }
+
+  final over = <String>[];
+  final hcpHigh = meaning.hcp?.high;
+  if (hcpHigh != null && hand.hcp > hcpHigh) {
+    over.add("shows at most $hcpHigh HCP, has ${hand.hcp}");
+  }
+  final totalHigh = meaning.totalPoints?.high;
+  if (totalHigh != null && hand.totalPoints > totalHigh) {
+    over.add("shows at most $totalHigh total points, has ${hand.totalPoints}");
+  }
+  for (final suit in Suit.values) {
+    final high = meaning.suitLengths[suit]?.high;
+    if (high != null && hand.count(suit) > high) {
+      over.add("shows at most $high ${suit.name}, has ${hand.count(suit)}");
+    }
+  }
+  if (over.isNotEmpty) {
+    findings.add(SelfPlayFinding(
+        "over-advertised",
+        "seat $seat bid $call after '${_fmt(history)}': "
+        "${over.join('; ')} [${meaning.description}]"));
+  }
 }
 
 void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
@@ -148,16 +173,22 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
           "contract $contract with only $trumps combined trumps"));
     }
   }
-  BidAction? firstBid;
-  for (int i = 0; i < history.length; i++) {
-    if (i % 2 == side && history[i].bidType == BidType.contract) {
-      firstBid = history[i];
-      break;
-    }
-  }
+  final sideBids = [
+    for (int i = 0; i < history.length; i++)
+      if (i % 2 == side && history[i].bidType == BidType.contract)
+        history[i].contractBid!
+  ];
+  final firstBid = sideBids.isEmpty ? null : sideBids.first;
+  // A double-jump raise of the side's first suit (e.g. 1S-4S) is a
+  // preemptive raise, not a strength-showing auction.
+  final jumpRaised = firstBid != null &&
+      sideBids.skip(1).any((b) =>
+          b.trump != null &&
+          b.trump == firstBid.trump &&
+          b.count >= firstBid.count + 3);
   final preempted = firstBid != null &&
-      firstBid.contractBid!.trump != null &&
-      firstBid.contractBid!.count >= 2;
+      firstBid.trump != null &&
+      (firstBid.count >= 2 || jumpRaised);
   final atGame = contract.count >= _gameLevel(trump);
   if (atGame && !doubled && !preempted && combinedTotal(side) < 24) {
     findings.add(SelfPlayFinding(
@@ -212,6 +243,21 @@ SelfPlayResult runDeal(List<List<PlayingCard>> hands) {
     if (meaning != null) {
       _lintAdvertisement(
           HandAnalysis(hands[seat]), seat, call, meaning, history, findings);
+      // Not a failure, but worth monitoring: a rule set existed for this
+      // auction but no rule matched the hand, so the fallback bidder acted.
+      if (meaning.description.startsWith("No rule matched")) {
+        findings.add(SelfPlayFinding("no-rule-matched",
+            "seat $seat (${HandAnalysis(hands[seat]).totalPoints} points) "
+            "chose $call after '${_fmt(history)}'"));
+      }
+      // Also monitored: auctions with no rule set at all, where the
+      // heuristic fallback acts and the call carries no meaning for
+      // partner's or opponents' inference.
+      if (meaning.description.startsWith("Fallback:") &&
+          call.bidType != BidType.pass) {
+        findings.add(SelfPlayFinding("fallback-used",
+            "seat $seat chose $call after '${_fmt(history)}'"));
+      }
     }
     history.add(call);
     if (history.length >= _maxCalls) {

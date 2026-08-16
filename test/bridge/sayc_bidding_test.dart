@@ -343,6 +343,29 @@ void main() {
     });
   });
 
+  group("preemptive major raises", () {
+    test("jump to game with 5+ trumps and less than Jacoby strength", () {
+      // 6 total points: preempt.
+      expect(openingBid("QT932", "32", "K432", "32", history: ["1S", "pass"]),
+          "4S");
+      // 11 total: still the preemptive raise, not a limit raise — with a
+      // ten-card fit the partnership belongs in game.
+      expect(openingBid("KT932", "32", "KQ42", "Q2", history: ["1S", "pass"]),
+          "4S");
+      // 12 with a singleton still splinters; 13+ still goes through
+      // Jacoby 2NT.
+      expect(openingBid("KT932", "2", "KQJ2", "Q32", history: ["1S", "pass"]),
+          "4H");
+      expect(openingBid("KT932", "A2", "KQ42", "Q2", history: ["1S", "pass"]),
+          "2NT");
+      // Only four trumps: the normal single raise.
+      expect(openingBid("T932", "A32", "Q432", "32", history: ["1S", "pass"]),
+          "2S");
+      expect(openingBid("32", "QT932", "K432", "32", history: ["1H", "pass"]),
+          "4H");
+    });
+  });
+
   group("responses to minor openings", () {
     test("four-four majors up the line", () {
       expect(openingBid("K432", "A432", "32", "Q32", history: ["1C", "pass"]),
@@ -654,6 +677,66 @@ void main() {
           openingBid("32", "K2", "AKQJ32", "Q32",
               history: ["1D", "pass", "1S", "pass"]),
           "3D"); // 17 total
+    });
+
+    test("the game-forcing 4m rebid is not passed", () {
+      // Weak responder raises to game.
+      expect(
+          openingBid("J87643", "T92", "T4", "53",
+              history: ["1C", "pass", "1S", "pass", "4C", "pass"]),
+          "5C");
+      // With a self-sufficient major, game there instead.
+      expect(
+          openingBid("KQJ876", "T92", "T4", "53",
+              history: ["1C", "pass", "1S", "pass", "4C", "pass"]),
+          "4S");
+      // Same after a 1NT response, where there is no suit to return to.
+      expect(
+          openingBid("Q32", "Q32", "32", "QJ432",
+              history: ["1D", "pass", "1NT", "pass", "4D", "pass"]),
+          "5D");
+    });
+
+    test("strong rebids with a long minor", () {
+      // 19+ with the unbid suits stopped: gamble 3NT.
+      expect(
+          openingBid("A2", "K2", "AK2", "AQJ432",
+              history: ["1C", "pass", "1H", "pass"]),
+          "3NT");
+      // 19+ without a spade stopper: force with a jump to four.
+      expect(
+          openingBid("32", "A2", "AK2", "KQJT65",
+              history: ["1C", "pass", "1H", "pass"]),
+          "4C");
+      // Same after a 1NT response.
+      expect(
+          openingBid("A2", "K2", "AQJT42", "K32",
+              history: ["1D", "pass", "1NT", "pass"]),
+          "3NT");
+      // 16-18 still makes the invitational jump.
+      expect(
+          openingBid("32", "K2", "A32", "AKJ432",
+              history: ["1C", "pass", "1H", "pass"]),
+          "3C");
+    });
+
+    test("game rebid after 1NT response with self-sufficient major", () {
+      // 21 HCP + 2 length points: the invitational 3S could be passed.
+      expect(
+          openingBid("KQJT76", "AQT", "QT", "AK",
+              history: ["1S", "pass", "1NT", "pass"]),
+          "4S");
+      // 17 total still invites.
+      expect(
+          openingBid("KQJT42", "K2", "Q54", "A2",
+              history: ["1S", "pass", "1NT", "pass"]),
+          "3S");
+      // Responder respects the game rebid instead of "accepting" 4H
+      // with an illegal second 4H.
+      expect(
+          openingBid("Q32", "K2", "Q432", "J432",
+              history: ["1H", "pass", "1NT", "pass", "4H", "pass"]),
+          "Pass");
     });
 
     test("game rebid with self-sufficient major and 19+", () {
@@ -1061,6 +1144,99 @@ void main() {
           "2C");
     });
 
+    test("three-level second suits show 15+", () {
+      // 21 total: show the second suit over the two-level response
+      // instead of hiding in the unlimited catch-all rebid (deal 1307).
+      expect(
+          openingBid("AQJ74", "98", "AK", "AQ76",
+              history: ["1S", "pass", "2D", "pass"]),
+          "3C");
+      // Responder treats it as strong and chooses game.
+      expect(
+          openingBid("9", "KJ76", "Q8543", "K52",
+              history: ["1S", "pass", "2D", "pass", "3C", "pass"]),
+          "3NT");
+      // High reverse in competition (deal 2170).
+      expect(
+          openingBid("A6", "AQ32", "A3", "AKT83",
+              history: ["1C", "2H", "2S", "pass"]),
+          "3H");
+      // A minimum still lacks the strength for the three level.
+      expect(
+          openingBid("AQJ74", "98", "A2", "Q876",
+              history: ["1S", "pass", "2D", "pass"]),
+          "2S");
+    });
+
+    test("negative doubler continues over opener's rebids", () {
+      // Opener's jump shows 16+: drive to game with 10+ (deal 1093).
+      expect(
+          openingBid("98", "QT53", "AKJT", "KJT",
+              history: ["1C", "1S", "X", "pass", "3C", "pass"]),
+          "5C");
+      // 13 with support but no stopper: invite (deal 2861).
+      expect(
+          openingBid("AKQ8", "KT873", "5", "T64",
+              history: ["1C", "2D", "X", "pass", "3C", "pass"]),
+          "4C");
+    });
+
+    test("doubler bids on over the advance with a big hand", () {
+      // 24 total (22 HCP): 3NT with their suit stopped (deal 1021).
+      expect(
+          openingBid("QJ9", "AQ", "AJ", "AKJ932",
+              history: ["1D", "pass", "pass", "X", "pass", "1H", "pass"]),
+          "3NT");
+      // 21 with a solid 8-card suit: game in it (deal 1615).
+      expect(
+          openingBid("AKQJT843", "4", "A", "K72",
+              history: ["1D", "pass", "pass", "X", "pass", "1H", "pass"]),
+          "4S");
+      // 22 with support: raise the forced 4D advance to game (deal 1539).
+      expect(
+          openingBid("A8", "KQJ82", "KJ7", "AK7",
+              history: ["3S", "pass", "pass", "X", "pass", "4D", "pass"]),
+          "5D");
+      // 20 with a self-sufficient suit after the opponents raised (deal 47).
+      expect(
+          openingBid("AKQJ42", "6", "AQ43", "QT",
+              history: ["2H", "X", "3H", "4D", "pass"]),
+          "4S");
+      // 26: accept partner's invitational jump advance (deal 890).
+      expect(
+          openingBid("AQ962", "AQ2", "AK", "AQ6",
+              history: ["pass", "pass", "2H", "X", "pass", "4C", "pass"]),
+          "5C");
+      // A minimum double passes the forced advance.
+      expect(
+          openingBid("A432", "2", "KQ32", "Q432",
+              history: ["1H", "pass", "pass", "X", "pass", "1S", "pass"]),
+          "Pass");
+    });
+
+    test("overcaller rebids over the advance in a new suit", () {
+      // Maximum with a self-sufficient suit: game in it (deal 1134).
+      expect(
+          openingBid("AKQT982", "4", "6", "Q874",
+              history: ["1C", "1S", "pass", "2H", "pass"]),
+          "4S");
+      // Forcing 3-level advance: raise with a doubleton (deal 2338).
+      expect(
+          openingBid("JT", "62", "Q93", "AKJ632",
+              history: ["2D", "3C", "pass", "3S", "pass"]),
+          "4S");
+      // Forcing minor advance: 3NT with their suit stopped (deal 120).
+      expect(
+          openingBid("9854", "KJ2", "AJT82", "A",
+              history: ["1H", "2D", "pass", "3C", "pass"]),
+          "3NT");
+      // Two-level advance may be passed with a misfit minimum (deal 2451).
+      expect(
+          openingBid("J32", "7", "A654", "KQJ84",
+              history: ["1S", "2C", "pass", "2H", "pass"]),
+          "Pass");
+    });
+
     test("doubler rescues when their redouble is passed back around", () {
       // Advancer's pass over the redouble asks the doubler to pick a suit;
       // passing again would let the opponents play 1S redoubled.
@@ -1194,6 +1370,15 @@ void main() {
       expect(openingBid("KQ32", "K32", "AQ432", "2", history: h), "Pass");
     });
 
+    test("high reopening double needs support for the unbid majors", () {
+      final h = ["1D", "3C", "pass", "pass"];
+      // A double would force partner to the three level, and with 4-2 in
+      // the majors there is no safe landing spot.
+      expect(openingBid("AK32", "52", "QT987", "K2", history: h), "Pass");
+      // With both majors, reopen.
+      expect(openingBid("AK32", "K53", "QT987", "2", history: h), "Double");
+    });
+
     test("sandwich seat", () {
       expect(openingBid("KQ32", "2", "AJ32", "K432", history: ["1H", "pass", "2H"]),
           "Double");
@@ -1244,9 +1429,63 @@ void main() {
       expect(openingBid("AKJ32", "432", "32", "432", history: h), "Pass");
       expect(openingBid("432", "K432", "Q32", "432", history: h), "2H");
     });
+
+    test("no invitational jump into game when advancing a high double", () {
+      final h = ["1D", "3C", "pass", "pass", "X", "pass"];
+      final history = h.map(BidAction.fromString).toList();
+      // With no jump available below game, the cheap advance covers all
+      // hands below game-forcing strength, with a range that says so.
+      final weak = selectSaycBid(hand("AJ4", "J5432", "432", "32"), history);
+      expect(weak.action.toString(), "3H"); // 6 total
+      expect(weak.meaning.totalPoints, const Range(high: 11));
+      final invite = selectSaycBid(hand("AJ4", "AJ432", "432", "32"), history);
+      expect(invite.action.toString(), "3H"); // 11 total
+      expect(invite.meaning.totalPoints, const Range(high: 11));
+      // With real game values, bid it.
+      expect(openingBid("AJ4", "AKJ32", "432", "32", history: h), "4H");
+    });
+  });
+
+  group("response rule coverage", () {
+    test("19+ balanced over a minor bids 3NT", () {
+      final strong = selectSaycBid(hand("Q98", "K64", "AKQ", "KQT9"),
+          ["1C", "pass"].map(BidAction.fromString).toList());
+      expect(strong.action.toString(), "3NT");
+      expect(strong.meaning.hcp, const Range(low: 16));
+    });
+
+    test("12 HCP with a length point makes the limit raise", () {
+      expect(openingBid("JT9", "A2", "JT6", "KQJ83", history: ["1C", "pass"]),
+          "3C");
+      expect(openingBid("K6", "A98", "AJT83", "763", history: ["1D", "pass"]),
+          "3D");
+      // 13 HCP balanced with support still prefers 2NT.
+      expect(openingBid("J98", "K64", "A32", "KQT9", history: ["1C", "pass"]),
+          "2NT");
+    });
+
+    test("flat game-force with 3-card support bids 2C on three", () {
+      final short2c = selectSaycBid(hand("953", "QJ87", "KJ4", "AQ4"),
+          ["1S", "pass"].map(BidAction.fromString).toList());
+      expect(short2c.action.toString(), "2C");
+      expect(short2c.meaning.suitLengths[Suit.clubs], const Range(low: 3));
+      expect(openingBid("J92", "A542", "A84", "A87", history: ["1S", "pass"]),
+          "2C");
+    });
   });
 
   group("fallback bidder", () {
+
+    test("balancing 1NT continuations use the lighter range", () {
+      final stayman = ["1C", "pass", "pass", "1NT", "pass", "2C", "pass"];
+      expect(openingBid("KJ3", "K643", "543", "AJT", history: stayman), "2H");
+      final invite = ["1H", "pass", "pass", "1NT", "pass", "2NT", "pass"];
+      expect(openingBid("K432", "KJ2", "QJ2", "Q32", history: invite),
+          "Pass"); // 12 HCP: bottom of 11-16
+      expect(openingBid("AQ32", "KJ2", "KJ2", "Q32", history: invite),
+          "3NT"); // 16 HCP: top of the range accepts
+    });
+
     test("passes when game is reached", () {
       final result = selectSaycBid(
           hand("A432", "QJ32", "QJ2", "32"),
@@ -1317,7 +1556,9 @@ void main() {
       expect(nt, contains("balanced"));
       final spade = describeSaycCall([], BidAction.fromString("1S"))!.summary();
       expect(spade, contains("5+ spades"));
-      expect(spade, contains("13-21 total points"));
+      // 13+ total points with the ceiling expressed in HCP (the 2C boundary).
+      expect(spade, contains("13+ total points"));
+      expect(spade, contains("<=21 HCP"));
       final weakTwo = describeSaycCall([], BidAction.fromString("2S"))!.summary();
       expect(weakTwo, contains("6 spades"));
       expect(weakTwo, contains("5-10 HCP"));
@@ -1835,7 +2076,8 @@ void main() {
       expect(ex.calls[0].meaning!.totalPoints, const Range(high: 12));
       expect(ex.calls[1].meaning!.suitLengths[Suit.spades],
           const Range(low: 5));
-      expect(ex.players[1]!.totalPoints, const Range(low: 13, high: 21));
+      expect(ex.players[1]!.totalPoints, const Range(low: 13));
+      expect(ex.players[1]!.hcp, const Range(high: 21));
     });
   });
 }
