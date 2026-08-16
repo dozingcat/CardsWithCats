@@ -15,6 +15,8 @@
 ///   slam-light       undoubled slam with < 28 combined HCP
 ///   silly-strain     suit contract with <= 6 combined trumps
 ///   missed-game      declaring side with 26+ combined stopped below game
+///   missed-slam      declaring side with 33+ combined HCP (or 36+ total
+///                    points) stopped below the six level
 ///   passed-out       deal passed out despite 25+ combined points
 library;
 
@@ -205,6 +207,14 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
         "missed-game",
         "the declaring side has ${combinedTotal(side)} combined points but "
         "stopped in $contract"));
+  }
+  if (contract.count < 6 &&
+      !doubled &&
+      (combinedHcp(side) >= 33 || combinedTotal(side) >= 36)) {
+    findings.add(SelfPlayFinding(
+        "missed-slam",
+        "the declaring side has ${combinedHcp(side)} combined HCP "
+        "(${combinedTotal(side)} total points) but stopped in $contract"));
   }
 }
 

@@ -915,6 +915,39 @@ void main() {
     });
   });
 
+  group("quantitative notrump raises", () {
+    test("after Stayman finds no fit", () {
+      final h = ["1NT", "pass", "2C", "pass", "2D", "pass"];
+      expect(openingBid("765", "AJT5", "AQJ", "AQ8", history: h), "6NT"); // 18
+      expect(openingBid("Q65", "AJT5", "AQJ", "Q84", history: h), "4NT"); // 16
+      expect(openingBid("Q65", "AJT5", "AJ2", "Q84", history: h), "3NT"); // 14
+    });
+
+    test("after a transfer with slam values", () {
+      expect(
+          openingBid("QJ75", "KQJ72", "Q", "AK5",
+              history: ["1NT", "pass", "2D", "pass", "2H", "pass"]),
+          "6NT"); // 18 with 5 hearts
+    });
+
+    test("opener accepts the invite with a maximum", () {
+      final h = ["1NT", "pass", "2C", "pass", "2D", "pass", "4NT", "pass"];
+      expect(openingBid("AQ32", "KQ2", "A32", "Q32", history: h), "6NT"); // 17
+      expect(openingBid("A432", "KQ2", "A32", "Q32", history: h), "Pass"); // 15
+      expect(
+          openingBid("AJ3", "KQ3", "AQ32", "KQ2",
+              history: ["2NT", "pass", "3C", "pass", "3D", "pass", "4NT", "pass"]),
+          "6NT"); // 21
+    });
+
+    test("over a 2NT opening", () {
+      expect(
+          openingBid("KQ875", "A", "Q73", "KJ92",
+              history: ["2NT", "pass", "3H", "pass", "3S", "pass"]),
+          "6NT"); // 15 opposite 20-21
+    });
+  });
+
   group("slam conventions", () {
     test("Jacoby sequences launch Blackwood", () {
       expect(
@@ -1067,6 +1100,57 @@ void main() {
   });
 
   group("responses over interference", () {
+    test("responder doesn't sell out with an opener opposite", () {
+      final h = ["1D", "pass", "1H", "1S", "pass", "pass"];
+      // 13 points, no fit, no stopper: action double (and four of their
+      // suit makes penalties attractive).
+      expect(openingBid("8762", "K632", "AQ", "A86", history: h), "Double");
+      // 13+ with a stopper: game in notrump.
+      expect(openingBid("KJ62", "K632", "AQ", "986", history: h), "3NT");
+      // 11-12 with a stopper: natural notrump.
+      expect(openingBid("KJ62", "KQ32", "Q2", "986", history: h), "1NT");
+      // A weak hand still passes.
+      expect(openingBid("8762", "K632", "Q2", "986", history: h), "Pass");
+    });
+
+    test("opener advances the action double", () {
+      final h = ["1D", "pass", "1H", "1S", "pass", "pass", "X", "pass"];
+      // Trump length: convert to penalties.
+      expect(openingBid("A54", "Q8", "KJ752", "KQ4", history: h), "Pass");
+      // Singleton in their suit: pull to the cheapest fit.
+      expect(openingBid("4", "Q87", "KJ7652", "KQ4", history: h), "2H");
+    });
+
+    test("opener's notrump answer to the double is level-aware", () {
+      final h = ["1S", "3D", "X", "pass"];
+      // 12-14 balanced can't offer 3NT over the jump overcall: rebid the
+      // suit and let responder pass with the 8-card fit.
+      expect(openingBid("AQJ42", "73", "K54", "Q86", history: h), "3S");
+      // 15+ with a stopper commits to game.
+      expect(openingBid("AQJ42", "73", "AK4", "K86", history: h), "3NT");
+      // Responder's 3-card support passes the spade rebid.
+      expect(
+          openingBid("876", "AK962", "Q82", "T5",
+              history: ["1S", "3D", "X", "pass", "3S", "pass"]),
+          "Pass");
+      // With four hearts, opener answers the double in the 9-card fit.
+      expect(openingBid("AQJ42", "K873", "5", "Q86", history: h), "3H");
+    });
+
+    test("competitive raise with four trumps over a jump overcall", () {
+      // 10 points with a guaranteed nine-card fit: raise, don't double.
+      expect(openingBid("8765", "AK962", "Q8", "T5", history: ["1S", "3D"]),
+          "3S");
+      // With only three trumps the negative double still shows hearts.
+      expect(openingBid("876", "AK962", "Q82", "T5", history: ["1S", "3D"]),
+          "Double");
+      // Limit-raise strength still shows 11-12.
+      final limit = selectSaycBid(hand("8765", "AKJ62", "Q8", "T5"),
+          ["1S", "3D"].map(BidAction.fromString).toList());
+      expect(limit.action.toString(), "3S");
+      expect(limit.meaning.totalPoints, const Range(low: 11, high: 12));
+    });
+
     test("negative doubles", () {
       final result = selectSaycBid(hand("432", "KQ32", "Q32", "J32"),
           ["1D", "1S"].map(BidAction.fromString).toList());
