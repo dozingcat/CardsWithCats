@@ -1067,6 +1067,20 @@ void main() {
   });
 
   group("responses over interference", () {
+    test("competitive raise with four trumps over a jump overcall", () {
+      // 10 points with a guaranteed nine-card fit: raise, don't double.
+      expect(openingBid("8765", "AK962", "Q8", "T5", history: ["1S", "3D"]),
+          "3S");
+      // With only three trumps the negative double still shows hearts.
+      expect(openingBid("876", "AK962", "Q82", "T5", history: ["1S", "3D"]),
+          "Double");
+      // Limit-raise strength still shows 11-12.
+      final limit = selectSaycBid(hand("8765", "AKJ62", "Q8", "T5"),
+          ["1S", "3D"].map(BidAction.fromString).toList());
+      expect(limit.action.toString(), "3S");
+      expect(limit.meaning.totalPoints, const Range(low: 11, high: 12));
+    });
+
     test("negative doubles", () {
       final result = selectSaycBid(hand("432", "KQ32", "Q32", "J32"),
           ["1D", "1S"].map(BidAction.fromString).toList());

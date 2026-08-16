@@ -3959,6 +3959,20 @@ List<SaycRule> interferenceResponseRules(
       ),
     ));
   }
+  if (cheapest == 3 && isMajor) {
+    // Over a jump overcall, compete to the three level on the nine-card
+    // fit even with a weak hand; this takes priority over a negative
+    // double when holding four trumps.
+    raiseRules.add(SaycRule(
+      BidAction.contract(3, suit),
+      BidMeaning(
+        description:
+            "Competitive raise over the jump overcall: 4+ $name, 6-10 points",
+        totalPoints: const Range(low: 6, high: 10),
+        suitLengths: {suit: const Range(low: 4)},
+      ),
+    ));
+  }
   if (isMajor) {
     raiseRules.add(SaycRule(
       BidAction.contract(4, suit),
