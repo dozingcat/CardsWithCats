@@ -1067,6 +1067,27 @@ void main() {
   });
 
   group("responses over interference", () {
+    test("responder doesn't sell out with an opener opposite", () {
+      final h = ["1D", "pass", "1H", "1S", "pass", "pass"];
+      // 13 points, no fit, no stopper: action double (and four of their
+      // suit makes penalties attractive).
+      expect(openingBid("8762", "K632", "AQ", "A86", history: h), "Double");
+      // 13+ with a stopper: game in notrump.
+      expect(openingBid("KJ62", "K632", "AQ", "986", history: h), "3NT");
+      // 11-12 with a stopper: natural notrump.
+      expect(openingBid("KJ62", "KQ32", "Q2", "986", history: h), "1NT");
+      // A weak hand still passes.
+      expect(openingBid("8762", "K632", "Q2", "986", history: h), "Pass");
+    });
+
+    test("opener advances the action double", () {
+      final h = ["1D", "pass", "1H", "1S", "pass", "pass", "X", "pass"];
+      // Trump length: convert to penalties.
+      expect(openingBid("A54", "Q8", "KJ752", "KQ4", history: h), "Pass");
+      // Singleton in their suit: pull to the cheapest fit.
+      expect(openingBid("4", "Q87", "KJ7652", "KQ4", history: h), "2H");
+    });
+
     test("opener's notrump answer to the double is level-aware", () {
       final h = ["1S", "3D", "X", "pass"];
       // 12-14 balanced can't offer 3NT over the jump overcall: rebid the

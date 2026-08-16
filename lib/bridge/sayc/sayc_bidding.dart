@@ -5426,7 +5426,7 @@ List<SaycRule> competitiveRebidRules(ContractBid opening, BidAction rhoAction,
           suitLengths: {oSuit: const Range(low: 4)},
         ),
         ignoreInfo: true,
-        require: (h) => h.count(oSuit) >= 4,
+        require: (h) => h.count(oSuit) >= 4 && h.totalPoints <= 10,
       ));
     }
   } else if (myBid != null && myBid.trump != null) {
@@ -5465,9 +5465,96 @@ List<SaycRule> competitiveRebidRules(ContractBid opening, BidAction rhoAction,
       }
     }
   }
+  // Value-showing actions: with an opener opposite, 11+ must not sell out
+  // to a low contract.
+  final enemySuits = <Suit>{
+    if (rhoAction.bidType == BidType.contract &&
+        rhoAction.contractBid!.trump != null)
+      rhoAction.contractBid!.trump!,
+    if (lastBid.trump != null) lastBid.trump!,
+  };
+  final ntLevel = cheapestLevel(null, lastBid);
+  if (ntLevel <= 3) {
+    rules.add(SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+          description: "Game in notrump: 13+ with their suit stopped",
+          totalPoints: const Range(low: 13)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 13 && enemySuits.every(h.hasStopper),
+    ));
+  }
+  if (ntLevel <= 2) {
+    rules.add(SaycRule(
+      BidAction.noTrump(ntLevel),
+      BidMeaning(
+          description: "Natural: 11-12 with their suit stopped",
+          totalPoints: const Range(low: 11, high: 12)),
+      ignoreInfo: true,
+      require: (h) =>
+          h.totalPoints >= 11 &&
+          h.totalPoints <= 12 &&
+          enemySuits.every(h.hasStopper),
+    ));
+  }
+  rules.add(SaycRule(
+    BidAction.double(),
+    BidMeaning(
+        description: "Action double: 11+, no clear bid "
+            "(partner may pass for penalty)",
+        totalPoints: const Range(low: 11)),
+    ignoreInfo: true,
+    require: (h) => h.totalPoints >= 11,
+  ));
   rules.add(SaycRule(BidAction.pass(),
       BidMeaning(description: "Nothing more to say; defending")));
   return rules;
+}
+
+/// Opener's choice after passing the overcall and hearing partner's
+/// action double: convert to penalties with trump length, else pull to
+/// the cheapest fit.
+List<SaycRule> actionDoubleAdvanceRules(
+    ContractBid opening, ContractBid response, ContractBid theirBid) {
+  final theirSuit = theirBid.trump!;
+  final oSuit = opening.trump!;
+  final rSuit = response.trump;
+  return [
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description:
+              "Converting the double to penalties with trump length",
+          suitLengths: {theirSuit: const Range(low: 2)}),
+      ignoreInfo: true,
+      require: (h) => h.count(theirSuit) >= 2,
+    ),
+    if (rSuit != null &&
+        rSuit != theirSuit &&
+        cheapestLevel(rSuit, theirBid) <= 3)
+      SaycRule(
+        BidAction.contract(cheapestLevel(rSuit, theirBid), rSuit),
+        BidMeaning(
+          description: "Pulling the double: 3+ ${_suitNames[rSuit]}",
+          suitLengths: {rSuit: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(rSuit) >= 3,
+      ),
+    if (cheapestLevel(oSuit, theirBid) <= 3)
+      SaycRule(
+        BidAction.contract(cheapestLevel(oSuit, theirBid), oSuit),
+        BidMeaning(
+          description: "Pulling the double: rebidding ${_suitNames[oSuit]}",
+          suitLengths: {oSuit: const Range(low: 4)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(oSuit) >= 4,
+      ),
+    SaycRule(BidAction.pass(),
+        BidMeaning(description: "No better spot; defending"),
+        ignoreInfo: true),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -5949,6 +6036,19 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
   }
 
   // We opened.
+  if (n == first + 8 &&
+      isSuitBid(opening) &&
+      calls[first + 2].bidType == BidType.contract &&
+      isSuitBid(calls[first + 3]) &&
+      calls[first + 4].bidType == BidType.pass &&
+      calls[first + 5].bidType == BidType.pass &&
+      calls[first + 6].bidType == BidType.double &&
+      calls[first + 7].bidType == BidType.pass) {
+    // Partner responded, they overcalled, we and RHO passed, and partner
+    // doubled: choose between penalties and the cheapest fit.
+    return actionDoubleAdvanceRules(opening.contractBid!,
+        calls[first + 2].contractBid!, calls[first + 3].contractBid!);
+  }
   if (oppActions.isEmpty) {
     if (n == first + 4) {
       return openerRebidRules(opening, calls[first + 2]);
