@@ -1181,8 +1181,13 @@ Suit? _secondSuitChoice(
   });
   for (final s in candidates) {
     final level = cheapestLevel(s, over);
-    if (level >= 3) continue;
-    if (level >= 2 && _strainOrder(s) > _strainOrder(mySuit) && total < 17) {
+    // Three-level second suits show 15+ (17+ for a high reverse).
+    if (level > 3) continue;
+    if (level >= 3 &&
+        total < (_strainOrder(s) > _strainOrder(mySuit) ? 17 : 15)) {
+      continue;
+    }
+    if (level == 2 && _strainOrder(s) > _strainOrder(mySuit) && total < 17) {
       continue;
     }
     return s;
@@ -1971,8 +1976,11 @@ List<SaycRule> _rebidAfterNewSuitRules(
   for (final s in Suit.values) {
     if (s == mySuit || s == partnerSuit) continue;
     final level = cheapestLevel(s, response);
-    if (level >= 3) continue;
+    // A second suit at the three level (only after a two-level response)
+    // forces the auction higher, so it shows extra strength.
+    if (level > 3 || (level == 3 && response.count < 2)) continue;
     final isReverse = level >= 2 && _strainOrder(s) > _strainOrder(mySuit);
+    final highLevel = level >= 3;
     // Without a jump shift available in this suit, the simple second suit
     // has no upper limit.
     final hasJumpShift = _strainOrder(s) < _strainOrder(mySuit) &&
@@ -1981,16 +1989,19 @@ List<SaycRule> _rebidAfterNewSuitRules(
       BidAction.contract(level, s),
       BidMeaning(
         description: "Second suit: 4+ ${_suitNames[s]}"
-            "${isReverse ? ', reverse showing extra strength' : ''}",
+            "${isReverse ? ', reverse showing extra strength' : highLevel ? ', extra strength at the three level' : ''}",
         totalPoints: isReverse
-            ? const Range(low: 17, high: 21)
-            : hasJumpShift
-                ? const Range(low: 13, high: 17)
-                : const Range(low: 13),
+            ? const Range(low: 17)
+            : highLevel
+                ? const Range(low: 15)
+                : hasJumpShift
+                    ? const Range(low: 13, high: 17)
+                    : const Range(low: 13),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
       require: (h) =>
+          (!highLevel || h.totalPoints >= (isReverse ? 17 : 15)) &&
           _secondSuitChoice(h, mySuit, {mySuit, partnerSuit}, response) == s,
     ));
   }
@@ -2997,9 +3008,10 @@ List<SaycRule> _responderRebidAfterSuitRules(
   final isReverse =
       rebid.count >= 2 && _strainOrder(second) > _strainOrder(oSuit);
   final isJump = rebid.count > cheapestLevel(second, responseBid);
-  if (isReverse || isJump) {
-    // A reverse or jump shift shows 17+: responder moves toward game with
-    // 8+ and otherwise retreats as cheaply as possible.
+  if (isReverse || isJump || rebid.count >= 3) {
+    // A reverse or jump shift shows 17+ and a three-level second suit
+    // 15+: responder moves toward game with 8+ and otherwise retreats as
+    // cheaply as possible.
     final rules = <SaycRule>[];
     if (_isMajor(second)) {
       rules.add(SaycRule(
@@ -5183,6 +5195,54 @@ List<SaycRule> negativeDoubleResponseRebidRules(
     ];
   }
   if (rebid.trump == oSuit) {
+    if (rebid.count > cheapestLevel(oSuit, overcall)) {
+      // Opener jumped in his own suit, showing 16+: drive to game with
+      // 10+ instead of the usual 13.
+      return [
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description: "Declining opposite opener's jump rebid",
+              totalPoints: const Range(low: 6, high: 9)),
+          ignoreInfo: true,
+          require: (h) => h.totalPoints <= 9,
+        ),
+        if (cheapestLevel(null, rebid) <= 3)
+          SaycRule(
+            BidAction.noTrump(3),
+            BidMeaning(
+                description: "Bidding game with a stopper",
+                totalPoints: const Range(low: 10)),
+            ignoreInfo: true,
+            require: (h) => h.hasStopper(theirSuit),
+          ),
+        if (oMajor)
+          SaycRule(
+            BidAction.contract(4, oSuit),
+            BidMeaning(
+                description: "Bidding game",
+                totalPoints: const Range(low: 10),
+                suitLengths: {oSuit: const Range(low: 2)}),
+            ignoreInfo: true,
+            require: (h) => h.count(oSuit) >= 2,
+          )
+        else
+          SaycRule(
+            BidAction.contract(5, oSuit),
+            BidMeaning(
+                description: "Raising to game in $oName",
+                totalPoints: const Range(low: 10),
+                suitLengths: {oSuit: const Range(low: 3)}),
+            ignoreInfo: true,
+            require: (h) => h.count(oSuit) >= 3,
+          ),
+        SaycRule(
+            BidAction.pass(),
+            BidMeaning(
+                description: "No clear direction; settling for a partscore"),
+            ignoreInfo: true),
+      ];
+    }
     final rules = <SaycRule>[
       SaycRule(
         BidAction.pass(),
@@ -5191,16 +5251,6 @@ List<SaycRule> negativeDoubleResponseRebidRules(
             totalPoints: const Range(low: 6, high: 10)),
         ignoreInfo: true,
         require: (h) => h.totalPoints <= 10,
-      ),
-      SaycRule(
-        BidAction.contract(rebid.count + 1, oSuit),
-        BidMeaning(
-          description: "Inviting game in $oName: 3+ support",
-          totalPoints: const Range(low: 11, high: 12),
-          suitLengths: {oSuit: const Range(low: 3)},
-        ),
-        ignoreInfo: true,
-        require: (h) => h.totalPoints <= 12 && h.count(oSuit) >= 3,
       ),
     ];
     if (rebid.count == 2) {
@@ -5230,6 +5280,18 @@ List<SaycRule> negativeDoubleResponseRebidRules(
             totalPoints: const Range(low: 13)),
         ignoreInfo: true,
         require: (h) => h.totalPoints >= 13 && h.hasStopper(theirSuit),
+      ));
+    }
+    if (rebid.count + 1 < (oMajor ? 4 : 5)) {
+      rules.add(SaycRule(
+        BidAction.contract(rebid.count + 1, oSuit),
+        BidMeaning(
+          description: "Inviting game in $oName: 3+ support",
+          totalPoints: const Range(low: 11, high: 13),
+          suitLengths: {oSuit: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints <= 13 && h.count(oSuit) >= 3,
       ));
     }
     if (!oMajor && rebid.count == 4) {

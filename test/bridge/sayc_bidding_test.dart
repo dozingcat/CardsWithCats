@@ -1144,6 +1144,43 @@ void main() {
           "2C");
     });
 
+    test("three-level second suits show 15+", () {
+      // 21 total: show the second suit over the two-level response
+      // instead of hiding in the unlimited catch-all rebid (deal 1307).
+      expect(
+          openingBid("AQJ74", "98", "AK", "AQ76",
+              history: ["1S", "pass", "2D", "pass"]),
+          "3C");
+      // Responder treats it as strong and chooses game.
+      expect(
+          openingBid("9", "KJ76", "Q8543", "K52",
+              history: ["1S", "pass", "2D", "pass", "3C", "pass"]),
+          "3NT");
+      // High reverse in competition (deal 2170).
+      expect(
+          openingBid("A6", "AQ32", "A3", "AKT83",
+              history: ["1C", "2H", "2S", "pass"]),
+          "3H");
+      // A minimum still lacks the strength for the three level.
+      expect(
+          openingBid("AQJ74", "98", "A2", "Q876",
+              history: ["1S", "pass", "2D", "pass"]),
+          "2S");
+    });
+
+    test("negative doubler continues over opener's rebids", () {
+      // Opener's jump shows 16+: drive to game with 10+ (deal 1093).
+      expect(
+          openingBid("98", "QT53", "AKJT", "KJT",
+              history: ["1C", "1S", "X", "pass", "3C", "pass"]),
+          "5C");
+      // 13 with support but no stopper: invite (deal 2861).
+      expect(
+          openingBid("AKQ8", "KT873", "5", "T64",
+              history: ["1C", "2D", "X", "pass", "3C", "pass"]),
+          "4C");
+    });
+
     test("doubler bids on over the advance with a big hand", () {
       // 24 total (22 HCP): 3NT with their suit stopped (deal 1021).
       expect(
