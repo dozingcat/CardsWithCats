@@ -1144,6 +1144,62 @@ void main() {
           "2C");
     });
 
+    test("doubler bids on over the advance with a big hand", () {
+      // 24 total (22 HCP): 3NT with their suit stopped (deal 1021).
+      expect(
+          openingBid("QJ9", "AQ", "AJ", "AKJ932",
+              history: ["1D", "pass", "pass", "X", "pass", "1H", "pass"]),
+          "3NT");
+      // 21 with a solid 8-card suit: game in it (deal 1615).
+      expect(
+          openingBid("AKQJT843", "4", "A", "K72",
+              history: ["1D", "pass", "pass", "X", "pass", "1H", "pass"]),
+          "4S");
+      // 22 with support: raise the forced 4D advance to game (deal 1539).
+      expect(
+          openingBid("A8", "KQJ82", "KJ7", "AK7",
+              history: ["3S", "pass", "pass", "X", "pass", "4D", "pass"]),
+          "5D");
+      // 20 with a self-sufficient suit after the opponents raised (deal 47).
+      expect(
+          openingBid("AKQJ42", "6", "AQ43", "QT",
+              history: ["2H", "X", "3H", "4D", "pass"]),
+          "4S");
+      // 26: accept partner's invitational jump advance (deal 890).
+      expect(
+          openingBid("AQ962", "AQ2", "AK", "AQ6",
+              history: ["pass", "pass", "2H", "X", "pass", "4C", "pass"]),
+          "5C");
+      // A minimum double passes the forced advance.
+      expect(
+          openingBid("A432", "2", "KQ32", "Q432",
+              history: ["1H", "pass", "pass", "X", "pass", "1S", "pass"]),
+          "Pass");
+    });
+
+    test("overcaller rebids over the advance in a new suit", () {
+      // Maximum with a self-sufficient suit: game in it (deal 1134).
+      expect(
+          openingBid("AKQT982", "4", "6", "Q874",
+              history: ["1C", "1S", "pass", "2H", "pass"]),
+          "4S");
+      // Forcing 3-level advance: raise with a doubleton (deal 2338).
+      expect(
+          openingBid("JT", "62", "Q93", "AKJ632",
+              history: ["2D", "3C", "pass", "3S", "pass"]),
+          "4S");
+      // Forcing minor advance: 3NT with their suit stopped (deal 120).
+      expect(
+          openingBid("9854", "KJ2", "AJT82", "A",
+              history: ["1H", "2D", "pass", "3C", "pass"]),
+          "3NT");
+      // Two-level advance may be passed with a misfit minimum (deal 2451).
+      expect(
+          openingBid("J32", "7", "A654", "KQJ84",
+              history: ["1S", "2C", "pass", "2H", "pass"]),
+          "Pass");
+    });
+
     test("doubler rescues when their redouble is passed back around", () {
       // Advancer's pass over the redouble asks the doubler to pick a suit;
       // passing again would let the opponents play 1S redoubled.

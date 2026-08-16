@@ -4233,6 +4233,265 @@ List<SaycRule> doublerRedoubleRescueRules(ContractBid theirOpening) {
   ];
 }
 
+/// The takeout doubler's second call after partner advanced in a suit and
+/// the opponents passed. `over` is the contract the advance was bid over
+/// (for detecting an invitational jump).
+List<SaycRule> doublerRebidRules(
+    ContractBid theirOpening, ContractBid over, ContractBid advance) {
+  final theirSuit = theirOpening.trump!;
+  final aSuit = advance.trump!;
+  final gameLevel = _isMajor(aSuit) ? 4 : 5;
+  if (advance.count >= gameLevel) {
+    return [
+      SaycRule(BidAction.pass(),
+          BidMeaning(description: "Respecting partner's game decision"))
+    ];
+  }
+
+  if (advance.count > cheapestLevel(aSuit, over)) {
+    // The invitational jump advance (9-11): accept with a bit extra.
+    return [
+      if (!_isMajor(aSuit))
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(
+              description: "Accepting the invitation in notrump",
+              totalPoints: const Range(low: 15)),
+          ignoreInfo: true,
+          require: (h) =>
+              h.totalPoints >= 15 &&
+              h.hasStopper(theirSuit) &&
+              cheapestLevel(null, advance) <= 3,
+        ),
+      SaycRule(
+        BidAction.contract(gameLevel, aSuit),
+        BidMeaning(
+            description: "Accepting the invitation",
+            totalPoints: const Range(low: 15)),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 15,
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "Declining the invitation",
+            totalPoints: const Range(high: 14)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+
+  // Partner's advance was forced and may be worthless; bidding on shows
+  // the big-hand (17+) double.
+  final rules = <SaycRule>[];
+  for (final s in [Suit.spades, Suit.hearts]) {
+    if (s == theirSuit || s == aSuit || cheapestLevel(s, advance) > 4) {
+      continue;
+    }
+    rules.add(SaycRule(
+      BidAction.contract(4, s),
+      BidMeaning(
+        description: "Doubled intending to bid: self-sufficient "
+            "${_suitNames[s]} suit, 20+ points",
+        totalPoints: const Range(low: 20),
+        suitLengths: {s: const Range(low: 6)},
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.totalPoints >= 20 && h.count(s) >= 6 && h.topHonorCount(s) >= 2,
+    ));
+  }
+  rules.addAll([
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+          description:
+              "Doubled with game in hand: 21+ HCP, ${_suitNames[theirSuit]} stopped",
+          hcp: const Range(low: 21)),
+      ignoreInfo: true,
+      require: (h) =>
+          h.hcp >= 21 &&
+          h.hasStopper(theirSuit) &&
+          cheapestLevel(null, advance) <= 3,
+    ),
+    SaycRule(
+      BidAction.contract(gameLevel, aSuit),
+      BidMeaning(
+        description: "Raising the forced advance to game: 20+ points",
+        totalPoints: const Range(low: 20),
+        suitLengths: {aSuit: const Range(low: 3)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 20 && h.count(aSuit) >= 3,
+    ),
+    if (advance.count + 1 < gameLevel)
+      SaycRule(
+        BidAction.contract(advance.count + 1, aSuit),
+        BidMeaning(
+          description: "Raising the forced advance: 17-19 points",
+          totalPoints: const Range(low: 17, high: 19),
+          suitLengths: {aSuit: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 17 && h.count(aSuit) >= 3,
+      ),
+    SaycRule(
+      BidAction.noTrump(cheapestLevel(null, advance)),
+      BidMeaning(
+          description: "Doubled then notrump: 18-20 HCP, "
+              "${_suitNames[theirSuit]} stopped",
+          hcp: const Range(low: 18, high: 20),
+          balanced: true),
+      ignoreInfo: true,
+      require: (h) =>
+          h.isBalanced &&
+          h.hcp >= 18 &&
+          h.hasStopper(theirSuit) &&
+          cheapestLevel(null, advance) <= 2,
+    ),
+  ]);
+  // A new suit (too strong to overcall).
+  for (final su in Suit.values) {
+    if (su == theirSuit || su == aSuit) continue;
+    final level = cheapestLevel(su, advance);
+    if (level > 3) continue;
+    rules.add(SaycRule(
+      BidAction.contract(level, su),
+      BidMeaning(
+        description:
+            "Doubled intending to bid ${_suitNames[su]}: 17+ points, 5+ cards",
+        totalPoints: const Range(low: 17),
+        suitLengths: {su: const Range(low: 5)},
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.totalPoints >= 17 &&
+          h.count(su) >= 5 &&
+          bestSuit(h, Suit.values.where((x) => x != theirSuit && x != aSuit)) ==
+              su,
+    ));
+  }
+  rules.add(SaycRule(
+    BidAction.pass(),
+    BidMeaning(description: "Minimum double with nothing more to say"),
+    ignoreInfo: true,
+  ));
+  return rules;
+}
+
+/// The overcaller's rebid after partner advanced in a new suit (neither
+/// ours nor the opponents') and the opponents passed.
+List<SaycRule> overcallerNewSuitRebidRules(
+    ContractBid theirOpening, ContractBid myOvercall, ContractBid advance) {
+  final theirSuit = theirOpening.trump!;
+  final mySuit = myOvercall.trump!;
+  final myName = _suitNames[mySuit]!;
+  final aSuit = advance.trump!;
+  final aName = _suitNames[aSuit]!;
+  final gameLevel = _isMajor(aSuit) ? 4 : 5;
+  if (advance.count >= gameLevel) {
+    return [
+      SaycRule(BidAction.pass(),
+          BidMeaning(description: "Respecting partner's game decision"))
+    ];
+  }
+  // A new suit at the three level is forcing; at the two level it is
+  // constructive and may be passed with a misfit minimum.
+  final forcing = advance.count >= 3;
+
+  final ownMajorGame = SaycRule(
+    BidAction.contract(4, mySuit),
+    BidMeaning(
+      description: "Game rebid: self-sufficient $myName suit, maximum overcall",
+      totalPoints: const Range(low: 14),
+      suitLengths: {mySuit: const Range(low: 6)},
+    ),
+    ignoreInfo: true,
+    require: (h) =>
+        h.totalPoints >= 14 &&
+        h.count(mySuit) >= 6 &&
+        h.topHonorCount(mySuit) >= 2,
+  );
+  final gameRaise = SaycRule(
+    BidAction.contract(gameLevel, aSuit),
+    BidMeaning(
+      description: "Raising partner's $aName to game",
+      totalPoints: Range(low: forcing ? 13 : 14),
+      suitLengths: {aSuit: Range(low: forcing ? 2 : 3)},
+    ),
+    ignoreInfo: true,
+    require: (h) =>
+        h.totalPoints >= (forcing ? 13 : 14) &&
+        h.count(aSuit) >= (forcing ? 2 : 3),
+  );
+  final nt3 = SaycRule(
+    BidAction.noTrump(3),
+    BidMeaning(
+        description:
+            "Game in notrump with ${_suitNames[theirSuit]} stopped",
+        totalPoints: const Range(low: 13)),
+    ignoreInfo: true,
+    require: (h) =>
+        h.totalPoints >= 13 &&
+        h.hasStopper(theirSuit) &&
+        cheapestLevel(null, advance) <= 3,
+  );
+
+  final rules = <SaycRule>[
+    if (_isMajor(mySuit)) ownMajorGame,
+    ...(_isMajor(aSuit) ? [gameRaise, nt3] : [nt3, gameRaise]),
+    if (advance.count + 1 < gameLevel)
+      SaycRule(
+        BidAction.contract(advance.count + 1, aSuit),
+        BidMeaning(
+          description: "Raising partner's $aName",
+          totalPoints: const Range(low: 11, high: 13),
+          suitLengths: {aSuit: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 11 && h.count(aSuit) >= 3,
+      ),
+    if (cheapestLevel(mySuit, advance) <= 3)
+      SaycRule(
+        BidAction.contract(cheapestLevel(mySuit, advance), mySuit),
+        BidMeaning(
+          description: "Rebidding a 6+ card $myName suit",
+          suitLengths: {mySuit: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(mySuit) >= 6,
+      ),
+    if (cheapestLevel(null, advance) <= 2)
+      SaycRule(
+        BidAction.noTrump(cheapestLevel(null, advance)),
+        BidMeaning(
+            description:
+                "Notrump with ${_suitNames[theirSuit]} stopped",
+            hcp: const Range(low: 11, high: 14)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 11 && h.hasStopper(theirSuit),
+      ),
+    if (forcing)
+      SaycRule(
+        BidAction.contract(cheapestLevel(mySuit, advance), mySuit),
+        BidMeaning(
+          description: "Forced rebid of the overcalled suit",
+          suitLengths: {mySuit: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+      )
+    else
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "No fit and no descriptive rebid",
+            totalPoints: const Range(high: 16)),
+        ignoreInfo: true,
+      ),
+  ];
+  return rules;
+}
+
 /// Advance partner's overcall; `over` is the last bid in the auction.
 List<SaycRule>? advanceOvercallRules(
     ContractBid theirOpening, ContractBid overcall, ContractBid over,
@@ -5470,6 +5729,45 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
             ntRange: balancing
                 ? const Range(low: 11, high: 16)
                 : const Range(low: 15, high: 18));
+      }
+    }
+    if (myActions.length == 1 &&
+        partnerActions.length == 1 &&
+        isSuitBid(partnerActions[0]) &&
+        openBid.trump != null &&
+        oppActions.length <= 2 &&
+        calls[n - 1].bidType == BidType.pass) {
+      // Partner advanced my takeout double or overcall in a suit that is
+      // neither ours nor the opponents'; choose our rebid.
+      final advance = partnerActions[0].contractBid!;
+      int partnerIndex = -1;
+      for (int i = 0; i < n; i++) {
+        if ((n - i) % 4 == 2 && calls[i].bidType != BidType.pass) {
+          partnerIndex = i;
+          break;
+        }
+      }
+      // The advance must be the last bid, with nothing by the opponents
+      // after it.
+      final noneAfter = calls
+          .sublist(partnerIndex + 1)
+          .every((c) => c.bidType == BidType.pass);
+      ContractBid? over;
+      for (int i = partnerIndex - 1; i >= 0; i--) {
+        if (calls[i].bidType == BidType.contract) {
+          over = calls[i].contractBid;
+          break;
+        }
+      }
+      if (noneAfter && over != null && advance.trump != openBid.trump) {
+        if (myActions[0].bidType == BidType.double) {
+          return doublerRebidRules(openBid, over, advance);
+        }
+        if (isSuitBid(myActions[0]) &&
+            advance.trump != myActions[0].contractBid!.trump) {
+          return overcallerNewSuitRebidRules(
+              openBid, myActions[0].contractBid!, advance);
+        }
       }
     }
     if (myActions.length == 1 &&
