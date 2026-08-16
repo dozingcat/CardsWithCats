@@ -1067,6 +1067,22 @@ void main() {
   });
 
   group("responses over interference", () {
+    test("opener's notrump answer to the double is level-aware", () {
+      final h = ["1S", "3D", "X", "pass"];
+      // 12-14 balanced can't offer 3NT over the jump overcall: rebid the
+      // suit and let responder pass with the 8-card fit.
+      expect(openingBid("AQJ42", "73", "K54", "Q86", history: h), "3S");
+      // 15+ with a stopper commits to game.
+      expect(openingBid("AQJ42", "73", "AK4", "K86", history: h), "3NT");
+      // Responder's 3-card support passes the spade rebid.
+      expect(
+          openingBid("876", "AK962", "Q82", "T5",
+              history: ["1S", "3D", "X", "pass", "3S", "pass"]),
+          "Pass");
+      // With four hearts, opener answers the double in the 9-card fit.
+      expect(openingBid("AQJ42", "K873", "5", "Q86", history: h), "3H");
+    });
+
     test("competitive raise with four trumps over a jump overcall", () {
       // 10 points with a guaranteed nine-card fit: raise, don't double.
       expect(openingBid("8765", "AK962", "Q8", "T5", history: ["1S", "3D"]),

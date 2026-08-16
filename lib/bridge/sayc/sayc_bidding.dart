@@ -5005,25 +5005,38 @@ List<SaycRule> negativeDoubleRebidRules(
   }
   final ntLevel = cheapestLevel(null, overcall);
   rules.addAll([
-    SaycRule(
-      BidAction.withBid(ContractBid(ntLevel + 1, null)),
-      BidMeaning(
-          description: "18-19 balanced with a stopper",
-          hcp: const Range(low: 18, high: 19),
-          balanced: true),
-      ignoreInfo: true,
-      require: (h) =>
-          h.isBalanced && h.hasStopper(overcallSuit) && h.hcp >= 18,
-    ),
-    SaycRule(
-      BidAction.withBid(ContractBid(ntLevel, null)),
-      BidMeaning(
-          description: "12-14 balanced with a stopper",
-          hcp: const Range(low: 12, high: 14),
-          balanced: true),
-      ignoreInfo: true,
-      require: (h) => h.isBalanced && h.hasStopper(overcallSuit),
-    ),
+    // Notrump rebids are level-aware: below game the cheapest notrump is
+    // a 12-14 minimum and the jump shows 18-19, but when the cheapest
+    // notrump is already 3NT it commits to game and needs a real hand.
+    if (ntLevel <= 2) ...[
+      SaycRule(
+        BidAction.withBid(ContractBid(ntLevel + 1, null)),
+        BidMeaning(
+            description: "18-19 balanced with a stopper",
+            hcp: const Range(low: 18, high: 19),
+            balanced: true),
+        ignoreInfo: true,
+        require: (h) =>
+            h.isBalanced && h.hasStopper(overcallSuit) && h.hcp >= 18,
+      ),
+      SaycRule(
+        BidAction.withBid(ContractBid(ntLevel, null)),
+        BidMeaning(
+            description: "12-14 balanced with a stopper",
+            hcp: const Range(low: 12, high: 14),
+            balanced: true),
+        ignoreInfo: true,
+        require: (h) => h.isBalanced && h.hasStopper(overcallSuit),
+      ),
+    ] else
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description: "Game in notrump: 15+ with a stopper",
+            hcp: const Range(low: 15)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 15 && h.hasStopper(overcallSuit),
+      ),
     SaycRule(
       BidAction.contract(cheapestLevel(mySuit, overcall), mySuit),
       BidMeaning(
