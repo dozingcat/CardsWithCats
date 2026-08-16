@@ -2056,6 +2056,14 @@ List<SaycRule>? responderRebidRules(
       }
       rules.addAll([
         SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Slam: 13+ opposite the 2NT opening",
+              hcp: const Range(low: 13)),
+          ignoreInfo: true,
+          require: (h) => h.hcp >= 13,
+        ),
+        SaycRule(
           BidAction.noTrump(4),
           BidMeaning(
               description: "Quantitative: invites 6NT, no fit",
@@ -2089,18 +2097,38 @@ List<SaycRule>? responderRebidRules(
           BidAction.contract(4, major),
           BidMeaning(
             description: "To play: 6+ $name, game values",
-            hcp: const Range(low: 5),
+            hcp: const Range(low: 5, high: 10),
             suitLengths: {major: const Range(low: 6)},
           ),
           ignoreInfo: true,
-          require: (h) => h.count(major) >= 6,
+          require: (h) => h.count(major) >= 6 && h.hcp <= 10,
+        ),
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+            description: "Slam: 13+ with 5+ $name",
+            hcp: const Range(low: 13),
+            suitLengths: {major: const Range(low: 5)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.hcp >= 13,
+        ),
+        SaycRule(
+          BidAction.noTrump(4),
+          BidMeaning(
+            description: "Quantitative: invites slam with 5+ $name",
+            hcp: const Range(low: 11, high: 12),
+            suitLengths: {major: const Range(low: 5)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.hcp >= 11,
         ),
         SaycRule(
           BidAction.noTrump(3),
           BidMeaning(
             description:
                 "Choice of games: exactly 5 $name, opener corrects with a fit",
-            hcp: const Range(low: 5),
+            hcp: const Range(low: 5, high: 10),
             suitLengths: {major: const Range(low: 5, high: 5)},
           ),
           ignoreInfo: true,
@@ -2167,10 +2195,26 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         require: (h) => h.hcp <= 9,
       ),
       SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Slam: 18+ opposite the notrump opening",
+            hcp: const Range(low: 18)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 18,
+      ),
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description: "Quantitative: invites 6NT, no fit",
+            hcp: const Range(low: 16, high: 17)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 16,
+      ),
+      SaycRule(
         BidAction.noTrump(3),
         BidMeaning(
             description: "To play, no major-suit fit",
-            hcp: const Range(low: 10)),
+            hcp: const Range(low: 10, high: 15)),
         ignoreInfo: true,
       ),
     ]);
@@ -2214,14 +2258,34 @@ List<SaycRule>? _responderRebidAfter1ntRules(
           suitLengths: {major: const Range(low: 6)},
         ),
         ignoreInfo: true,
-        require: (h) => h.count(major) >= 6,
+        require: (h) => h.count(major) >= 6 && h.hcp <= 15,
+      ),
+      SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+          description: "Slam: 18+ with 5+ $name",
+          hcp: const Range(low: 18),
+          suitLengths: {major: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 18,
+      ),
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+          description: "Quantitative: invites slam with 5+ $name",
+          hcp: const Range(low: 16, high: 17),
+          suitLengths: {major: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 16,
       ),
       SaycRule(
         BidAction.noTrump(3),
         BidMeaning(
           description:
               "Choice of games: exactly 5 $name, opener corrects with a fit",
-          hcp: const Range(low: 10),
+          hcp: const Range(low: 10, high: 15),
           suitLengths: {major: const Range(low: 5, high: 5)},
         ),
         ignoreInfo: true,

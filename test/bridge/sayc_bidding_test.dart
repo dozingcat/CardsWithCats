@@ -915,6 +915,39 @@ void main() {
     });
   });
 
+  group("quantitative notrump raises", () {
+    test("after Stayman finds no fit", () {
+      final h = ["1NT", "pass", "2C", "pass", "2D", "pass"];
+      expect(openingBid("765", "AJT5", "AQJ", "AQ8", history: h), "6NT"); // 18
+      expect(openingBid("Q65", "AJT5", "AQJ", "Q84", history: h), "4NT"); // 16
+      expect(openingBid("Q65", "AJT5", "AJ2", "Q84", history: h), "3NT"); // 14
+    });
+
+    test("after a transfer with slam values", () {
+      expect(
+          openingBid("QJ75", "KQJ72", "Q", "AK5",
+              history: ["1NT", "pass", "2D", "pass", "2H", "pass"]),
+          "6NT"); // 18 with 5 hearts
+    });
+
+    test("opener accepts the invite with a maximum", () {
+      final h = ["1NT", "pass", "2C", "pass", "2D", "pass", "4NT", "pass"];
+      expect(openingBid("AQ32", "KQ2", "A32", "Q32", history: h), "6NT"); // 17
+      expect(openingBid("A432", "KQ2", "A32", "Q32", history: h), "Pass"); // 15
+      expect(
+          openingBid("AJ3", "KQ3", "AQ32", "KQ2",
+              history: ["2NT", "pass", "3C", "pass", "3D", "pass", "4NT", "pass"]),
+          "6NT"); // 21
+    });
+
+    test("over a 2NT opening", () {
+      expect(
+          openingBid("KQ875", "A", "Q73", "KJ92",
+              history: ["2NT", "pass", "3H", "pass", "3S", "pass"]),
+          "6NT"); // 15 opposite 20-21
+    });
+  });
+
   group("slam conventions", () {
     test("Jacoby sequences launch Blackwood", () {
       expect(
