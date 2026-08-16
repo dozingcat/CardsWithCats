@@ -4756,7 +4756,7 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall) {
             "Reopening takeout double: at most two $theirName"
             "${unbidMajors.isNotEmpty ? ', support for the unbid majors' : ''}"
             " (partner may pass for penalty)",
-        totalPoints: const Range(low: 13, high: 21),
+        totalPoints: const Range(low: 13),
         artificial: true,
         suitLengths: {
           theirSuit: const Range(high: 2),
