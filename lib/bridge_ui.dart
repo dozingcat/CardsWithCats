@@ -1001,7 +1001,10 @@ class _BidHistoryTableState extends State<BidHistoryTable> {
             });
           },
           child: Container(
-            color: isExplainingBid ? Colors.white : Colors.transparent,
+            decoration: BoxDecoration(
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
+                color: isExplainingBid ? Colors.white : Colors.transparent,
+            ),
             child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(
               bidHistory[bidIndex].action.symbolString(),
               textAlign: TextAlign.center))),
@@ -1015,9 +1018,12 @@ class _BidHistoryTableState extends State<BidHistoryTable> {
       }
       final bidsUpToSelection = bidHistory.sublist(0, bidIndex).map((b) => b.action).toList();
       final meaning = describeSaycCall(bidsUpToSelection, bidHistory[bidIndex].action);
-      return Padding(padding: EdgeInsets.only(bottom: 5), child: Container(
+      return Padding(padding: const EdgeInsets.only(bottom: 5), child: Container(
         width: 200,
-        color: Colors.white70,
+        decoration: const BoxDecoration(
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          color: Colors.white70,
+        ),
         child: paddingAll(4, Text(
           meaning != null ? meaning.description : "No specific meaning",
           style: const TextStyle(fontSize: 10),
