@@ -122,28 +122,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   BridgeRound get round => match.currentRound;
   BridgeRound get duplicateRound => match.duplicateRound;
 
-  // During play, hands/tricks/avatars can be rotated so the dummy is drawn at
-  // the top of the display. Returns the offset to add to a player index to get
-  // its display position; 0 if rotation is disabled or not applicable.
-  int _displayRotation() {
-    if (!widget.rotateDummyToTop) {
-      return 0;
-    }
-    // Normal orientation while bidding and when showing all hands after the
-    // round ends. Keep any rotation until the final trick is done animating.
-    if (animationMode == AnimationMode.none && (round.status != BridgeRoundStatus.playing || round.isOver())) {
-      return 0;
-    }
-    final contract = round.contract;
-    if (contract == null) {
-      return 0;
-    }
-    return (2 - contract.dummy) % 4;
-  }
-
-  int _displayIndexForPlayer(int playerIndex) =>
-      (playerIndex + _displayRotation()) % 4;
-
   @override
   void initState() {
     super.initState();
@@ -166,6 +144,28 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     super.deactivate();
     matchUpdateSubscription.cancel();
   }
+
+  // During play, hands/tricks/avatars can be rotated so the dummy is drawn at
+  // the top of the display. Returns the offset to add to a player index to get
+  // its display position; 0 if rotation is disabled or not applicable.
+  int _displayRotation() {
+    if (!widget.rotateDummyToTop) {
+      return 0;
+    }
+    // Normal orientation while bidding and when showing all hands after the
+    // round ends. Keep any rotation until the final trick is done animating.
+    if (animationMode == AnimationMode.none && (round.status != BridgeRoundStatus.playing || round.isOver())) {
+      return 0;
+    }
+    final contract = round.contract;
+    if (contract == null) {
+      return 0;
+    }
+    return (2 - contract.dummy) % 4;
+  }
+
+  int _displayIndexForPlayer(int playerIndex) =>
+      (playerIndex + _displayRotation()) % 4;
 
   void _updateMatch(BridgeMatch newMatch) {
     setState(() {
@@ -248,6 +248,16 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return (round.status == BridgeRoundStatus.bidding &&
         aiMode == AiMode.humanPlayer0 &&
         round.currentBidder() == 0);
+  }
+
+  bool _isWaitingForHumanPlay() {
+    if (round.status != .playing || round.isOver()) {
+      return false;
+    }
+    int pi = round.currentPlayerIndex();
+    return pi == 0
+        || (pi == 2 && round.contract!.declarer == 0)
+        || (pi == 2 && round.contract!.declarer == 2);
   }
 
   bool hasHumanPlayer() {
@@ -782,6 +792,12 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
                 (t.leader + rotation) % 4, t.cards, (t.winner + rotation) % 4))
           ];
 
+    bool maybeTransparent = _isWaitingForHumanPlay()
+        && displayCurrentTrick.cards.isNotEmpty
+        && displayCurrentTrick.cards.length < 4;
+
+    // TODO: main menu icon button locatioin doesn't always update
+
     return TrickCards(
       layout: layout,
       currentTrick: displayCurrentTrick,
@@ -793,6 +809,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       suitOrder: _suitDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
+      transparentIfOverPlayerCards: maybeTransparent,
     );
   }
 
@@ -827,17 +844,16 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return showScoreOverlay && !widget.dialogVisible && _isPlayInProgress();
   }
 
-  Widget _scoreOverlayButton() {
-    return Opacity(opacity: 0.6, child: Padding(
-      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
-      child: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            showScoreOverlay = !showScoreOverlay;
-          });
-        },
-        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
-      ),
+  Widget _scoreOverlayButton(Layout layout) {
+    return Opacity(opacity: 0.8, child: scoreToggleIconButton(
+      layout: layout,
+      onPressed: () {
+        setState(() {
+          showScoreOverlay = !showScoreOverlay;
+        });
+      },
+      showingScore: showScoreOverlay,
+      location: .bottomRight,
     ));
   }
 
@@ -941,7 +957,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
           ),
         PlayerMoods(layout: layout, moods: playerMoods, durationMillis: 5000),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
-        if (_shouldShowScoreOverlayToggle()) _scoreOverlayButton(),
+        if (_shouldShowScoreOverlayToggle()) _scoreOverlayButton(layout),
       ],
     );
   }

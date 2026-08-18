@@ -488,20 +488,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     widget.mainMenuFn();
   }
 
-  Widget scoreOverlayButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
-      child: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            showScoreOverlay = !showScoreOverlay;
-          });
-        },
-        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -531,7 +517,15 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
-        if (shouldShowScoreOverlayToggle()) scoreOverlayButton(),
+        if (shouldShowScoreOverlayToggle()) scoreToggleIconButton(
+          layout: layout,
+          onPressed: () {
+            setState(() {
+              showScoreOverlay = !showScoreOverlay;
+            });
+          },
+          showingScore: showScoreOverlay,
+        ),
         // Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );

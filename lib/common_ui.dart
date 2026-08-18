@@ -52,7 +52,8 @@ class Layout {
             : 0.5;
     final centerX = ca.left + ca.width * centerXFrac;
     final centerY = ca.top + ca.height * centerYFrac;
-    return Rect.fromLTWH(centerX - cs.width / 2, centerY - cs.height / 2, cs.width, cs.height);
+    final fullRect = Rect.fromLTWH(centerX - cs.width / 2, centerY - cs.height / 2, cs.width, cs.height);
+    return centeredSubrectWithAspectRatio(fullRect, cardAspectRatio);
   }
 
   Rect cardOriginAreaForPlayer(int playerIndex) {
@@ -106,7 +107,9 @@ class PositionedCard extends StatelessWidget {
   final double cardAspectRatio;
   final double dimming;
   final double rotation;
+  final double opacity;
   final bool isTrump;
+  final bool ignorePointer;
   final void Function(PlayingCard)? onCardClicked;
   final Color? backgroundColor;
 
@@ -118,6 +121,8 @@ class PositionedCard extends StatelessWidget {
     this.onCardClicked,
     this.dimming = 0.0,
     this.rotation = 0.0,
+    this.opacity = 1.0,
+    this.ignorePointer = false,
     this.isTrump = false,
     this.backgroundColor,
   });
@@ -167,16 +172,27 @@ class PositionedCard extends StatelessWidget {
     // ClipRRect clips the background color and dimming rectangle
     // to the card's rounded rect.
     return Positioned.fromRect(
-        rect: cardRect,
-        child: Transform.rotate(angle: rotation, child: GestureDetector(
-            onTapDown: onCardClicked != null ? ((tap) => onCardClicked!(card)) : null,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(cornerRadius),
-              child: Container(
-                color: bgColor,
-                child: Stack(children: cardStack)
-              )
-            ) )));
+      rect: cardRect,
+      child: Transform.rotate(
+        angle: rotation,
+        child: GestureDetector(
+          onTapDown: onCardClicked != null ? ((tap) => onCardClicked!(card)) : null,
+          child: Opacity(
+            opacity: opacity,
+            child: IgnorePointer(
+              ignoring: ignorePointer,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(cornerRadius),
+                child: Container(
+                  color: bgColor,
+                  child: Stack(children: cardStack)
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -572,10 +588,12 @@ class TrickCards extends StatelessWidget {
   final int numPlayers;
   final void Function() onTrickCardAnimationFinished;
   final void Function() onTrickToWinnerAnimationFinished;
-  final List<DisplayedHand>? displayedHands;
-  final List<Suit>? suitOrder;
+  final List<DisplayedHand> displayedHands;
+  final List<Suit> suitOrder;
   final Suit? trumpSuit;
   final Map<PlayingCard, Color>? cardBackgroundColors;
+  final bool transparentIfOverPlayerCards;
+  final Function(PlayingCard)? onCardClicked;
 
   const TrickCards({
     super.key,
@@ -586,10 +604,12 @@ class TrickCards extends StatelessWidget {
     required this.numPlayers,
     required this.onTrickCardAnimationFinished,
     required this.onTrickToWinnerAnimationFinished,
-    this.displayedHands,
-    this.suitOrder,
+    required this.displayedHands,
+    required this.suitOrder,
     this.trumpSuit,
     this.cardBackgroundColors,
+    this.transparentIfOverPlayerCards = false,
+    this.onCardClicked,
   });
 
   @override
@@ -618,22 +638,54 @@ class TrickCards extends StatelessWidget {
     return Stack(children: cardWidgets);
   }
 
-  Widget _trickCardForPlayer(final Layout layout, final PlayingCard card, int playerIndex) {
+  Widget _trickCardForPlayer(
+      final Layout layout, final PlayingCard card, int playerIndex,
+      {double opacity = 1, bool ignorePointer = false}) {
     final cardRect = layout.trickCardAreaForPlayer(playerIndex);
     return PositionedCard(
         rect: cardRect,
         card: card,
         isTrump: card.suit == trumpSuit,
         backgroundColor: cardBackgroundColors?[card],
+        onCardClicked: onCardClicked,
+        opacity: opacity,
+        ignorePointer: ignorePointer,
     );
   }
 
+  // In the static case, use transparency if a trick card would intersect any
+  // of the displayed player cards and if `transparentIfOverPlayerCards` is set,
+  // which it is when the human is deciding which card to play.
   List<Widget> _staticTrickCards(
       final Layout layout, int leader, int numPlayers, List<PlayingCard> cards) {
+
+    double scale = 1.0;
+    final List<Rect> handRects = [];
+
+    if (transparentIfOverPlayerCards) {
+      scale = computeScaleForNonintersectingPlayerHands(
+          layout: layout, playerHands: displayedHands, suitOrder: suitOrder);
+      for (final h in displayedHands) {
+        var rects = playerHandCardRects(
+            layout, h.cards, suitOrder,
+            playerIndex: h.playerIndex,
+            displayStyle: h.displayStyle,
+            scaleMultiplier: scale,
+            leaveAvatarSpace: h.leaveAvatarSpace).values.toList();
+        if (h.playerIndex == 1 || h.playerIndex == 3) {
+          rects = rects.map((r) => Rect.fromCenter(center: r.center, width: r.height, height: r.width)).toList();
+        }
+        handRects.addAll(rects);
+      }
+    }
+
     List<Widget> cardWidgets = [];
     for (int i = 0; i < cards.length; i++) {
       int p = (leader + i) % numPlayers;
-      cardWidgets.add(_trickCardForPlayer(layout, cards[i], p));
+      final trickCardRect = layout.trickCardAreaForPlayer(p);
+      bool intersects = transparentIfOverPlayerCards && anyRectsIntersect([trickCardRect], handRects);
+      double opacity = intersects ? 0.7 : 1.0;
+      cardWidgets.add(_trickCardForPlayer(layout, cards[i], p, opacity: opacity, ignorePointer: intersects));
     }
     return cardWidgets;
   }
@@ -648,13 +700,15 @@ class TrickCards extends StatelessWidget {
     final animPlayer = (leader + cards.length - 1) % numPlayers;
     final endRect = layout.trickCardAreaForPlayer(animPlayer);
     var startRect = layout.cardOriginAreaForPlayer(animPlayer);
-    List<DisplayedHand> matchingDisplayedHands = displayedHands != null ? displayedHands!.where((d) => d.playerIndex == animPlayer).toList() : [];
+    List<DisplayedHand> matchingDisplayedHands = displayedHands.where((d) => d.playerIndex == animPlayer).toList();
     bool startsFromVisibleHand = false;
     int? playerDisplayIndex;
     if (matchingDisplayedHands.isNotEmpty) {
       final dh = matchingDisplayedHands[0];
       // We want to know where the card was drawn in the player's hand. It's not
       // there now, so we have to compute the card rects as if it were.
+      // FIXME: This should take into account all displayed hands because they
+      // might need to be scaled down to avoid intersections.
       final previousHandCards = [...dh.cards, cards.last];
       startRect =
           playerHandCardRects(layout, previousHandCards, suitOrder!, playerIndex: animPlayer, displayStyle: dh.displayStyle, leaveAvatarSpace: dh.leaveAvatarSpace)[cards.last]!;
@@ -684,6 +738,7 @@ class TrickCards extends StatelessWidget {
               isTrump: cards.last.suit == trumpSuit,
               backgroundColor: cardBackgroundColors?[cards.last],
               rotation: rotation,
+              onCardClicked: onCardClicked,
           );
         }));
 
@@ -908,6 +963,15 @@ class PlayerHandParams {
     this.displayStyle = HandDisplayStyle.normal,
     this.leaveAvatarSpace = true,
   });
+
+  DisplayedHand toDisplayedHand() {
+    return DisplayedHand(
+      cards: cards,
+      playerIndex: playerIndex,
+      displayStyle: displayStyle,
+      leaveAvatarSpace: leaveAvatarSpace,
+    );
+  }
 }
 
 class MultiplePlayerHandCards extends StatelessWidget {
@@ -926,16 +990,53 @@ class MultiplePlayerHandCards extends StatelessWidget {
     this.cardBackgroundColors,
   });
 
-  static bool anyRectsIntersect(List<Rect> rects1, List<Rect> rects2) {
-    for (final r1 in rects1) {
-      for (final r2 in rects2) {
-        if (!r1.intersect(r2).isEmpty) {
-          return true;
-        }
+  @override
+  Widget build(BuildContext context) {
+    final scaleMultiplier = computeScaleForNonintersectingPlayerHands(
+      layout: layout,
+      playerHands: playerHands.map((h) => h.toDisplayedHand()).toList(),
+      suitOrder: suitOrder,
+    );
+
+    return Stack(children: [
+      ...playerHands.map((ph) => PlayerHandCards(
+        key: ph.key,
+        layout: layout,
+        playerIndex: ph.playerIndex,
+        cards: ph.cards,
+        highlightedCards: ph.highlightedCards,
+        suitDisplayOrder: suitOrder,
+        animateFromCards: ph.animateFromCards,
+        trumpSuit: trumpSuit,
+        cardBackgroundColors: cardBackgroundColors,
+        onCardClicked: ph.onCardClicked,
+        displayStyle: ph.displayStyle,
+        scaleMultiplier: scaleMultiplier,
+        leaveAvatarSpace: ph.leaveAvatarSpace,
+      ))
+    ]);
+  }
+}
+
+bool anyRectsIntersect(List<Rect> rects1, List<Rect> rects2) {
+  for (final r1 in rects1) {
+    for (final r2 in rects2) {
+      if (!r1.intersect(r2).isEmpty) {
+        return true;
       }
     }
-    return false;
   }
+  return false;
+}
+
+// Returns the factor by which all cards in `playerHands` should be scaled so
+// that no two cards from different players will intersect. The return value
+// will be 1 if no scaling is needed; otherwise it will be between 0 and 1.
+double computeScaleForNonintersectingPlayerHands({
+  required Layout layout,
+  required List<DisplayedHand> playerHands,
+  required List<Suit> suitOrder,
+}) {
 
   bool hasCardIntersectionAtScaleMultiplier(double scaleMultiplier) {
     if (playerHands.length <= 1) {
@@ -978,54 +1079,29 @@ class MultiplePlayerHandCards extends StatelessWidget {
     return false;
   }
 
-  double computeBestScaleMultiplier() {
-    // Get all the card rects and see if any rect for player A intersects
-    // a rect for player B. If so, adjust scaleMultiplier until there are
-    // no more intersections.
-    if (!hasCardIntersectionAtScaleMultiplier(1)) {
-      return 1;
-    }
-    double min = 0;
-    double max = 1;
-    double current = 0.5;
-    double best = 0;
-    const nIters = 8;
-    for (int i = 0; i < nIters; i++) {
-      current = (min + max) / 2.0;
-      if (hasCardIntersectionAtScaleMultiplier(current)) {
-        // Too big, need to reduce scale.
-        max = current;
-      }
-      else {
-        best = current;
-        min = current;
-      }
-    }
-    return best;
+  // Get all the card rects and see if any rect for player A intersects
+  // a rect for player B. If so, adjust scaleMultiplier until there are
+  // no more intersections.
+  if (!hasCardIntersectionAtScaleMultiplier(1)) {
+    return 1;
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final scaleMultiplier = computeBestScaleMultiplier();
-
-    return Stack(children: [
-      ...playerHands.map((ph) => PlayerHandCards(
-        key: ph.key,
-        layout: layout,
-        playerIndex: ph.playerIndex,
-        cards: ph.cards,
-        highlightedCards: ph.highlightedCards,
-        suitDisplayOrder: suitOrder,
-        animateFromCards: ph.animateFromCards,
-        trumpSuit: trumpSuit,
-        cardBackgroundColors: cardBackgroundColors,
-        onCardClicked: ph.onCardClicked,
-        displayStyle: ph.displayStyle,
-        scaleMultiplier: scaleMultiplier,
-        leaveAvatarSpace: ph.leaveAvatarSpace,
-      ))
-    ]);
+  double min = 0;
+  double max = 1;
+  double current = 0.5;
+  double best = 0;
+  const nIters = 8;
+  for (int i = 0; i < nIters; i++) {
+    current = (min + max) / 2.0;
+    if (hasCardIntersectionAtScaleMultiplier(current)) {
+      // Too big, need to reduce scale.
+      max = current;
+    }
+    else {
+      best = current;
+      min = current;
+    }
   }
+  return best;
 }
 
 LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
@@ -1296,7 +1372,6 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
   else {
     return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
   }
-  throw Exception();
 }
 
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
@@ -1308,6 +1383,51 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
     HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace),
   };
+}
+
+enum IconButtonLocation {topLeft, bottomRight}
+
+Widget menuIconButton({
+  void Function()? onPressed,
+  required Layout layout,
+  IconButtonLocation location = .topLeft,
+}) {
+  final padding = switch (location) {
+    .topLeft => const EdgeInsets.only(top: 10, left: 10),
+    .bottomRight => EdgeInsets.only(
+      top: layout.displaySize.height - 80,
+      left: layout.displaySize.width - 80,
+    )
+  };
+  return Padding(
+    padding: padding,
+    child: FloatingActionButton(
+      onPressed: onPressed,
+      child: const Icon(Icons.menu),
+    )
+  );
+}
+
+Widget scoreToggleIconButton({
+  void Function()? onPressed,
+  required Layout layout,
+  required bool showingScore,
+  IconButtonLocation location = .topLeft,
+}) {
+  final padding = switch (location) {
+      .topLeft => const EdgeInsets.only(top: 80, left: 10),
+      .bottomRight => EdgeInsets.only(
+        top: layout.displaySize.height - 150,
+        left: layout.displaySize.width - 80,
+      ),
+  };
+  return Padding(
+    padding: padding,
+    child: FloatingActionButton(
+      onPressed: onPressed,
+      child: Icon(showingScore ? Icons.search_off : Icons.search),
+    ),
+  );
 }
 
 Layout computeLayout(BuildContext context) {
