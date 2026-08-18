@@ -806,14 +806,17 @@ class _MyHomePageState extends State<MyHomePage> {
         ))));
   }
 
-  Widget _menuIcon() {
-    return Padding(
-      padding: const EdgeInsets.all(10),
-      child: Opacity(opacity: 0.6, child: FloatingActionButton(
-        onPressed: _showMainMenu,
-        child: const Icon(Icons.menu),
-      )),
-    );
+  Widget _menuIcon(Layout layout) {
+    // Minor hack: for bridge rounds, move the menu icon to the bottom where
+    // it's less likely to interfere with the dummy.
+    final location = matchType == GameType.bridge
+        ? IconButtonLocation.bottomRight : IconButtonLocation.topLeft;
+    final opacity = matchType == GameType.bridge ? 0.8 : 1.0;
+    return Opacity(opacity: opacity, child: menuIconButton(
+      layout: layout,
+      onPressed: _showMainMenu,
+      location: location,
+    ));
   }
 
   // A Fluttter bug causes most animations to take nearly zero time if the
@@ -974,7 +977,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onClose: _showMainMenu,
               initialGameType: matchType,
           ),
-          if (dialogMode == DialogMode.none) _menuIcon(),
+          if (dialogMode == DialogMode.none) _menuIcon(layout),
 
           if (runningTimingTestAnimation) timingTestAnimation(),
           if (showingAnimationSpeedWarningDialog) animationSpeedWarningDialog(layout.displaySize),

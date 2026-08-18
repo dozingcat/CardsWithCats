@@ -108,7 +108,11 @@ only when they make their exact bid.
 Bridge is a game played by two teams of partners. Your partner is at the top of the screen and the
 opponents are on the sides. A round begins with an "auction", where players bid to set the trump
 suit (or to have no trump suit, "NT") and to say how many tricks they will win with that
-trump. See [here](https://www.acbl.org/learn/) for more detailed rules.
+trump. During play, the partner of the player who first bid the trump suit is the "declarer" and
+their partner is the "dummy". The dummy's cards are turned face up for all players to see, and the
+declarer chooses the cards to play.
+
+See [here](https://www.acbl.org/learn/) for more detailed rules.
 
 ### Bidding
 The bidding system that the AI players use is mostly [Standard American Yellow Card](https://www.bridgebum.com/sayc.php) (SAYC),
@@ -117,7 +121,7 @@ including:
 - Negative doubles
 - Weak opening two-bids, strong 2♣
 - Weak jump overcalls
-- 1NT opening with 15-17 points, Stayman and Jacoby transfers
+- 1NT opening with 15-17 points, Stayman, and Jacoby transfers
 - Blackwood and Gerber
 
 You can see the meaning of a bid that a player (including yourself) has made by tapping it in the
@@ -125,7 +129,7 @@ bid table. If you make a bid that's not interpreted how you expected, you can us
 button to rewind the auction to your most recent action.
 
 The AI players do not currently use any conventions for playing cards (e.g. playing high then low to
-indicate an even number of cards).
+indicate an even number of cards in the suit).
 
 ### Scoring
 Matches are scored as "duplicate teams". Each hand you play is also played separately by AI. The
@@ -136,8 +140,16 @@ For example, suppose you bid and make a contract of 2♠, while in the duplicate
 your position also bids 2♠ but fails to make it by one trick. Your score is +110, and your AI
 counterpart's score is -50. The difference is 160 points in your favor, which translates to +4 IMPs.
 
+After each round ends, you can review the bidding and play for both your hand and the duplicate
+hand. The "double dummy" result for your hand is also shown; this is what the result would be if all
+players played perfectly and with full knowledge of where all the cards are.
+
 The length of a match is set in the preferences and can be 1, 4, or 8 hands. The winner of the match
 is determined by the IMPs accumulated over all hands.
+
+### Preferences
+In the Preferences screen, you can set the length of a match and control whether the dummy is always
+at the top of the screen (your position will be rotated as needed).
 
 ## License
 

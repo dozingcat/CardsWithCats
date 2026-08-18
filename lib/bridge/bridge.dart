@@ -558,6 +558,7 @@ class BridgeRound extends BaseTrickRound {
 
   BridgePlayer currentPlayer() => players[currentPlayerIndex()];
 
+  @override
   List<PlayingCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick);
   }

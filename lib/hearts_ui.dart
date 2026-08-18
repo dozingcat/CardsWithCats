@@ -316,9 +316,9 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     Map<PlayingCard, Color> backgrounds = {};
     if (widget.tintPointCards) {
       for (final r in Rank.values) {
-        backgrounds[PlayingCard(r, Suit.hearts)] = Colors.redAccent.shade100;
+        backgrounds[PlayingCard(r, Suit.hearts)] = Colors.red.shade200;
       }
-      backgrounds[queenOfSpades] = Colors.red;
+      backgrounds[queenOfSpades] = Colors.redAccent.shade200;
       if (round.rules.jdMinus10) {
         backgrounds[jackOfDiamonds] = Colors.amber;
       }
@@ -327,7 +327,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       if (round.players[0].hand.length == 13) {
         final receivedCards = round.players[0].receivedCards;
         for (final c in receivedCards) {
-          backgrounds[c] = Colors.lightBlue;
+          backgrounds[c] = Colors.lightBlue.shade200;
         }
       }
     }
@@ -488,20 +488,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     widget.mainMenuFn();
   }
 
-  Widget scoreOverlayButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 80, 10, 10),
-      child: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            showScoreOverlay = !showScoreOverlay;
-          });
-        },
-        child: Icon(showScoreOverlay ? Icons.search_off : Icons.search),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final layout = computeLayout(context);
@@ -531,7 +517,15 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
-        if (shouldShowScoreOverlayToggle()) scoreOverlayButton(),
+        if (shouldShowScoreOverlayToggle()) scoreToggleIconButton(
+          layout: layout,
+          onPressed: () {
+            setState(() {
+              showScoreOverlay = !showScoreOverlay;
+            });
+          },
+          showingScore: showScoreOverlay,
+        ),
         // Text("${match.scores} ${round.status} ${_shouldShowPassDialog()}"),
       ],
     );
