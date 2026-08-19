@@ -1196,6 +1196,24 @@ void main() {
           "3NT"); // 13 with a spade stopper
     });
 
+    test("opener rebids over partner's response to a takeout double", () {
+      // Playtest hand: 1H was forcing but opener passed via the fallback.
+      expect(
+          openingBid("QT75", "AQ", "AJ96", "T75",
+              history: ["1D", "X", "1H", "pass"]),
+          "1NT");
+      // Responder then drives to game with 15 opposite 12-14.
+      expect(
+          openingBid("A", "AT863", "K542", "K63",
+              history: ["1D", "X", "1H", "pass", "1NT", "pass"]),
+          "3NT");
+      // With four hearts, opener raises as without the double.
+      expect(
+          openingBid("QT7", "K975", "AJ96", "T7",
+              history: ["1D", "X", "1H", "pass"]),
+          "2H");
+    });
+
     test("over RHO's takeout double", () {
       expect(openingBid("KQ32", "2", "KJ32", "Q432", history: ["1H", "X"]),
           "Redouble");

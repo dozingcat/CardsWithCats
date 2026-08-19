@@ -6126,6 +6126,13 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
   if (n == first + 4 && calls[first + 3].bidType == BidType.pass) {
     final overcall = calls[first + 1];
     final partnerCall = calls[first + 2];
+    if (overcall.bidType == BidType.double &&
+        partnerCall.bidType == BidType.contract) {
+      // Partner responded naturally over the takeout double (systems on),
+      // so rebid as if there were no interference; a new-suit response is
+      // still forcing and must not be passed.
+      return openerRebidRules(opening, partnerCall);
+    }
     if (isSuitBid(overcall) && partnerCall.bidType == BidType.double) {
       if (isOneLevelSuitOpening(opening)) {
         return negativeDoubleRebidRules(
