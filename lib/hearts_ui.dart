@@ -282,6 +282,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       isClaimingRemainingTricks = false;
     });
     widget.saveMatchFn(match);
+    _updateStatsIfMatchOrRoundOver();
     _updateMoodsAfterTrick();
     _playSoundsForMoods();
   }
