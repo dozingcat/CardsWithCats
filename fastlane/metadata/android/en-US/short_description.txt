@@ -1,1 +1,2 @@
-Play Hearts and Spades against computer-controlled cats.
+Play Hearts, Spades, and duplicate bridge with cat opponents and partners
+

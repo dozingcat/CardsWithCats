@@ -1,6 +1,6 @@
 # Cards With Cats
 
-Play Hearts, Spades, or Oh Hell with computer-controlled opponents.
+Play Hearts, Spades, Oh Hell, and duplicate bridge with computer-controlled opponents.
 
 Built with [Flutter](https://flutter.dev), and runs on Android, iOS, macOS, Linux, and probably Windows.
 

@@ -1,0 +1,2 @@
+- Added Bridge game: play 1, 4, or 8 duplicate hands with IMP scoring.
+- Added option to tint hearts point cards.
