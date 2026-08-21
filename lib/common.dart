@@ -2,6 +2,7 @@ enum GameType {
   hearts,
   spades,
   ohHell,
+  scum,
   bridge,
   ;
 

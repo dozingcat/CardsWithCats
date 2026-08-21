@@ -21,14 +21,16 @@ import 'common.dart';
 import 'hearts/hearts.dart';
 import 'ohhell/ohhell.dart';
 import 'ohhell_ui.dart';
+import 'scum/scum.dart';
 import 'spades/spades.dart';
 
 import 'common_ui.dart';
 import 'hearts_ui.dart';
+import 'scum_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "1.3.0";
+const appVersion = "1.3.1";
 const appLegalese = "© 2022-2025 Brian Nenninger";
 
 const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
@@ -93,6 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   late OhHellRuleSet ohHellRulesFromPrefs;
+  late ScumRuleSet scumRulesFromPrefs;
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
   final soundPlayer = SoundEffectPlayer();
@@ -121,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
       heartsRulesFromPrefs = _readHeartsRulesFromPrefs();
       spadesRulesFromPrefs = _readSpadesRulesFromPrefs();
       ohHellRulesFromPrefs = _readOhHellRulesFromPrefs();
+      scumRulesFromPrefs = ScumRuleSet();
 
       String? savedMatchType = preferences.getString("matchType") ?? "";
       matchType = GameType.fromString(savedMatchType);
@@ -249,10 +253,30 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("spadesMatch");
     preferences.remove("ohHellMatch");
     preferences.remove("bridgeMatch");
+    preferences.remove("scumMatch");
 
     preferences.remove("matchType");
     matchType = null;
     dialogMode = DialogMode.mainMenu;
+  }
+
+  void _saveScumMatch(final ScumMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "scum");
+      preferences.setString("scumMatch", jsonEncode(match.toJson()));
+    } else {
+      _clearMatch();
+    }
+  }
+
+  ScumMatch _initialScumMatch() {
+    if (preferences.getString("matchType") == "scum") {
+      String? json = preferences.getString("scumMatch");
+      if (json != null) {
+        return ScumMatch.fromJson(jsonDecode(json), rng);
+      }
+    }
+    return _createScumMatch();
   }
 
   void _saveHeartsMatch(final HeartsMatch? match) {
@@ -351,6 +375,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return BridgeMatch(Random());
   }
 
+  ScumMatch _createScumMatch() {
+    catIndices = randomizedCatImageIndices(rng);
+    return ScumMatch(scumRulesFromPrefs, Random());
+  }
+
   void _continueGame() {
     setState(() {
       dialogMode = DialogMode.none;
@@ -362,6 +391,7 @@ class _MyHomePageState extends State<MyHomePage> {
       GameType.hearts => preferences.getString("heartsMatch") != null,
       GameType.spades => preferences.getString("spadesMatch") != null,
       GameType.ohHell => preferences.getString("ohHellMatch") != null,
+      GameType.scum => preferences.getString("scumMatch") != null,
       GameType.bridge => preferences.getString("bridgeMatch") != null,
       null => false,
     };
@@ -408,6 +438,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.bridge;
+    });
+  }
+
+  void startNewScumMatch() {
+    preferences.remove("scumMatch");
+    final newMatch = _createScumMatch();
+    _saveScumMatch(newMatch);
+    matchUpdateNotifier.sink.add(newMatch);
+    setState(() {
+      dialogMode = DialogMode.none;
+      matchType = GameType.scum;
     });
   }
 
@@ -469,6 +510,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void handleNewScumMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewScumMatch);
+    } else {
+      startNewScumMatch();
+    }
+  }
+
   void handleNewMatchClicked() {
     setState(() {dialogMode = DialogMode.startMatch;});
   }
@@ -486,6 +535,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case GameType.bridge:
         handleNewBridgeMatchClicked();
+        break;
+      case GameType.scum:
+        handleNewScumMatchClicked();
         break;
     }
   }
@@ -901,6 +953,17 @@ class _MyHomePageState extends State<MyHomePage> {
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+            ),
+          if (matchType == GameType.scum)
+            ScumMatchDisplay(
+              initialMatchFn: _initialScumMatch,
+              createMatchFn: _createScumMatch,
+              saveMatchFn: _saveScumMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              soundPlayer: soundPlayer,
             ),
           if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
           if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),
