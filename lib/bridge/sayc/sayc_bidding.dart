@@ -2531,6 +2531,10 @@ List<SaycRule> _responderRebidAfterSuitRules(
   // Our response was 2NT: Jacoby over a major, natural over a minor.
   if (response == BidAction.noTrump(2)) {
     if (oMajor) {
+      if (rebid == ContractBid.noTrump(4)) {
+        // Opener went straight to Blackwood over the Jacoby raise.
+        return blackwoodAnswerRules();
+      }
       if (rebid == ContractBid(4, oSuit)) {
         return [
           SaycRule(
@@ -6172,20 +6176,60 @@ class SaycBid {
 /// Choose a call for `hand` given the auction so far (dealer's call first).
 /// Positions outside the rule tables are handled by the constraint-based
 /// fallback bidder (descriptions prefixed with "Fallback:").
+/// Whether `call` is legal given the auction so far: a contract bid must
+/// outrank the last one, a double needs an undoubled opposing contract, and
+/// a redouble needs our own doubled contract.
+bool isLegalCall(BidAction call, List<BidAction> history) {
+  int? lastBidIndex;
+  for (int i = history.length - 1; i >= 0; i--) {
+    if (history[i].bidType == BidType.contract) {
+      lastBidIndex = i;
+      break;
+    }
+  }
+  if (call.bidType == BidType.pass) return true;
+  final n = history.length;
+  if (call.bidType == BidType.contract) {
+    if (lastBidIndex == null) return true;
+    return call.contractBid!.isHigherThan(history[lastBidIndex].contractBid!);
+  }
+  if (lastBidIndex == null) return false;
+  final since = history.sublist(lastBidIndex + 1);
+  final doubled = since.any((c) => c.bidType == BidType.double);
+  final redoubled = since.any((c) => c.bidType == BidType.redouble);
+  final bidByOpponents = (n - lastBidIndex) % 2 == 1;
+  if (call.bidType == BidType.double) {
+    return bidByOpponents && !doubled && !redoubled;
+  }
+  return !bidByOpponents && doubled && !redoubled; // redouble
+}
+
+SaycBid _legalized(SaycBid bid, List<BidAction> history) =>
+    isLegalCall(bid.action, history)
+        ? bid
+        : SaycBid(BidAction.pass(), BidMeaning(description: "Nothing legal to bid"));
+
 SaycBid selectSaycBid(List<PlayingCard> hand, List<BidAction> history,
     {Vulnerability vulnerability = Vulnerability.neither}) {
   final rules = saycRulesForAuction(history);
-  if (rules == null) return fallbackBid(hand, history);
+  if (rules == null) return _legalized(fallbackBid(hand, history), history);
   final analysis = HandAnalysis(hand);
   for (final rule in rules) {
+    // Rules are written for the auctions the engine expects; a human partner
+    // or opponent can create positions where a rule's action is no longer
+    // legal (e.g. a "return to game" bid below the current contract). Skip
+    // such rules so a later one (usually pass) can apply.
+    if (!isLegalCall(rule.action, history)) continue;
     if (rule.matches(analysis)) return SaycBid(rule.action, rule.meaning);
   }
   // A rule set exists for this auction but none of its rules fit the hand
   // (a coverage hole, e.g. a hand too strong for every listed response).
   // Let the heuristic fallback bidder act rather than passing blindly.
   final fb = fallbackBid(hand, history);
-  return SaycBid(
-      fb.action, BidMeaning(description: "No rule matched; ${fb.meaning.description}"));
+  return _legalized(
+      SaycBid(fb.action,
+          BidMeaning(description: "No rule matched; ${fb.meaning.description}")),
+      history);
 }
 
 /// What `call` would show in this auction, independent of any hand. Returns

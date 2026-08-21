@@ -44,31 +44,6 @@ List<List<PlayingCard>> dealHands(int seed, int index) {
 
 int _gameLevel(Suit? trump) => trump == null ? 3 : (isMajorSuit(trump) ? 4 : 5);
 
-bool isLegalCall(BidAction call, List<BidAction> history) {
-  int? lastBidIndex;
-  for (int i = history.length - 1; i >= 0; i--) {
-    if (history[i].bidType == BidType.contract) {
-      lastBidIndex = i;
-      break;
-    }
-  }
-  if (call.bidType == BidType.pass) return true;
-  final n = history.length;
-  if (call.bidType == BidType.contract) {
-    if (lastBidIndex == null) return true;
-    return call.contractBid!.isHigherThan(history[lastBidIndex].contractBid!);
-  }
-  if (lastBidIndex == null) return false;
-  final since = history.sublist(lastBidIndex + 1);
-  final doubled = since.any((c) => c.bidType == BidType.double);
-  final redoubled = since.any((c) => c.bidType == BidType.redouble);
-  final bidByOpponents = (n - lastBidIndex) % 2 == 1;
-  if (call.bidType == BidType.double) {
-    return bidByOpponents && !doubled && !redoubled;
-  }
-  return !bidByOpponents && doubled && !redoubled; // redouble
-}
-
 class SelfPlayFinding {
   final String category;
   final String message;

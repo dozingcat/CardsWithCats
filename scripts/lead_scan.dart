@@ -12,7 +12,6 @@ import 'package:cards_with_cats/bridge/bridge.dart';
 import 'package:cards_with_cats/bridge/bridge_ai.dart';
 import 'package:cards_with_cats/bridge/heuristic_play.dart';
 import 'package:cards_with_cats/bridge/sayc/sayc_bidding.dart';
-import 'package:cards_with_cats/bridge/sayc/selfplay.dart' show isLegalCall;
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/rollout.dart';
 

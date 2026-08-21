@@ -962,6 +962,27 @@ void main() {
       expect(openingBid("AKJ32", "432", "K32", "K2", history: ask), "5D");
     });
 
+    test("responder answers Blackwood directly over the Jacoby raise", () {
+      // Opener skipped the shape-showing rebid and asked immediately; this
+      // used to fall into "returning to game" and bid an illegal 4H.
+      final ask = ["1H", "pass", "2NT", "pass", "4NT", "pass"];
+      expect(openingBid("AK43", "AK32", "T54", "32", history: ask), "5H");
+      expect(openingBid("A543", "KQ32", "K54", "K2", history: ask), "5D");
+      expect(
+          openingBid("AK43", "AK32", "T54", "32",
+              history: [...ask, "5H", "pass", "6H", "pass"]),
+          "Pass");
+    });
+
+    test("rules whose action is no longer legal are skipped", () {
+      // A human opener's 5D leaves no legal 4H or 4NT; the engine must not
+      // choose an illegal call.
+      expect(
+          openingBid("AK43", "AK32", "T54", "32",
+              history: ["1H", "pass", "2NT", "pass", "5D", "pass"]),
+          "Pass");
+    });
+
     test("Blackwood placement", () {
       expect(
           openingBid("K432", "A432", "AK2", "K2", history: [
