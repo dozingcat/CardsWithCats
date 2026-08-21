@@ -203,6 +203,10 @@ class ScumRound {
   late ScumRuleSet rules;
   late List<ScumPlayer> players;
 
+  /// True for the opening round of a match, where everyone is a citizen,
+  /// seats are random, and no cards are exchanged.
+  late bool firstRound;
+
   /// Seat order by role for this round: index 0 is the President seat, etc.
   /// Null entries mean the seats were assigned randomly (first round), but
   /// the list itself is always length numPlayers.
@@ -237,6 +241,7 @@ class ScumRound {
     round.rules = rules.copy();
     round.players = players;
     round.seatOrder = seats;
+    round.firstRound = previousSeatOrder == null;
     round.initialScores = List.from(scores);
     round.tradeSelections = List.generate(rules.numPlayers, (_) => []);
     if (previousSeatOrder == null && rules.numPlayers >= 2) {
@@ -267,6 +272,7 @@ class ScumRound {
     final copy = ScumRound();
     copy.rules = rules.copy();
     copy.status = status;
+    copy.firstRound = firstRound;
     copy.players = ScumPlayer.copyAll(players);
     copy.seatOrder = List.of(seatOrder);
     copy.tradeSelections = [for (final t in tradeSelections) List.of(t)];
@@ -278,6 +284,7 @@ class ScumRound {
 
   Map<String, dynamic> toJson() => {
         "status": status.name,
+        "firstRound": firstRound,
         "rules": rules.toJson(),
         "players": [for (final p in players) p.toJson()],
         "seatOrder": seatOrder,
@@ -293,6 +300,7 @@ class ScumRound {
     final round = ScumRound();
     round.rules = ScumRuleSet.fromJson(json["rules"] as Map<String, dynamic>);
     round.status = ScumRoundStatus.values.byName(json["status"] as String);
+    round.firstRound = json["firstRound"] as bool? ?? false;
     round.players = (json["players"] as List)
         .map((p) => ScumPlayer.fromJson(p as Map<String, dynamic>))
         .toList();
@@ -307,6 +315,11 @@ class ScumRound {
   }
 
   ScumRole roleForPlayer(int playerIndex) => ScumRole.values[seatOrder.indexOf(playerIndex)];
+
+  /// Display name for a player this round: everyone is a "Citizen" in the
+  /// opening round; afterwards the role names apply.
+  String displayNameForPlayer(int playerIndex) =>
+      firstRound ? "Citizen" : scumRoleNames[roleForPlayer(playerIndex)]!;
 
   int seatIndexOfRole(ScumRole role) => seatOrder[role.index];
 

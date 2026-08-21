@@ -33,8 +33,30 @@ void main() {
     expect(Set.of(allCards).length, 52);
   });
 
-  test("First round starts playing immediately with random President leading",
-      () {
+  test("First round: everyone is a Citizen and no trading occurs", () {
+    final round = roundInPlay();
+    expect(round.firstRound, isTrue);
+    expect(round.status, ScumRoundStatus.playing);
+    for (int i = 0; i < 4; i++) {
+      expect(round.displayNameForPlayer(i), "Citizen");
+      expect(round.numCardsToSelectForTrade(i), 0);
+    }
+    expect(round.readyToExchange(), isFalse);
+  });
+
+  test("Later rounds assign rank names by finish order", () {
+    final match = ScumMatch(ScumRuleSet(), Random(21));
+    forceFinishRound(match, [2, 0, 3, 1]);
+    match.finishRound();
+    final round = match.currentRound;
+    expect(round.firstRound, isFalse);
+    expect(round.displayNameForPlayer(2), "President");
+    expect(round.displayNameForPlayer(0), "Vice President");
+    expect(round.displayNameForPlayer(3), "Vice Scum");
+    expect(round.displayNameForPlayer(1), "Scum");
+  });
+
+  test("First round starts playing immediately with a random leader", () {
     final round = roundInPlay();
     expect(round.status, ScumRoundStatus.playing);
     expect(round.currentPlayerIndex(), round.seatOrder[0]);

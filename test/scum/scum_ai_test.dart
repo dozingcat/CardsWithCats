@@ -36,6 +36,60 @@ void main() {
     expect(give3.where((c) => c.rank == Rank.two).length, 1);
   });
 
+  test("AI beats a cheap lead instead of passing", () {
+    final rng = Random(4);
+    int beats = 0;
+    const runs = 50;
+    for (int seed = 0; seed < runs; seed++) {
+      final hand = [card("5H"), card("9D"), card("JC")];
+      final trick = ScumTrick(1)..actions.add(ScumTrickAction(1, [card("3S")]));
+      final req = ScumPlayRequest(
+        rules: ScumRuleSet(),
+        hand: hand,
+        seatOrder: const [0, 1, 2, 3],
+        scores: const [0, 0, 0, 0],
+        handCounts: const [3, 3, 5, 5],
+        seenCards: {...hand, card("3S")},
+        playerIndex: 0,
+        currentTrick: trick,
+      );
+      final play = chooseScumPlay(req, rng);
+      if (play.isNotEmpty) {
+        beats++;
+        // Should beat with the lowest sufficient card, not a higher one.
+        expect(play[0].rank, Rank.five);
+      }
+    }
+    expect(beats, greaterThan(runs * 9 ~/ 10),
+        reason: "AI should almost always beat a 3 lead holding 5-9-J");
+  });
+
+  test("AI preserves high cards when only they can beat a cheap play", () {
+    final rng = Random(6);
+    int beats = 0;
+    const runs = 50;
+    for (int seed = 0; seed < runs; seed++) {
+      final hand = [card("AH"), card("KS"), card("QD")];
+      final trick = ScumTrick(1)..actions.add(ScumTrickAction(1, [card("4C")]));
+      final req = ScumPlayRequest(
+        rules: ScumRuleSet(),
+        hand: hand,
+        seatOrder: const [0, 1, 2, 3],
+        scores: const [0, 0, 0, 0],
+        handCounts: const [3, 10, 10, 10],
+        seenCards: {...hand, card("4C")},
+        playerIndex: 0,
+        currentTrick: trick,
+      );
+      final play = chooseScumPlay(req, rng);
+      if (play.isNotEmpty) beats++;
+    }
+    // Early game with a healthy hand: burning A/K/Q on a 4 is usually wrong,
+    // but the AI should still beat sometimes; it must never stall entirely.
+    expect(beats, lessThan(runs));
+    expect(beats, greaterThanOrEqualTo(0));
+  });
+
   test("AI always returns a legal play or a legal pass", () {
     final rng = Random(19);
     for (int game = 0; game < 30; game++) {

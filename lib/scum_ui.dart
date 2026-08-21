@@ -264,10 +264,6 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
         isValidPlay(round.players[0].hand, selectedCards, round.currentTrick);
   }
 
-  List<String> _roleLabels() {
-    return [for (int i = 0; i < round.numberOfPlayers; i++) scumRoleNames[round.roleForPlayer(i)]!];
-  }
-
   Widget _playerCards(final Layout layout) {
     const suitOrder = [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs];
     final humanHand = round.players[0].hand;
@@ -289,10 +285,9 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   }
 
   bool _shouldIgnoreCardClicks() {
-    return widget.dialogVisible ||
-        processingAi ||
-        _shouldShowEndOfRoundDialog() ||
-        _shouldShowTradeDialog();
+    // Card taps stay active during the trading phase so the president and
+    // vice president can select cards to give away.
+    return widget.dialogVisible || processingAi || _shouldShowEndOfRoundDialog();
   }
 
   /// The played cards of the current trick, fanned near each player's seat.
@@ -321,7 +316,6 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   }
 
   Widget _statusBadges(final Layout layout) {
-    final labels = _roleLabels();
     final widgets = <Widget>[];
     final ca = layout.cardArea();
     TextStyle badgeStyle(bool active, bool isScum) => TextStyle(
@@ -334,28 +328,32 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     Color backdrop(bool active) =>
         active ? Colors.black.withValues(alpha: 0.75) : Colors.black38;
 
-    Offset positionFor(int player) {
+    Offset positionFor(int player, double badgeWidth) {
       switch (player) {
         case 1:
           return Offset(8, layout.displaySize.height / 2 - layout.playerHeight * 1.35);
         case 2:
-          return Offset(layout.displaySize.width / 2 - 50, ca.top + 4);
+          return Offset(layout.displaySize.width / 2 - badgeWidth / 2, ca.top + 4);
         case 3:
-          return Offset(layout.displaySize.width - 110, layout.displaySize.height / 2 - layout.playerHeight * 1.35);
+          return Offset(layout.displaySize.width - badgeWidth - 8,
+              layout.displaySize.height / 2 - layout.playerHeight * 1.35);
         default:
-          return Offset(layout.displaySize.width / 2 - 50,
+          return Offset(layout.displaySize.width / 2 - badgeWidth / 2,
               layout.displaySize.height - layout.playerHeight - 30);
       }
     }
 
     for (int player = 0; player < round.numberOfPlayers; player++) {
       final role = round.roleForPlayer(player);
+      final label = round.displayNameForPlayer(player);
       final isActive = round.status == ScumRoundStatus.playing &&
           !round.isOver() &&
           round.currentPlayerIndex() == player;
+      final badgeWidth = label.length * 8.5 + 20.0;
+      final pos = positionFor(player, badgeWidth);
       widgets.add(Positioned(
-        left: positionFor(player).dx,
-        top: positionFor(player).dy,
+        left: pos.dx,
+        top: pos.dy,
         child: Container(
           decoration: BoxDecoration(
             color: backdrop(isActive),
@@ -363,7 +361,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           child: Text(
-            "${player == 0 ? "You" : "Cat"}\u00B7${labels[player]}",
+            label,
             style: badgeStyle(isActive, role == ScumRole.scum),
           ),
         ),
@@ -435,18 +433,32 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
           ),
         ),
       if (isHumanTurn && !processingAi)
-        Positioned(
-          left: layout.displaySize.width / 2 - 130,
-          bottom: layout.playerHeight + 8,
-          child: Row(children: [
-            ElevatedButton(
-              onPressed: canPlaySelectedCards() ? _playSelectedCards : null,
-              child: Text(canPass ? "Play set" : "Play"),
+        Positioned.fill(
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  onPressed: canPlaySelectedCards() ? _playSelectedCards : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(canPass ? "Play set" : "Play"),
+                ),
+                const SizedBox(width: 16),
+                if (canPass)
+                  ElevatedButton(
+                    onPressed: _passTurn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade700,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Pass"),
+                  ),
+              ],
             ),
-            const SizedBox(width: 12),
-            if (canPass)
-              ElevatedButton(onPressed: _passTurn, child: const Text("Pass")),
-          ]),
+          ),
         ),
       if (_shouldShowEndOfRoundDialog())
         EndOfRoundDialog(
@@ -550,7 +562,7 @@ class EndOfRoundDialog extends StatelessWidget {
                           ]),
                           row("This round", [
                             for (int p = 0; p < round.numberOfPlayers; p++)
-                              scumRoleNames[round.roleForPlayer(p)]!
+                              round.displayNameForPlayer(p)
                           ]),
                           row("Round points", [
                             for (int p = 0; p < round.numberOfPlayers; p++) roundPoints[p]

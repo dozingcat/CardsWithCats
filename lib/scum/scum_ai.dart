@@ -243,9 +243,11 @@ List<PlayingCard> _chooseFollow(ScumPlayRequest req, Random rng) {
   final actingLast = activeAfterMe.isEmpty;
   final passesNeeded = activeAfterMe.length;
 
-  double passScore = 0;
-  // Passing is fine when the play is expensive to beat and we keep flexibility.
-  // It gets worse when the winner is escaping or sitting better than us.
+  double passScore = -1.0; // Slight bias toward taking action over passing.
+
+  // Passing is fine when the play is expensive to beat and we keep
+  // flexibility. It gets worse when the winner is escaping, sits better than
+  // us, or a cheap beat is available.
   if (winnerAboutToGoOut) passScore -= 6;
   if (winnerSitsBetter) passScore -= 2;
   // If we hold the only possible beats, letting a cheap play stand invites
@@ -255,24 +257,44 @@ List<PlayingCard> _chooseFollow(ScumPlayRequest req, Random rng) {
       options[0][0].rank.numericValue <= 9) {
     passScore -= 3;
   }
+  // A cheap beat is available: passing concedes the lead for nothing.
+  final cheapestBeat = options[0][0].rank;
+  if (cheapestBeat.numericValue <= winningRank.numericValue + 3) {
+    passScore -= 2.5;
+  }
+
+  // Beating lets us lead the next trick and shed our low cards.
+  final lowCardsInHand =
+      req.hand.where((c) => c.rank.numericValue <= 9).length;
+  final controlBonus = min(2.5, lowCardsInHand * 0.35);
 
   double bestScore = passScore + rng.nextDouble() * 0.5;
   List<PlayingCard>? choice;
 
   for (final option in options) {
     final rank = option[0].rank;
-    double score = -rank.numericValue * 0.55; // Cost of committing high cards.
+    double score = -rank.numericValue * 0.35; // Cost of committing high cards.
 
     // Beating cheaply keeps us flexible and often steals the lead for free.
-    if (rank.numericValue <= winningRank.numericValue + 2) score += 3;
+    if (rank.numericValue <= winningRank.numericValue + 2) score += 4;
 
-    // Nobody can beat us afterwards: strong lead position for next trick.
-    if (actingLast || canAnyUnseenSetBeat(req, rank, size) == false) {
-      if (!canAnyUnseenSetBeat(req, rank, size)) {
-        score += 7;
-      } else if (actingLast) {
-        score += 2;
-      }
+    // Mid-rank cards are fine to spend on winning a trick.
+    if (rank.numericValue <= 10) score += 1.5;
+
+    // Winning the lead is worth more when we still have trash to unload.
+    score += controlBonus;
+
+    // Nobody can beat us afterwards: strong lead position for next trick, but
+    // only worth much if the rest of our hand can then be unloaded. Winning
+    // with our top card while leaving nothing but other high cards just burns
+    // control early.
+    final lowAfterPlay = req.hand
+        .where((c) => c.rank.numericValue <= 9 && !option.contains(c))
+        .length;
+    if (!canAnyUnseenSetBeat(req, rank, size)) {
+      score += 0.25 + min(5.5, lowAfterPlay * 0.75);
+    } else if (actingLast) {
+      score += 2;
     }
 
     // Breaking up our own bigger set of the same rank costs future power.
@@ -286,9 +308,9 @@ List<PlayingCard> _chooseFollow(ScumPlayRequest req, Random rng) {
     if (winnerAboutToGoOut && winnerIsRival) score += 5;
 
     // When several players still act after us, higher risk of being overtaken:
-    // discount risky mid-rank plays slightly.
+    // discount risky plays slightly, capped so it never dominates the decision.
     if (passesNeeded >= 2) {
-      score -= pressureFromAbove(req, rank, size) * 0.12;
+      score -= min(2.0, pressureFromAbove(req, rank, size) * 0.03);
     }
 
     score += rng.nextDouble() * 0.75;
