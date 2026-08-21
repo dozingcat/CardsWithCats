@@ -1372,11 +1372,13 @@ void main() {
           openingBid("AKQT982", "4", "6", "Q874",
               history: ["1C", "1S", "pass", "2H", "pass"]),
           "4S");
-      // Forcing 3-level advance: raise with a doubleton (deal 2338).
+      // Forcing 3-level advance with only a doubleton: no game raise
+      // without a real fit; with their suit stopped and a running suit,
+      // 3NT is the descriptive game try.
       expect(
           openingBid("JT", "62", "Q93", "AKJ632",
               history: ["2D", "3C", "pass", "3S", "pass"]),
-          "4S");
+          "3NT");
       // Forcing minor advance: 3NT with their suit stopped (deal 120).
       expect(
           openingBid("9854", "KJ2", "AJT82", "A",
@@ -1674,6 +1676,15 @@ void main() {
               history: ["1D", "pass", "1NT", "pass", "2H", "pass", "3D",
                   "pass"]),
           "Pass");
+    });
+
+    test("overcaller needs a real fit and maximum to raise the advance to game",
+        () {
+      // Manual-play hand: 13 total with a doubleton raised the unlimited
+      // 3D advance (10+, 5+ diamonds) straight to 5D.
+      final h = ["2H", "3C", "pass", "3D", "pass"];
+      expect(openingBid("K9", "J5", "84", "AKT8754", history: h), "4C");
+      expect(openingBid("K9", "J5", "QJ84", "AKT87", history: h), "5D");
     });
 
     test("reopening-double advance prefers opener's suit with support", () {

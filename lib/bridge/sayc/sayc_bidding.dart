@@ -4637,17 +4637,21 @@ List<SaycRule> overcallerNewSuitRebidRules(
         h.count(mySuit) >= 6 &&
         h.topHonorCount(mySuit) >= 2,
   );
+  // Even over a forcing advance, game needs a real fit and a maximum:
+  // the advance is unlimited (10+), so a strong advancer will move again
+  // over any cheaper descriptive rebid, and the forced catch-alls below
+  // guarantee the overcaller has one.
   final gameRaise = SaycRule(
     BidAction.contract(gameLevel, aSuit),
     BidMeaning(
       description: "Raising partner's $aName to game",
-      totalPoints: Range(low: forcing ? 13 : 14),
-      suitLengths: {aSuit: Range(low: forcing ? 2 : 3)},
+      totalPoints: Range(low: _isMajor(aSuit) ? 14 : 15),
+      suitLengths: {aSuit: Range(low: _isMajor(aSuit) ? 3 : 4)},
     ),
     ignoreInfo: true,
     require: (h) =>
-        h.totalPoints >= (forcing ? 13 : 14) &&
-        h.count(aSuit) >= (forcing ? 2 : 3),
+        h.totalPoints >= (_isMajor(aSuit) ? 14 : 15) &&
+        h.count(aSuit) >= (_isMajor(aSuit) ? 3 : 4),
   );
   final nt3 = SaycRule(
     BidAction.noTrump(3),
@@ -4670,7 +4674,11 @@ List<SaycRule> overcallerNewSuitRebidRules(
         BidAction.contract(advance.count + 1, aSuit),
         BidMeaning(
           description: "Raising partner's $aName",
-          totalPoints: const Range(low: 11, high: 13),
+          // Below a major game raise the range is 11-13; a minor raise
+          // also carries maximums that lack the 4th trump for 5m.
+          totalPoints: _isMajor(aSuit)
+              ? const Range(low: 11, high: 13)
+              : const Range(low: 11),
           suitLengths: {aSuit: const Range(low: 3)},
         ),
         ignoreInfo: true,
