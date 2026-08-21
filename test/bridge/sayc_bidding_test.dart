@@ -998,6 +998,27 @@ void main() {
           "5S"); // zero aces + one shown
     });
 
+    test("2C rebid with 28-30 balanced is 4NT, raised to slam with 5+", () {
+      expect(
+          openingBid("AKQ2", "AKQ", "AK2", "K32",
+              history: ["2C", "pass", "2D", "pass"]),
+          "4NT");
+      expect(
+          openingBid("5432", "T932", "Q54", "K2",
+              history: ["2C", "pass", "2D", "pass", "4NT", "pass"]),
+          "6NT");
+      expect(
+          openingBid("5432", "T932", "654", "32",
+              history: ["2C", "pass", "2D", "pass", "4NT", "pass"]),
+          "Pass");
+    });
+
+    test("opener bids game over the notrump preference with 19+", () {
+      final h = ["1C", "pass", "1D", "pass", "1S", "pass", "1NT", "pass"];
+      expect(openingBid("AJ32", "KQ4", "AQ54", "A2", history: h), "3NT"); // 20
+      expect(openingBid("AJ32", "K54", "AQ54", "A2", history: h), "2NT"); // 18
+    });
+
     test("Gerber answers and continuation", () {
       final ask = ["1NT", "pass", "4C", "pass"];
       expect(openingBid("K32", "A32", "AQ32", "KJ2", history: ask), "4S");

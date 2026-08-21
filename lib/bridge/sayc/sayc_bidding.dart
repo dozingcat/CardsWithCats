@@ -1519,13 +1519,22 @@ List<SaycRule>? twoClubRebidRules(BidAction response) {
           balanced: true),
     ),
     SaycRule(
+      BidAction.noTrump(4),
+      BidMeaning(
+          description: "28-30 HCP, balanced",
+          hcp: const Range(low: 28, high: 30),
+          balanced: true),
+      ignoreInfo: true,
+      require: (h) => h.isBalanced && h.hcp >= 28,
+    ),
+    SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
           description: "25-27 HCP, balanced",
           hcp: const Range(low: 25, high: 27),
           balanced: true),
       ignoreInfo: true,
-      require: (h) => h.isBalanced,
+      require: (h) => h.isBalanced && h.hcp <= 27,
     ),
   ];
   final responseBid = ContractBid(2, Suit.diamonds);
@@ -2181,7 +2190,9 @@ List<SaycRule>? _responderRebidAfter1ntRules(
             suitLengths: {major: const Range(low: 4)},
           ),
           ignoreInfo: true,
-          require: (h) => h.count(major) >= 4,
+          // The invitational raise above catches 8-9 in normal auctions,
+          // but an abnormal opener rebid can make it illegal.
+          require: (h) => h.count(major) >= 4 && h.hcp >= 10,
         ),
       ]);
     }
@@ -2216,6 +2227,9 @@ List<SaycRule>? _responderRebidAfter1ntRules(
             description: "To play, no major-suit fit",
             hcp: const Range(low: 10, high: 15)),
         ignoreInfo: true,
+        // The invitational rungs below 3NT catch 8-9 in normal auctions,
+        // but an abnormal opener rebid can make them illegal.
+        require: (h) => h.hcp >= 10,
       ),
     ]);
     return rules;
@@ -2289,6 +2303,9 @@ List<SaycRule>? _responderRebidAfter1ntRules(
           suitLengths: {major: const Range(low: 5, high: 5)},
         ),
         ignoreInfo: true,
+        // The invitational rungs above catch 8-9 in normal auctions, but
+        // interference can make them illegal.
+        require: (h) => h.hcp >= 10,
       ),
     ];
   }
@@ -2318,6 +2335,22 @@ List<SaycRule>? _responderRebidAfter2cRules(
         BidAction.pass(),
         BidMeaning(
             description: "Bust hand, no game", hcp: const Range(high: 2)),
+      ),
+    ];
+  }
+  if (rebid == BidAction.noTrump(4)) {
+    // 28-30 balanced.
+    return [
+      SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Raising to slam opposite 28-30",
+            hcp: const Range(low: 5)),
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "Nothing useful for slam", hcp: const Range(high: 4)),
       ),
     ];
   }
@@ -2686,7 +2719,9 @@ List<SaycRule> _responderRebidAfterSuitRules(
               suitLengths: {oSuit: const Range(low: 2)},
             ),
             ignoreInfo: true,
-            require: (h) => h.count(oSuit) >= 2,
+            // The stronger rungs above only exist below the four level, so
+            // cap this to what it advertises.
+            require: (h) => h.count(oSuit) >= 2 && h.totalPoints <= 6,
           ),
           // No fit and no tolerance: 3NT is the least bad forced call.
           if (cheapestLevel(null, rebid) <= 3)
@@ -3666,8 +3701,11 @@ List<SaycRule> _oneSuitOpenerThirdRules(
     return defaultRules;
   }
   if (responseBid.trump != null && rebidBid.trump == responseBid.trump) {
-    // We raised responder's suit.
-    final single = rebidBid.count == responseBid.count + 1;
+    // We raised responder's suit — or, when the "response" was a raise of
+    // our own opened suit, we re-raised, which shows 16-18 rather than a
+    // single raise's 13-15.
+    final single =
+        rebidBid.count == responseBid.count + 1 && responseBid.trump != oSuit;
     final threshold = single ? 14 : 17;
     final shown =
         single ? const Range(low: 13, high: 15) : const Range(low: 16, high: 18);
@@ -3746,6 +3784,14 @@ List<SaycRule> _oneSuitOpenerThirdRules(
   }
   if (r2 == ContractBid.noTrump(1)) {
     return [
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description: "Bidding game opposite the notrump preference",
+            totalPoints: const Range(low: 19)),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 19,
+      ),
       SaycRule(
         BidAction.noTrump(2),
         BidMeaning(
