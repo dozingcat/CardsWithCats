@@ -4961,8 +4961,37 @@ List<SaycRule> overcallCueRebidRules(ContractBid theirOpening,
 }
 
 /// Responder's call after passing, when partner reopened with a double.
-List<SaycRule> reopeningDoubleAdvanceRules(ContractBid overcall) {
-  return advanceDoubleRules(overcall, overcall, true);
+List<SaycRule> reopeningDoubleAdvanceRules(
+    ContractBid opening, ContractBid overcall) {
+  final base = advanceDoubleRules(overcall, overcall, true);
+  final oSuit = opening.trump;
+  // Only a major opening promises a real (5+) suit worth returning to
+  // with 3-card support; opposite a minor the double's promised suits
+  // rank first and the best-suit logic may still pick a long minor.
+  if (oSuit == null || !_isMajor(oSuit)) return base;
+  final level = cheapestLevel(oSuit, overcall);
+  if (level > 3) return base;
+  // Unlike a direct takeout double, the reopening doubler has shown a real
+  // suit by opening it; with 3+ support prefer the known fit to a possibly
+  // unsupported "best suit" (often at a higher level). Having passed the
+  // opening, the hand is too weak for anything more than the preference.
+  // The penalty pass stays ahead of it.
+  final preference = SaycRule(
+    BidAction.contract(level, oSuit),
+    BidMeaning(
+      description: "Returning to opener's ${_suitNames[oSuit]} with support",
+      totalPoints: const Range(high: 8),
+      suitLengths: {oSuit: const Range(low: 3)},
+    ),
+    ignoreInfo: true,
+    require: (h) => h.count(oSuit) >= 3 && h.totalPoints <= 8,
+  );
+  final passIndex = base.indexWhere((r) => r.action == BidAction.pass());
+  return [
+    ...base.take(passIndex + 1),
+    preference,
+    ...base.skip(passIndex + 1),
+  ];
 }
 
 /// Opener's action in the pass-out seat: we opened, LHO overcalled, partner
@@ -6281,7 +6310,8 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
           suitOpening &&
           isSuitBid(rho1) &&
           lho.bidType == BidType.pass) {
-        return reopeningDoubleAdvanceRules(rho1.contractBid!);
+        return reopeningDoubleAdvanceRules(
+            opening.contractBid!, rho1.contractBid!);
       }
     }
     return null;

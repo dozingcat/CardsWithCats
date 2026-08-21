@@ -1676,6 +1676,17 @@ void main() {
           "Pass");
     });
 
+    test("reopening-double advance prefers opener's suit with support", () {
+      // Manual-play hand: the forced advance bid 3C on four small instead
+      // of returning to the known 5-3 heart fit.
+      final h = ["1H", "2D", "pass", "pass", "X", "pass"];
+      expect(openingBid("Q87", "972", "K54", "8532", history: h), "2H");
+      // The penalty pass still comes first with a diamond stack.
+      expect(openingBid("Q87", "972", "KQJT8", "85", history: h), "Pass");
+      // Without support, the best-suit advance stands.
+      expect(openingBid("Q87", "97", "K54", "85432", history: h), "3C");
+    });
+
     test("overcaller shows a second suit over the new-suit advance", () {
       // Self-play deal 3606 (seed 42): 5-5 with 17 total passed the 2C
       // advance with "no descriptive rebid".
