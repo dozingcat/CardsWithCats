@@ -962,6 +962,27 @@ void main() {
       expect(openingBid("AKJ32", "432", "K32", "K2", history: ask), "5D");
     });
 
+    test("responder answers Blackwood directly over the Jacoby raise", () {
+      // Opener skipped the shape-showing rebid and asked immediately; this
+      // used to fall into "returning to game" and bid an illegal 4H.
+      final ask = ["1H", "pass", "2NT", "pass", "4NT", "pass"];
+      expect(openingBid("AK43", "AK32", "T54", "32", history: ask), "5H");
+      expect(openingBid("A543", "KQ32", "K54", "K2", history: ask), "5D");
+      expect(
+          openingBid("AK43", "AK32", "T54", "32",
+              history: [...ask, "5H", "pass", "6H", "pass"]),
+          "Pass");
+    });
+
+    test("rules whose action is no longer legal are skipped", () {
+      // A human opener's 5D leaves no legal 4H or 4NT; the engine must not
+      // choose an illegal call.
+      expect(
+          openingBid("AK43", "AK32", "T54", "32",
+              history: ["1H", "pass", "2NT", "pass", "5D", "pass"]),
+          "Pass");
+    });
+
     test("Blackwood placement", () {
       expect(
           openingBid("K432", "A432", "AK2", "K2", history: [
@@ -975,6 +996,27 @@ void main() {
             "5D", "pass"
           ]),
           "5S"); // zero aces + one shown
+    });
+
+    test("2C rebid with 28-30 balanced is 4NT, raised to slam with 5+", () {
+      expect(
+          openingBid("AKQ2", "AKQ", "AK2", "K32",
+              history: ["2C", "pass", "2D", "pass"]),
+          "4NT");
+      expect(
+          openingBid("5432", "T932", "Q54", "K2",
+              history: ["2C", "pass", "2D", "pass", "4NT", "pass"]),
+          "6NT");
+      expect(
+          openingBid("5432", "T932", "654", "32",
+              history: ["2C", "pass", "2D", "pass", "4NT", "pass"]),
+          "Pass");
+    });
+
+    test("opener bids game over the notrump preference with 19+", () {
+      final h = ["1C", "pass", "1D", "pass", "1S", "pass", "1NT", "pass"];
+      expect(openingBid("AJ32", "KQ4", "AQ54", "A2", history: h), "3NT"); // 20
+      expect(openingBid("AJ32", "K54", "AQ54", "A2", history: h), "2NT"); // 18
     });
 
     test("Gerber answers and continuation", () {
