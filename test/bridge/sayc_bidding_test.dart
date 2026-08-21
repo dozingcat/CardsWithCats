@@ -1649,6 +1649,54 @@ void main() {
 
   group("fallback bidder", () {
 
+    test("2NT over an overcall is answered as a natural invite", () {
+      // Self-play deal 44 (seed 42): opener read the natural 11-12 2NT as
+      // Jacoby and signed off in 3H with 17 total.
+      expect(openingBid("T6", "AKQ643", "J", "AJT2",
+              history: ["1H", "2D", "2NT", "pass"]),
+          "4H");
+      expect(openingBid("T6", "KQJ643", "J2", "QT2",
+              history: ["1H", "2D", "2NT", "pass"]),
+          "3H");
+      expect(openingBid("T63", "KQJ64", "J2", "QT2",
+              history: ["1H", "2D", "2NT", "pass"]),
+          "Pass");
+    });
+
+    test("opener bids on over a weak preference after a reverse", () {
+      // Self-play deal 58 (seed 42): 22 total passed partner's 3D
+      // preference to the reverse.
+      expect(openingBid("KQ4", "AKT5", "AJ942", "A",
+              history: ["1D", "pass", "1NT", "pass", "2H", "pass", "3D",
+                  "pass"]),
+          "3NT");
+      expect(openingBid("K4", "AKT5", "AJ942", "84",
+              history: ["1D", "pass", "1NT", "pass", "2H", "pass", "3D",
+                  "pass"]),
+          "Pass");
+    });
+
+    test("overcaller shows a second suit over the new-suit advance", () {
+      // Self-play deal 3606 (seed 42): 5-5 with 17 total passed the 2C
+      // advance with "no descriptive rebid".
+      expect(openingBid("KT732", "KQ742", "K", "A2",
+              history: ["pass", "1D", "1S", "pass", "2C", "pass"]),
+          "2H");
+    });
+
+    test("game-values advance with support cue-bids instead of a new suit",
+        () {
+      // Self-play deal 55 (seed 42): 16 total made an unlimited 1H advance
+      // the overcaller could (and did) pass.
+      expect(openingBid("A652", "KQT32", "AJ7", "J",
+              history: ["1C", "1D", "pass"]),
+          "2C");
+      // Without game values the new suit is still right.
+      expect(openingBid("A652", "KQT32", "J7", "J8",
+              history: ["1C", "1D", "pass"]),
+          "1H");
+    });
+
     test("balancing 1NT continuations use the lighter range", () {
       final stayman = ["1C", "pass", "pass", "1NT", "pass", "2C", "pass"];
       expect(openingBid("KJ3", "K643", "543", "AJT", history: stayman), "2H");

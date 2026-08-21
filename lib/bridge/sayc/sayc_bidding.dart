@@ -1581,6 +1581,48 @@ List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response,
     return _rebidAfterRaiseRules(opening, response);
   }
   if (response.trump == null && response.count == 2) {
+    if (contested) {
+      // In competition 2NT is a natural invite (11-12), not Jacoby and not
+      // the 13-15 balanced minor response; accept with 14+.
+      return [
+        if (_isMajor(mySuit))
+          SaycRule(
+            BidAction.contract(4, mySuit),
+            BidMeaning(
+              description: "Accepting the invitation with a 6+ suit",
+              totalPoints: const Range(low: 14),
+              suitLengths: {mySuit: const Range(low: 6)},
+            ),
+            ignoreInfo: true,
+            require: (h) => h.totalPoints >= 14 && h.count(mySuit) >= 6,
+          ),
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(
+              description: "Accepting the invitation",
+              totalPoints: const Range(low: 14)),
+          ignoreInfo: true,
+          require: (h) => h.totalPoints >= 14,
+        ),
+        SaycRule(
+          BidAction.contract(3, mySuit),
+          BidMeaning(
+            description: "Declining the invitation with a 6+ suit",
+            totalPoints: const Range(high: 13),
+            suitLengths: {mySuit: const Range(low: 6)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(mySuit) >= 6,
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description: "Declining the invitation",
+              totalPoints: const Range(high: 13)),
+          ignoreInfo: true,
+        ),
+      ];
+    }
     if (_isMajor(mySuit)) {
       // Jacoby 2NT.
       return [
@@ -1786,8 +1828,10 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
       BidMeaning(
         description: "Second suit: 4+ ${_suitNames[s]}"
             "${isReverse ? ', reverse showing extra strength' : ''}",
+        // The reverse has no ceiling: hands just below a 2C opening have
+        // no other rebid.
         totalPoints: isReverse
-            ? const Range(low: 17, high: 21)
+            ? const Range(low: 17)
             : const Range(low: 13, high: 17),
         suitLengths: {
           s: const Range(low: 4),
@@ -2670,7 +2714,9 @@ List<SaycRule> _responderRebidAfterSuitRules(
         SaycRule(
           BidAction.noTrump(3),
           BidMeaning(
-              description: "Raising to game", hcp: const Range(low: 7, high: 9)),
+              // The top of the band covers the contested 1NT response,
+              // which shows 6-10 rather than 6-9.
+              description: "Raising to game", hcp: const Range(low: 7, high: 10)),
           ignoreInfo: true,
           require: (h) => h.hcp >= 7,
         ),
@@ -3819,6 +3865,40 @@ List<SaycRule> _oneSuitOpenerThirdRules(
     return inviteRules(
         suitGame(rebidBid.trump!), 15, const Range(low: 13), false);
   }
+  if (rebidBid.trump != null &&
+      rebidBid.trump != oSuit &&
+      r2.trump == oSuit &&
+      r2.count == cheapestLevel(oSuit, rebidBid)) {
+    // Responder gave simple preference to our first suit. After a strong
+    // rebid (a reverse or jump shift, 17+) the preference shows a weak
+    // hand but big hands must still bid on.
+    final strong =
+        rebidBid.count > cheapestLevel(rebidBid.trump!, responseBid) ||
+            _strainOrder(rebidBid.trump!) > _strainOrder(oSuit);
+    if (strong) {
+      final game = _isMajor(oSuit) && r2.count < 4
+          ? BidAction.contract(4, oSuit)
+          : BidAction.noTrump(3);
+      return [
+        if (isLegalCall(game, [BidAction.withBid(r2)]))
+          SaycRule(
+            game,
+            BidMeaning(
+                description: "Bidding game opposite the preference",
+                totalPoints: const Range(low: 20)),
+            ignoreInfo: true,
+            require: (h) => h.totalPoints >= 20,
+          ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description: "Minimum for the strong rebid",
+              totalPoints: const Range(high: 19)),
+          ignoreInfo: true,
+        ),
+      ];
+    }
+  }
   return defaultRules;
 }
 
@@ -4616,6 +4696,32 @@ List<SaycRule> overcallerNewSuitRebidRules(
         ignoreInfo: true,
         require: (h) => h.hcp >= 11 && h.hasStopper(theirSuit),
       ),
+    for (final s in Suit.values)
+      if (s != mySuit &&
+          s != aSuit &&
+          s != theirSuit &&
+          cheapestLevel(s, advance) <= 2)
+        SaycRule(
+          BidAction.contract(cheapestLevel(s, advance), s),
+          BidMeaning(
+            description: "Second suit: 5+ ${_suitNames[s]}, extra values",
+            totalPoints: const Range(low: 14),
+            suitLengths: {s: const Range(low: 5)},
+          ),
+          ignoreInfo: true,
+          require: (h) =>
+              h.totalPoints >= 14 &&
+              h.count(s) >= 5 &&
+              bestSuit(
+                      h,
+                      Suit.values.where((t) =>
+                          t != mySuit &&
+                          t != aSuit &&
+                          t != theirSuit &&
+                          h.count(t) >= 5 &&
+                          cheapestLevel(t, advance) <= 2)) ==
+                  s,
+        ),
     if (forcing)
       SaycRule(
         BidAction.contract(cheapestLevel(mySuit, advance), mySuit),
@@ -4628,9 +4734,9 @@ List<SaycRule> overcallerNewSuitRebidRules(
     else
       SaycRule(
         BidAction.pass(),
-        BidMeaning(
-            description: "No fit and no descriptive rebid",
-            totalPoints: const Range(high: 16)),
+        // Shape information only: the overcall itself already limited the
+        // hand, and stronger hands with no descriptive rebid also pass.
+        BidMeaning(description: "No fit and no descriptive rebid"),
         ignoreInfo: true,
       ),
   ];
@@ -4732,7 +4838,12 @@ List<SaycRule>? advanceOvercallRules(
         totalPoints: const Range(low: 10),
         suitLengths: {s: const Range(low: 5)},
       ),
-      require: (h) => newSuitChoice(h) == s,
+      // With game values and support for the overcall, the forcing
+      // cue-bid (or game raise) below is preferred to this non-forcing
+      // change of suit, which the overcaller may pass.
+      require: (h) =>
+          newSuitChoice(h) == s &&
+          (h.totalPoints <= 12 || h.count(suit) < 3),
     ));
   }
   final ntLevel = cheapestLevel(null, over);
