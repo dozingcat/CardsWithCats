@@ -6173,6 +6173,15 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     }
     return null;
   }
+  if (n == first + 4 &&
+      calls[first + 1].bidType == BidType.pass &&
+      calls[first + 2].bidType == BidType.contract &&
+      calls[first + 3].bidType == BidType.double) {
+    // RHO doubled partner's natural response. The double takes away no
+    // bidding space and partner's new suit is still forcing, so rebid
+    // exactly as if there were no interference (systems on).
+    return openerRebidRules(opening, calls[first + 2]);
+  }
   if (n == first + 4 && calls[first + 3].bidType == BidType.pass) {
     final overcall = calls[first + 1];
     final partnerCall = calls[first + 2];

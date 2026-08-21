@@ -1238,6 +1238,14 @@ void main() {
           "3NT"); // 13 with a spade stopper
     });
 
+    test("opener rebids over RHO's double of partner's response", () {
+      // A double takes away no bidding space, so systems are on.
+      final h = ["1C", "pass", "1H", "X"];
+      expect(openingBid("AQ8", "Q842", "8", "KQ643", history: h), "2H");
+      expect(openingBid("AQ84", "K8", "84", "KQ843", history: h), "1S");
+      expect(openingBid("AQ8", "K84", "QJ4", "K843", history: h), "1NT");
+    });
+
     test("opener rebids over partner's response to a takeout double", () {
       // Playtest hand: 1H was forcing but opener passed via the fallback.
       expect(
