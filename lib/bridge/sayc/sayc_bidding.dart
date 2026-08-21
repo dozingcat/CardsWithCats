@@ -2160,7 +2160,11 @@ List<SaycRule>? responderRebidRules(
 }
 
 List<SaycRule>? _responderRebidAfter1ntRules(
-    BidAction response, BidAction rebid) {
+    BidAction response, BidAction rebid,
+    {int hcpShift = 0}) {
+  // Systems on over a 1NT overcall reuse these rules; opposite the lighter
+  // balancing 1NT (11-16) all strength thresholds rise by `hcpShift`.
+  final int s = hcpShift;
   if (response == BidAction.contract(4, Suit.clubs)) {
     return gerberContinuationRules(rebid);
   }
@@ -2175,24 +2179,25 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         SaycRule(
           BidAction.contract(3, major),
           BidMeaning(
-            description: "Invitational raise: 4 $name, 8-9 HCP",
-            hcp: const Range(low: 8, high: 9),
+            description:
+                "Invitational raise: 4 $name, ${8 + s}-${9 + s} HCP",
+            hcp: Range(low: 8 + s, high: 9 + s),
             suitLengths: {major: const Range(low: 4)},
           ),
           ignoreInfo: true,
-          require: (h) => h.count(major) >= 4 && h.hcp <= 9,
+          require: (h) => h.count(major) >= 4 && h.hcp <= 9 + s,
         ),
         SaycRule(
           BidAction.contract(4, major),
           BidMeaning(
             description: "Raise to game: 4 $name",
-            hcp: const Range(low: 10),
+            hcp: Range(low: 10 + s),
             suitLengths: {major: const Range(low: 4)},
           ),
           ignoreInfo: true,
-          // The invitational raise above catches 8-9 in normal auctions,
-          // but an abnormal opener rebid can make it illegal.
-          require: (h) => h.count(major) >= 4 && h.hcp >= 10,
+          // The invitational raise above catches invitational hands in
+          // normal auctions, but an abnormal rebid can make it illegal.
+          require: (h) => h.count(major) >= 4 && h.hcp >= 10 + s,
         ),
       ]);
     }
@@ -2201,35 +2206,35 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         BidAction.noTrump(2),
         BidMeaning(
             description: "Inviting 3NT, no major-suit fit",
-            hcp: const Range(low: 8, high: 9)),
+            hcp: Range(low: 8 + s, high: 9 + s)),
         ignoreInfo: true,
-        require: (h) => h.hcp <= 9,
+        require: (h) => h.hcp <= 9 + s,
       ),
       SaycRule(
         BidAction.noTrump(6),
         BidMeaning(
-            description: "Slam: 18+ opposite the notrump opening",
-            hcp: const Range(low: 18)),
+            description: "Slam: ${18 + s}+ opposite the notrump",
+            hcp: Range(low: 18 + s)),
         ignoreInfo: true,
-        require: (h) => h.hcp >= 18,
+        require: (h) => h.hcp >= 18 + s,
       ),
       SaycRule(
         BidAction.noTrump(4),
         BidMeaning(
             description: "Quantitative: invites 6NT, no fit",
-            hcp: const Range(low: 16, high: 17)),
+            hcp: Range(low: 16 + s, high: 17 + s)),
         ignoreInfo: true,
-        require: (h) => h.hcp >= 16,
+        require: (h) => h.hcp >= 16 + s,
       ),
       SaycRule(
         BidAction.noTrump(3),
         BidMeaning(
             description: "To play, no major-suit fit",
-            hcp: const Range(low: 10, high: 15)),
+            hcp: Range(low: 10 + s, high: 15 + s)),
         ignoreInfo: true,
-        // The invitational rungs below 3NT catch 8-9 in normal auctions,
-        // but an abnormal opener rebid can make them illegal.
-        require: (h) => h.hcp >= 10,
+        // The invitational rungs below 3NT catch invitational hands in
+        // normal auctions, but an abnormal rebid can make them illegal.
+        require: (h) => h.hcp >= 10 + s,
       ),
     ]);
     return rules;
@@ -2246,21 +2251,21 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         BidAction.pass(),
         BidMeaning(
             description: "Signing off after the transfer",
-            hcp: const Range(high: 7)),
+            hcp: Range(high: 7 + s)),
       ),
       SaycRule(
         BidAction.contract(3, major),
         BidMeaning(
-          description: "Inviting game: 6+ $name, 8-9 HCP",
-          hcp: const Range(low: 8, high: 9),
+          description: "Inviting game: 6+ $name, ${8 + s}-${9 + s} HCP",
+          hcp: Range(low: 8 + s, high: 9 + s),
           suitLengths: {major: const Range(low: 6)},
         ),
       ),
       SaycRule(
         BidAction.noTrump(2),
         BidMeaning(
-          description: "Inviting game: exactly 5 $name, 8-9 HCP",
-          hcp: const Range(low: 8, high: 9),
+          description: "Inviting game: exactly 5 $name, ${8 + s}-${9 + s} HCP",
+          hcp: Range(low: 8 + s, high: 9 + s),
           suitLengths: {major: const Range(low: 5, high: 5)},
         ),
       ),
@@ -2268,44 +2273,44 @@ List<SaycRule>? _responderRebidAfter1ntRules(
         BidAction.contract(4, major),
         BidMeaning(
           description: "To play: 6+ $name, game values",
-          hcp: const Range(low: 10, high: 15),
+          hcp: Range(low: 10 + s, high: 15 + s),
           suitLengths: {major: const Range(low: 6)},
         ),
         ignoreInfo: true,
-        require: (h) => h.count(major) >= 6 && h.hcp <= 15,
+        require: (h) => h.count(major) >= 6 && h.hcp <= 15 + s,
       ),
       SaycRule(
         BidAction.noTrump(6),
         BidMeaning(
-          description: "Slam: 18+ with 5+ $name",
-          hcp: const Range(low: 18),
+          description: "Slam: ${18 + s}+ with 5+ $name",
+          hcp: Range(low: 18 + s),
           suitLengths: {major: const Range(low: 5)},
         ),
         ignoreInfo: true,
-        require: (h) => h.hcp >= 18,
+        require: (h) => h.hcp >= 18 + s,
       ),
       SaycRule(
         BidAction.noTrump(4),
         BidMeaning(
           description: "Quantitative: invites slam with 5+ $name",
-          hcp: const Range(low: 16, high: 17),
+          hcp: Range(low: 16 + s, high: 17 + s),
           suitLengths: {major: const Range(low: 5)},
         ),
         ignoreInfo: true,
-        require: (h) => h.hcp >= 16,
+        require: (h) => h.hcp >= 16 + s,
       ),
       SaycRule(
         BidAction.noTrump(3),
         BidMeaning(
           description:
               "Choice of games: exactly 5 $name, opener corrects with a fit",
-          hcp: const Range(low: 10, high: 15),
+          hcp: Range(low: 10 + s, high: 15 + s),
           suitLengths: {major: const Range(low: 5, high: 5)},
         ),
         ignoreInfo: true,
-        // The invitational rungs above catch 8-9 in normal auctions, but
-        // interference can make them illegal.
-        require: (h) => h.hcp >= 10,
+        // The invitational rungs above catch invitational hands in normal
+        // auctions, but interference can make them illegal.
+        require: (h) => h.hcp >= 10 + s,
       ),
     ];
   }
@@ -5984,6 +5989,28 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         return overcallCueRebidRules(
             openBid, myActions[0].contractBid!, last, last == cue);
       }
+    }
+    if (myActions.length == 1 &&
+        partnerActions.length == 2 &&
+        partnerActions[0] == BidAction.noTrump(1) &&
+        myActions[0].bidType == BidType.contract &&
+        oppActions.length == 1 &&
+        n >= 7 &&
+        calls[n - 1].bidType == BidType.pass &&
+        calls[n - 2].bidType == BidType.contract &&
+        calls[n - 3].bidType == BidType.pass &&
+        calls[n - 4] == myActions[0] &&
+        calls[n - 6] == BidAction.noTrump(1)) {
+      // I responded to partner's 1NT overcall with systems on and partner
+      // answered, the opponents staying silent since their opening bid:
+      // continue as after a 1NT opening, with strength thresholds raised
+      // opposite the lighter balancing 1NT (11-16).
+      final ntIndex = n - 6;
+      final balancing = ntIndex >= 2 &&
+          calls[ntIndex - 1].bidType == BidType.pass &&
+          calls[ntIndex - 2].bidType == BidType.pass;
+      return _responderRebidAfter1ntRules(myActions[0], calls[n - 2],
+          hcpShift: balancing ? 3 : 0);
     }
     if (myActions.length == 1 &&
         myActions[0] == BidAction.noTrump(1) &&

@@ -1442,6 +1442,27 @@ void main() {
           "3NT");
     });
 
+    test("advancer continues after the systems-on answer", () {
+      // Self-play deal 53 (seed 1): balancing 1NT, Stayman found the wrong
+      // major; 12 HCP opposite 11-16 invites instead of passing 2H.
+      expect(
+          openingBid("J732", "KT", "AT4", "AT94",
+              history: ["1H", "pass", "pass", "1NT", "pass", "2C", "pass",
+                  "2H", "pass"]),
+          "2NT");
+      // With the 4-4 spade fit found, an invitational raise.
+      expect(
+          openingBid("J732", "KT", "AT4", "AT94",
+              history: ["1H", "pass", "pass", "1NT", "pass", "2C", "pass",
+                  "2S", "pass"]),
+          "3S");
+      // Opposite a direct overcall (15-18) the same hand drives to game.
+      expect(
+          openingBid("J732", "KT", "AT4", "AT94",
+              history: ["1H", "1NT", "pass", "2C", "pass", "2H", "pass"]),
+          "3NT");
+    });
+
     test("1NT overcaller answers systems-on responses", () {
       // Direct overcall: complete the transfer.
       expect(
