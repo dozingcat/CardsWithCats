@@ -2,6 +2,10 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.3.3
+
+- Added a rules summary for Scum to the About dialog, following the format of the other games.
+
 ## 0.3.2
 
 - **Fixed a frozen table on new matches**: starting (or restarting) a match while the Start Match dialog was still open could leave the turn scheduler permanently disabled — a cat would be highlighted but nobody ever played. Turn scheduling now waits for the menu to close instead of bailing out.

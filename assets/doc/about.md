@@ -103,8 +103,41 @@ of rounds.
 - **Score 1 point per trick**: Can be set to have players score 1 point per trick always, never, or
 only when they make their exact bid.
 
-## License
 
+## Scum
+
+### Rules
+Scum is a climbing game for four players where the goal is to get rid of all your cards before
+anyone else. Cards rank from two (low) to ace (high), and suits don't matter. There are no teams;
+every player is your rival.
+
+Each player is dealt 13 cards. In the first round of a match everyone is an ordinary Citizen with
+equal standing, and a random player leads. From the second round on, players hold ranks based on
+how they finished the previous round: **President**, **Vice President**, **Vice Scum**, and
+**Scum**. Before those rounds are played, the lowly trade with the mighty: the Scum must pass their
+two highest cards to the President (who gives any two cards back), and the Vice Scum must pass
+their highest card to the Vice President (who gives any one back). The President leads the first
+trick.
+
+On your turn you either beat the current play or pass. A play is one or more cards of the same rank
+(a single, pair, triple, or quad), and a play can only be beaten by the same number of cards of a
+higher rank. Making a play is always optional, except that whoever leads a trick must play
+something. Once every other player has passed, the last player to play leads a new trick. Because
+an ace cannot be beaten, playing an ace ends the trick immediately.
+
+If a player runs out of cards mid-trick, play simply skips over them.
+
+### Scoring
+A round ends when only one player still holds cards. The order in which players ran out sets the
+ranks for the next round: first out becomes President, then Vice President, then Vice Scum, and the
+unfortunate last player is the Scum who has to deal (and trade away their best cards) next round.
+
+Each round also scores match points by finish position: 3 points for first out, 2 for second, 1 for
+third, and none for last. A match runs eight rounds, and the player with the most points at the end
+wins.
+
+
+## License
 This application is released under the GNU General Public License, version 3. Source code is
 available [here](https://github.com/dozingcat/CardsWithCats).
 
