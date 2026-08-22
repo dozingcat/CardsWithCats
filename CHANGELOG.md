@@ -2,6 +2,11 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.3.2
+
+- **Fixed a frozen table on new matches**: starting (or restarting) a match while the Start Match dialog was still open could leave the turn scheduler permanently disabled — a cat would be highlighted but nobody ever played. Turn scheduling now waits for the menu to close instead of bailing out.
+- Added two safety nets so no bad state can freeze a round again: every AI move falls back to a legal play on error, and an activity watchdog resumes the turn engine if it ever stops making progress.
+
 ## 0.3.1
 
 - Play moved to the right side of the table and Pass to the left — Play is hit far more often and most players are right-handed (#7 follow-up). Both buttons sit partway in from the edges rather than hugging the screen sides.

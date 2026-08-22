@@ -47,6 +47,8 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   Map<int, Mood> playerMoods = {};
   late StreamSubscription matchUpdateSubscription;
   bool processingAi = false;
+  Timer? _stallWatchdog;
+  Timer? _dialogPoll;
 
   ScumRound get round => match.currentRound;
 
@@ -70,6 +72,8 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   void deactivate() {
     super.deactivate();
     matchUpdateSubscription.cancel();
+    _stallWatchdog?.cancel();
+    _dialogPoll?.cancel();
   }
 
   void _prepareRoundIfNeeded() {
@@ -105,18 +109,61 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
       round.currentPlayerIndex() == 0;
 
   void _scheduleAiIfNeeded({int minDelayMillis = aiDelayMillis}) {
-    if (widget.dialogVisible) return;
+    // Note: do NOT bail out when a menu dialog is open. Starting a new match
+    // pushes the match through the update stream while the Start Match dialog
+    // is still up; skipping the schedule here left the round permanently
+    // stalled with nobody able to play. Instead the deferred callback waits
+    // for the dialog to close.
+    if (processingAi) return;
     if (round.status != ScumRoundStatus.playing) return;
     if (round.isOver()) {
       _updateMoodsAfterRound();
       return;
     }
-    if (processingAi) return;
     processingAi = true;
     Future.delayed(Duration(milliseconds: minDelayMillis), () {
-      if (!mounted) return;
+      if (!mounted || !processingAi) return;
+      if (widget.dialogVisible) {
+        processingAi = false;
+        _resumeWhenDialogCloses();
+        return;
+      }
+      _armStallWatchdog();
       _runTurns();
     });
+  }
+
+  /// Polls until the menu closes, then resumes normal turn scheduling.
+  void _resumeWhenDialogCloses() {
+    _dialogPoll?.cancel();
+    _dialogPoll = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      if (!mounted || round.status != ScumRoundStatus.playing) {
+        timer.cancel();
+        return;
+      }
+      if (!widget.dialogVisible) {
+        timer.cancel();
+        _scheduleAiIfNeeded(minDelayMillis: 100);
+      }
+    });
+  }
+
+  /// Safety net: if the turn engine ever dies with its latch set, kick it
+  /// back to life instead of freezing the table.
+  void _armStallWatchdog() {
+    _stallWatchdog?.cancel();
+    final timer = Timer(const Duration(milliseconds: 3500), () {
+      if (!mounted || !processingAi) return;
+      if (round.status == ScumRoundStatus.playing &&
+          !round.isOver() &&
+          !(round.currentPlayerIndex() == 0 &&
+              round.legalPlaysForCurrentPlayer().isNotEmpty)) {
+        print("ScumUI: turn engine watchdog fired; resuming");
+        processingAi = false;
+        _scheduleAiIfNeeded(minDelayMillis: 150);
+      }
+    });
+    _stallWatchdog = timer;
   }
 
   /// Plays out turns (with small pauses) until the human can choose a play.
@@ -133,12 +180,14 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
           // option it is selected automatically (#5).
           setState(() {
             processingAi = false;
+            _stallWatchdog?.cancel();
             final legal = round.legalPlaysForCurrentPlayer();
             selectedCards =
                 (legal.length == 1) ? List.of(legal.single) : [];
           });
           return;
         }
+        _armStallWatchdog();
         await Future.delayed(const Duration(milliseconds: 600));
         if (!mounted ||
             round.status != ScumRoundStatus.playing ||
@@ -149,15 +198,36 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
         }
       }
       setState(() {
-        if (playerIndex == 0) {
-          round.pass();
-        } else {
-          final req = ScumPlayRequest.fromRound(round, playerIndex);
-          final cards = chooseScumPlay(req, Random());
-          if (cards.isEmpty) {
+        try {
+          if (playerIndex == 0) {
             round.pass();
           } else {
-            round.playCards(cards);
+            final req = ScumPlayRequest.fromRound(round, playerIndex);
+            var cards = chooseScumPlay(req, Random());
+            if (cards.isNotEmpty &&
+                !isValidPlay(round.players[playerIndex].hand, cards,
+                    round.currentTrick)) {
+              // Never let a bad AI choice freeze the table.
+              cards = const [];
+            }
+            if (cards.isEmpty && !round.canCurrentPlayerPass()) {
+              cards = round.legalPlaysForCurrentPlayer().first;
+            }
+            if (cards.isEmpty) {
+              round.pass();
+            } else {
+              round.playCards(List.of(cards));
+            }
+          }
+        } catch (e) {
+          // Last-resort fallback so a bad state cannot stall the game.
+          print("ScumUI: AI turn failed ($e); applying a legal fallback");
+          if (round.canCurrentPlayerPass() &&
+              round.currentPlayerIndex() != 0) {
+            round.pass();
+          } else {
+            final legal = round.legalPlaysForCurrentPlayer();
+            if (legal.isNotEmpty) round.playCards(legal.first);
           }
         }
         selectedCards = [];
@@ -166,11 +236,14 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
         }
       });
       widget.saveMatchFn(match);
+      // Progress happened: push the stall deadline out again.
+      _armStallWatchdog();
       await Future.delayed(const Duration(milliseconds: aiDelayMillis));
     }
     if (mounted) {
       setState(() {
         processingAi = false;
+        _stallWatchdog?.cancel();
       });
       _scheduleAiIfNeeded();
     }
