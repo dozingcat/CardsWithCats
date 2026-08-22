@@ -25,7 +25,8 @@ if (flutterVersionName == null) {
 
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
-if (keystorePropertiesFile.exists()) {
+def hasReleaseKey = keystorePropertiesFile.exists()
+if (hasReleaseKey) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
@@ -62,14 +63,16 @@ android {
     }
 
     signingConfigs {
-        release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
+        // Only defined if key.properties exists, so that builds which don't need it
+        // (fdroid, debug) work without it.
+        if (hasReleaseKey) {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword keystoreProperties['storePassword']
+            }
         }
-
-        fdroid {}
     }
 
     // fdroid config from https://nikhiljha.com/posts/flutteronfdroid/
@@ -77,22 +80,48 @@ android {
     flavorDimensions "deploy"
 
     productFlavors {
-        std {}
+        // Signing configs are set here rather than in buildTypes.release, because a build
+        // type's signing config takes precedence over a flavor's and would make the fdroid
+        // build try to sign with the release key. (Debug builds are unaffected: the debug
+        // build type sets its own signing config, which wins over these.)
+        std {
+            dimension "deploy"
+            if (hasReleaseKey) {
+                // Change this to "signingConfigs.debug" to do a release build without
+                // using production keys.
+                signingConfig = signingConfigs.release
+            }
+        }
 
+        // F-Droid builds the app and signs it with their own key, so no signing config
+        // is set here and the built apk is left unsigned.
         fdroid {
             dimension "deploy"
-            signingConfig signingConfigs.fdroid
         }
     }
 
     buildTypes {
         release {
-            // Change this to "signingConfigs.debug" to do a release build without using production keys.
-            signingConfig = signingConfigs.release
+            // Signing config comes from the product flavor; see above.
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+// Without this, a std release build with no key.properties would silently produce an
+// unsigned apk. Only checked when actually building std release, so that fdroid and
+// debug builds still work without a key. Reads the flavor's signing config rather than
+// key.properties directly, so pointing std at signingConfigs.debug also satisfies it.
+tasks.matching { it.name == "preStdReleaseBuild" }.configureEach {
+    doFirst {
+        if (android.productFlavors.std.signingConfig == null) {
+            throw new GradleException(
+                    "No signing config for the std release build. Create android/key.properties " +
+                    "with storeFile/storePassword/keyAlias/keyPassword, or build the unsigned " +
+                    "fdroid flavor instead.")
+        }
+    }
 }
