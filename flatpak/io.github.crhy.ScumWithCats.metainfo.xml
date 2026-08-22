@@ -14,6 +14,9 @@
   </description>
   <launchable type="desktop-id">io.github.crhy.ScumWithCats.desktop</launchable>
   <releases>
+    <release version="0.3.1" date="2026-08-22" type="stable">
+      <description><p>Play button moved to the right-hand side, Pass to the left, both inset toward the middle.</p></description>
+    </release>
     <release version="0.3.0" date="2026-08-22" type="stable">
       <description><p>Initial release of the Scum game mode.</p></description>
     </release>

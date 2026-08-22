@@ -2,6 +2,10 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.3.1
+
+- Play moved to the right side of the table and Pass to the left — Play is hit far more often and most players are right-handed (#7 follow-up). Both buttons sit partway in from the edges rather than hugging the screen sides.
+
 ## 0.3.0
 
 Playtest refinements across visibility, input, sound, and AI judgment.

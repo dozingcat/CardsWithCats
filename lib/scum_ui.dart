@@ -541,24 +541,16 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
             ),
           ),
         ),
-      // Play sits at the left edge and Pass at the right edge, directly
-      // above the player's hand and clear of the center play piles (#7).
+      // Play sits on the right (under a right-handed thumb) and Pass on the
+      // left, directly above the hand, inset partway toward the middle (#7).
       if (isHumanTurn && !processingAi)
         Positioned(
           top: _actionRowTop(layout),
-          left: 10,
-          right: 10,
+          left: layout.displaySize.width * 0.10,
+          right: layout.displaySize.width * 0.10,
           child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton(
-                  onPressed: canPlaySelectedCards() ? _playSelectedCards : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text("Play"),
-                ),
                 if (canPass)
                   ElevatedButton(
                     onPressed: _passTurn,
@@ -567,7 +559,17 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                       foregroundColor: Colors.white,
                     ),
                     child: const Text("Pass"),
+                  )
+                else
+                  const SizedBox(),
+                ElevatedButton(
+                  onPressed: canPlaySelectedCards() ? _playSelectedCards : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
                   ),
+                  child: const Text("Play"),
+                ),
               ]),
         ),
       if (_shouldShowEndOfRoundDialog())
