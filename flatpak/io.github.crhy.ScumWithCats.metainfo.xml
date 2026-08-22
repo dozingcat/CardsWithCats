@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.crhy.ScumWithCats</id>
+  <name>Scum With Cats</name>
+  <summary>Play Scum against three AI cats</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>BSD-3-Clause</project_license>
+  <description>
+    <p>Four-player Scum (President, Vice President, Vice Scum, Scum) against three
+    computer-controlled cats. Aces high, deuces low, suits irrelevant. Lead singles,
+    pairs, triples, or quads and beat your rivals to shed every card. The losers
+    trade their best cards to the winners before each round. Also includes the
+    original Hearts, Spades, and Oh Hell modes from Cards With Cats.</p>
+  </description>
+  <launchable type="desktop-id">io.github.crhy.ScumWithCats.desktop</launchable>
+  <releases>
+    <release version="0.2.0" date="2026-08-22" type="stable">
+      <description><p>Initial release of the Scum game mode.</p></description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
