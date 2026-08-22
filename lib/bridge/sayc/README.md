@@ -301,8 +301,8 @@ consulted.
 ## Tools
 
 ```sh
-flutter test test/bridge/sayc_bidding_test.dart   # 180 tests, includes a
-                                                  # 150-deal self-play invariant
+flutter test test/bridge/                         # 312 tests, includes a
+                                                  # 500-deal chaos fuzz test
 
 # Choose or interpret bids from the command line:
 dart run scripts/bridge_cli.dart "A2 AKJT Q32 9876" "1H pass"
@@ -310,8 +310,46 @@ dart run scripts/bridge_cli.dart "1D 1S" --describe X
 dart run scripts/bridge_cli.dart "1S pass 2S pass 3S" --explain
 
 # Self-play over random deals (reproducible from seed + index): reports
-# hard failures (exceptions, illegal calls, runaway auctions, bids below
-# their own advertised minimums — all held at zero) and heuristic quality
-# flags (thin/missed games, bad trump fits, light slams):
-dart run scripts/bridge_selfplay.dart --deals 2000 --seed 7 [--category missed-game]
+# hard failures (exceptions, illegal calls, runaway auctions, bids outside
+# their own advertised ranges — all held at zero) and heuristic quality
+# flags (thin/missed games, bad trump fits, light slams). bridge_selfplay
+# prints per-deal detail (hands + auction); bidding_audit groups the same
+# findings by category and rule for scanning at volume:
+dart run scripts/bridge_selfplay.dart --deals 2000 --seed 7 [--examples 5] \
+    [--category missed-game]
+dart run scripts/bidding_audit.dart --deals 4000 --seed 42 [--category X]
+
+# Fuzzing: replace calls with random legal ones at probability P, checking
+# that the engine responds to auctions it would never produce itself
+# legally, without exceptions, and with honest advertised meanings:
+dart run scripts/bidding_audit.dart --deals 5000 --chaos 0.15
+
+# Bidding accuracy against double-dummy truth (needs cpp/build_libdds.sh):
+DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart --deals 1200
 ```
+
+### Audit conventions and current results (2026-08-21)
+
+Seed 1 over 3000 deals is the held-out **test set**: fixes are mined from
+other seeds (42 at 4000 deals is the current dev seed) so that seed 1 stays
+an untouched before/after comparison. Findings there are expected to drift
+down as gaps get fixed; a jump up means a regression.
+
+| Run | Result |
+| --- | --- |
+| seed 1, 3000 deals (test set) | 645 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 895 findings, 0 hard failures |
+| chaos 0.15, 5000 deals | 0 hard failures |
+
+Seed 1 findings by category: fallback-used 425, missed-game 142,
+silly-strain 51, missed-slam 25, thin-game 1, no-rule-matched 1. The
+missed-game lint excuses stops below game when an opponent-bid suit is
+unstopped, there is no eight-card major fit, and the side holds under 28
+points (no game is attractive there); missed-slam mostly reflects the
+deliberately minimal slam machinery.
+
+Double-dummy accuracy (1200 deals): games bid make 73.2% of the time
+(precision), and 61.8% of double-dummy-makeable games get bid (recall);
+slams are 3/4 bid-and-making with 1.9% recall of the 161 DD slam chances —
+most DD "slams" lack the combined strength any bidding system would need
+(only 24 of the 161 have 31+ combined HCP).

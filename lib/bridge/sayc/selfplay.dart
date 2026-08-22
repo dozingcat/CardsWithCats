@@ -15,6 +15,8 @@
 ///   slam-light       undoubled slam with < 28 combined HCP
 ///   silly-strain     suit contract with <= 6 combined trumps
 ///   missed-game      declaring side with 26+ combined stopped below game
+///                    (excused with an opponent suit unstopped, no major
+///                    fit, and under 28 points: no game is attractive)
 ///   missed-slam      declaring side with 33+ combined HCP (or 36+ total
 ///                    points) stopped below the six level
 ///   passed-out       deal passed out despite 25+ combined points
@@ -180,12 +182,35 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
         "slam-light", "$contract with ${combinedHcp(side)} combined HCP"));
   }
   if (!atGame && !doubled && combinedTotal(side) >= 26) {
-    // Only the declaring side: defenders selling out is a different (and
-    // much harder) judgment problem.
-    findings.add(SelfPlayFinding(
-        "missed-game",
-        "the declaring side has ${combinedTotal(side)} combined points but "
-        "stopped in $contract"));
+    // A partscore can be the right spot despite the points: with an
+    // opponent-bid suit unstopped (3NT unattractive), no eight-card major
+    // fit, and not enough for the five level, stopping in 4C/4D is at
+    // worst unclear, so don't flag it.
+    final oppSuits = {
+      for (int i = 0; i < history.length; i++)
+        if (i % 2 != side &&
+            history[i].bidType == BidType.contract &&
+            history[i].contractBid!.trump != null)
+          history[i].contractBid!.trump!
+    };
+    bool stopped(Suit s) =>
+        HandAnalysis(hands[side]).hasStopper(s) ||
+        HandAnalysis(hands[side + 2]).hasStopper(s);
+    final majorFit = [Suit.hearts, Suit.spades].any((s) =>
+        hands[side].where((c) => c.suit == s).length +
+            hands[side + 2].where((c) => c.suit == s).length >=
+        8);
+    final excused = oppSuits.any((s) => !stopped(s)) &&
+        !majorFit &&
+        combinedTotal(side) < 28;
+    if (!excused) {
+      // Only the declaring side: defenders selling out is a different (and
+      // much harder) judgment problem.
+      findings.add(SelfPlayFinding(
+          "missed-game",
+          "the declaring side has ${combinedTotal(side)} combined points but "
+          "stopped in $contract"));
+    }
   }
   if (contract.count < 6 &&
       !doubled &&

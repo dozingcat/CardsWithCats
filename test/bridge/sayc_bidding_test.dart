@@ -1238,6 +1238,14 @@ void main() {
           "3NT"); // 13 with a spade stopper
     });
 
+    test("opener rebids over RHO's double of partner's response", () {
+      // A double takes away no bidding space, so systems are on.
+      final h = ["1C", "pass", "1H", "X"];
+      expect(openingBid("AQ8", "Q842", "8", "KQ643", history: h), "2H");
+      expect(openingBid("AQ84", "K8", "84", "KQ843", history: h), "1S");
+      expect(openingBid("AQ8", "K84", "QJ4", "K843", history: h), "1NT");
+    });
+
     test("opener rebids over partner's response to a takeout double", () {
       // Playtest hand: 1H was forcing but opener passed via the fallback.
       expect(
@@ -1364,11 +1372,13 @@ void main() {
           openingBid("AKQT982", "4", "6", "Q874",
               history: ["1C", "1S", "pass", "2H", "pass"]),
           "4S");
-      // Forcing 3-level advance: raise with a doubleton (deal 2338).
+      // Forcing 3-level advance with only a doubleton: no game raise
+      // without a real fit; with their suit stopped and a running suit,
+      // 3NT is the descriptive game try.
       expect(
           openingBid("JT", "62", "Q93", "AKJ632",
               history: ["2D", "3C", "pass", "3S", "pass"]),
-          "4S");
+          "3NT");
       // Forcing minor advance: 3NT with their suit stopped (deal 120).
       expect(
           openingBid("9854", "KJ2", "AJT82", "A",
@@ -1431,6 +1441,27 @@ void main() {
       expect(
           openingBid("K43", "Q43", "KJ4", "J432",
               history: ["1D", "1NT", "pass"]),
+          "3NT");
+    });
+
+    test("advancer continues after the systems-on answer", () {
+      // Self-play deal 53 (seed 1): balancing 1NT, Stayman found the wrong
+      // major; 12 HCP opposite 11-16 invites instead of passing 2H.
+      expect(
+          openingBid("J732", "KT", "AT4", "AT94",
+              history: ["1H", "pass", "pass", "1NT", "pass", "2C", "pass",
+                  "2H", "pass"]),
+          "2NT");
+      // With the 4-4 spade fit found, an invitational raise.
+      expect(
+          openingBid("J732", "KT", "AT4", "AT94",
+              history: ["1H", "pass", "pass", "1NT", "pass", "2C", "pass",
+                  "2S", "pass"]),
+          "3S");
+      // Opposite a direct overcall (15-18) the same hand drives to game.
+      expect(
+          openingBid("J732", "KT", "AT4", "AT94",
+              history: ["1H", "1NT", "pass", "2C", "pass", "2H", "pass"]),
           "3NT");
     });
 
@@ -1619,6 +1650,74 @@ void main() {
   });
 
   group("fallback bidder", () {
+
+    test("2NT over an overcall is answered as a natural invite", () {
+      // Self-play deal 44 (seed 42): opener read the natural 11-12 2NT as
+      // Jacoby and signed off in 3H with 17 total.
+      expect(openingBid("T6", "AKQ643", "J", "AJT2",
+              history: ["1H", "2D", "2NT", "pass"]),
+          "4H");
+      expect(openingBid("T6", "KQJ643", "J2", "QT2",
+              history: ["1H", "2D", "2NT", "pass"]),
+          "3H");
+      expect(openingBid("T63", "KQJ64", "J2", "QT2",
+              history: ["1H", "2D", "2NT", "pass"]),
+          "Pass");
+    });
+
+    test("opener bids on over a weak preference after a reverse", () {
+      // Self-play deal 58 (seed 42): 22 total passed partner's 3D
+      // preference to the reverse.
+      expect(openingBid("KQ4", "AKT5", "AJ942", "A",
+              history: ["1D", "pass", "1NT", "pass", "2H", "pass", "3D",
+                  "pass"]),
+          "3NT");
+      expect(openingBid("K4", "AKT5", "AJ942", "84",
+              history: ["1D", "pass", "1NT", "pass", "2H", "pass", "3D",
+                  "pass"]),
+          "Pass");
+    });
+
+    test("overcaller needs a real fit and maximum to raise the advance to game",
+        () {
+      // Manual-play hand: 13 total with a doubleton raised the unlimited
+      // 3D advance (10+, 5+ diamonds) straight to 5D.
+      final h = ["2H", "3C", "pass", "3D", "pass"];
+      expect(openingBid("K9", "J5", "84", "AKT8754", history: h), "4C");
+      expect(openingBid("K9", "J5", "QJ84", "AKT87", history: h), "5D");
+    });
+
+    test("reopening-double advance prefers opener's suit with support", () {
+      // Manual-play hand: the forced advance bid 3C on four small instead
+      // of returning to the known 5-3 heart fit.
+      final h = ["1H", "2D", "pass", "pass", "X", "pass"];
+      expect(openingBid("Q87", "972", "K54", "8532", history: h), "2H");
+      // The penalty pass still comes first with a diamond stack.
+      expect(openingBid("Q87", "972", "KQJT8", "85", history: h), "Pass");
+      // Without support, the best-suit advance stands.
+      expect(openingBid("Q87", "97", "K54", "85432", history: h), "3C");
+    });
+
+    test("overcaller shows a second suit over the new-suit advance", () {
+      // Self-play deal 3606 (seed 42): 5-5 with 17 total passed the 2C
+      // advance with "no descriptive rebid".
+      expect(openingBid("KT732", "KQ742", "K", "A2",
+              history: ["pass", "1D", "1S", "pass", "2C", "pass"]),
+          "2H");
+    });
+
+    test("game-values advance with support cue-bids instead of a new suit",
+        () {
+      // Self-play deal 55 (seed 42): 16 total made an unlimited 1H advance
+      // the overcaller could (and did) pass.
+      expect(openingBid("A652", "KQT32", "AJ7", "J",
+              history: ["1C", "1D", "pass"]),
+          "2C");
+      // Without game values the new suit is still right.
+      expect(openingBid("A652", "KQT32", "J7", "J8",
+              history: ["1C", "1D", "pass"]),
+          "1H");
+    });
 
     test("balancing 1NT continuations use the lighter range", () {
       final stayman = ["1C", "pass", "pass", "1NT", "pass", "2C", "pass"];
