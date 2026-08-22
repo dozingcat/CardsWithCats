@@ -8,7 +8,7 @@ import 'package:cards_with_cats/scum/scum_ai.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:flutter/material.dart';
 
-const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+const dialogBackgroundColor = Color.fromARGB(0xE6, 0xd8, 0xd8, 0xd8);
 const aiDelayMillis = 650;
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
@@ -412,8 +412,10 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
           return Offset(layout.displaySize.width - badgeWidth - 8,
               layout.displaySize.height / 2 - layout.playerHeight * 1.55);
         default:
-          // Top-left corner, clear of the hand and the played cards.
-          return const Offset(8, 8);
+          // Very bottom right, out of the menu button's way and below the
+          // lowest row of hand cards.
+          return Offset(layout.displaySize.width - badgeWidth - 8,
+              layout.displaySize.height - 64);
       }
     }
 
@@ -538,7 +540,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                     backgroundColor: Colors.green.shade700,
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(canPass ? "Play set" : "Play"),
+                  child: const Text("Play"),
                 ),
                 const SizedBox(width: 16),
                 if (canPass)
@@ -582,17 +584,25 @@ class EndOfRoundDialog extends StatelessWidget {
     required this.catImageIndices,
   }) : super(key: key);
 
+  static const _roleAbbrev = {
+    "President": "Pres.",
+    "Vice President": "V.Pres.",
+    "Vice Scum": "V.Scum",
+    "Scum": "Scum",
+    "Citizen": "Citizen",
+  };
+
   TableRow row(String title, List<Object> values, {bool bold = false}) {
     Widget cell(Object v) => _paddingAll(
-        4,
+        3,
         Text(v.toString(),
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.normal)));
+            style: TextStyle(fontSize: 13, fontWeight: bold ? FontWeight.bold : FontWeight.normal)));
     return TableRow(children: [
       _paddingAll(
-          4,
+          3,
           Text(title,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold))),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
       ...values.map(cell),
     ]);
   }
@@ -604,11 +614,11 @@ class EndOfRoundDialog extends StatelessWidget {
     final roundPoints = round.pointsTaken();
 
     Widget headerCell(String msg, {Widget? child}) => _paddingAll(
-        4,
+        3,
         child ??
             Text(msg,
                 textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)));
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)));
 
     Widget catImageCell(int imageIndex) {
       return Padding(
@@ -625,19 +635,25 @@ class EndOfRoundDialog extends StatelessWidget {
     }
 
     final dialog = Center(
-        child: Transform.scale(
-            scale: layout.dialogScale(),
-            child: Dialog(
-                insetPadding: EdgeInsets.zero,
-                backgroundColor: dialogBackgroundColor,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: Dialog(
+            insetPadding: EdgeInsets.symmetric(
+                horizontal: layout.displaySize.width * 0.04,
+                vertical: layout.displaySize.height * 0.04),
+            backgroundColor: dialogBackgroundColor,
+            child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: layout.displaySize.width * 0.92,
+                  maxHeight: layout.displaySize.height * 0.9,
+                ),
+                child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
                   if (match.isMatchOver())
                     _paddingAll(
-                        10,
+                        8,
                         Text(matchOverMessage(),
-                            style: const TextStyle(fontSize: 26))),
+                            style: const TextStyle(fontSize: 22))),
                   _paddingAll(
-                      10,
+                      8,
                       Table(
                         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                         defaultColumnWidth: const IntrinsicColumnWidth(),
@@ -655,7 +671,8 @@ class EndOfRoundDialog extends StatelessWidget {
                           ]),
                           row("This round", [
                             for (int p = 0; p < round.numberOfPlayers; p++)
-                              round.displayNameForPlayer(p)
+                              _roleAbbrev[round.displayNameForPlayer(p)] ??
+                                  round.displayNameForPlayer(p)
                           ]),
                           row("Round points", [
                             for (int p = 0; p < round.numberOfPlayers; p++) roundPoints[p]
@@ -667,17 +684,17 @@ class EndOfRoundDialog extends StatelessWidget {
                       )),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     _paddingAll(
-                        15,
+                        12,
                         ElevatedButton(
                             onPressed: onContinue,
                             child: Text(match.isMatchOver() ? "Rematch" : "Continue"))),
                     if (match.isMatchOver())
                       _paddingAll(
-                          15,
+                          12,
                           ElevatedButton(
                               onPressed: onMainMenu, child: const Text("Main Menu"))),
                   ]),
-                ]))));
+                ])))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),
