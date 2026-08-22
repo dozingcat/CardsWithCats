@@ -107,6 +107,16 @@ void main() {
     expect(isValidPlay(follower.hand, [higher!], round.currentTrick), isTrue);
   });
 
+  test("Playing an ace immediately completes the trick (issue #3)", () {
+    final round = roundInPlay();
+    final leader = round.currentPlayerIndex();
+    final ace = round.players[leader].hand.firstWhere((c) => c.rank == Rank.ace);
+    round.playCards([ace]);
+    // No passes are collected: the trick is over and the ace player leads.
+    expect(round.currentTrick.actions, isEmpty);
+    expect(round.currentTrick.leader, leader);
+  });
+
   test("Sets of the same rank may be led and beaten by bigger sets", () {
     final hand = [
       card("2H"), card("2D"),

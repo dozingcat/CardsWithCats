@@ -766,6 +766,9 @@ class PlayerHandCards extends StatelessWidget {
   final HandDisplayStyle displayStyle;
   final double scaleMultiplier;
 
+  /// Optional replacement for the default suit-grouped ordering.
+  final List<PlayingCard> Function(Iterable<PlayingCard>)? customCardSort;
+
   const PlayerHandCards({
     super.key,
     required this.layout,
@@ -779,11 +782,12 @@ class PlayerHandCards extends StatelessWidget {
     this.playerIndex = 0,
     this.displayStyle = HandDisplayStyle.normal,
     this.scaleMultiplier = 1,
+    this.customCardSort,
   });
 
   @override
   Widget build(BuildContext context) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier);
+    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, customCardSort: customCardSort);
 
     double rotation = (playerIndex == 1)
         ? pi / 2
@@ -792,7 +796,7 @@ class PlayerHandCards extends StatelessWidget {
         : 0;
 
     if (animateFromCards != null) {
-      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier);
+      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, customCardSort: customCardSort);
       return TweenAnimationBuilder(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 200),
@@ -970,11 +974,20 @@ class MultiplePlayerHandCards extends StatelessWidget {
   }
 }
 
+List<PlayingCard> _sortBySuit(Iterable<PlayingCard> cards, List<Suit> suitOrder) {
+  List<PlayingCard> sortedCards = [];
+  for (Suit suit in suitOrder) {
+    sortedCards.addAll(sortedCardsInSuit(cards, suit));
+  }
+  return sortedCards;
+}
+
 LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {required int playerIndex, double scaleMultiplier = 1}
+    {required int playerIndex, double scaleMultiplier = 1,
+     List<PlayingCard> Function(Iterable<PlayingCard>)? customCardSort}
 ) {
   if (!(playerIndex == 0 || playerIndex == 2)) {
     throw Exception("invalid playerIndex: $playerIndex");
@@ -993,10 +1006,8 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
 
   double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
 
-  List<PlayingCard> sortedCards = [];
-  for (Suit suit in suitOrder) {
-    sortedCards.addAll(sortedCardsInSuit(cards, suit));
-  }
+  List<PlayingCard> sortedCards =
+      (customCardSort != null) ? customCardSort(cards) : _sortBySuit(cards, suitOrder);
   final oneRowWidth = widthOfNCards(sortedCards.length);
   if (oneRowWidth < maxAllowedTotalWidth) {
     final scaledRowWidth = oneRowWidth * scaleMultiplier;
@@ -1057,15 +1068,14 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {required int playerIndex, double scaleMultiplier = 1.0}
+    {required int playerIndex, double scaleMultiplier = 1.0,
+     List<PlayingCard> Function(Iterable<PlayingCard>)? customCardSort}
     ) {
   if (!(playerIndex == 1 || playerIndex == 3)) {
     throw Exception("invalid playerIndex: $playerIndex");
   }
-  List<PlayingCard> sortedCards = [];
-  for (Suit suit in suitOrder) {
-    sortedCards.addAll(sortedCardsInSuit(cards, suit));
-  }
+  List<PlayingCard> sortedCards =
+      (customCardSort != null) ? customCardSort(cards) : _sortBySuit(cards, suitOrder);
 
   final rects = LinkedHashMap<PlayingCard, Rect>();
   final ds = layout.displaySize;
@@ -1228,13 +1238,14 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {int playerIndex = 0, double scaleMultiplier = 1}
+    {int playerIndex = 0, double scaleMultiplier = 1,
+     List<PlayingCard> Function(Iterable<PlayingCard>)? customCardSort}
 ) {
   if (playerIndex == 0 || playerIndex == 2) {
-    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
+    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, customCardSort: customCardSort);
   }
   else {
-    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
+    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, customCardSort: customCardSort);
   }
   throw Exception();
 }
@@ -1243,10 +1254,11 @@ LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal, scaleMultiplier = 1.0}) {
+    {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal, scaleMultiplier = 1.0,
+     List<PlayingCard> Function(Iterable<PlayingCard>)? customCardSort}) {
   return switch (displayStyle) {
     HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
-    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
+    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, customCardSort: customCardSort),
   };
 }
 

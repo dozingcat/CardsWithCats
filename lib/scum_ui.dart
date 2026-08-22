@@ -106,36 +106,57 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
 
   void _scheduleAiIfNeeded({int minDelayMillis = aiDelayMillis}) {
     if (widget.dialogVisible) return;
-    if (round.status == ScumRoundStatus.trading) return;
+    if (round.status != ScumRoundStatus.playing) return;
     if (round.isOver()) {
       _updateMoodsAfterRound();
       return;
     }
-    if (round.currentPlayerIndex() != 0 && !processingAi) {
-      processingAi = true;
-      Future.delayed(Duration(milliseconds: minDelayMillis), () {
-        if (!mounted) return;
-        _runAiTurns();
-      });
-    }
+    if (processingAi) return;
+    processingAi = true;
+    Future.delayed(Duration(milliseconds: minDelayMillis), () {
+      if (!mounted) return;
+      _runTurns();
+    });
   }
 
-  /// Plays out AI turns (with small pauses) until it is the human's turn or
-  /// the round ends.
-  Future<void> _runAiTurns() async {
+  /// Plays out turns (with small pauses) until the human can choose a play.
+  /// A human turn with no legal plays passes automatically (issue #3).
+  Future<void> _runTurns() async {
     while (mounted &&
         round.status == ScumRoundStatus.playing &&
         !round.isOver() &&
-        round.currentPlayerIndex() != 0) {
+        processingAi) {
       final playerIndex = round.currentPlayerIndex();
-      final req = ScumPlayRequest.fromRound(round, playerIndex);
-      final cards = chooseScumPlay(req, Random());
+      if (playerIndex == 0) {
+        if (round.legalPlaysForCurrentPlayer().isNotEmpty) {
+          // Waiting for the human to choose a play or pass.
+          setState(() {
+            processingAi = false;
+          });
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted ||
+            round.status != ScumRoundStatus.playing ||
+            round.isOver() ||
+            round.currentPlayerIndex() != 0 ||
+            round.legalPlaysForCurrentPlayer().isNotEmpty) {
+          continue;
+        }
+      }
       setState(() {
-        if (cards.isEmpty) {
+        if (playerIndex == 0) {
           round.pass();
         } else {
-          round.playCards(cards);
+          final req = ScumPlayRequest.fromRound(round, playerIndex);
+          final cards = chooseScumPlay(req, Random());
+          if (cards.isEmpty) {
+            round.pass();
+          } else {
+            round.playCards(cards);
+          }
         }
+        selectedCards = [];
         if (round.isOver()) {
           _updateMoodsAfterRound();
         }
@@ -179,7 +200,18 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     _scheduleAiIfNeeded();
   }
 
+  /// Whether the human has made any required trade selection.
+  bool _humanTradeSelectionReady() {
+    final needed = round.numCardsToSelectForTrade(0);
+    return needed == 0 || selectedCards.length == needed;
+  }
+
   void _exchangeCards() {
+    final needed = round.numCardsToSelectForTrade(0);
+    if (needed > 0) {
+      if (selectedCards.length != needed) return;
+      round.setTradeSelection(0, List.of(selectedCards));
+    }
     if (!round.readyToExchange()) return;
     setState(() {
       round.exchangeCards();
@@ -244,24 +276,46 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
       return;
     }
     if (!isHumanTurn) return;
-    // Only allow selecting a valid same-rank set.
+    // Selecting a card selects all copies of that rank (issue #4). Tapping a
+    // selected card again removes just that card, so partial sets remain
+    // playable. When following, the batch is clamped to the required size.
+    final hand = round.players[0].hand;
     setState(() {
       if (selectedCards.contains(card)) {
-        selectedCards.remove(card);
+        selectedCards = [...selectedCards]..remove(card);
         return;
       }
-      final candidate = [...selectedCards, card];
-      if (candidate.every((c) => c.rank == card.rank)) {
-        selectedCards.add(card);
-      } else {
-        selectedCards = [card];
+      if (selectedCards.isNotEmpty && selectedCards[0].rank != card.rank) {
+        selectedCards = [];
       }
+      var target = hand.where((c) => c.rank == card.rank).length;
+      final best = round.currentTrick.bestAction;
+      if (best != null && best.player != 0) {
+        target = min(target, best.cards.length);
+      }
+      target = min(target, 4);
+      final copies =
+          hand.where((c) => c.rank == card.rank).toList()
+            ..sort((a, b) => b.suit.index - a.suit.index);
+      selectedCards = copies.sublist(0, min(target, copies.length));
     });
   }
 
   bool canPlaySelectedCards() {
     return isHumanTurn &&
         isValidPlay(round.players[0].hand, selectedCards, round.currentTrick);
+  }
+
+  /// Scum ignores suits: the hand reads best to worst, aces on the left and
+  /// twos on the right (issue #1).
+  static List<PlayingCard> _rankSortHand(Iterable<PlayingCard> cards) {
+    final list = [...cards];
+    list.sort((a, b) {
+      int cmp = b.rank.index - a.rank.index;
+      if (cmp != 0) return cmp;
+      return b.suit.index - a.suit.index;
+    });
+    return list;
   }
 
   Widget _playerCards(final Layout layout) {
@@ -281,6 +335,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
       highlightedCards: highlighted,
       onCardClicked: (_shouldIgnoreCardClicks()) ? null : handleHandCardClicked,
       playerIndex: 0,
+      customCardSort: _rankSortHand,
     );
   }
 
@@ -297,13 +352,13 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     for (final action in round.currentTrick.actions) {
       if (action.cards.isEmpty) continue;
       final baseArea = layout.trickCardAreaForPlayer(action.player);
-      final cardWidth = baseArea.width * 0.55;
+      final cardWidth = baseArea.width * 0.5;
       for (int i = 0; i < action.cards.length; i++) {
         final offset = globalIndex.toDouble();
         widgets.add(PositionedCard(
           rect: Rect.fromLTWH(
-            baseArea.left + i * cardWidth * 0.6 + offset * 2,
-            baseArea.top - offset * 3,
+            baseArea.left + i * cardWidth * 0.38 + offset * 1.5,
+            baseArea.top - offset * 2,
             baseArea.width,
             baseArea.height,
           ),
@@ -338,18 +393,19 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
           return Offset(layout.displaySize.width - badgeWidth - 8,
               layout.displaySize.height / 2 - layout.playerHeight * 1.35);
         default:
-          return Offset(layout.displaySize.width / 2 - badgeWidth / 2,
-              layout.displaySize.height - layout.playerHeight - 30);
+          // Top-left corner, clear of the hand and the played cards.
+          return const Offset(8, 8);
       }
     }
 
     for (int player = 0; player < round.numberOfPlayers; player++) {
       final role = round.roleForPlayer(player);
       final label = round.displayNameForPlayer(player);
+      final cardCount = round.players[player].hand.length;
       final isActive = round.status == ScumRoundStatus.playing &&
           !round.isOver() &&
           round.currentPlayerIndex() == player;
-      final badgeWidth = label.length * 8.5 + 20.0;
+      final badgeWidth = max(label.length, 7) * 8.5 + 20.0;
       final pos = positionFor(player, badgeWidth);
       widgets.add(Positioned(
         left: pos.dx,
@@ -360,9 +416,18 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
             borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          child: Text(
-            label,
-            style: badgeStyle(isActive, role == ScumRole.scum),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(label, style: badgeStyle(isActive, role == ScumRole.scum)),
+              Text("$cardCount ${cardCount == 1 ? "card" : "cards"}",
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isActive
+                          ? Colors.yellow.shade100
+                          : Colors.white60)),
+            ],
           ),
         ),
       ));
@@ -420,7 +485,9 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                   _paddingAll(
                       10,
                       ElevatedButton(
-                        onPressed: round.readyToExchange() ? _exchangeCards : null,
+                        onPressed: _humanTradeSelectionReady()
+                            ? _exchangeCards
+                            : null,
                         child: Text(round.numCardsToSelectForTrade(0) > 0 &&
                                 selectedCards.length !=
                                     round.numCardsToSelectForTrade(0)
@@ -432,9 +499,12 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
             ),
           ),
         ),
+      // The action row floats between the two side seats, clear of the
+      // cards in play and of the player's hand (issue #1).
       if (isHumanTurn && !processingAi)
         Positioned.fill(
-          child: Center(
+          child: Align(
+            alignment: const Alignment(0, -0.12),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

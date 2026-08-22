@@ -502,6 +502,14 @@ class ScumRound {
     }
     final bestIndex = _indexOfBestAction();
     if (bestIndex < 0) return;
+    // An ace is the highest possible play, so the trick ends immediately
+    // without waiting for the remaining players to decline.
+    final bestAction = currentTrick.actions[bestIndex];
+    if (bestAction.cards.isNotEmpty &&
+        bestAction.cards[0].rank == Rank.ace) {
+      _completeTrick(bestAction);
+      return;
+    }
     // Count consecutive passes after the play currently to beat: once every
     // other active player has declined, the play stands.
     int consecutivePasses = 0;
