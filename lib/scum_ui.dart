@@ -346,21 +346,40 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   }
 
   /// The played cards of the current trick, fanned near each player's seat.
+  /// Center point of the played-set pile for a seat. The bottom seat is
+  /// biased upward so plays never cover the human hand.
+  Offset _trickPlayCenter(final Layout layout, final int player) {
+    var center = layout.trickCardAreaForPlayer(player).center;
+    if (player == 0) {
+      center -= Offset(0, layout.playerHeight * 1.5);
+    }
+    return center;
+  }
+
+  /// Height of played cards: much smaller than hand cards so they never
+  /// crowd the hand at the bottom of the table.
+  double _playCardHeight(final Layout layout) =>
+      layout.displaySize.height * 0.115;
+
   Widget _trickPlays(final Layout layout) {
     final widgets = <Widget>[];
     int globalIndex = 0;
+    final playHeight = _playCardHeight(layout);
+    final playWidth = playHeight * defaultCardAspectRatio;
     for (final action in round.currentTrick.actions) {
       if (action.cards.isEmpty) continue;
-      final baseArea = layout.trickCardAreaForPlayer(action.player);
-      final cardWidth = baseArea.width * 0.5;
+      final center = _trickPlayCenter(layout, action.player);
+      final fanStep = playWidth * 0.38;
+      final totalWidth = playWidth + (action.cards.length - 1) * fanStep;
+      final startX = center.dx - totalWidth / 2;
       for (int i = 0; i < action.cards.length; i++) {
         final offset = globalIndex.toDouble();
         widgets.add(PositionedCard(
           rect: Rect.fromLTWH(
-            baseArea.left + i * cardWidth * 0.38 + offset * 1.5,
-            baseArea.top - offset * 2,
-            baseArea.width,
-            baseArea.height,
+            startX + i * fanStep,
+            center.dy - playHeight / 2 - offset * 2,
+            playWidth,
+            playHeight,
           ),
           card: action.cards[i],
         ));
@@ -386,12 +405,12 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     Offset positionFor(int player, double badgeWidth) {
       switch (player) {
         case 1:
-          return Offset(8, layout.displaySize.height / 2 - layout.playerHeight * 1.35);
+          return Offset(8, layout.displaySize.height / 2 - layout.playerHeight * 1.55);
         case 2:
           return Offset(layout.displaySize.width / 2 - badgeWidth / 2, ca.top + 4);
         case 3:
           return Offset(layout.displaySize.width - badgeWidth - 8,
-              layout.displaySize.height / 2 - layout.playerHeight * 1.35);
+              layout.displaySize.height / 2 - layout.playerHeight * 1.55);
         default:
           // Top-left corner, clear of the hand and the played cards.
           return const Offset(8, 8);
@@ -499,13 +518,18 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
             ),
           ),
         ),
-      // The action row floats between the two side seats, clear of the
-      // cards in play and of the player's hand (issue #1).
+      // The action row floats midway between the top cat's plays and the
+      // bottom play pile, clear of both plus the badges and the hand.
       if (isHumanTurn && !processingAi)
-        Positioned.fill(
-          child: Align(
-            alignment: const Alignment(0, -0.12),
-            child: Row(
+        Positioned(
+          top: (_trickPlayCenter(layout, 2).dy +
+                  _trickPlayCenter(layout, 0).dy) /
+              2 -
+              30,
+          left: 0,
+          right: 0,
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton(
@@ -528,7 +552,6 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                   ),
               ],
             ),
-          ),
         ),
       if (_shouldShowEndOfRoundDialog())
         EndOfRoundDialog(
