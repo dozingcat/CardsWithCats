@@ -1,0 +1,1 @@
+- Fixed bug that could cause bridge AI players to make illegal bids.

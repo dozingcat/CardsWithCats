@@ -15,6 +15,8 @@
 ///   slam-light       undoubled slam with < 28 combined HCP
 ///   silly-strain     suit contract with <= 6 combined trumps
 ///   missed-game      declaring side with 26+ combined stopped below game
+///                    (excused with an opponent suit unstopped, no major
+///                    fit, and under 28 points: no game is attractive)
 ///   missed-slam      declaring side with 33+ combined HCP (or 36+ total
 ///                    points) stopped below the six level
 ///   passed-out       deal passed out despite 25+ combined points
@@ -35,6 +37,9 @@ const hardFailureCategories = {
 };
 
 const _maxCalls = 40;
+// Injected chaos calls never pass, so legitimate fuzzed auctions can run
+// well past the engine-only limit before three passes appear.
+const _chaosMaxCalls = 100;
 
 List<List<PlayingCard>> dealHands(int seed, int index) {
   final rng = Random(seed * 100003 + index);
@@ -43,31 +48,6 @@ List<List<PlayingCard>> dealHands(int seed, int index) {
 }
 
 int _gameLevel(Suit? trump) => trump == null ? 3 : (isMajorSuit(trump) ? 4 : 5);
-
-bool isLegalCall(BidAction call, List<BidAction> history) {
-  int? lastBidIndex;
-  for (int i = history.length - 1; i >= 0; i--) {
-    if (history[i].bidType == BidType.contract) {
-      lastBidIndex = i;
-      break;
-    }
-  }
-  if (call.bidType == BidType.pass) return true;
-  final n = history.length;
-  if (call.bidType == BidType.contract) {
-    if (lastBidIndex == null) return true;
-    return call.contractBid!.isHigherThan(history[lastBidIndex].contractBid!);
-  }
-  if (lastBidIndex == null) return false;
-  final since = history.sublist(lastBidIndex + 1);
-  final doubled = since.any((c) => c.bidType == BidType.double);
-  final redoubled = since.any((c) => c.bidType == BidType.redouble);
-  final bidByOpponents = (n - lastBidIndex) % 2 == 1;
-  if (call.bidType == BidType.double) {
-    return bidByOpponents && !doubled && !redoubled;
-  }
-  return !bidByOpponents && doubled && !redoubled; // redouble
-}
 
 class SelfPlayFinding {
   final String category;
@@ -82,8 +62,9 @@ class SelfPlayFinding {
 class SelfPlayResult {
   final List<BidAction> history;
   final List<SelfPlayFinding> findings;
+  final int injectedCalls;
 
-  SelfPlayResult(this.history, this.findings);
+  SelfPlayResult(this.history, this.findings, [this.injectedCalls = 0]);
 }
 
 String _fmt(List<BidAction> history) =>
@@ -201,12 +182,35 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
         "slam-light", "$contract with ${combinedHcp(side)} combined HCP"));
   }
   if (!atGame && !doubled && combinedTotal(side) >= 26) {
-    // Only the declaring side: defenders selling out is a different (and
-    // much harder) judgment problem.
-    findings.add(SelfPlayFinding(
-        "missed-game",
-        "the declaring side has ${combinedTotal(side)} combined points but "
-        "stopped in $contract"));
+    // A partscore can be the right spot despite the points: with an
+    // opponent-bid suit unstopped (3NT unattractive), no eight-card major
+    // fit, and not enough for the five level, stopping in 4C/4D is at
+    // worst unclear, so don't flag it.
+    final oppSuits = {
+      for (int i = 0; i < history.length; i++)
+        if (i % 2 != side &&
+            history[i].bidType == BidType.contract &&
+            history[i].contractBid!.trump != null)
+          history[i].contractBid!.trump!
+    };
+    bool stopped(Suit s) =>
+        HandAnalysis(hands[side]).hasStopper(s) ||
+        HandAnalysis(hands[side + 2]).hasStopper(s);
+    final majorFit = [Suit.hearts, Suit.spades].any((s) =>
+        hands[side].where((c) => c.suit == s).length +
+            hands[side + 2].where((c) => c.suit == s).length >=
+        8);
+    final excused = oppSuits.any((s) => !stopped(s)) &&
+        !majorFit &&
+        combinedTotal(side) < 28;
+    if (!excused) {
+      // Only the declaring side: defenders selling out is a different (and
+      // much harder) judgment problem.
+      findings.add(SelfPlayFinding(
+          "missed-game",
+          "the declaring side has ${combinedTotal(side)} combined points but "
+          "stopped in $contract"));
+    }
   }
   if (contract.count < 6 &&
       !doubled &&
@@ -220,16 +224,53 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
 
 int highCardPointsOf(List<PlayingCard> hand) => HandAnalysis(hand).hcp;
 
-SelfPlayResult runDeal(List<List<PlayingCard>> hands) {
+/// A random legal non-pass call for fuzzing: usually a legal double/redouble
+/// or one of the few cheapest contract bids, occasionally anything legal.
+BidAction randomLegalCall(Random rng, List<BidAction> history) {
+  final contracts = <BidAction>[
+    for (int level = 1; level <= 7; level++)
+      for (final trump in [...Suit.values, null])
+        if (isLegalCall(BidAction.contract(level, trump), history))
+          BidAction.contract(level, trump)
+  ];
+  contracts.sort((a, b) =>
+      a.contractBid!.isHigherThan(b.contractBid!) ? 1 : -1);
+  final candidates = <BidAction>[
+    if (isLegalCall(BidAction.double(), history)) BidAction.double(),
+    if (isLegalCall(BidAction.redouble(), history)) BidAction.redouble(),
+    ...(rng.nextDouble() < 0.1 ? contracts : contracts.take(8)),
+  ];
+  if (candidates.isEmpty) return BidAction.pass();
+  return candidates[rng.nextInt(candidates.length)];
+}
+
+/// Runs one auction. With `chaosRng` set, each call is replaced with a
+/// random legal call with probability `chaosProbability`, fuzzing the
+/// engine's responses to auctions it would never produce itself; injected
+/// calls carry no meaning and are exempt from the lints.
+SelfPlayResult runDeal(List<List<PlayingCard>> hands,
+    {Random? chaosRng, double chaosProbability = 0}) {
   final history = <BidAction>[];
   final findings = <SelfPlayFinding>[];
-  while (history.length < _maxCalls) {
+  int injectedCalls = 0;
+  // Seats that have had a call injected: their later engine calls are
+  // premised on bids their hand never justified, so the advertisement
+  // lints don't apply to them.
+  final injectedSeats = <int>{};
+  final maxCalls = chaosRng == null ? _maxCalls : _chaosMaxCalls;
+  while (history.length < maxCalls) {
     final seat = history.length % 4;
     if (history.length >= 4 &&
         history
             .sublist(history.length - 3)
             .every((c) => c.bidType == BidType.pass)) {
       break;
+    }
+    if (chaosRng != null && chaosRng.nextDouble() < chaosProbability) {
+      history.add(randomLegalCall(chaosRng, history));
+      injectedCalls++;
+      injectedSeats.add(seat);
+      continue;
     }
     BidAction call;
     BidMeaning? meaning;
@@ -251,8 +292,10 @@ SelfPlayResult runDeal(List<List<PlayingCard>> hands) {
       meaning = null;
     }
     if (meaning != null) {
-      _lintAdvertisement(
-          HandAnalysis(hands[seat]), seat, call, meaning, history, findings);
+      if (!injectedSeats.contains(seat)) {
+        _lintAdvertisement(
+            HandAnalysis(hands[seat]), seat, call, meaning, history, findings);
+      }
       // Not a failure, but worth monitoring: a rule set existed for this
       // auction but no rule matched the hand, so the fallback bidder acted.
       if (meaning.description.startsWith("No rule matched")) {
@@ -270,11 +313,11 @@ SelfPlayResult runDeal(List<List<PlayingCard>> hands) {
       }
     }
     history.add(call);
-    if (history.length >= _maxCalls) {
+    if (history.length >= maxCalls) {
       findings.add(SelfPlayFinding("runaway-auction", _fmt(history)));
       break;
     }
   }
   _lintResult(hands, history, findings);
-  return SelfPlayResult(history, findings);
+  return SelfPlayResult(history, findings, injectedCalls);
 }
