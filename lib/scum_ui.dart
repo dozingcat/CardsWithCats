@@ -129,9 +129,13 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
       final playerIndex = round.currentPlayerIndex();
       if (playerIndex == 0) {
         if (round.legalPlaysForCurrentPlayer().isNotEmpty) {
-          // Waiting for the human to choose a play or pass.
+          // Waiting for the human to choose a play or pass. With exactly one
+          // option it is selected automatically (#5).
           setState(() {
             processingAi = false;
+            final legal = round.legalPlaysForCurrentPlayer();
+            selectedCards =
+                (legal.length == 1) ? List.of(legal.single) : [];
           });
           return;
         }
@@ -340,26 +344,43 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   }
 
   bool _shouldIgnoreCardClicks() {
-    // Card taps stay active during the trading phase so the president and
-    // vice president can select cards to give away.
-    return widget.dialogVisible || processingAi || _shouldShowEndOfRoundDialog();
+    // Card taps stay active during trading and while AI turns resolve —
+    // swallowing them made quick taps feel like they needed repeating (#6).
+    return widget.dialogVisible || _shouldShowEndOfRoundDialog();
   }
 
   /// The played cards of the current trick, fanned near each player's seat.
-  /// Center point of the played-set pile for a seat. The bottom seat is
-  /// biased upward so plays never cover the human hand.
+  /// Center point of the played-set pile for a seat: an evenly spaced ring
+  /// around the middle of the table, with the side seats pulled in toward
+  /// the center (issue #9).
   Offset _trickPlayCenter(final Layout layout, final int player) {
-    var center = layout.trickCardAreaForPlayer(player).center;
-    if (player == 0) {
-      center -= Offset(0, layout.playerHeight * 1.5);
+    final ds = layout.displaySize;
+    final ph = layout.playerHeight;
+    switch (player) {
+      case 2:
+        return Offset(ds.width / 2, ds.height / 2 - ph * 1.9);
+      case 0:
+        return Offset(ds.width / 2, ds.height / 2 + ph * 2.4);
+      case 1:
+        return Offset(ds.width * 0.33, ds.height / 2);
+      default:
+        return Offset(ds.width * 0.67, ds.height / 2);
     }
-    return center;
   }
 
   /// Height of played cards: much smaller than hand cards so they never
   /// crowd the hand at the bottom of the table.
   double _playCardHeight(final Layout layout) =>
       layout.displaySize.height * 0.115;
+
+  /// Vertical position of the Play/Pass row: just above the tallest possible
+  /// hand layout and below the bottom play pile.
+  double _actionRowTop(final Layout layout) {
+    final ds = layout.displaySize;
+    final pileBottom = _trickPlayCenter(layout, 0).dy + _playCardHeight(layout) / 2;
+    final handTop = ds.height * 0.69;
+    return (pileBottom + handTop) / 2 - 22;
+  }
 
   Widget _trickPlays(final Layout layout) {
     final widgets = <Widget>[];
@@ -369,7 +390,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     for (final action in round.currentTrick.actions) {
       if (action.cards.isEmpty) continue;
       final center = _trickPlayCenter(layout, action.player);
-      final fanStep = playWidth * 0.38;
+      final fanStep = playWidth * 0.28;
       final totalWidth = playWidth + (action.cards.length - 1) * fanStep;
       final startX = center.dx - totalWidth / 2;
       for (int i = 0; i < action.cards.length; i++) {
@@ -520,19 +541,15 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
             ),
           ),
         ),
-      // The action row floats midway between the top cat's plays and the
-      // bottom play pile, clear of both plus the badges and the hand.
+      // Play sits at the left edge and Pass at the right edge, directly
+      // above the player's hand and clear of the center play piles (#7).
       if (isHumanTurn && !processingAi)
         Positioned(
-          top: (_trickPlayCenter(layout, 2).dy +
-                  _trickPlayCenter(layout, 0).dy) /
-              2 -
-              30,
-          left: 0,
-          right: 0,
+          top: _actionRowTop(layout),
+          left: 10,
+          right: 10,
           child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton(
                   onPressed: canPlaySelectedCards() ? _playSelectedCards : null,
@@ -542,7 +559,6 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                   ),
                   child: const Text("Play"),
                 ),
-                const SizedBox(width: 16),
                 if (canPass)
                   ElevatedButton(
                     onPressed: _passTurn,
@@ -552,8 +568,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                     ),
                     child: const Text("Pass"),
                   ),
-              ],
-            ),
+              ]),
         ),
       if (_shouldShowEndOfRoundDialog())
         EndOfRoundDialog(

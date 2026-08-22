@@ -184,6 +184,21 @@ List<PlayingCard> _chooseLead(ScumPlayRequest req, Random rng) {
       score -= 5;
     }
 
+    // A high quad is the strongest weapon in the game: dropping it early
+    // costs the presidency. Split it into pairs/singles and keep it for a
+    // decisive moment instead (#10).
+    if (size == 4 &&
+        rank.index >= Rank.queen.index &&
+        req.hand.length > size + 3) {
+      score -= 14;
+    }
+    // High pairs/triples are nearly as precious while the hand is deep.
+    if (size >= 2 &&
+        rank.index >= Rank.king.index &&
+        req.hand.length > size + 4) {
+      score -= 4;
+    }
+
     // Leading our lowest single is always decent.
     if (size == 1 && rank == _lowestRank(req.hand)) {
       score += 1.5;
@@ -303,6 +318,13 @@ List<PlayingCard> _chooseFollow(ScumPlayRequest req, Random rng) {
 
     // Late game: staying alive to dump the last cards matters more.
     if (req.hand.length <= 3) score += 2.5;
+
+    // Beating with a large high set early is as wasteful as leading it.
+    if (option.length >= 3 &&
+        rank.index >= Rank.queen.index &&
+        req.hand.length > option.length + 3) {
+      score -= 8;
+    }
 
     // Block a rival who is about to go out.
     if (winnerAboutToGoOut && winnerIsRival) score += 5;

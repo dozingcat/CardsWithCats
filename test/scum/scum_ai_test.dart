@@ -90,6 +90,31 @@ void main() {
     expect(beats, greaterThanOrEqualTo(0));
   });
 
+  test("issue #10: the AI does not lead a high quad early", () {
+    final rng = Random(8);
+    final hand = [
+      card("KS"), card("KH"), card("KD"), card("KC"),
+      card("3H"), card("4D"), card("5S"), card("6C"),
+      card("7H"), card("8D"),
+    ];
+    for (int seed = 0; seed < 40; seed++) {
+      final req = ScumPlayRequest(
+        rules: ScumRuleSet(),
+        hand: List.of(hand),
+        seatOrder: const [0, 1, 2, 3],
+        scores: const [0, 0, 0, 0],
+        handCounts: const [10, 10, 10, 10],
+        seenCards: {...hand},
+        playerIndex: 0,
+        currentTrick: ScumTrick(0),
+      );
+      final play = chooseScumPlay(req, Random(seed));
+      final isKingsQuad = play.length == 4 && play[0].rank == Rank.king;
+      expect(isKingsQuad, isFalse,
+          reason: "seed $seed led quad kings with a deep hand");
+    }
+  });
+
   test("AI always returns a legal play or a legal pass", () {
     final rng = Random(19);
     for (int game = 0; game < 30; game++) {

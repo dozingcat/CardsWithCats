@@ -2,6 +2,17 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.3.0
+
+Playtest refinements across visibility, input, sound, and AI judgment.
+
+- **Selection**: when exactly one play is available it is selected automatically, so committing it is always a single tap on Play (#5).
+- **Input reliability**: card taps are no longer swallowed while AI turns resolve, fixing plays that seemed to need a second tap (#6).
+- **Layout**: Play moved to the left edge and Pass to the right edge, directly above the hand; played sets fan out more tightly (#7).
+- **Flatpak layout**: the play piles now form an evenly spaced ring around the center of the table with the side seats pulled in toward the middle (#9).
+- **Sound**: the flatpak ships with pulseaudio access so cat sounds play, and a volume slider was added to Preferences (#8).
+- **AI judgment**: the cats no longer lead or beat with high quads (or high pairs/triples) while deep in cards; power hands are split and saved for decisive moments (#10).
+
 ## 0.2.0 — Initial release
 
 The first complete release of four-player Scum against three AI cats.

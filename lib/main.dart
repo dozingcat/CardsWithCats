@@ -30,7 +30,7 @@ import 'scum_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "0.2.0";
+const appVersion = "0.3.0";
 const appLegalese = "© 2022-2025 Brian Nenninger";
 
 const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
@@ -133,6 +133,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       soundPlayer.enabled = preferences.getBool("soundEnabled") ?? true;
+      soundPlayer.volume = preferences.getDouble("soundVolume") ?? 1.0;
       useTintedTrumpCards = preferences.getBool("tintedTrumpCards") ?? true;
       useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
       useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
@@ -206,6 +207,13 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     preferences.setBool("soundEnabled", enabled);
     soundPlayer.playMadSound();
+  }
+
+  void setSoundVolume(double volume) {
+    setState(() {
+      soundPlayer.volume = volume;
+    });
+    preferences.setDouble("soundVolume", volume);
   }
 
   void setTintedTrumpCardsEnabled(bool enabled) {
@@ -685,6 +693,23 @@ class _MyHomePageState extends State<MyHomePage> {
                               onChanged: (bool? checked) {
                                 setSoundEnabled(checked == true);
                               },
+                            ),
+                            ListTile(
+                              dense: true,
+                              title: Text(
+                                  "Volume: ${(soundPlayer.volume * 100).round()}%",
+                                  style: labelStyle),
+                              subtitle: Slider(
+                                value: soundPlayer.volume.clamp(0.0, 1.0),
+                                min: 0.0,
+                                max: 1.0,
+                                divisions: 20,
+                                label:
+                                    "${(soundPlayer.volume * 100).round()}%",
+                                onChanged: soundPlayer.enabled
+                                    ? (double v) => setSoundVolume(v)
+                                    : null,
+                              ),
                             ),
                             CheckboxListTile(
                               dense: true,

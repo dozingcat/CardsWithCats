@@ -8,6 +8,7 @@ class SoundEffectPlayer {
   final happySoundPlayers = <AudioPlayer>[];
   bool enabled = false;
   bool soundsLoaded = false;
+  double volume = 1.0;
 
   void init() async {
     soundsLoaded = false;
@@ -35,6 +36,7 @@ class SoundEffectPlayer {
       return;
     }
     final index = rng.nextInt(players.length);
+    await players[index].setVolume(volume.clamp(0.0, 1.0));
     await players[index].seek(Duration.zero);
     await players[index].play();
   }

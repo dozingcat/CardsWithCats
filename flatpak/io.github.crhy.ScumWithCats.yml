@@ -6,6 +6,7 @@ command: CardsWithCats
 separate-locales: false
 finish-args:
   - --share=ipc
+  - --socket=pulseaudio
   - --socket=fallback-x11
   - --socket=wayland
   - --device=dri

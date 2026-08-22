@@ -14,7 +14,7 @@
   </description>
   <launchable type="desktop-id">io.github.crhy.ScumWithCats.desktop</launchable>
   <releases>
-    <release version="0.2.0" date="2026-08-22" type="stable">
+    <release version="0.3.0" date="2026-08-22" type="stable">
       <description><p>Initial release of the Scum game mode.</p></description>
     </release>
   </releases>
