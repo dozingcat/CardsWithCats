@@ -68,6 +68,20 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# Build the dds double-dummy solver (vendored in third_party/dds, plus our
+# isolate-safety shim in cpp/) as libdds.so, mirroring
+# android/app/CMakeLists.txt. It is installed into the bundle's lib/
+# directory below and loaded via Dart FFI by lib/bridge/dds_ffi.dart.
+# Third-party code, so it doesn't get apply_standard_settings' -Werror.
+set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+file(GLOB DDS_SOURCES "${REPO_ROOT}/third_party/dds/src/*.cpp")
+add_library(dds SHARED ${DDS_SOURCES} "${REPO_ROOT}/cpp/dds_shim.cpp")
+target_include_directories(dds PRIVATE
+  "${REPO_ROOT}/third_party/dds/include"
+  "${REPO_ROOT}/third_party/dds/src")
+target_compile_definitions(dds PRIVATE DDS_THREADS_STL)
+target_compile_options(dds PRIVATE -O2)
+
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build
@@ -99,6 +113,9 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+install(TARGETS dds LIBRARY DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
 
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.

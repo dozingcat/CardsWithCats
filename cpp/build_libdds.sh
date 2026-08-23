@@ -9,8 +9,9 @@
 # DDS_SRC to point at another checkout). The output is gitignored. App
 # builds run this automatically: the macOS Runner's "Embed libdds"
 # phase invokes it when sources are newer than the dylib, and Android
-# compiles the same sources itself via android/app/CMakeLists.txt. Run
-# manually only for command-line use (DDS_LIB=native/libdds.dylib).
+# and Linux compile the same sources themselves via
+# android/app/CMakeLists.txt and linux/CMakeLists.txt. Run manually
+# only for command-line use (DDS_LIB=native/libdds.dylib).
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
