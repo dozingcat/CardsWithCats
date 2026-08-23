@@ -3,7 +3,9 @@
 /// the library with cpp/build_libdds.sh; it is loaded
 /// from the platform default location when present (macOS: bundled in
 /// Contents/Frameworks by a Runner build phase; Android: libdds.so from
-/// jniLibs), and the DDS_LIB environment variable overrides the path for
+/// jniLibs; Linux: libdds.so from the bundle's lib/ directory, built by
+/// linux/CMakeLists.txt), and the DDS_LIB environment variable overrides
+/// the path for
 /// development. When no library can be loaded, callers fall back to the
 /// pure-Dart DDSolver. Each isolate loads independently.
 ///
@@ -99,6 +101,12 @@ class DdsBackend {
       } else if (Platform.isMacOS) {
         final path = "${File(Platform.resolvedExecutable).parent.path}"
             "/../Frameworks/libdds.dylib";
+        if (File(path).existsSync()) {
+          _instance = _tryLoad(path, verbose: false);
+        }
+      } else if (Platform.isLinux) {
+        final path = "${File(Platform.resolvedExecutable).parent.path}"
+            "/lib/libdds.so";
         if (File(path).existsSync()) {
           _instance = _tryLoad(path, verbose: false);
         }
