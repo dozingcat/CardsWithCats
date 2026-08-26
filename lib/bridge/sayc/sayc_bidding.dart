@@ -1908,7 +1908,7 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
           description: "Balanced minimum, content to play 1NT",
           hcp: const Range(low: 12, high: 14)),
       ignoreInfo: true,
-      require: (h) => h.isBalanced,
+      require: (h) => h.isBalanced && h.hcp <= 14,
     ),
   ];
   // Jump shifts: 18+, lower-ranking suits only.
@@ -1949,11 +1949,14 @@ List<SaycRule> _rebidAfter1ntResponseRules(ContractBid opening) {
       require: (h) => _secondSuitChoice(h, mySuit, {mySuit}, response) == s,
     ));
   }
+  // Usually 13-16, but off-book hands with no descriptive rebid (e.g. a
+  // balanced 15-17 that opened the suit instead of 1NT) land here too, so
+  // no advertised ceiling.
   rules.add(SaycRule(
     BidAction.pass(),
     BidMeaning(
         description: "Minimum with no better rebid",
-        totalPoints: const Range(low: 13, high: 16)),
+        totalPoints: const Range(low: 13)),
     ignoreInfo: true,
   ));
   return rules;
@@ -2071,6 +2074,20 @@ List<SaycRule> _rebidAfterNewSuitRules(
       ignoreInfo: true,
       require: (h) => h.isBalanced && h.hcp >= 18,
     ),
+    // A balanced 15-17 would normally have opened 1NT, but the position
+    // can arise (a human-style 1M opening on a good suit). Opposite a
+    // forcing two-level response (10+) those values make game: bid it
+    // rather than falling into the 12-14 rebid below.
+    if (response.count >= 2)
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description: "15-17 HCP, balanced (usually opened 1NT)",
+            hcp: const Range(low: 15, high: 17),
+            balanced: true),
+        ignoreInfo: true,
+        require: (h) => h.isBalanced && h.hcp >= 15,
+      ),
     SaycRule(
       BidAction.noTrump(response.count),
       BidMeaning(
@@ -2078,8 +2095,20 @@ List<SaycRule> _rebidAfterNewSuitRules(
           hcp: const Range(low: 12, high: 14),
           balanced: true),
       ignoreInfo: true,
-      require: (h) => h.isBalanced,
+      require: (h) => h.isBalanced && h.hcp <= 14,
     ),
+    // Off-book 15-17 balanced over a one-level response: the cheap
+    // notrump is still the most descriptive call, honestly labeled.
+    if (response.count == 1)
+      SaycRule(
+        BidAction.noTrump(1),
+        BidMeaning(
+            description: "15-17 HCP, balanced (usually opened 1NT)",
+            hcp: const Range(low: 15, high: 17),
+            balanced: true),
+        ignoreInfo: true,
+        require: (h) => h.isBalanced,
+      ),
     SaycRule(
       BidAction.contract(cheapestLevel(mySuit, response), mySuit),
       BidMeaning(
@@ -5560,7 +5589,20 @@ List<SaycRule> negativeDoubleRebidRules(
             hcp: const Range(low: 12, high: 14),
             balanced: true),
         ignoreInfo: true,
-        require: (h) => h.isBalanced && h.hasStopper(overcallSuit),
+        require: (h) =>
+            h.isBalanced && h.hcp <= 14 && h.hasStopper(overcallSuit),
+      ),
+      // Off-book 15-17 balanced (usually opened 1NT): still the most
+      // descriptive rebid, honestly labeled.
+      SaycRule(
+        BidAction.withBid(ContractBid(ntLevel, null)),
+        BidMeaning(
+            description: "15-17 balanced with a stopper (usually opened 1NT)",
+            hcp: const Range(low: 15, high: 17),
+            balanced: true),
+        ignoreInfo: true,
+        require: (h) =>
+            h.isBalanced && h.hcp <= 17 && h.hasStopper(overcallSuit),
       ),
     ] else
       SaycRule(
