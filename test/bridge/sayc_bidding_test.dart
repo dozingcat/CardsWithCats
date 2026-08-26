@@ -655,11 +655,13 @@ void main() {
           "4D");
     });
 
-    test("minor preempts can be raised and 3NT needs only 15 with a fit", () {
+    test("minor preempt raises: 3NT with the side suits stopped, else 5C", () {
       expect(openingBid("A64", "K6", "JT965", "AKT", history: ["3C", "pass"]),
-          "3NT"); // 15 HCP with a fit: partner's suit will run
-      expect(openingBid("A4", "KJ42", "-", "AQT9832", history: ["3C", "pass"]),
-          "5C"); // 17 total, huge fit, too few HCP for notrump
+          "3NT"); // 15 HCP, a fit, and every side suit stopped
+      expect(openingBid("A4", "KQJ42", "K2", "A932", history: ["3C", "pass"]),
+          "3NT"); // 17 HCP, all stopped: nine tricks before eleven
+      expect(openingBid("A4", "KQJ42", "32", "AK93", history: ["3C", "pass"]),
+          "5C"); // same values, diamonds unstopped: 3NT is unsafe
     });
   });
 

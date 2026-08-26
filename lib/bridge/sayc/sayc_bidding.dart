@@ -1026,33 +1026,45 @@ List<SaycRule> preemptResponseRules(ContractBid opening) {
     ));
   }
   if (opening.count == 3 && !_isMajor(suit)) {
-    // With a fit, partner's seven-card suit will run: game values (15+)
-    // are enough for 3NT, and shapely fits too weak for notrump can raise.
+    // Over a minor preempt, 3NT needs the side suits stopped (partner's
+    // seven-card suit supplies the tricks; a fit lowers the bar to 15).
+    // Game values with a fit but an unstopped suit raise to five instead:
+    // that is the classic hand that can't risk notrump.
+    bool sideSuitsStopped(HandAnalysis h) =>
+        Suit.values.where((s) => s != suit).every(h.hasStopper);
     rules.add(SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
-        description: "To play: game values with a fit for partner's suit",
+        description:
+            "To play: game values, a fit, and the side suits stopped",
         hcp: const Range(low: 15),
         suitLengths: {suit: const Range(low: 3)},
       ),
+      require: sideSuitsStopped,
     ));
-  }
-  if (opening.count == 3) {
+    rules.add(SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "To play: strong hand with the side suits stopped",
+        hcp: const Range(low: 16),
+      ),
+      require: sideSuitsStopped,
+    ));
+    rules.add(SaycRule(
+      BidAction.contract(5, suit),
+      BidMeaning(
+        description: "Raise to game: 3+ ${_suitNames[suit]}, 16+ points, "
+            "not suited to notrump",
+        totalPoints: const Range(low: 16),
+        suitLengths: {suit: const Range(low: 3)},
+      ),
+    ));
+  } else if (opening.count == 3) {
     rules.add(SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
         description: "To play: strong hand over partner's preempt",
         hcp: const Range(low: 16),
-      ),
-    ));
-  }
-  if (opening.count == 3 && !_isMajor(suit)) {
-    rules.add(SaycRule(
-      BidAction.contract(5, suit),
-      BidMeaning(
-        description: "Raise to game: 4+ ${_suitNames[suit]}, 17+ points",
-        totalPoints: const Range(low: 17),
-        suitLengths: {suit: const Range(low: 4)},
       ),
     ));
   }

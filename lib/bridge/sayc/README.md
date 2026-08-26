@@ -148,8 +148,9 @@ consulted.
   the preempt suit, and responder then bids game with 17+ opposite the
   raise or retreats to a self-sufficient 6+ suit. Over 3-level preempts:
   game with 15+ and a fit (over a major); over a minor preempt 3NT needs
-  only 15 with 3+ trumps (partner's suit will run), 16 without, and a
-  17+ hand with 4+ trumps raises to five.
+  the side suits stopped (15 with 3+ trumps — partner's suit supplies the
+  tricks — or 16 without), and game values (16+) with 3+ trumps but an
+  unstopped suit raise to five instead.
 
 ### Opener rebids
 - After a new-suit response: raise partner's major with 4 trumps (13-15
