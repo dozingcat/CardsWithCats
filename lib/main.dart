@@ -28,7 +28,7 @@ import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "1.4.2";
+const appVersion = "1.4.3";
 const appLegalese = "© 2022-2026 Brian Nenninger";
 
 const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
