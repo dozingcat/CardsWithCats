@@ -733,6 +733,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
             playerIndex: p,
             cards: round.originalHandForPlayer(p),
             highlightedCards: [],
+            leaveAvatarSpace: false,
           ))
         .toList();
     return MultiplePlayerHandCards(
