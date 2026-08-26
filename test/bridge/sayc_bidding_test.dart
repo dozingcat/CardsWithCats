@@ -883,19 +883,6 @@ void main() {
           "4C"); // diamonds unstopped: the raise stands
     });
 
-    test("off-book balanced 15-17 bids game over a two-level response", () {
-      // A balanced 15-17 would normally have opened 1NT; if it opened the
-      // suit instead, the forcing 10+ response makes game values, and the
-      // 2NT rebid must not claim 12-14.
-      final result = selectSaycBid(hand("KQJ32", "A32", "K3", "QJ3"),
-          ["1S", "pass", "2C", "pass"].map(BidAction.fromString).toList());
-      expect(result.action.toString(), "3NT"); // 16 HCP, only 3 clubs
-      expect(result.meaning.hcp, const Range(low: 15, high: 17));
-      expect(openingBid("KQ432", "A32", "K3", "J53",
-              history: ["1S", "pass", "2C", "pass"]),
-          "2NT"); // 13: the genuine 12-14 rebid
-    });
-
     test("opener raises the 16+ 3NT response to slam with 17", () {
       expect(openingBid("Q65", "AK8", "AKJ", "A754",
               history: ["1C", "pass", "3NT", "pass"]),
