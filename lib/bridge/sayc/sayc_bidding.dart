@@ -961,14 +961,40 @@ List<SaycRule> weakTwoResponseRules(ContractBid opening) {
       require: (h) => h.count(suit) >= 3,
     ));
   }
-  rules.addAll([
-    SaycRule(
-      BidAction.noTrump(3),
-      BidMeaning(
-        description: "To play: strong hand, no trump fit required",
-        hcp: const Range(low: 16),
-      ),
+  rules.add(SaycRule(
+    BidAction.noTrump(3),
+    BidMeaning(
+      description: "To play: strong hand, no trump fit required",
+      hcp: const Range(low: 16),
     ),
+  ));
+  // RONF: a new suit below game is natural (a good 5+ card suit) and
+  // forcing for one round; opener raises with support, else rebids the
+  // preempt suit.
+  for (final s in Suit.values) {
+    if (s == suit) continue;
+    final level = cheapestLevel(s, opening);
+    if (level > 3) continue;
+    rules.add(SaycRule(
+      BidAction.contract(level, s),
+      BidMeaning(
+        description:
+            "New suit (forcing): good 5+ ${_suitNames[s]}, 15+ points",
+        totalPoints: const Range(low: 15),
+        suitLengths: {s: const Range(low: 5)},
+      ),
+      require: (h) =>
+          h.topHonorCount(s) >= 2 &&
+          bestSuit(
+                  h,
+                  Suit.values.where((x) =>
+                      x != suit &&
+                      h.count(x) >= 5 &&
+                      h.topHonorCount(x) >= 2)) ==
+              s,
+    ));
+  }
+  rules.addAll([
     SaycRule(
       BidAction.contract(3, suit),
       BidMeaning(
@@ -999,12 +1025,34 @@ List<SaycRule> preemptResponseRules(ContractBid opening) {
       ),
     ));
   }
+  if (opening.count == 3 && !_isMajor(suit)) {
+    // With a fit, partner's seven-card suit will run: game values (15+)
+    // are enough for 3NT, and shapely fits too weak for notrump can raise.
+    rules.add(SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+        description: "To play: game values with a fit for partner's suit",
+        hcp: const Range(low: 15),
+        suitLengths: {suit: const Range(low: 3)},
+      ),
+    ));
+  }
   if (opening.count == 3) {
     rules.add(SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
         description: "To play: strong hand over partner's preempt",
         hcp: const Range(low: 16),
+      ),
+    ));
+  }
+  if (opening.count == 3 && !_isMajor(suit)) {
+    rules.add(SaycRule(
+      BidAction.contract(5, suit),
+      BidMeaning(
+        description: "Raise to game: 4+ ${_suitNames[suit]}, 17+ points",
+        totalPoints: const Range(low: 17),
+        suitLengths: {suit: const Range(low: 4)},
       ),
     ));
   }
@@ -1072,8 +1120,15 @@ List<SaycRule>? blackwoodPlacementRules(
   if (trump == null) return null;
   final trumpSuit = trump;
 
-  int partnerAces(HandAnalysis h) =>
-      shown ?? (h.aces >= 1 ? 0 : 4);
+  // The 5C answer is ambiguous (0 or 4). An asker with an ace resolves it
+  // to 0 (only four exist). An ace-less asker reads it as 4: for both
+  // hands to be ace-less, the partnership would need essentially all 24
+  // non-ace HCP plus freak shape to reach a Blackwood auction, leaving
+  // the silent opponents holding the four aces and a huge fit — not a
+  // realistic deal. A human partner answering 5C is far more likely to
+  // have shaded a strength cap while holding four aces (AAAA-and-nothing
+  // hands are classically undervalued) than to hold the ace-less freak.
+  int partnerAces(HandAnalysis h) => shown ?? (h.aces >= 1 ? 0 : 4);
 
   final rules = <SaycRule>[
     SaycRule(
@@ -1082,7 +1137,14 @@ List<SaycRule>? blackwoodPlacementRules(
       require: (h) => h.aces + partnerAces(h) >= 3,
     ),
   ];
-  if (_strainOrder(trumpSuit) > _strainOrder(answerSuit)) {
+  if (trumpSuit == answerSuit) {
+    // The answer landed in the trump suit: five of trumps is the current
+    // contract, so the signoff is a pass.
+    rules.add(SaycRule(
+      BidAction.pass(),
+      BidMeaning(description: "Signing off: two aces missing"),
+    ));
+  } else if (_strainOrder(trumpSuit) > _strainOrder(answerSuit)) {
     rules.add(SaycRule(
       BidAction.contract(5, trumpSuit),
       BidMeaning(description: "Signing off: two aces missing"),
@@ -1134,6 +1196,10 @@ List<SaycRule>? gerberContinuationRules(BidAction answer) {
     _ => null,
   };
 
+  // Unlike Blackwood, assuming 4 on the ambiguous answer is provably safe
+  // here: Gerber's HCP floors (18+ over 1NT, 13+ over 2NT) leave too few
+  // non-ace HCP outstanding for the notrump opener to hold its range
+  // without 3-4 aces, and with 3 it would have answered differently.
   int partnerAces(HandAnalysis h) => shown ?? (h.aces >= 1 ? 0 : 4);
 
   final rules = <SaycRule>[
@@ -1234,6 +1300,30 @@ List<SaycRule>? openerRebidRules(BidAction opening, BidAction response,
           BidAction.pass(),
           BidMeaning(description: "Preemptive opener has nothing more to say"),
         )
+      ];
+    }
+    final resp = response.contractBid!;
+    if (openBid.count == 2 &&
+        resp.trump != null &&
+        resp.count <= 3 &&
+        resp.count < (_isMajor(resp.trump!) ? 4 : 5)) {
+      // Partner's new suit over the weak two is forcing (RONF): raise with
+      // support, otherwise rebid the preempt suit.
+      final pSuit = resp.trump!;
+      return [
+        SaycRule(
+          BidAction.contract(cheapestLevel(pSuit, resp), pSuit),
+          BidMeaning(
+            description: "Raising partner's forcing new suit",
+            suitLengths: {pSuit: const Range(low: 3)},
+          ),
+        ),
+        SaycRule(
+          BidAction.contract(cheapestLevel(openBid.trump!, resp), openBid.trump!),
+          BidMeaning(
+              description: "No fit for partner's suit: rebidding the preempt"),
+          ignoreInfo: true,
+        ),
       ];
     }
     return null;
@@ -1657,6 +1747,23 @@ List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response,
     return _rebidAfter1ntResponseRules(opening);
   }
   if (response.trump == null) {
+    if (!contested && response.count == 3 && !_isMajor(mySuit)) {
+      // The 3NT response to a minor showed 16+ balanced: 17 of our own
+      // makes 33+ combined a certainty.
+      return [
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Slam: 33+ combined HCP opposite the 16+ response",
+              hcp: const Range(low: 17)),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(description: "Respecting partner's signoff"),
+          ignoreInfo: true,
+        ),
+      ];
+    }
     return [
       SaycRule(BidAction.pass(),
           BidMeaning(description: "Respecting partner's signoff"))
@@ -1860,30 +1967,39 @@ List<SaycRule> _rebidAfterNewSuitRules(
   final pName = _suitNames[partnerSuit]!;
   final partnerMajor = _isMajor(partnerSuit);
 
+  // A two-level heart response to 1S promised five hearts, so three-card
+  // support completes an eight-card fit; every other new suit shows only
+  // four and needs four-card support to raise.
+  final minSupport = (mySuit == Suit.spades &&
+          partnerSuit == Suit.hearts &&
+          response.count == 2)
+      ? 3
+      : 4;
+
   List<SaycRule> raiseRules() {
     final out = <SaycRule>[
       SaycRule(
         BidAction.contract(response.count + 1, partnerSuit),
         BidMeaning(
-          description: "Raise: 4+ $pName, minimum opening",
+          description: "Raise: $minSupport+ $pName, minimum opening",
           totalPoints: const Range(low: 13, high: 15),
-          suitLengths: {partnerSuit: const Range(low: 4)},
+          suitLengths: {partnerSuit: Range(low: minSupport)},
         ),
         ignoreInfo: true,
         require: (h) =>
-            h.count(partnerSuit) >= 4 && h.totalPoints <= 15,
+            h.count(partnerSuit) >= minSupport && h.totalPoints <= 15,
       ),
       SaycRule(
         BidAction.contract(response.count + 2, partnerSuit),
         BidMeaning(
-          description: "Jump raise: 4+ $pName, extra values",
+          description: "Jump raise: $minSupport+ $pName, extra values",
           totalPoints:
               partnerMajor ? const Range(low: 16, high: 18) : const Range(low: 16),
-          suitLengths: {partnerSuit: const Range(low: 4)},
+          suitLengths: {partnerSuit: Range(low: minSupport)},
         ),
         ignoreInfo: true,
         require: (h) =>
-            h.count(partnerSuit) >= 4 &&
+            h.count(partnerSuit) >= minSupport &&
             (h.totalPoints <= 18 || !partnerMajor),
       ),
     ];
@@ -1891,12 +2007,12 @@ List<SaycRule> _rebidAfterNewSuitRules(
       out.add(SaycRule(
         BidAction.contract(4, partnerSuit),
         BidMeaning(
-          description: "Raise to game: 4+ $pName, maximum opening",
-          totalPoints: const Range(low: 19, high: 21),
-          suitLengths: {partnerSuit: const Range(low: 4)},
+          description: "Raise to game: $minSupport+ $pName, maximum opening",
+          totalPoints: const Range(low: 19),
+          suitLengths: {partnerSuit: Range(low: minSupport)},
         ),
         ignoreInfo: true,
-        require: (h) => h.count(partnerSuit) >= 4,
+        require: (h) => h.count(partnerSuit) >= minSupport,
       ));
     }
     return out;
@@ -1920,6 +2036,27 @@ List<SaycRule> _rebidAfterNewSuitRules(
           require: (h) => h.count(major) >= 4,
         ));
       }
+    }
+    if (response.count == 2) {
+      // The jump raise of a two-over-one minor lands at the four level,
+      // past 3NT — with game values, a fit, and the unbid suits stopped,
+      // nine tricks in notrump beat eleven in the minor.
+      rules.add(SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+          description: "Game values with a $pName fit, unbid suits stopped",
+          totalPoints: const Range(low: 16, high: 18),
+          suitLengths: {partnerSuit: const Range(low: 4)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.count(partnerSuit) >= 4 &&
+            h.totalPoints >= 16 &&
+            h.totalPoints <= 18 &&
+            Suit.values
+                .where((s) => s != mySuit && s != partnerSuit)
+                .every(h.hasStopper),
+      ));
     }
     rules.addAll(raiseRules());
   }
@@ -2140,21 +2277,24 @@ List<SaycRule>? responderRebidRules(
       final major = transferTargets[response]!;
       final name = _suitNames[major]!;
       return [
+        // The suit rung counts total points: with six trumps opposite a
+        // 2NT opening the fit is known, so length points count toward game.
+        SaycRule(
+          BidAction.contract(4, major),
+          BidMeaning(
+            description: "To play: 6+ $name, game values",
+            totalPoints: const Range(low: 5),
+            suitLengths: {major: const Range(low: 6)},
+          ),
+          ignoreInfo: true,
+          require: (h) =>
+              h.count(major) >= 6 && h.totalPoints >= 5 && h.hcp <= 10,
+        ),
         SaycRule(
           BidAction.pass(),
           BidMeaning(
               description: "Signing off after the transfer",
               hcp: const Range(high: 4)),
-        ),
-        SaycRule(
-          BidAction.contract(4, major),
-          BidMeaning(
-            description: "To play: 6+ $name, game values",
-            hcp: const Range(low: 5, high: 10),
-            suitLengths: {major: const Range(low: 6)},
-          ),
-          ignoreInfo: true,
-          require: (h) => h.count(major) >= 6 && h.hcp <= 10,
         ),
         SaycRule(
           BidAction.noTrump(6),
@@ -2199,6 +2339,76 @@ List<SaycRule>? responderRebidRules(
     return _responderRebidAfterSuitRules(
         opening.contractBid!, response, rebid.contractBid!,
         contested: contested);
+  }
+  if (opening.bidType == BidType.contract &&
+      opening.contractBid!.trump != null &&
+      opening.contractBid!.count == 2 &&
+      opening.contractBid!.trump != Suit.clubs) {
+    return _responderRebidAfterWeakTwoRules(
+        opening.contractBid!, response, rebid.contractBid!);
+  }
+  return null;
+}
+
+/// Responder's continuation after a forcing new suit (RONF) over partner's
+/// weak two: opener has raised with support or rebid the preempt suit.
+List<SaycRule>? _responderRebidAfterWeakTwoRules(
+    ContractBid opening, BidAction response, ContractBid rebid) {
+  final oSuit = opening.trump!;
+  final respBid =
+      response.bidType == BidType.contract ? response.contractBid : null;
+  if (respBid == null || respBid.trump == null || respBid.trump == oSuit) {
+    return null;
+  }
+  final mySuit = respBid.trump!;
+  final myGameLevel = _isMajor(mySuit) ? 4 : 5;
+  if (rebid.trump == mySuit) {
+    // Opener raised the forcing suit: the eight-card fit is found.
+    if (rebid.count >= myGameLevel) {
+      return [
+        SaycRule(BidAction.pass(),
+            BidMeaning(description: "Game reached opposite the raise"))
+      ];
+    }
+    return [
+      SaycRule(
+        BidAction.contract(myGameLevel, mySuit),
+        BidMeaning(
+            description: "Bidding game opposite the raise",
+            totalPoints: const Range(low: 17)),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 17,
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "Minimum for the forcing bid; stopping here",
+            totalPoints: const Range(low: 15, high: 16)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  if (rebid.trump == oSuit) {
+    // No fit: play in our own long suit if we have one, else in the
+    // preempt suit.
+    final level = cheapestLevel(mySuit, rebid);
+    return [
+      if (level <= myGameLevel)
+        SaycRule(
+          BidAction.contract(level, mySuit),
+          BidMeaning(
+            description: "Rebidding a self-sufficient 6+ card suit",
+            suitLengths: {mySuit: const Range(low: 6)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(mySuit) >= 6,
+        ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(description: "No fit; settling for the preempt suit"),
+        ignoreInfo: true,
+      ),
+    ];
   }
   return null;
 }
@@ -2290,20 +2500,38 @@ List<SaycRule>? _responderRebidAfter1ntRules(
   if (transferTargets.containsKey(response)) {
     final major = transferTargets[response]!;
     final name = _suitNames[major]!;
+    // With six or more trumps the fit is known, so length points count:
+    // the suit rungs below use total points where the notrump rungs stay
+    // in HCP. They sit ahead of the signoff so a shapely 7-HCP hand still
+    // invites or bids game.
     return [
+      SaycRule(
+        BidAction.contract(3, major),
+        BidMeaning(
+          description:
+              "Inviting game: 6+ $name, ${8 + s}-${9 + s} total points",
+          totalPoints: Range(low: 8 + s, high: 9 + s),
+          suitLengths: {major: const Range(low: 6)},
+        ),
+      ),
+      SaycRule(
+        BidAction.contract(4, major),
+        BidMeaning(
+          description: "To play: 6+ $name, game values",
+          totalPoints: Range(low: 10 + s),
+          suitLengths: {major: const Range(low: 6)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.count(major) >= 6 &&
+            h.totalPoints >= 10 + s &&
+            h.hcp <= 15 + s,
+      ),
       SaycRule(
         BidAction.pass(),
         BidMeaning(
             description: "Signing off after the transfer",
             hcp: Range(high: 7 + s)),
-      ),
-      SaycRule(
-        BidAction.contract(3, major),
-        BidMeaning(
-          description: "Inviting game: 6+ $name, ${8 + s}-${9 + s} HCP",
-          hcp: Range(low: 8 + s, high: 9 + s),
-          suitLengths: {major: const Range(low: 6)},
-        ),
       ),
       SaycRule(
         BidAction.noTrump(2),
@@ -2312,16 +2540,6 @@ List<SaycRule>? _responderRebidAfter1ntRules(
           hcp: Range(low: 8 + s, high: 9 + s),
           suitLengths: {major: const Range(low: 5, high: 5)},
         ),
-      ),
-      SaycRule(
-        BidAction.contract(4, major),
-        BidMeaning(
-          description: "To play: 6+ $name, game values",
-          hcp: Range(low: 10 + s, high: 15 + s),
-          suitLengths: {major: const Range(low: 6)},
-        ),
-        ignoreInfo: true,
-        require: (h) => h.count(major) >= 6 && h.hcp <= 15 + s,
       ),
       SaycRule(
         BidAction.noTrump(6),
@@ -2488,6 +2706,12 @@ List<SaycRule>? _rebidAfter2cPositiveRules(
     }
     if (rebidBid.trump != null) {
       return [
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Slam: 33+ combined points opposite the 2C opener",
+              hcp: const Range(low: 11)),
+        ),
         if (_isMajor(rebidBid.trump!))
           SaycRule(
             BidAction.contract(4, rebidBid.trump!),
@@ -2553,6 +2777,12 @@ List<SaycRule>? _rebidAfter2cPositiveRules(
   }
   // Opener showed a suit of his own.
   return [
+    SaycRule(
+      BidAction.noTrump(6),
+      BidMeaning(
+          description: "Slam: 33+ combined points opposite the 2C opener",
+          hcp: const Range(low: 11)),
+    ),
     if (_isMajor(rebidBid.trump!))
       SaycRule(
         BidAction.contract(4, rebidBid.trump!),
@@ -2895,12 +3125,14 @@ List<SaycRule> _responderRebidAfterSuitRules(
       // Jump raise, 16-18.
       if (!gameIsLegal) {
         if (!myMajor && rebid.count == 4) {
+          // A two-over-one already promised 10+, so eleven tricks need
+          // real extras; with less, four of the minor is the spot.
           return [
             SaycRule(
               BidAction.contract(5, mySuit),
               BidMeaning(
                   description: "Accepting the invitation",
-                  totalPoints: const Range(low: 10)),
+                  totalPoints: const Range(low: 12)),
             ),
             SaycRule(
                 BidAction.pass(),
@@ -3356,6 +3588,29 @@ List<SaycRule>? openerThirdCallRules(
             description: "Choosing game; the 2C auction is game-forcing"),
       ));
       return rules;
+    }
+    final respBid2c =
+        response.bidType == BidType.contract ? response.contractBid : null;
+    final positiveResponse = response == BidAction.noTrump(2) ||
+        (respBid2c != null &&
+            respBid2c.trump != null &&
+            _is2cPositiveSuitResponse(respBid2c));
+    if (positiveResponse && r2 == BidAction.noTrump(3)) {
+      // Responder's positive showed 8+ HCP; with 25+ of our own, 33+
+      // combined is certain even opposite the minimum.
+      return [
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Slam: 33+ combined points opposite the positive",
+              hcp: const Range(low: 25)),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(description: "Responder has placed the contract"),
+          ignoreInfo: true,
+        ),
+      ];
     }
     return [
       SaycRule(BidAction.pass(),
@@ -4653,6 +4908,9 @@ List<SaycRule> overcallerNewSuitRebidRules(
         h.totalPoints >= (_isMajor(aSuit) ? 14 : 15) &&
         h.count(aSuit) >= (_isMajor(aSuit) ? 3 : 4),
   );
+  // The advance showed only 10+: game in notrump needs 14 from the
+  // overcaller — or 13 when the overcalled suit is a running 6+ carder
+  // whose tricks make up for the missing point.
   final nt3 = SaycRule(
     BidAction.noTrump(3),
     BidMeaning(
@@ -4661,7 +4919,10 @@ List<SaycRule> overcallerNewSuitRebidRules(
         totalPoints: const Range(low: 13)),
     ignoreInfo: true,
     require: (h) =>
-        h.totalPoints >= 13 &&
+        (h.totalPoints >= 14 ||
+            (h.totalPoints >= 13 &&
+                h.count(mySuit) >= 6 &&
+                h.topHonorCount(mySuit) >= 2)) &&
         h.hasStopper(theirSuit) &&
         cheapestLevel(null, advance) <= 3,
   );
@@ -4784,6 +5045,12 @@ List<SaycRule>? advanceOvercallRules(
   final name = _suitNames[suit]!;
   final theirSuit = theirOpening.trump;
   final raiseLevel = cheapestLevel(suit, over);
+  // A weak jump overcall showed only 5-9 HCP: constructive advances need
+  // about a king more than opposite a sound overcall (raises stay
+  // preemptive and keep their normal ranges).
+  final weakJump = theirOpening.count == 1 &&
+      overcall.count > cheapestLevel(suit, theirOpening);
+  final shift = weakJump ? 4 : 0;
 
   bool stopperOk(HandAnalysis h) =>
       theirSuit == null || h.hasStopper(theirSuit);
@@ -4820,7 +5087,7 @@ List<SaycRule>? advanceOvercallRules(
       BidAction.contract(4, suit),
       BidMeaning(
         description: "Raise to game: 3+ $name",
-        totalPoints: const Range(low: 13),
+        totalPoints: Range(low: 13 + shift),
         suitLengths: {suit: const Range(low: 3)},
       ),
     ));
@@ -4842,8 +5109,8 @@ List<SaycRule>? advanceOvercallRules(
     rules.add(SaycRule(
       BidAction.contract(level, s),
       BidMeaning(
-        description: "New suit: 5+ ${_suitNames[s]}, 10+ points",
-        totalPoints: const Range(low: 10),
+        description: "New suit: 5+ ${_suitNames[s]}, ${10 + shift}+ points",
+        totalPoints: Range(low: 10 + shift),
         suitLengths: {s: const Range(low: 5)},
       ),
       // With game values and support for the overcall, the forcing
@@ -4851,7 +5118,7 @@ List<SaycRule>? advanceOvercallRules(
       // change of suit, which the overcaller may pass.
       require: (h) =>
           newSuitChoice(h) == s &&
-          (h.totalPoints <= 12 || h.count(suit) < 3),
+          (h.totalPoints <= 12 + shift || h.count(suit) < 3),
     ));
   }
   final ntLevel = cheapestLevel(null, over);
@@ -4869,7 +5136,7 @@ List<SaycRule>? advanceOvercallRules(
       BidAction.noTrump(2),
       BidMeaning(
           description: "Inviting game with $stopPhrase",
-          totalPoints: const Range(low: 12, high: 13)),
+          totalPoints: Range(low: 12 + shift, high: 13 + shift)),
       require: stopperOk,
     ));
   }
@@ -4881,7 +5148,7 @@ List<SaycRule>? advanceOvercallRules(
       BidAction.noTrump(3),
       BidMeaning(
           description: "Game values with $stopPhrase",
-          totalPoints: Range(low: strongOvercall ? 12 : 14)),
+          totalPoints: Range(low: (strongOvercall ? 12 : 14) + shift)),
       require: stopperOk,
     ));
   }
@@ -4890,8 +5157,8 @@ List<SaycRule>? advanceOvercallRules(
     rules.add(SaycRule(
       BidAction.contract(5, suit),
       BidMeaning(
-        description: "Raise to game: 4+ $name, 13+ points",
-        totalPoints: const Range(low: 13),
+        description: "Raise to game: 4+ $name, ${13 + shift}+ points",
+        totalPoints: Range(low: 13 + shift),
         suitLengths: {suit: const Range(low: 4)},
       ),
     ));
@@ -4903,7 +5170,7 @@ List<SaycRule>? advanceOvercallRules(
         BidAction.contract(cueLevel, theirSuit),
         BidMeaning(
           description: "Cue bid: raise of $name, game values",
-          totalPoints: const Range(low: 13),
+          totalPoints: Range(low: 13 + shift),
           suitLengths: {suit: const Range(low: 3)},
           artificial: true,
         ),
@@ -4914,7 +5181,7 @@ List<SaycRule>? advanceOvercallRules(
         BidAction.contract(raiseLevel + 1, suit),
         BidMeaning(
           description: "Jump raise: 3 $name, game values, no stopper",
-          totalPoints: const Range(low: 13),
+          totalPoints: Range(low: 13 + shift),
           suitLengths: {suit: const Range(low: 3)},
         ),
       ));
@@ -5787,14 +6054,19 @@ List<SaycRule> actionDoubleAdvanceRules(
   final oSuit = opening.trump!;
   final rSuit = response.trump;
   return [
+    // The action double showed only 11+ with no clear bid, so converting
+    // needs real trump tricks: four trumps, or three with honors sitting
+    // over declarer. A doubleton pulls to the cheapest fit below.
     SaycRule(
       BidAction.pass(),
       BidMeaning(
           description:
-              "Converting the double to penalties with trump length",
-          suitLengths: {theirSuit: const Range(low: 2)}),
+              "Converting the double to penalties with trump tricks",
+          suitLengths: {theirSuit: const Range(low: 3)}),
       ignoreInfo: true,
-      require: (h) => h.count(theirSuit) >= 2,
+      require: (h) =>
+          h.count(theirSuit) >= 4 ||
+          (h.count(theirSuit) == 3 && h.suitHcp(theirSuit) >= 4),
     ),
     if (rSuit != null &&
         rSuit != theirSuit &&

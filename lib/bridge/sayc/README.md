@@ -143,16 +143,25 @@ consulted.
   2D waiting otherwise.
 - To weak twos: preemptive raise with 3+ trumps, game with 15+ and 3+
   trumps or 16+ and a doubleton (the 8-card fit beats 3NT), 3NT to play
-  with 16+ and no fit; otherwise pass. Over 3-level preempts: game with 15+
-  and a fit, 3NT with 16+.
+  with 16+ and no fit, and a new suit below game (RONF) = good 5+ suit
+  with 15+, forcing one round: opener raises with 3+ support, else rebids
+  the preempt suit, and responder then bids game with 17+ opposite the
+  raise or retreats to a self-sufficient 6+ suit. Over 3-level preempts:
+  game with 15+ and a fit (over a major); over a minor preempt 3NT needs
+  only 15 with 3+ trumps (partner's suit will run), 16 without, and a
+  17+ hand with 4+ trumps raises to five.
 
 ### Opener rebids
 - After a new-suit response: raise partner's major with 4 trumps (13-15
-  single, 16-18 jump, 19+ game); over a minor response show a 4-card major
-  first; NT rebids show 12-14 (cheapest) or 18-19 (jump) balanced; 6-card
-  suit rebids (13-15 cheap, 16+ jump); second suits at the cheapest level,
-  with reverses requiring 17+ and jump shifts showing 18+; otherwise rebid
-  the suit.
+  single, 16-18 jump, 19+ game) — 3 trumps suffice for the 2H response to
+  1S, which promised five; over a minor response show a 4-card major
+  first; over a minor two-over-one, 16-18 with a fit and the unbid suits
+  stopped bids 3NT rather than the four-level jump raise; NT rebids show
+  12-14 (cheapest) or 18-19 (jump) balanced; 6-card suit rebids (13-15
+  cheap, 16+ jump); second suits at the cheapest level, with reverses
+  requiring 17+ and jump shifts showing 18+; otherwise rebid the suit.
+  A 3NT response to a minor (16+ balanced) is raised to 6NT with 17+
+  (33+ combined is certain).
 - After raises: pass minimums, invite with 16-18, bid game with 19+ (accept
   a limit raise with 14+).
 - After Jacoby 2NT: 4M minimum, 3M with extras.
@@ -173,7 +182,9 @@ consulted.
 - 1NT auctions: raise Stayman-found fits (invite 8-9, game 10+), retreat to
   2NT/3NT without a fit; after a transfer, pass 0-7, invite with 8-9 (2NT
   with five trumps, 3M with six), and bid game with 10+ (3NT choice-of-games
-  with five trumps, 4M with six).
+  with five trumps, 4M with six). With six or more trumps the fit is known,
+  so the suit rungs count total points (length included) while the notrump
+  rungs stay in HCP — a 7-HCP hand with a seven-card suit bids game.
 - After opener raises responder's suit: pass 6-10, invite 11-12, game 13+;
   over a jump raise, game with 8+.
 - After opener's 1NT rebid: pass 6-10, 2NT invite 11-12, 3NT 13+, with
@@ -207,8 +218,16 @@ consulted.
 - Blackwood 4NT after suit agreement (currently launched from Jacoby 2NT
   sequences: 16+ opposite extras, 18+ opposite a minimum): answers
   5C/5D/5H/5S = 0-4/1/2/3 aces; the asker bids six missing at most one ace,
-  else stops at five. No 5NT king-ask or grand-slam machinery; the ambiguous
-  0-or-4 answers are disambiguated from the asker's own aces.
+  else stops at five — passing when the answer itself is five of the trump
+  suit. No 5NT king-ask or grand-slam machinery. An asker with an ace
+  reads the ambiguous 0-or-4 answer as 0 (only four exist); an ace-less
+  asker reads it as 4 — for both hands to be ace-less, the partnership
+  would need essentially all 24 non-ace HCP plus freak shape while the
+  silent opponents held the four aces and a huge fit, and a human partner
+  answering 5C far more plausibly shaded a strength cap holding all four.
+  2C auctions also raise directly to 6NT on proven
+  strength: 11+ opposite the opener's suit rebid, and the opener raises
+  responder's 3NT retreat with 25+ opposite a positive (8+).
 
 ### Opener's third call
 - Accepts or declines responder's invitations based on the top of the range
@@ -239,7 +258,10 @@ consulted.
   without a stopper for notrump raises a minor overcall to 5m with 4+
   support; with only three, a cue bid of their suit shows a limit raise
   or better and the overcaller chooses 3NT with a stopper, signs off at
-  the cheapest level with a minimum, or raises to game with 13+), and
+  the cheapest level with a minimum, or raises to game with 13+);
+  opposite a weak jump overcall (5-9) the constructive advances — new
+  suits, notrump rungs, the game raise, and the cue — all need about a
+  king more, while simple and jump raises stay preemptive; and
   3NT needs only 12 opposite a sound overcall of a preempt; systems on
   over partner's 1NT overcall (direct or balancing), with the overcaller
   answering Stayman and completing transfers like a 1NT opener. Opposite
@@ -328,7 +350,7 @@ dart run scripts/bidding_audit.dart --deals 5000 --chaos 0.15
 DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart --deals 1200
 ```
 
-### Audit conventions and current results (2026-08-21)
+### Audit conventions and current results (2026-08-26)
 
 Seed 1 over 3000 deals is the held-out **test set**: fixes are mined from
 other seeds (42 at 4000 deals is the current dev seed) so that seed 1 stays
@@ -337,19 +359,20 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 645 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 655 findings, 0 hard failures |
 | seed 42, 4000 deals (dev) | 895 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 425, missed-game 142,
-silly-strain 51, missed-slam 25, thin-game 1, no-rule-matched 1. The
-missed-game lint excuses stops below game when an opponent-bid suit is
-unstopped, there is no eight-card major fit, and the side holds under 28
-points (no game is attractive there); missed-slam mostly reflects the
-deliberately minimal slam machinery.
+Seed 1 findings by category: fallback-used 433, missed-game 136,
+silly-strain 51, missed-slam 25, thin-game 1, no-rule-matched 1.
+Fallback-used is monitoring, not failure. The missed-game lint excuses
+stops below game when an opponent-bid suit is unstopped, there is no
+eight-card major fit, and the side holds under 28 points (no game is
+attractive there); missed-slam mostly reflects the deliberately minimal
+slam machinery.
 
-Double-dummy accuracy (1200 deals): games bid make 73.2% of the time
-(precision), and 61.8% of double-dummy-makeable games get bid (recall);
+Double-dummy accuracy (1200 deals): games bid make 73.3% of the time
+(precision), and 62.6% of double-dummy-makeable games get bid (recall);
 slams are 3/4 bid-and-making with 1.9% recall of the 161 DD slam chances —
 most DD "slams" lack the combined strength any bidding system would need
 (only 24 of the 161 have 31+ combined HCP).

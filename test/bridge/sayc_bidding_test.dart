@@ -635,6 +635,32 @@ void main() {
       expect(openingBid("K32", "Q32", "Q432", "432", history: ["2NT", "pass"]),
           "3NT");
     });
+
+    test("new suit over a weak two is natural and forcing (RONF)", () {
+      expect(openingBid("T", "6", "AKQ8743", "AQ63", history: ["2S", "pass"]),
+          "3D");
+      // Opener raises with support, else rebids the preempt suit.
+      expect(
+          openingBid("KQT982", "65", "J43", "84",
+              history: ["2S", "pass", "3D", "pass"]),
+          "4D");
+      expect(
+          openingBid("KQT982", "65", "J4", "843",
+              history: ["2S", "pass", "3D", "pass"]),
+          "3S");
+      // With no fit responder retreats to the self-sufficient suit.
+      expect(
+          openingBid("T", "6", "AKQ8743", "AQ63",
+              history: ["2S", "pass", "3D", "pass", "3S", "pass"]),
+          "4D");
+    });
+
+    test("minor preempts can be raised and 3NT needs only 15 with a fit", () {
+      expect(openingBid("A64", "K6", "JT965", "AKT", history: ["3C", "pass"]),
+          "3NT"); // 15 HCP with a fit: partner's suit will run
+      expect(openingBid("A4", "KJ42", "-", "AQT9832", history: ["3C", "pass"]),
+          "5C"); // 17 total, huge fit, too few HCP for notrump
+    });
   });
 
   group("opener rebids", () {
@@ -838,6 +864,33 @@ void main() {
       expect(
           openingBid("AKQJ32", "AKQ", "A32", "2", history: after2d), "2S");
     });
+
+    test("opener raises a five-card two-over-one heart response with three", () {
+      expect(openingBid("AKQJ76", "432", "K", "AK5",
+              history: ["1S", "pass", "2H", "pass"]),
+          "4H"); // not a unilateral 4S opposite a possible void
+      expect(openingBid("AKJ32", "432", "K2", "Q32",
+              history: ["1S", "pass", "2H", "pass"]),
+          "3H"); // minimum three-card raise
+    });
+
+    test("minor two-over-one with game values prefers 3NT to the jump raise", () {
+      expect(openingBid("KQJ32", "A2", "K3", "QJ32",
+              history: ["1S", "pass", "2C", "pass"]),
+          "3NT"); // 16-18 with stoppers: nine tricks beat eleven
+      expect(openingBid("AKJ32", "A2", "32", "AQ32",
+              history: ["1S", "pass", "2C", "pass"]),
+          "4C"); // diamonds unstopped: the raise stands
+    });
+
+    test("opener raises the 16+ 3NT response to slam with 17", () {
+      expect(openingBid("Q65", "AK8", "AKJ", "A754",
+              history: ["1C", "pass", "3NT", "pass"]),
+          "6NT"); // 21 opposite 16+: 33+ combined is certain
+      expect(openingBid("J65", "K98", "AKJ", "A754",
+              history: ["1C", "pass", "3NT", "pass"]),
+          "Pass"); // 16 HCP: below the proven-slam line
+    });
   });
 
   group("responder rebids", () {
@@ -854,7 +907,12 @@ void main() {
       final t = ["1NT", "pass", "2D", "pass", "2H", "pass"];
       expect(openingBid("32", "KQ432", "432", "432", history: t), "Pass");
       expect(openingBid("32", "KQ432", "K32", "J32", history: t), "2NT");
-      expect(openingBid("32", "KQJ432", "Q32", "32", history: t), "3H");
+      // With six trumps the fit is known and length points count: 7 HCP
+      // and a sixth heart invite, 8 HCP and a sixth heart bid game.
+      expect(openingBid("32", "KQT432", "Q32", "32", history: t), "3H");
+      expect(openingBid("32", "KQJ432", "Q32", "32", history: t), "4H");
+      expect(openingBid("Q6", "Q987643", "65", "K5", history: t),
+          "4H"); // 7 HCP but 10 total with seven trumps
       expect(openingBid("K2", "KQ432", "K32", "Q32", history: t), "3NT");
       expect(openingBid("32", "KQJ432", "K32", "K2", history: t), "4H");
     });
@@ -903,6 +961,15 @@ void main() {
       expect(openingBid("K32", "432", "32", "KQJ43", history: raised), "Pass");
       final nt = ["1S", "pass", "2C", "pass", "2NT", "pass"];
       expect(openingBid("K32", "A32", "K2", "KQ432", history: nt), "3NT");
+    });
+
+    test("responder needs extras to convert the 4m raise to five", () {
+      expect(openingBid("Q4", "K53", "Q54", "KQJ54",
+              history: ["1S", "pass", "2C", "pass", "4C", "pass"]),
+          "5C"); // 14 total
+      expect(openingBid("43", "K53", "654", "KQJ54",
+              history: ["1S", "pass", "2C", "pass", "4C", "pass"]),
+          "Pass"); // bare minimum stops in 4C
     });
 
     test("2C auction continuations", () {
@@ -998,6 +1065,41 @@ void main() {
           "5S"); // zero aces + one shown
     });
 
+    test("Blackwood signs off with a pass when the answer is the trump suit", () {
+      // 5H shows two aces; the asker has none, so two are missing and the
+      // five-level spot is the current contract.
+      expect(
+          openingBid("KQ", "KQJ5", "KQJ2", "KQJ", history: [
+            "1H", "pass", "2NT", "pass", "3H", "pass", "4NT", "pass",
+            "5H", "pass"
+          ]),
+          "Pass");
+    });
+
+    test("ambiguous Blackwood answer is read as four for an ace-less asker", () {
+      // Both hands ace-less would need the partnership to hold essentially
+      // all 24 non-ace HCP with freak shape while the opponents sat
+      // silently on four aces and a huge fit; a partner answering 5C far
+      // more plausibly shaded a strength cap while holding all four.
+      expect(
+          openingBid("KQ", "KQJ5", "KQJ2", "KQJ", history: [
+            "1H", "pass", "2NT", "pass", "3H", "pass", "4NT", "pass",
+            "5C", "pass"
+          ]),
+          "6H");
+      expect(
+          openingBid("KQ", "KQJ5", "KQJ2", "KQJ", history: [
+            "1H", "pass", "2NT", "pass", "4H", "pass", "4NT", "pass",
+            "5C", "pass"
+          ]),
+          "6H");
+      expect(
+          openingBid("KQ", "KQJ52", "KQJ2", "KJ", history: [
+            "1H", "pass", "3S", "pass", "4NT", "pass", "5C", "pass"
+          ]),
+          "6H");
+    });
+
     test("2C rebid with 28-30 balanced is 4NT, raised to slam with 5+", () {
       expect(
           openingBid("AKQ2", "AKQ", "AK2", "K32",
@@ -1031,6 +1133,20 @@ void main() {
           openingBid("KQ2", "KQ2", "KQ32", "QJ2",
               history: ["1NT", "pass", "4C", "pass", "4H", "pass"]),
           "4NT"); // 0 + 1 aces
+    });
+
+    test("2C auctions reach slam on proven combined strength", () {
+      // Responder's positive showed 8+; with 11+ opposite 22+ that's 33+.
+      expect(
+          openingBid("Q4", "J743", "AQT5", "Q84",
+              history: ["2C", "pass", "2NT", "pass", "3S", "pass"]),
+          "6NT");
+      // Opener with 25+ raises the 3NT retreat opposite the positive.
+      expect(
+          openingBid("AKT65", "AKQ5", "K", "AKJ",
+              history: ["2C", "pass", "2NT", "pass", "3S", "pass",
+                        "3NT", "pass"]),
+          "6NT");
     });
   });
 
@@ -1526,6 +1642,15 @@ void main() {
       expect(openingBid("Q432", "432", "J432", "32", history: ["1H", "X", "2H"]),
           "Pass");
     });
+
+    test("advances of a weak jump overcall need extra strength", () {
+      // 10 points was a free 3-level advance opposite a sound overcall,
+      // but partner's jump showed only 5-9.
+      expect(
+          openingBid("Q9762", "Q", "QT743", "Q5",
+              history: ["1H", "3C", "3H"]),
+          "Pass");
+    });
   });
 
   group("competitive continuations", () {
@@ -1618,6 +1743,19 @@ void main() {
       expect(invite.meaning.totalPoints, const Range(high: 11));
       // With real game values, bid it.
       expect(openingBid("AJ4", "AKJ32", "432", "32", history: h), "4H");
+    });
+
+    test("an action double converts to penalties only with trump tricks", () {
+      expect(
+          openingBid("Q5", "AKJ85", "K42", "J53",
+              history: ["1H", "pass", "2H", "2S", "pass", "pass", "X",
+                        "pass"]),
+          "3H"); // doubleton: pull to the known fit
+      expect(
+          openingBid("QT85", "AKJ85", "K42", "3",
+              history: ["1H", "pass", "2H", "2S", "pass", "pass", "X",
+                        "pass"]),
+          "Pass"); // four trumps: defend
     });
   });
 
