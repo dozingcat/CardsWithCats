@@ -13,7 +13,20 @@
   <launchable type="desktop-id">io.github.crhy.CardsWithCats.desktop</launchable>
   <url type="homepage">https://github.com/crhy/CardsWithCats</url>
   <developer id="io.github.crhy"><name>CRHY</name></developer>
+  <screenshots>
+    <screenshot type="default">
+      <image type="source">https://raw.githubusercontent.com/crhy/CardsWithCats/master/screenshots/cards-with-cats-menu.png</image>
+      <caption>Choose from four card games against a table of cats</caption>
+    </screenshot>
+    <screenshot>
+      <image type="source">https://raw.githubusercontent.com/crhy/CardsWithCats/master/screenshots/cards-with-cats-scum.png</image>
+      <caption>A Scum match with a clear player hand and centered play area</caption>
+    </screenshot>
+  </screenshots>
   <releases>
+    <release version="0.4.1" date="2026-08-27" type="stable">
+      <description><p>Adds the current menu and in-game screenshots to AppStream for display in SpacedBazaar.</p></description>
+    </release>
     <release version="0.4.0" date="2026-08-27" type="stable">
       <description><p>Renamed the app to Cards With Cats, prevented Scum plays from covering the human hand, and polished the shared table, cards, menus, and transitions.</p></description>
     </release>

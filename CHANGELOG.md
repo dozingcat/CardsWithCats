@@ -2,6 +2,11 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.4.1
+
+- Added the current main-menu and Scum screenshots to AppStream metadata so
+  SpacedBazaar can show real game previews before installation.
+
 ## 0.4.0
 
 - Renamed the app, repository, and Flatpak ID to **Cards With Cats**.
