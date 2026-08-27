@@ -8,7 +8,7 @@ import 'package:cards_with_cats/scum/scum_ai.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:flutter/material.dart';
 
-const dialogBackgroundColor = Color.fromARGB(0xE6, 0xd8, 0xd8, 0xd8);
+const dialogBackgroundColor = Color(0xF5F4F1E9);
 const aiDelayMillis = 650;
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
@@ -433,7 +433,10 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
       case 2:
         return Offset(ds.width / 2, ds.height / 2 - ph * 1.9);
       case 0:
-        return Offset(ds.width / 2, ds.height / 2 + ph * 2.4);
+        // Keep the human pile in the open table area. The previous seat-ring
+        // formula put it directly on top of a one-row hand on desktop-sized
+        // Flatpak windows.
+        return Offset(ds.width / 2, ds.height * 0.58);
       case 1:
         return Offset(ds.width * 0.33, ds.height / 2);
       default:
@@ -468,14 +471,17 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
       final startX = center.dx - totalWidth / 2;
       for (int i = 0; i < action.cards.length; i++) {
         final offset = globalIndex.toDouble();
-        widgets.add(PositionedCard(
-          rect: Rect.fromLTWH(
+        final rect = Rect.fromLTWH(
             startX + i * fanStep,
             center.dy - playHeight / 2 - offset * 2,
             playWidth,
             playHeight,
-          ),
+        );
+        widgets.add(PositionedCard(
+          key: ValueKey("scum-play-${action.player}-$globalIndex-$i-${action.cards[i]}"),
+          rect: rect,
           card: action.cards[i],
+          animateIn: true,
         ));
       }
       globalIndex += 1;
@@ -578,8 +584,9 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     final canPass = isHumanTurn && round.canCurrentPlayerPass();
 
     return Stack(children: <Widget>[
-      _playerCards(layout),
       _trickPlays(layout),
+      // The hand remains above table effects as a final input-safety net.
+      _playerCards(layout),
       _statusBadges(layout),
       if (_shouldShowTradeDialog())
         Center(

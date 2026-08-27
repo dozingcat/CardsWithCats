@@ -1,58 +1,71 @@
-# Scum With Cats
+# Cards With Cats
 
-Play **Scum** — the classic climbing card game — against three computer-controlled cats, plus the original Hearts, Spades, and Oh Hell modes from [Cards With Cats](https://github.com/dozingcatsoftware/CardsWithCats).
+Four classic card games, one table, and three surprisingly strategic cats.
+Play **Hearts**, **Spades**, **Oh Hell**, or **Scum** on Android and Linux.
 
-Built with [Flutter](https://flutter.dev).
+![Cards With Cats main menu](screenshots/cards-with-cats-menu.png)
 
-## The game
+![A Scum match in Cards With Cats](screenshots/cards-with-cats-scum.png)
 
-Four players: you versus three AI cats, seated as President, Vice President,
-Vice Scum, and Scum. Lead singles, pairs, triples, or quads; beat the play
-with the same count at a higher rank or pass; last play takes the trick and
-leads next. Aces are high, deuces are low, suits don't matter.
+## Game modes
 
-Before each round the lowly trade with the mighty: Scum must pass their two
-highest cards to the President (who gives any two back), and Vice Scum must
-pass their highest card to the Vice President (who gives any one back).
-First out of a round becomes the next President; matches run eight rounds
-scored 3/2/1/0 by finish position.
+- **Hearts** — avoid point cards, or risk shooting the moon.
+- **Spades** — bid with a partner, manage bags, and make your contract.
+- **Oh Hell** — predict your tricks as the hand size and trump suit change.
+- **Scum** — shed singles or matching sets, climb the table ranks, and trade
+  cards between rounds.
 
-The cats count cards, shed low leads, hoard sets for control, block rivals
-about to go out, and know when an ace is worth spending.
+Matches are saved automatically. Optional rule variants, card highlighting,
+sound controls, and statistics are available from the menu. The interface is
+responsive from phone screens to desktop Flatpak windows.
 
 ## Install
 
+Download the latest files from the
+[Cards With Cats releases](https://github.com/crhy/CardsWithCats/releases).
+
+### Linux
+
+```sh
+flatpak install --user ./CardsWithCats.flatpak
+flatpak run io.github.crhy.CardsWithCats
+```
+
+The Linux build is also available through Spaced Bazaar.
+
 ### Android
-Grab `app-std-release.apk` from the [releases page](https://github.com/crhy/ScumWithCats/releases) and open it on your phone (allow installs from your browser if asked). Debug builds use the `std` flavor: `flutter build apk --flavor std --release`.
 
-### Linux (Flatpak)
-Grab `ScumWithCats.flatpak` from the releases page and run:
+Install `app-std-release.apk` from the release. Android may ask you to allow
+installs from the browser or file manager you used to open it.
 
-```
-flatpak install --user ./ScumWithCats.flatpak
-flatpak run io.github.crhy.ScumWithCats
-```
+## Build from source
 
-### Build from source
-Requires the Flutter SDK. For the Linux binary on machines without GTK dev
-headers, build inside the freedesktop SDK sandbox:
+[Flutter](https://flutter.dev) is required. Run tests with:
 
-```
-./scripts/build-linux-in-sdk.sh
-flatpak-builder --user --install-deps-from=flathub build/flatpak flatpak/io.github.crhy.ScumWithCats.yml
+```sh
+flutter test
 ```
 
-See `CHANGELOG.md` for release history.
+On Linux, the included script builds against the Freedesktop 25.08 SDK and
+produces `build/CardsWithCats.flatpak`:
+
+```sh
+./scripts/build-flatpak.sh
+```
+
+Set `FLUTTER_SDK` if Flutter is not installed at `~/development/flutter`.
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Credits
 
-Based on [Cards With Cats](https://github.com/dozingcatsoftware/cardswithcats) by Brian Nenninger:
-- Cats by [AnnaliseArt on Pixabay](https://pixabay.com/illustrations/cats-hanging-cats-kitty-cat-paw-3611310/)
-- Cat emojis from [Noto Emoji by Google](https://github.com/googlefonts/noto-emoji/)
-- Thought bubble by [OpenClipart-Vectors on Pixabay](https://pixabay.com/vectors/balloon-bubble-speech-thought-150981/)
-- Playing cards: \
-https://totalnonsense.com/open-source-vector-playing-cards/ \
-Copyright 2011,2024 – Chris Aguilar – conjurenation@gmail.com \
-Licensed under: LGPL 3.0 – https://www.gnu.org/licenses/lgpl-3.0.html
+Cards With Cats is based on the original project by
+[Brian Nenninger](https://github.com/dozingcatsoftware/CardsWithCats).
 
-Scum rules adapted from Bruce Gourley's party rules.
+- Cats by [AnnaliseArt](https://pixabay.com/illustrations/cats-hanging-cats-kitty-cat-paw-3611310/)
+- Cat emojis from [Noto Emoji](https://github.com/googlefonts/noto-emoji/)
+- Thought bubble by [OpenClipart-Vectors](https://pixabay.com/vectors/balloon-bubble-speech-thought-150981/)
+- Playing cards by Chris Aguilar, licensed under the LGPL 3.0, from
+  [Total Nonsense](https://totalnonsense.com/open-source-vector-playing-cards/)
+
+Scum rules were adapted from Bruce Gourley's party rules. The project is
+licensed under the BSD 3-Clause License.

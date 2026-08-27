@@ -2,6 +2,14 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.4.0
+
+- Renamed the app, repository, and Flatpak ID to **Cards With Cats**.
+- Fixed the human Scum play pile overlapping and intercepting cards in the hand on desktop-sized Flatpak windows.
+- Added a quick, smooth entrance for Scum plays and kept the human hand above table effects.
+- Polished every game mode with a richer card table, clearer surfaces and controls, subtle card depth, and a refreshed main menu.
+- Added real game screenshots and streamlined the project README.
+
 ## 0.3.3
 
 - Added a rules summary for Scum to the About dialog, following the format of the other games.

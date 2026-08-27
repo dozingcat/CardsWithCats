@@ -1,4 +1,4 @@
-app-id: io.github.crhy.ScumWithCats
+app-id: io.github.crhy.CardsWithCats
 runtime: org.freedesktop.Platform
 runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
@@ -11,15 +11,15 @@ finish-args:
   - --socket=wayland
   - --device=dri
 modules:
-  - name: scum-with-cats
+  - name: cards-with-cats
     buildsystem: simple
     build-commands:
       - install -Dm755 -t /app/bin CardsWithCats
       - cp -r data /app/bin/data
       - cp -r lib /app/bin/lib
-      - install -Dm644 io.github.crhy.ScumWithCats.desktop -t /app/share/applications/
-      - install -Dm644 io.github.crhy.ScumWithCats.metainfo.xml -t /app/share/metainfo/
-      - install -Dm644 io.github.crhy.ScumWithCats.png /app/share/icons/hicolor/128x128/apps/io.github.crhy.ScumWithCats.png
+      - install -Dm644 io.github.crhy.CardsWithCats.desktop -t /app/share/applications/
+      - install -Dm644 io.github.crhy.CardsWithCats.metainfo.xml -t /app/share/metainfo/
+      - install -Dm644 io.github.crhy.CardsWithCats.png /app/share/icons/hicolor/128x128/apps/io.github.crhy.CardsWithCats.png
     sources:
       - type: dir
         path: prebuilt

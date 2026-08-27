@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=Scum With Cats
+Name=Cards With Cats
 GenericName=Card Game
-Comment=Play Scum against three AI cats, plus Hearts, Spades, and Oh Hell
+Comment=Play Hearts, Spades, Oh Hell, and Scum against clever cats
 Exec=CardsWithCats
-Icon=io.github.crhy.ScumWithCats
+Icon=io.github.crhy.CardsWithCats
 Terminal=false
 Categories=Game;CardGame;
 StartupWMClass=cards_with_cats

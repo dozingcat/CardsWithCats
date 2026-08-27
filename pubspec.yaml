@@ -1,5 +1,5 @@
 name: cards_with_cats
-description: Hearts and spades card games.
+description: Four classic card games against a table of clever cats.
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -15,7 +15,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 0.3.3+15
+version: 0.4.0+16
 
 environment:
   sdk: ">=3.0.0"

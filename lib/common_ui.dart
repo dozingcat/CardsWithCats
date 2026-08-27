@@ -107,6 +107,7 @@ class PositionedCard extends StatelessWidget {
   final double dimming;
   final double rotation;
   final bool isTrump;
+  final bool animateIn;
   final void Function(PlayingCard)? onCardClicked;
   final Color? backgroundColor;
 
@@ -119,6 +120,7 @@ class PositionedCard extends StatelessWidget {
     this.dimming = 0.0,
     this.rotation = 0.0,
     this.isTrump = false,
+    this.animateIn = false,
     this.backgroundColor,
   });
 
@@ -166,17 +168,38 @@ class PositionedCard extends StatelessWidget {
 
     // ClipRRect clips the background color and dimming rectangle
     // to the card's rounded rect.
-    return Positioned.fromRect(
-        rect: cardRect,
-        child: Transform.rotate(angle: rotation, child: GestureDetector(
-            onTapDown: onCardClicked != null ? ((tap) => onCardClicked!(card)) : null,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(cornerRadius),
-              child: Container(
-                color: bgColor,
-                child: Stack(children: cardStack)
-              )
-            ) )));
+    Widget cardContent = Transform.rotate(angle: rotation, child: GestureDetector(
+        onTapDown: onCardClicked != null ? ((tap) => onCardClicked!(card)) : null,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cornerRadius),
+            boxShadow: [BoxShadow(
+              color: const Color(0x66000000),
+              blurRadius: max(2, cardRect.width * 0.045),
+              offset: Offset(0, max(1, cardRect.width * 0.025)),
+            )],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(cornerRadius),
+            child: Container(
+              color: bgColor,
+              child: Stack(children: cardStack)
+            )
+          )
+        )));
+    if (animateIn) {
+      cardContent = TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.82, end: 1),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        builder: (context, scale, child) => Opacity(
+          opacity: ((scale - 0.82) / 0.18).clamp(0, 1),
+          child: Transform.scale(scale: scale, child: child),
+        ),
+        child: cardContent,
+      );
+    }
+    return Positioned.fromRect(rect: cardRect, child: cardContent);
   }
 }
 
@@ -833,7 +856,6 @@ class PlayerHandCards extends StatelessWidget {
         backgroundColor: cardBackgroundColors?[card],
       ));
     }
-    print("PlayerHandCards backgrounds: $cardBackgroundColors");
     return Stack(children: cardImages);
   }
 }

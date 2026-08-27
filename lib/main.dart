@@ -30,11 +30,11 @@ import 'scum_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "0.3.3";
+const appVersion = "0.4.0";
 const appLegalese = "© 2022-2025 Brian Nenninger";
 
-const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
-const gameTableColor = Color.fromRGBO(0, 128, 0, 1.0);
+const gameBackgroundColor = Color(0xFFC8D8CE);
+const gameTableColor = Color(0xFF155F43);
 
 void main() {
   runApp(const MyApp());
@@ -50,18 +50,25 @@ class MyApp extends StatelessWidget {
       // debugShowCheckedModeBanner: false,
       title: appTitle,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        // TODO: remove this
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF245E4E),
+          surface: const Color(0xFFF4F1E9),
+        ),
         useMaterial3: true,
-        // colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
       home: const MyHomePage(title: 'Cards With Cats'),
     );
   }
 }
 
-const dialogBackgroundColor = Color.fromARGB(0xd0, 0xd8, 0xd8, 0xd8);
-const dialogTableBackgroundColor = Color.fromARGB(0x80, 0xc0, 0xc0, 0xc0);
+const dialogBackgroundColor = Color(0xF2F4F1E9);
+const dialogTableBackgroundColor = Color(0xB8E2DED3);
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
@@ -551,7 +558,28 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _gameTable(final Layout layout) {
-    return Positioned.fromRect(rect: layout.cardArea(), child: Container(color: gameTableColor));
+    return Positioned.fromRect(
+      rect: layout.cardArea(),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF237957), gameTableColor, Color(0xFF0E4935)],
+            stops: [0, 0.55, 1],
+          ),
+          border: Border.all(color: const Color(0x668DB9A5), width: 2),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x400B2D22),
+              blurRadius: 14,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showAboutDialog(BuildContext context) async {
@@ -586,7 +614,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(
-                        20, const Text(appTitle, style: TextStyle( fontSize: 26))),
+                        20,
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          Image.asset('assets/cats/paw1.png', height: 48),
+                          const SizedBox(width: 12),
+                          const Text(appTitle,
+                              style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w600)),
+                        ])),
                     _paddingAll(
                         10,
                         Table(

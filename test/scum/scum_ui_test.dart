@@ -166,6 +166,21 @@ testWidgets("issue #4: tapping a card selects every copy of that rank",
       !round.players[0].hand.contains(w.card));
   expect(playedSevens, findsNWidgets(2));
 
+  // Regression: the human's played pile must not hide or intercept any card
+  // still in the hand on desktop/Flatpak-sized layouts.
+  final handCardRects = tester
+      .widgetList<PositionedCard>(find.byType(PositionedCard))
+      .where((w) => round.players[0].hand.contains(w.card))
+      .map((w) => w.rect);
+  final playedCardRects = tester
+      .widgetList<PositionedCard>(find.byType(PositionedCard))
+      .where((w) => !round.players[0].hand.contains(w.card))
+      .map((w) => w.rect);
+  for (final playedRect in playedCardRects) {
+    expect(handCardRects.any(playedRect.overlaps), isFalse,
+        reason: "a played card overlaps the human hand");
+  }
+
   // Drain the remaining turn timers so the widget tree is disposed quietly.
   for (int i = 0; i < 40; i++) {
     await tester.pump(const Duration(milliseconds: 700));
