@@ -1108,7 +1108,7 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
     Layout layout,
     List<PlayingCard> cards,
     List<Suit> suitOrder,
-    {required int playerIndex, double scaleMultiplier = 1}
+    {required int playerIndex, double scaleMultiplier = 1, bool leaveAvatarSpace = true}
 ) {
   if (!(playerIndex == 0 || playerIndex == 2)) {
     throw Exception("invalid playerIndex: $playerIndex");
@@ -1116,14 +1116,16 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
   final rects = LinkedHashMap<PlayingCard, Rect>();
   const cardHeightFrac = 0.2;
   const cardOverlapFraction = 1.0 / 3;
-  const upperRowHeightFracStart = 0.69;
-  const lowerRowHeightFracStart = 0.79;
-  const singleRowHeightFracStart = 0.74;
+
   final ds = layout.displaySize;
   final cardHeight = ds.height * cardHeightFrac;
   final cardWidth = cardHeight * layout.cardAspectRatio;
   final pxBetweenCards = cardWidth * (1 - cardOverlapFraction);
   final maxAllowedTotalWidth = 0.95 * ds.width;
+
+  final distanceToEdge = (leaveAvatarSpace && playerIndex == 2)
+      ? layout.playerHeight
+      : max(10.0, 0.02 * ds.height);
 
   double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
 
@@ -1138,10 +1140,9 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
     final scaledCardHeight = cardHeight * scaleMultiplier;
     // Show all cards in a single row.
     var startX = (ds.width - scaledRowWidth) / 2;
-    var startY = singleRowHeightFracStart * ds.height;
-    if (playerIndex == 2) {
-      startY = layout.playerHeight;
-    }
+    var startY = playerIndex == 2
+        ? distanceToEdge
+        : ds.height - distanceToEdge - scaledCardHeight;
     for (int i = 0; i < sortedCards.length; i++) {
       final x = startX + i * pxBetweenCards * scaleMultiplier;
       final r = Rect.fromLTWH(x, startY, scaledCardWidth, scaledCardHeight);
@@ -1162,13 +1163,12 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
   final scale = min(1.0, maxAllowedTotalWidth / twoRowWidth) * scaleMultiplier;
   final scaledCardWidth = scale * cardWidth;
   final scaledCardHeight = scale * cardHeight;
-  var upperStartY = upperRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight);
-  var lowerStartY = lowerRowHeightFracStart * ds.height + (cardHeight - scaledCardHeight) / 2;
-  if (playerIndex == 2) {
-    double diff = lowerStartY - upperStartY;
-    upperStartY = layout.playerHeight; // .height - (lowerStartY + scaledCardHeight);
-    lowerStartY = upperStartY + diff;
-  }
+
+  final upperStartY = playerIndex == 2
+      ? distanceToEdge
+      : ds.height - distanceToEdge - scaledCardHeight * 1.5;
+  final lowerStartY = upperStartY + scaledCardHeight / 2;
+
   final midX = ds.width / 2;
   for (int i = 0; i < numLowerCards; i++) {
     double baseLeft = upperStartX + i * pxBetweenCards;
@@ -1367,7 +1367,7 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
     {int playerIndex = 0, double scaleMultiplier = 1, bool leaveAvatarSpace = true}
 ) {
   if (playerIndex == 0 || playerIndex == 2) {
-    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier);
+    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
   }
   else {
     return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);

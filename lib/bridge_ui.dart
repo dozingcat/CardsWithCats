@@ -1244,6 +1244,9 @@ class _BidDialogState extends State<BidDialog> {
                       ]),
 
                       if (!isBiddingOver) ...[
+                        // Considered using a SegmentedButton with options 1 through 7 rather than
+                        // the +/- buttons, but Flutter enforces a minimum width on each option
+                        // that makes it too wide.
                         Row(
                             spacing: 12,
                             mainAxisSize: MainAxisSize.min,
