@@ -223,13 +223,58 @@ void System::GetHardware(
 #endif
 
 #ifdef __linux__
-  // The code for linux was suggested by Antony Lee.
-  FILE * fifo = popen(
-    "free -k | tail -n+3 | head -n1 | awk '{print $NF}'", "r");
-  int ignore = fscanf(fifo, "%llu", &kilobytesFree);
-  fclose(fifo);
+  // LOCAL PATCH (see third_party/dds/README.md). Upstream ran
+  //   free -k | tail -n+3 | head -n1 | awk '{print $NF}'
+  // which read the "-/+ buffers/cache" line of procps before 3.3.10.
+  // Current procps has no such line, so line 3 is "Swap:" and the
+  // command returns free swap -- zero on a machine without swap, after
+  // which SetResources configures zero threads and the first solve
+  // aborts in Memory::GetPtr. Android happens to be unaffected: its
+  // toybox "free" still prints the old three-line layout, so the parse
+  // lands on the intended field. That is luck, not contract. Read
+  // /proc/meminfo directly, which both implementations are reporting
+  // from anyway, and which is cheaper than a popen.
+  FILE * meminfo = fopen("/proc/meminfo", "r");
+  if (meminfo)
+  {
+    char line[256];
+    unsigned long long avail = 0, memFree = 0, buffers = 0, cached = 0, v;
+    while (fgets(line, sizeof line, meminfo))
+    {
+      if (sscanf(line, "MemAvailable: %llu kB", &v) == 1)
+        avail = v;
+      else if (sscanf(line, "MemFree: %llu kB", &v) == 1)
+        memFree = v;
+      else if (sscanf(line, "Buffers: %llu kB", &v) == 1)
+        buffers = v;
+      else if (sscanf(line, "Cached: %llu kB", &v) == 1)
+        cached = v;
+    }
+    fclose(meminfo);
+    kilobytesFree = (avail > 0 ? avail : memFree + buffers + cached);
+  }
+
+  if (kilobytesFree == 0)
+  {
+    // No readable /proc: fall back to the free physical pages that the
+    // C library reports.
+    const long pages = sysconf(_SC_AVPHYS_PAGES);
+    const long pageSize = sysconf(_SC_PAGESIZE);
+    if (pages > 0 && pageSize > 0)
+      kilobytesFree = static_cast<unsigned long long>(pages) *
+        static_cast<unsigned long long>(pageSize) / 1024;
+  }
+
+  // SetResources budgets 70% of this figure and needs
+  // THREADMEM_SMALL_MAX_MB per thread; below that it configures zero
+  // threads and every solve aborts. Keep room for one small thread even
+  // when the reported figure is unusable.
+  if (kilobytesFree < 1024 * 2 * THREADMEM_SMALL_MAX_MB)
+    kilobytesFree = 1024 * 2 * THREADMEM_SMALL_MAX_MB;
 
   ncores = sysconf(_SC_NPROCESSORS_ONLN);
+  if (ncores < 1)
+    ncores = 1;
   return;
 #endif
 }
