@@ -28,13 +28,14 @@ static int usableThreads = 0;
 extern "C" void DdsEnsureInit() {
   static std::once_flag flag;
   std::call_once(flag, [] {
-#ifdef __ANDROID__
-    // On mobile, bound total memory: DDS otherwise sizes its per-thread
-    // transposition tables from free RAM (up to 160MB per thread).
+    // Bound total memory on every platform. DDS treats the figure as
+    // +30% (332MB) and needs 30MB per small-table thread, so this
+    // yields min(cores, 11) small threads. Each slot serves one
+    // caller at a time; the app never has more than a few solves in
+    // flight, and a small table is plenty for single-deal solves.
+    // Benchmarking on an M4 Mac shows that small tables are at worst
+    // 10% slower than large tables, so using more memory wouldn't help.
     SetResources(256, DDS_SHIM_MAX_THREADS);
-#else
-    SetMaxThreads(DDS_SHIM_MAX_THREADS);
-#endif
     DDSInfo info;
     GetDDSInfo(&info);
     usableThreads = info.noOfThreads;
