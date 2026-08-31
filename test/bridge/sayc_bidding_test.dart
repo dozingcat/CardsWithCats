@@ -1334,8 +1334,9 @@ void main() {
           "2H");
       expect(openingBid("K32", "K32", "KQ32", "432", history: ["1H", "2C"]),
           "3H");
+      // A 13-count with four trumps cue-bids; the direct 4H is preemptive.
       expect(openingBid("32", "K432", "AK32", "K32", history: ["1H", "1S"]),
-          "4H");
+          "2S");
     });
 
     test("three-level free bids with 12+", () {
@@ -1861,9 +1862,10 @@ void main() {
           "3S");
       expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1S", "2H"]),
           "3H");
-      // Four trumps still raise to game directly.
+      // Four trumps with game values also cue-bid; the direct 4H is the
+      // preemptive raise.
       expect(openingBid("T6", "K952", "AT87", "AK6", history: ["1H", "2S"]),
-          "4H");
+          "3S");
       // Minor opening: cue with support and no stopper, 3NT with one.
       expect(openingBid("T62", "K9", "AT875", "AK6", history: ["1D", "2S"]),
           "3S");
@@ -1873,6 +1875,37 @@ void main() {
       // deal 429, seed 1).
       expect(openingBid("J8532", "Q2", "AKQ6", "63", history: ["1D", "1H"]),
           "1S");
+    });
+
+    test("preemptive raise to game over an overcall", () {
+      // Five trumps, or four with a singleton or void, 6-12 points.
+      expect(openingBid("T6", "K9532", "A873", "43", history: ["1H", "1S"]),
+          "4H");
+      expect(openingBid("T6", "K952", "AT8732", "4", history: ["1H", "1S"]),
+          "4H");
+      expect(openingBid("T6", "K952", "AT8732", "4", history: ["1H", "2S"]),
+          "4H");
+      // Four trumps without shortness make the ordinary raise.
+      expect(openingBid("T62", "K952", "A873", "43", history: ["1H", "1S"]),
+          "2H");
+      // Strong hands cue-bid instead, whatever the shape.
+      expect(openingBid("6", "K952", "AT873", "AK4", history: ["1H", "1S"]),
+          "2S");
+      // Too weak even for a preemptive raise.
+      expect(openingBid("T6", "T9532", "9873", "43", history: ["1H", "1S"]),
+          "Pass");
+    });
+
+    test("game raise with support when a lower-suit jump overcall takes the cue",
+        () {
+      // Over 1H 3C the cue would be 4C: bid the game directly.
+      expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1H", "3C"]),
+          "4H");
+      expect(openingBid("AK6", "K9", "AT875", "T62", history: ["1D", "3C"]),
+          "4D");
+      expect(openingBid("43", "K7", "AQJ73", "KQ72",
+              history: ["1D", "3C", "4D", "pass"]),
+          "5D");
     });
 
     test("game raise with 3-card support when the jump overcall takes the cue",

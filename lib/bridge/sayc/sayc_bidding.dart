@@ -4411,6 +4411,28 @@ List<SaycRule> interferenceResponseRules(
   final cheapest = cheapestLevel(suit, overcall);
 
   final raiseRules = <SaycRule>[];
+  if (isMajor && cheapest <= 4) {
+    // Preemptive raise to game: bid to the level of the fit at once. The
+    // uncontested 5+ trump raise applies, and in competition four trumps
+    // with a singleton or void qualify too; strong raises (13+) go through
+    // the cue bid instead, so this covers everything below that.
+    bool shortSuit(HandAnalysis h) =>
+        Suit.values.any((s) => s != suit && h.count(s) <= 1);
+    raiseRules.add(SaycRule(
+      BidAction.contract(4, suit),
+      BidMeaning(
+        description:
+            "Preemptive raise to game: 5+ $name (or 4 with a singleton or void), 6-12 points",
+        totalPoints: const Range(low: 6, high: 12),
+        suitLengths: {suit: const Range(low: 4)},
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.totalPoints >= 6 &&
+          h.totalPoints <= 12 &&
+          (h.count(suit) >= 5 || (h.count(suit) == 4 && shortSuit(h))),
+    ));
+  }
   if (cheapest == 2) {
     raiseRules.add(SaycRule(
       BidAction.contract(2, suit),
@@ -4447,17 +4469,7 @@ List<SaycRule> interferenceResponseRules(
       ),
     ));
   }
-  if (isMajor) {
-    raiseRules.add(SaycRule(
-      BidAction.contract(4, suit),
-      BidMeaning(
-        description: "Raise to game: 4+ $name",
-        totalPoints: const Range(low: 13),
-        suitLengths: {suit: const Range(low: 4)},
-      ),
-    ));
-  }
-  // Game-forcing raise without a direct game bid: cue-bid their suit. For
+  // Game-forcing raise: cue-bid their suit (any number of trumps). For
   // a major this is the normal route with 3-card support (the 5-3 fit is
   // preferred to 3NT) and ranks with the raises; for a minor it is the hand
   // with support but no stopper (with a stopper 3NT is bid directly) and
@@ -4482,12 +4494,12 @@ List<SaycRule> interferenceResponseRules(
               (isMajor || !h.hasStopper(theirSuit)),
         );
   if (isMajor && cueRule != null) raiseRules.add(cueRule);
-  // A jump overcall that leaves no cue below game (e.g. 1H 3S): the
-  // game-forcing raise bids the game itself. A major with 3+ support goes
-  // straight to four; a minor with 4+ support and no stopper bids four of
-  // the minor, which opener raises with extras (see
+  // A jump overcall that leaves no cue below game (e.g. 1H 3S or 1H 3C):
+  // the game-forcing raise bids the game itself. A major with 3+ support
+  // goes straight to four; a minor with 4+ support and no stopper bids four
+  // of the minor, which opener raises with extras (see
   // [jumpOvercallRaiseRebidRules]).
-  final noCueGameRaise = cueRule != null || cheapest != 4
+  final noCueGameRaise = cueRule != null || cheapest > 4
       ? null
       : SaycRule(
           BidAction.contract(4, suit),
