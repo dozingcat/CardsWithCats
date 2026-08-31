@@ -1838,6 +1838,124 @@ void main() {
       expect(openingBid("Q87", "97", "K54", "85432", history: h), "3C");
     });
 
+    test("reopening-double advance with support and invitational values", () {
+      // Manual-play hand: 9 points with 3-card support jumped to 4D in a
+      // 4-card suit instead of bidding the known heart fit.
+      expect(openingBid("T62", "K95", "JT87", "AJ6",
+              history: ["1H", "2S", "pass", "pass", "X", "pass"]),
+          "3H");
+      // With room below game, 9-11 jumps in opener's suit to invite and
+      // 12+ bids the game; weaker hands take the cheap preference.
+      final h = ["1H", "1S", "pass", "pass", "X", "pass"];
+      expect(openingBid("T62", "K95", "JT87", "AJ6", history: h), "3H");
+      expect(openingBid("T62", "K95", "JT87", "A96", history: h), "2H");
+      expect(openingBid("T62", "K95", "KQ87", "AJ6", history: h), "4H");
+      // Spade stack still passes for penalty ahead of the preference.
+      expect(openingBid("KQJ9", "K95", "JT87", "A6", history: h), "Pass");
+    });
+
+    test("cue bid over the overcall shows a game-forcing raise", () {
+      // Manual-play hand: 15 HCP with 3-card support passed 2S because the
+      // game raise needs four trumps and 3NT needs a spade stopper.
+      expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1H", "2S"]),
+          "3S");
+      expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1S", "2H"]),
+          "3H");
+      // Four trumps still raise to game directly.
+      expect(openingBid("T6", "K952", "AT87", "AK6", history: ["1H", "2S"]),
+          "4H");
+      // Minor opening: cue with support and no stopper, 3NT with one.
+      expect(openingBid("T62", "K9", "AT875", "AK6", history: ["1D", "2S"]),
+          "3S");
+      expect(openingBid("A62", "K9", "QT875", "AK6", history: ["1D", "2S"]),
+          "3NT");
+      // Opposite a minor a one-level major comes ahead of the cue (self-play
+      // deal 429, seed 1).
+      expect(openingBid("J8532", "Q2", "AKQ6", "63", history: ["1D", "1H"]),
+          "1S");
+    });
+
+    test("game raise with 3-card support when the jump overcall takes the cue",
+        () {
+      // Manual-play hand: over 1H 3S the cue would be 4S, so a 3-card
+      // game-forcing raise bids the game directly.
+      expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1H", "3S"]),
+          "4H");
+      // Minor: 4m with support and no stopper, 3NT with one; opener raises
+      // the 4m game try only with extras.
+      expect(openingBid("T62", "K9", "AT875", "AK6", history: ["1D", "3S"]),
+          "4D");
+      expect(openingBid("A62", "K9", "QT875", "AK6", history: ["1D", "3S"]),
+          "3NT");
+      final h = ["1D", "3S", "4D", "pass"];
+      expect(openingBid("43", "K7", "AQJ73", "KQ72", history: h), "5D");
+      expect(openingBid("43", "K7", "AQJ73", "Q872", history: h), "Pass");
+      expect(openingBid("K4", "AQJ73", "Q65", "872",
+              history: ["1H", "3S", "4H", "pass"]),
+          "Pass");
+    });
+
+    test("opener still places the game when LHO raises over the cue", () {
+      // Self-play deals 1814 and 429 (seed 1).
+      expect(openingBid("A9", "AQ9", "KT64", "8754",
+              history: ["1D", "1S", "2S", "3S"]),
+          "3NT");
+      expect(openingBid("AK", "6", "T9842", "KJT87",
+              history: ["1D", "1H", "2H", "3H"]),
+          "4D");
+      expect(openingBid("K4", "AQJ73", "Q65", "872",
+              history: ["1H", "2S", "3S", "4C"]),
+          "4H");
+    });
+
+    test("opener and responder continue after the cue-bid raise", () {
+      final major = ["1H", "2S", "3S", "pass"];
+      expect(openingBid("K4", "AQJ73", "Q65", "872", history: major), "4H");
+      expect(openingBid("T62", "K95", "AT87", "AK6",
+              history: [...major, "4H", "pass"]),
+          "Pass");
+      final minor = ["1D", "2S", "3S", "pass"];
+      expect(openingBid("A43", "K7", "AQJ73", "872", history: minor),
+          "3NT"); // spade stopper
+      expect(openingBid("43", "K7", "AQJ73", "KQ72", history: minor),
+          "5D"); // 16 total, no stopper
+      expect(openingBid("43", "K7", "AQJ73", "Q872", history: minor),
+          "4D"); // minimum, no stopper
+      expect(openingBid("T62", "K9", "AT875", "AKJ",
+              history: [...minor, "4D", "pass"]),
+          "5D"); // 16 total accepts
+      expect(openingBid("T62", "K9", "AT875", "AK6",
+              history: [...minor, "4D", "pass"]),
+          "Pass"); // 15 total
+      expect(openingBid("T62", "K9", "AT875", "AK6",
+              history: [...minor, "3NT", "pass"]),
+          "Pass");
+    });
+
+    test("reopening doubler continues over partner's preference", () {
+      // Jump preference shows 9-11: accept with 16+, else pass.
+      final jump = ["1H", "1S", "pass", "pass", "X", "pass", "3H", "pass"];
+      expect(openingBid("K4", "AQJ73", "Q65", "872", history: jump),
+          "Pass"); // 13 total
+      expect(openingBid("K4", "AQJ73", "A65", "Q72", history: jump),
+          "4H"); // 17 total
+      // The cheap preference over a one-level overcall is 0-8: pass short
+      // of a big hand.
+      final cheap = ["1H", "1S", "pass", "pass", "X", "pass", "2H", "pass"];
+      expect(openingBid("K4", "AQJ73", "A65", "Q72", history: cheap), "Pass");
+      expect(openingBid("K4", "AQJ73", "A65", "KQ2", history: cheap),
+          "4H"); // 20 total
+      // Over a two-level overcall the 3H preference covers 0-11.
+      final wide = ["1H", "2S", "pass", "pass", "X", "pass", "3H", "pass"];
+      expect(openingBid("K4", "AQJ73", "A65", "Q72", history: wide), "Pass");
+      expect(openingBid("K4", "AQJ73", "A65", "K72", history: wide),
+          "4H"); // 18 total
+      // Partner's game bid ends it.
+      expect(openingBid("A4", "AQJ73", "A65", "KQ2",
+              history: ["1H", "1S", "pass", "pass", "X", "pass", "4H", "pass"]),
+          "Pass");
+    });
+
     test("overcaller shows a second suit over the new-suit advance", () {
       // Self-play deal 3606 (seed 42): 5-5 with 17 total passed the 2C
       // advance with "no descriptive rebid".
