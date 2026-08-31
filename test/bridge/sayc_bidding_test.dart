@@ -1838,6 +1838,46 @@ void main() {
       expect(openingBid("Q87", "97", "K54", "85432", history: h), "3C");
     });
 
+    test("reopening-double advance with support and invitational values", () {
+      // Manual-play hand: 9 points with 3-card support jumped to 4D in a
+      // 4-card suit instead of bidding the known heart fit.
+      expect(openingBid("T62", "K95", "JT87", "AJ6",
+              history: ["1H", "2S", "pass", "pass", "X", "pass"]),
+          "3H");
+      // With room below game, 9-11 jumps in opener's suit to invite and
+      // 12+ bids the game; weaker hands take the cheap preference.
+      final h = ["1H", "1S", "pass", "pass", "X", "pass"];
+      expect(openingBid("T62", "K95", "JT87", "AJ6", history: h), "3H");
+      expect(openingBid("T62", "K95", "JT87", "A96", history: h), "2H");
+      expect(openingBid("T62", "K95", "KQ87", "AJ6", history: h), "4H");
+      // Spade stack still passes for penalty ahead of the preference.
+      expect(openingBid("KQJ9", "K95", "JT87", "A6", history: h), "Pass");
+    });
+
+    test("reopening doubler continues over partner's preference", () {
+      // Jump preference shows 9-11: accept with 16+, else pass.
+      final jump = ["1H", "1S", "pass", "pass", "X", "pass", "3H", "pass"];
+      expect(openingBid("K4", "AQJ73", "Q65", "872", history: jump),
+          "Pass"); // 13 total
+      expect(openingBid("K4", "AQJ73", "A65", "Q72", history: jump),
+          "4H"); // 17 total
+      // The cheap preference over a one-level overcall is 0-8: pass short
+      // of a big hand.
+      final cheap = ["1H", "1S", "pass", "pass", "X", "pass", "2H", "pass"];
+      expect(openingBid("K4", "AQJ73", "A65", "Q72", history: cheap), "Pass");
+      expect(openingBid("K4", "AQJ73", "A65", "KQ2", history: cheap),
+          "4H"); // 20 total
+      // Over a two-level overcall the 3H preference covers 0-11.
+      final wide = ["1H", "2S", "pass", "pass", "X", "pass", "3H", "pass"];
+      expect(openingBid("K4", "AQJ73", "A65", "Q72", history: wide), "Pass");
+      expect(openingBid("K4", "AQJ73", "A65", "K72", history: wide),
+          "4H"); // 18 total
+      // Partner's game bid ends it.
+      expect(openingBid("A4", "AQJ73", "A65", "KQ2",
+              history: ["1H", "1S", "pass", "pass", "X", "pass", "4H", "pass"]),
+          "Pass");
+    });
+
     test("overcaller shows a second suit over the new-suit advance", () {
       // Self-play deal 3606 (seed 42): 5-5 with 17 total passed the 2C
       // advance with "no descriptive rebid".

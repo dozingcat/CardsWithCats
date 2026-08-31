@@ -5268,24 +5268,102 @@ List<SaycRule> reopeningDoubleAdvanceRules(
   if (level > 3) return base;
   // Unlike a direct takeout double, the reopening doubler has shown a real
   // suit by opening it; with 3+ support prefer the known fit to a possibly
-  // unsupported "best suit" (often at a higher level). Having passed the
-  // opening, the hand is too weak for anything more than the preference.
-  // The penalty pass stays ahead of it.
-  final preference = SaycRule(
-    BidAction.contract(level, oSuit),
-    BidMeaning(
-      description: "Returning to opener's ${_suitNames[oSuit]} with support",
-      totalPoints: const Range(high: 8),
-      suitLengths: {oSuit: const Range(low: 3)},
+  // unsupported "best suit" (often at a higher level). The strength tiers
+  // mirror the generic advance: a cheap preference, an invitational jump
+  // when it lands below game, and game with 12+. The initial pass usually
+  // caps the hand well below game values, but a 3-card raise that had no
+  // direct bid (e.g. 9 points over a two-level overcall) is common.
+  // The penalty pass stays ahead of all of them.
+  final name = _suitNames[oSuit]!;
+  final jumpBelowGame = level + 1 < 4;
+  final cheapMax = jumpBelowGame ? 8 : 11;
+  final preferences = <SaycRule>[
+    SaycRule(
+      BidAction.contract(4, oSuit),
+      BidMeaning(
+        description: "Game preference: 3+ $name, 12+ points",
+        totalPoints: const Range(low: 12),
+        suitLengths: {oSuit: const Range(low: 3)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.count(oSuit) >= 3 && h.totalPoints >= 12,
     ),
-    ignoreInfo: true,
-    require: (h) => h.count(oSuit) >= 3 && h.totalPoints <= 8,
-  );
+    if (jumpBelowGame)
+      SaycRule(
+        BidAction.contract(level + 1, oSuit),
+        BidMeaning(
+          description:
+              "Jump preference: 3+ $name, 9-11 points, invitational",
+          totalPoints: const Range(low: 9, high: 11),
+          suitLengths: {oSuit: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.count(oSuit) >= 3 && h.totalPoints >= 9 && h.totalPoints <= 11,
+      ),
+    SaycRule(
+      BidAction.contract(level, oSuit),
+      BidMeaning(
+        description: "Returning to opener's $name with support, 0-$cheapMax points",
+        totalPoints: Range(high: cheapMax),
+        suitLengths: {oSuit: const Range(low: 3)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.count(oSuit) >= 3 && h.totalPoints <= cheapMax,
+    ),
+  ];
   final passIndex = base.indexWhere((r) => r.action == BidAction.pass());
   return [
     ...base.take(passIndex + 1),
-    preference,
+    ...preferences,
     ...base.skip(passIndex + 1),
+  ];
+}
+
+/// Opener's call after reopening with a double and hearing partner return
+/// to the opened major (see [reopeningDoubleAdvanceRules] for the tiers
+/// partner's preference can show). Returns null for other advances, which
+/// the fallback bidder handles.
+List<SaycRule>? reopeningDoubleContinuationRules(
+    ContractBid opening, ContractBid overcall, ContractBid advance) {
+  final oSuit = opening.trump;
+  if (oSuit == null || !_isMajor(oSuit) || advance.trump != oSuit) {
+    return null;
+  }
+  final name = _suitNames[oSuit]!;
+  final level = cheapestLevel(oSuit, overcall);
+  if (advance.count >= 4) {
+    return [
+      SaycRule(BidAction.pass(),
+          BidMeaning(description: "Partner bid the game; nothing to add")),
+    ];
+  }
+  // Partner's range and the strength we need opposite it: the 9-11 jump
+  // wants a sound 16; the cheap preference is 0-8 (or 0-11 when the jump
+  // would have been game) and only a big hand tries for game opposite it.
+  final isJump = advance.count == level + 1;
+  final int partnerLow = isJump ? 9 : 0;
+  final int partnerHigh = isJump ? 11 : (level + 1 < 4 ? 8 : 11);
+  final int gameMin = isJump ? 16 : (partnerHigh == 8 ? 19 : 18);
+  return [
+    SaycRule(
+      BidAction.contract(4, oSuit),
+      BidMeaning(
+        description:
+            "Bidding game opposite the $partnerLow-$partnerHigh preference",
+        totalPoints: Range(low: gameMin),
+      ),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= gameMin,
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+        description:
+            "Not enough for game opposite the $partnerLow-$partnerHigh $name preference",
+        totalPoints: Range(high: gameMin - 1),
+      ),
+    ),
   ];
 }
 
@@ -6633,6 +6711,20 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     // doubled: choose between penalties and the cheapest fit.
     return actionDoubleAdvanceRules(opening.contractBid!,
         calls[first + 2].contractBid!, calls[first + 3].contractBid!);
+  }
+  if (n == first + 8 &&
+      isOneLevelSuitOpening(opening) &&
+      isSuitBid(calls[first + 1]) &&
+      calls[first + 2].bidType == BidType.pass &&
+      calls[first + 3].bidType == BidType.pass &&
+      calls[first + 4].bidType == BidType.double &&
+      calls[first + 5].bidType == BidType.pass &&
+      calls[first + 6].bidType == BidType.contract &&
+      calls[first + 7].bidType == BidType.pass) {
+    // We reopened with a double and partner advanced.
+    final rules = reopeningDoubleContinuationRules(opening.contractBid!,
+        calls[first + 1].contractBid!, calls[first + 6].contractBid!);
+    if (rules != null) return rules;
   }
   if (oppActions.isEmpty) {
     if (n == first + 4) {

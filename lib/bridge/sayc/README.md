@@ -351,7 +351,7 @@ dart run scripts/bidding_audit.dart --deals 5000 --chaos 0.15
 DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart --deals 1200
 ```
 
-### Audit conventions and current results (2026-08-26)
+### Audit conventions and current results (2026-08-30)
 
 Seed 1 over 3000 deals is the held-out **test set**: fixes are mined from
 other seeds (42 at 4000 deals is the current dev seed) so that seed 1 stays
@@ -360,12 +360,12 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 655 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 895 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 653 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 889 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 433, missed-game 136,
-silly-strain 51, missed-slam 25, thin-game 1, no-rule-matched 1.
+Seed 1 findings by category: fallback-used 433, missed-game 143,
+silly-strain 50, missed-slam 25, thin-game 1, no-rule-matched 1.
 Fallback-used is monitoring, not failure. The missed-game lint excuses
 stops below game when an opponent-bid suit is unstopped, there is no
 eight-card major fit, and the side holds under 28 points (no game is
