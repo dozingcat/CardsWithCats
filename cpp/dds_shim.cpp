@@ -28,16 +28,12 @@ static int usableThreads = 0;
 extern "C" void DdsEnsureInit() {
   static std::once_flag flag;
   std::call_once(flag, [] {
-    // Bound total memory on every platform. SetMaxThreads(n) is just
-    // SetResources(0, n): with no cap DDS budgets 70% of free RAM (or,
-    // on macOS/Windows, of physical RAM) and sizes its per-thread
-    // transposition tables from that, up to 160MB per thread -- on a
-    // 16-core desktop that is ~2.5GB for a card game. DDS treats the
-    // figure as +30% (332MB) and needs 30MB per small-table thread, so
-    // this yields min(cores, 11) small threads. Each slot serves one
+    // Bound total memory on every platform. DDS treats the figure as
+    // +30% (332MB) and needs 30MB per small-table thread, so this
+    // yields min(cores, 11) small threads. Each slot serves one
     // caller at a time; the app never has more than a few solves in
     // flight, and a small table is plenty for single-deal solves.
-    // Benchmarking (on an M4 Mac) shows that small tables are at worst
+    // Benchmarking on an M4 Mac shows that small tables are at worst
     // 10% slower than large tables, so using more memory wouldn't help.
     SetResources(256, DDS_SHIM_MAX_THREADS);
     DDSInfo info;
