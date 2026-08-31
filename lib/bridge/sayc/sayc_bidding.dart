@@ -4482,6 +4482,29 @@ List<SaycRule> interferenceResponseRules(
               (isMajor || !h.hasStopper(theirSuit)),
         );
   if (isMajor && cueRule != null) raiseRules.add(cueRule);
+  // A jump overcall that leaves no cue below game (e.g. 1H 3S): the
+  // game-forcing raise bids the game itself. A major with 3+ support goes
+  // straight to four; a minor with 4+ support and no stopper bids four of
+  // the minor, which opener raises with extras (see
+  // [jumpOvercallRaiseRebidRules]).
+  final noCueGameRaise = cueRule != null || cheapest != 4
+      ? null
+      : SaycRule(
+          BidAction.contract(4, suit),
+          BidMeaning(
+            description: isMajor
+                ? "Raise to game: 3+ $name, 13+ points (no cue bid available)"
+                : "Raise to four $name: 4+ $name, 13+ points, no ${_suitNames[theirSuit]} stopper",
+            totalPoints: const Range(low: 13),
+            suitLengths: {suit: Range(low: minSupport)},
+          ),
+          ignoreInfo: true,
+          require: (h) =>
+              h.count(suit) >= minSupport &&
+              h.totalPoints >= 13 &&
+              (isMajor || !h.hasStopper(theirSuit)),
+        );
+  if (isMajor && noCueGameRaise != null) raiseRules.add(noCueGameRaise);
   final negDouble = _negativeDoubleRule(opening, overcall);
 
   final rules = <SaycRule>[
@@ -4540,6 +4563,7 @@ List<SaycRule> interferenceResponseRules(
     ));
   }
   if (!isMajor && cueRule != null) rules.add(cueRule);
+  if (!isMajor && noCueGameRaise != null) rules.add(noCueGameRaise);
 
   // Notrump with a stopper in the overcalled suit.
   final overcallSuit = overcall.trump!;
@@ -5407,6 +5431,32 @@ List<SaycRule>? cueBidRaiseRebidRules(
             totalPoints: const Range(high: 14)),
         ignoreInfo: true,
       ),
+  ];
+}
+
+/// Opener's rebid after a jump overcall took away the cue and responder
+/// raised a minor to four (4+ support, 13+, no stopper in their suit; see
+/// [interferenceResponseRules]). Five needs extras; otherwise the four-level
+/// partscore is the accepted stop with no stopper for notrump.
+List<SaycRule> jumpOvercallRaiseRebidRules(
+    ContractBid opening, ContractBid overcall) {
+  final suit = opening.trump!;
+  final name = _suitNames[suit]!;
+  return [
+    SaycRule(
+      BidAction.contract(5, suit),
+      BidMeaning(
+          description: "Game in $name with extras opposite the four-level raise",
+          totalPoints: const Range(low: 15)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 15,
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "Minimum opposite the four-level raise; no stopper for notrump",
+          totalPoints: const Range(high: 14)),
+    ),
   ];
 }
 
@@ -6887,6 +6937,19 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
             ? rho.contractBid!
             : calls[first + 2].contractBid!);
     if (rules != null) return rules;
+  }
+  if (n == first + 4 &&
+      isOneLevelSuitOpening(opening) &&
+      !_isMajor(opening.contractBid!.trump!) &&
+      isSuitBid(calls[first + 1]) &&
+      cheapestLevel(calls[first + 1].contractBid!.trump!,
+              calls[first + 1].contractBid!) > 3 &&
+      calls[first + 2] == BidAction.contract(4, opening.contractBid!.trump!) &&
+      calls[first + 3].bidType == BidType.pass) {
+    // Their jump overcall took away the cue; partner's 4m is the
+    // game-forcing raise with no stopper.
+    return jumpOvercallRaiseRebidRules(
+        opening.contractBid!, calls[first + 1].contractBid!);
   }
   if (n == first + 4 && calls[first + 3].bidType == BidType.pass) {
     final overcall = calls[first + 1];

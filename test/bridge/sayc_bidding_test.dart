@@ -1875,6 +1875,26 @@ void main() {
           "1S");
     });
 
+    test("game raise with 3-card support when the jump overcall takes the cue",
+        () {
+      // Manual-play hand: over 1H 3S the cue would be 4S, so a 3-card
+      // game-forcing raise bids the game directly.
+      expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1H", "3S"]),
+          "4H");
+      // Minor: 4m with support and no stopper, 3NT with one; opener raises
+      // the 4m game try only with extras.
+      expect(openingBid("T62", "K9", "AT875", "AK6", history: ["1D", "3S"]),
+          "4D");
+      expect(openingBid("A62", "K9", "QT875", "AK6", history: ["1D", "3S"]),
+          "3NT");
+      final h = ["1D", "3S", "4D", "pass"];
+      expect(openingBid("43", "K7", "AQJ73", "KQ72", history: h), "5D");
+      expect(openingBid("43", "K7", "AQJ73", "Q872", history: h), "Pass");
+      expect(openingBid("K4", "AQJ73", "Q65", "872",
+              history: ["1H", "3S", "4H", "pass"]),
+          "Pass");
+    });
+
     test("opener still places the game when LHO raises over the cue", () {
       // Self-play deals 1814 and 429 (seed 1).
       expect(openingBid("A9", "AQ9", "KT64", "8754",
