@@ -1,4 +1,5 @@
 import "dart:math";
+import "dart:collection";
 
 import "package:cards_with_cats/cards/card.dart";
 
@@ -692,5 +693,96 @@ MonteCarloResult chooseCardMonteCarloDD(
     numRollouts: numRounds * legalPlays.length,
     numRolloutCardsPlayed: 0,
     elapsedMillis: timeFn() - startTime,
+  );
+}
+
+// Returns an ordered map with the double-dummy result of playing each card
+// in the current player's hand. The ordering will be from highest to lowest
+// number of tricks, so the first entry will be the card that produces the best
+// result (or one of multiple cards that produces the best result).
+// Returns null if the native DDS solver is not available.
+LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
+  required TrickInProgress currentTrick,
+  required List<List<PlayingCard>> hands,
+  required Suit? trump,
+}) {
+  final dds = DdsBackend.instance;
+  if (dds == null) {
+    return null;
+  }
+  final tricksForCard = <PlayingCard, int>{};
+  final currentPlayer = (currentTrick.leader + currentTrick.cards.length) % 4;
+  // Play each card and then compute the double-dummy result for the next player.
+  List<List<PlayingCard>> handsAfterCard = [...hands];
+  final candidates = legalPlays(hands[currentPlayer], currentTrick);
+  for (final cardToPlay in candidates) {
+    final remainingCardsForCurrentPlayer = [...hands[currentPlayer]];
+    remainingCardsForCurrentPlayer.remove(cardToPlay);
+    handsAfterCard[currentPlayer] = remainingCardsForCurrentPlayer;
+    // Add the card to the current trick; if it finishes determine the winner and
+    // pass an empty trick to DDS.
+    final updatedTrickCards = [...currentTrick.cards, cardToPlay];
+    int? ddResult;
+    if (currentTrick.cards.length == 3) {
+      // Finish the current trick, the winner becomes the leader to an empty trick.
+      final completedTrick = TrickInProgress(currentTrick.leader, updatedTrickCards);
+      final winner = completedTrick.finish(trump: trump).winner;
+      bool nsWon = winner % 2 == 0;
+      ddResult = dds.solve(handsAfterCard, trump, winner, []);
+      if (ddResult != null) {
+        ddResult += (nsWon ? 1 : 0);;
+      }
+    }
+    else {
+      ddResult = dds.solve(handsAfterCard, trump, currentTrick.leader, updatedTrickCards);
+    }
+    if (ddResult == null) {
+      return null;
+    }
+    // ddResult is N/S tricks, convert to tricks for current player's side.
+    final actualTricksWon = currentPlayer % 2 == 0
+      ? ddResult
+      : hands[currentPlayer].length - ddResult;
+    tricksForCard[cardToPlay] = actualTricksWon;
+  }
+  final result = LinkedHashMap<PlayingCard, int>();
+  final sortedCards = [...tricksForCard.keys];
+  sortedCards.sort((a, b) => tricksForCard[b]! - tricksForCard[a]!);
+  for (final c in sortedCards) {
+    result[c] = tricksForCard[c]!;
+  }
+  return result;
+}
+
+LinkedHashMap<PlayingCard, int>? doubleDummyResultForPreviousPointInRound({
+  required BridgeRound round,
+  required int completedTricks,
+  required int cardsInCurrentTrick,
+}) {
+  if (!round.isOver()) {
+    throw Exception("doubleDummyResultForPreviousPointInRound should only be called for a completed round");
+  }
+  List<List<PlayingCard>> hands = [[], [], [], []];
+  // Assign cards from the current and subsequent tricks, then remove any cards
+  // played in the current trick.
+  for (int ti = completedTricks; ti < 13; ti++) {
+    final trick = round.previousTricks[ti];
+    for (int ci = 0; ci < trick.cards.length; ci++) {
+      final pi = (trick.leader + ci) % trick.cards.length;
+      hands[pi].add(trick.cards[ci]);
+    }
+  }
+  final currentTrick = TrickInProgress(
+      round.previousTricks[completedTricks].leader,
+      round.previousTricks[completedTricks].cards.sublist(0, cardsInCurrentTrick),
+  );
+  for (int ci = 0; ci < cardsInCurrentTrick; ci++) {
+    final pi = (currentTrick.leader + ci) % currentTrick.cards.length;
+    hands[pi].remove(currentTrick.cards[ci]);
+  }
+  return doubleDummyResultForAllCards(
+    currentTrick: currentTrick,
+    hands: hands,
+    trump: round.trumpSuit(),
   );
 }
