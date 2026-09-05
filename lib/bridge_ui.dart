@@ -337,6 +337,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       }
       _updateStatsIfMatchOrRoundOver();
     }
+
   }
 
   void _clearMoods() {
@@ -1391,7 +1392,7 @@ class EndOfRoundDialog extends StatelessWidget {
             Text("IMPs: ${plusPrefixIfPositive(impsForScoreDifference(scoreDiff))}")
         ),
       ]),
-      if (onShowDetails != null) makeRow([
+      if (onShowDetails != null && !(round.isPassedOut() && duplicateRound.isPassedOut())) makeRow([
         TextButton(
           onPressed: onShowDetails,
           child: const Text("Show details", style: TextStyle(fontSize: 12)),
@@ -1530,13 +1531,81 @@ class RoundDetailsDialog extends StatefulWidget {
   State<RoundDetailsDialog> createState() => _RoundDetailsDialogState();
 }
 
+class BadDoubleDummyPlay {
+  final PlayingCard actualCard;
+  final List<PlayingCard> bestCards;
+  final int tricksCost;
+
+  BadDoubleDummyPlay(this.actualCard, this.bestCards, this.tricksCost);
+}
+
 class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
   bool showDuplicate = false;
   int selectedTabIndex = 0;
   int trickIndex = 0;
+  // A list of "mistakes" for each player for the currently displayed trick,
+  // as reported by the double-dummy solver. This doesn't necessarily mean that
+  // the play was game-theoretically wrong, only that if the player had known
+  // where all the cards were, they should have played differently.
+  List<BadDoubleDummyPlay?> ddMistakes = [null, null, null, null];
 
   BridgeRound get selectedRound =>
       showDuplicate ? widget.duplicateRound : widget.round;
+
+  @override
+  void initState() {
+    super.initState();
+    updateBetterCardPlays();
+  }
+
+  void updateBetterCardPlays() {
+    if (selectedRound.isPassedOut()) {
+      ddMistakes = [null, null, null, null];
+      return;
+    }
+    final displayedTrick = selectedRound.previousTricks[trickIndex];
+    for (int ci = 0; ci < selectedRound.numberOfPlayers; ci++) {
+      int playerIndex = (displayedTrick.leader + ci) % selectedRound.numberOfPlayers;
+      final ddEvaluations = doubleDummyResultForPreviousPointInRound(
+        round: selectedRound,
+        completedTricks: trickIndex,
+        cardsInCurrentTrick: ci,
+      );
+      if (ddEvaluations == null) {
+        ddMistakes[playerIndex] = null;
+      }
+      else {
+        final actualCardPlayed = displayedTrick.cards[ci];
+        int bestValue = ddEvaluations.entries.first.value;
+        int diff = bestValue - ddEvaluations[actualCardPlayed]!;
+        if (ddEvaluations[actualCardPlayed]! < bestValue) {
+          final bestPlays = ddEvaluations.keys
+              .where((card) => ddEvaluations[card] == bestValue)
+              .toList();
+          ddMistakes[playerIndex] = BadDoubleDummyPlay(actualCardPlayed, bestPlays, diff);
+        }
+        else {
+          ddMistakes[playerIndex] = null;
+        }
+      }
+    }
+  }
+
+  void incrementTrickIndex() {
+    if (trickIndex >= selectedRound.previousTricks.length - 1) {
+      return;
+    }
+    trickIndex += 1;
+    updateBetterCardPlays();
+  }
+
+  void decrementTrickIndex() {
+    if (trickIndex <= 0) {
+      return;
+    }
+    trickIndex -= 1;
+    updateBetterCardPlays();
+  }
 
   Widget biddingTab() {
     Widget headerCell(String msg) => paddingAll(
@@ -1558,9 +1627,12 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
     final trick = tricks[trickIndex];
 
     Widget seatCard(int playerIndex) {
-      final cardIndex = (playerIndex - trick.leader) % 4;
+      final cardIndex = (playerIndex - trick.leader) % selectedRound.numberOfPlayers;
       final card = trick.cards[cardIndex];
       final isWinner = playerIndex == trick.winner;
+      const cardHeight = 72.0;
+      const cardWidth = cardHeight * defaultCardAspectRatio;
+      final mistake = ddMistakes[playerIndex];
       return Container(
           decoration: BoxDecoration(
             border: Border.all(
@@ -1568,8 +1640,22 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                 width: 2.5),
             borderRadius: BorderRadius.circular(5),
           ),
-          child: Image.asset("assets/cards/solid/${card.toString()}.webp",
-              height: 72));
+          child: Stack(children: [
+            Image.asset("assets/cards/solid/${card.toString()}.webp", height: cardHeight),
+            if (mistake != null)
+              SizedBox(
+                  height: cardHeight,
+                  width: cardWidth,
+                  child: Center(
+                    child: Opacity(opacity: 0.9, child: Container(
+                      width: cardWidth,
+                      color: Colors.yellow,
+                      child: SizedBox(width: cardWidth, height: 32, child: Center(child: Text(
+                        "-${mistake.tricksCost} ${mistake.tricksCost == 1 ? 'trick' : 'tricks'}\nBest: ${mistake.bestCards.first.symbolString()}",
+                        style: const TextStyle(fontSize: 10))))))
+                  ),
+              ),
+          ]));
     }
 
     // Cross layout matching the table: N top, W left, E right, S bottom.
@@ -1594,7 +1680,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
         IconButton(
           icon: const Icon(Icons.chevron_left),
           onPressed: trickIndex > 0
-              ? () => setState(() => trickIndex -= 1)
+              ? () => setState(decrementTrickIndex)
               : null,
         ),
         Text("Trick ${trickIndex + 1} of ${tricks.length}",
@@ -1602,7 +1688,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
         IconButton(
           icon: const Icon(Icons.chevron_right),
           onPressed: trickIndex < tricks.length - 1
-              ? () => setState(() => trickIndex += 1)
+              ? () => setState(incrementTrickIndex)
               : null,
         ),
       ]),
@@ -1639,6 +1725,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                           selected: {showDuplicate},
                           onSelectionChanged: (selection) => setState(() {
                             showDuplicate = selection.first;
+                            updateBetterCardPlays();
                             // Intentionally keep the trick index where it was.
                           }),
                         )),

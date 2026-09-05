@@ -1,3 +1,4 @@
+import "dart:collection";
 import "dart:math";
 
 import "package:cards_with_cats/cards/card.dart";
@@ -692,5 +693,108 @@ MonteCarloResult chooseCardMonteCarloDD(
     numRollouts: numRounds * legalPlays.length,
     numRolloutCardsPlayed: 0,
     elapsedMillis: timeFn() - startTime,
+  );
+}
+
+// Returns an ordered map with the double-dummy result of playing each card
+// that the current player can legally play, as the number of tricks that the
+// current player's side takes with optimal play by both sides afterwards.
+// The count includes the trick in progress, so a card that wins the current
+// trick is credited for it. The ordering will be from highest to lowest
+// number of tricks, so the first entry will be the card that produces the best
+// result (or one of multiple cards that produces the best result).
+// Returns null if the native DDS solver is not available.
+LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
+  required TrickInProgress currentTrick,
+  required List<List<PlayingCard>> hands,
+  required Suit? trump,
+}) {
+  final dds = DdsBackend.instance;
+  if (dds == null) {
+    return null;
+  }
+  // A single DDS call scores every legal card for the player on play, and
+  // already reports tricks from that player's side's perspective.
+  final tricksForCard =
+      dds.solveAllCards(hands, trump, currentTrick.leader, currentTrick.cards);
+  if (tricksForCard == null) {
+    return null;
+  }
+  final sortedCards = [...tricksForCard.keys];
+
+  // For consistency, sort deterministically first by the number of tricks taken,
+  // then by rank (highest first), then by S/H/D/C suit order.
+  int sortVal(PlayingCard c) {
+    return tricksForCard[c]! * 1000 + c.rank.index * 10 + c.suit.index;
+  }
+
+  sortedCards.sort((a, b) => sortVal(b) - sortVal(a));
+  final result = LinkedHashMap<PlayingCard, int>();
+  for (final c in sortedCards) {
+    result[c] = tricksForCard[c]!;
+  }
+  return result;
+}
+
+// The state of a completed round's play after [completedTricks] tricks have
+// been finished and [cardsInCurrentTrick] further cards have been played to
+// the trick in progress: the cards each player still holds, and that trick.
+// The finished tricks being round.previousTricks[0] through
+// [completedTricks] - 1, the trick in progress is at index [completedTricks].
+({List<List<PlayingCard>> hands, TrickInProgress currentTrick})
+    roundStateAtPointInPlay({
+  required BridgeRound round,
+  required int completedTricks,
+  required int cardsInCurrentTrick,
+}) {
+  if (!round.isOver()) {
+    throw Exception(
+        "roundStateAtPointInPlay should only be called for a completed round");
+  }
+  final numPlayers = round.numberOfPlayers;
+  if (completedTricks < 0 || completedTricks >= round.previousTricks.length) {
+    throw RangeError("No trick at index $completedTricks");
+  }
+  if (cardsInCurrentTrick < 0 || cardsInCurrentTrick >= numPlayers) {
+    throw RangeError(
+        "Invalid number of cards in the current trick: $cardsInCurrentTrick");
+  }
+  // Assign cards from the current and subsequent tricks, then remove any cards
+  // played in the current trick.
+  final hands = List.generate(numPlayers, (_) => <PlayingCard>[]);
+  for (int ti = completedTricks; ti < round.previousTricks.length; ti++) {
+    final trick = round.previousTricks[ti];
+    for (int ci = 0; ci < trick.cards.length; ci++) {
+      final pi = (trick.leader + ci) % numPlayers;
+      hands[pi].add(trick.cards[ci]);
+    }
+  }
+  final displayedTrick = round.previousTricks[completedTricks];
+  final currentTrick = TrickInProgress(displayedTrick.leader,
+      displayedTrick.cards.sublist(0, cardsInCurrentTrick));
+  for (int ci = 0; ci < cardsInCurrentTrick; ci++) {
+    final pi = (currentTrick.leader + ci) % numPlayers;
+    hands[pi].remove(currentTrick.cards[ci]);
+  }
+  return (hands: hands, currentTrick: currentTrick);
+}
+
+// Returns the double-dummy evaluation of every legal play available to the
+// player who was on play at the given point in a completed round; see
+// [doubleDummyResultForAllCards] for the meaning of the values.
+LinkedHashMap<PlayingCard, int>? doubleDummyResultForPreviousPointInRound({
+  required BridgeRound round,
+  required int completedTricks,
+  required int cardsInCurrentTrick,
+}) {
+  final state = roundStateAtPointInPlay(
+    round: round,
+    completedTricks: completedTricks,
+    cardsInCurrentTrick: cardsInCurrentTrick,
+  );
+  return doubleDummyResultForAllCards(
+    currentTrick: state.currentTrick,
+    hands: state.hands,
+    trump: round.trumpSuit(),
   );
 }
