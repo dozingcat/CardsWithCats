@@ -1569,11 +1569,12 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
 
   void updateBetterCardPlays() {
     if (selectedRound.isPassedOut()) {
+      ddMistakes = [null, null, null, null];
       return;
     }
     final displayedTrick = selectedRound.previousTricks[trickIndex];
-    for (int ci = 0; ci < 4; ci++) {
-      int playerIndex = (displayedTrick.leader + ci) % 4;
+    for (int ci = 0; ci < selectedRound.numberOfPlayers; ci++) {
+      int playerIndex = (displayedTrick.leader + ci) % selectedRound.numberOfPlayers;
       final ddEvaluations = doubleDummyResultForPreviousPointInRound(
         round: selectedRound,
         completedTricks: trickIndex,
@@ -1600,7 +1601,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
   }
 
   void incrementTrickIndex() {
-    if (trickIndex >= 12) {
+    if (trickIndex >= selectedRound.previousTricks.length - 1) {
       return;
     }
     trickIndex += 1;
@@ -1635,7 +1636,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
     final trick = tricks[trickIndex];
 
     Widget seatCard(int playerIndex) {
-      final cardIndex = (playerIndex - trick.leader) % 4;
+      final cardIndex = (playerIndex - trick.leader) % selectedRound.numberOfPlayers;
       final card = trick.cards[cardIndex];
       final isWinner = playerIndex == trick.winner;
       const cardHeight = 72.0;
@@ -1649,7 +1650,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Stack(children: [
-            Image.asset("assets/cards/solid/${card.toString()}.webp", height: 72),
+            Image.asset("assets/cards/solid/${card.toString()}.webp", height: cardHeight),
             if (mistake != null)
               SizedBox(
                   height: cardHeight,
@@ -1660,7 +1661,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                       color: Colors.yellow,
                       child: SizedBox(width: cardWidth, height: 32, child: Center(child: Text(
                         "-${mistake.tricksCost} ${mistake.tricksCost == 1 ? 'trick' : 'tricks'}\nBest: ${mistake.bestCards.first.symbolString()}",
-                        style: TextStyle(fontSize: 10)))))
+                        style: const TextStyle(fontSize: 10)))))
                   ),
               ),
           ]));

@@ -149,11 +149,17 @@ class DdsBackend {
     }
   }
 
-  /// North-South tricks from this position with optimal play, including
-  /// the trick in progress — the same contract as [DDSolver.solve].
-  /// Returns null on a DDS error.
-  int? solve(List<List<PlayingCard>> hands, Suit? trump, int leader,
+  /// Fills the shared deal struct with this position, returning the total
+  /// number of cards still in play (hands plus the trick in progress).
+  ///
+  /// DDS has room for only three cards in the trick in progress; a
+  /// complete trick has to be resolved by the caller before solving.
+  int _fillDeal(List<List<PlayingCard>> hands, Suit? trump, int leader,
       List<PlayingCard> trickCards) {
+    if (trickCards.length > 3) {
+      throw ArgumentError(
+          "Trick in progress can have at most 3 cards, got ${trickCards.length}");
+    }
     final deal = _deal.ref;
     deal.trump = trump == null ? 4 : _ddsSuit(trump);
     deal.first = leader;
@@ -175,13 +181,23 @@ class DdsBackend {
         totalCards++;
       }
     }
+    return totalCards;
+  }
+
+  /// North-South tricks from this position with optimal play, including
+  /// the trick in progress — the same contract as [DDSolver.solve].
+  /// Returns null on a DDS error.
+  int? solve(List<List<PlayingCard>> hands, Suit? trump, int leader,
+      List<PlayingCard> trickCards) {
+    final totalCards = _fillDeal(hands, trump, leader, trickCards);
     final threadIndex = _acquireThreadIndex();
     if (threadIndex < 0) {
       return null; // all DDS slots busy; caller falls back
     }
     final int res;
     try {
-      res = _solveBoard(deal, -1, 1, 1, _fut, threadIndex);
+      // solutions=1: only the best card's score is needed.
+      res = _solveBoard(_deal.ref, -1, 1, 1, _fut, threadIndex);
     } finally {
       _releaseThreadIndex(threadIndex);
     }
@@ -193,5 +209,63 @@ class DdsBackend {
     final mover = (leader + trickCards.length) % 4;
     final remainingTricks = totalCards ~/ 4;
     return mover % 2 == 0 ? score : remainingTricks - score;
+  }
+
+  /// Tricks taken by the side on play for each card that player can legally
+  /// play, with optimal play by both sides afterwards. As with [solve] the
+  /// count includes the trick in progress, so a card that wins the current
+  /// trick is credited for it.
+  ///
+  /// One SolveBoard call evaluates every candidate, which is much cheaper
+  /// than a [solve] per card. Note that the scores are from the perspective
+  /// of the player on play, not of North-South as in [solve].
+  ///
+  /// [trickCards] holds at most three cards; with three, the player on play
+  /// is the one completing the trick.
+  ///
+  /// Returns null on a DDS error or when all solver slots are busy.
+  Map<PlayingCard, int>? solveAllCards(List<List<PlayingCard>> hands,
+      Suit? trump, int leader, List<PlayingCard> trickCards) {
+    _fillDeal(hands, trump, leader, trickCards);
+    final threadIndex = _acquireThreadIndex();
+    if (threadIndex < 0) {
+      return null; // all DDS slots busy; caller falls back
+    }
+    final int res;
+    try {
+      // solutions=3 scores every legal card rather than just the best one.
+      // mode=1 searches even when only one card is playable, so that every
+      // returned score is a real trick count rather than a -1 placeholder.
+      res = _solveBoard(_deal.ref, -1, 3, 1, _fut, threadIndex);
+    } finally {
+      _releaseThreadIndex(threadIndex);
+    }
+    if (res != 1) {
+      return null;
+    }
+    final fut = _fut.ref;
+    nodesSearched += fut.nodes;
+    if (fut.cards <= 0) {
+      return null;
+    }
+    final result = <PlayingCard, int>{};
+    for (int i = 0; i < fut.cards; i++) {
+      final score = fut.score[i];
+      if (score < 0) {
+        return null; // DDS declined to score this card.
+      }
+      final suit = Suit.values[3 - fut.suit[i]];
+      result[PlayingCard(Rank.values[fut.rank[i] - 2], suit)] = score;
+      // DDS returns one entry per equivalence class; `equals` is a bit map
+      // of the lower ranks in the same suit that play identically, with
+      // bit 2 for the two through bit 14 for the ace.
+      final equalRanks = fut.equals[i];
+      for (int r = 2; r <= 14; r++) {
+        if (equalRanks & (1 << r) != 0) {
+          result[PlayingCard(Rank.values[r - 2], suit)] = score;
+        }
+      }
+    }
+    return result;
   }
 }
