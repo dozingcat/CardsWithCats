@@ -1656,12 +1656,12 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                   height: cardHeight,
                   width: cardWidth,
                   child: Center(
-                    child: Container(
+                    child: Opacity(opacity: 0.9, child: Container(
                       width: cardWidth,
                       color: Colors.yellow,
                       child: SizedBox(width: cardWidth, height: 32, child: Center(child: Text(
                         "-${mistake.tricksCost} ${mistake.tricksCost == 1 ? 'trick' : 'tricks'}\nBest: ${mistake.bestCards.first.symbolString()}",
-                        style: const TextStyle(fontSize: 10)))))
+                        style: const TextStyle(fontSize: 10))))))
                   ),
               ),
           ]));
