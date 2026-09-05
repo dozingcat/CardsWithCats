@@ -1234,21 +1234,21 @@ class _BidDialogState extends State<BidDialog> {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(
+                          child: FittedBox(child: Text(
                               "Vulnerable: ${vulnerabilityDescription(widget.round.vulnerability)}",
-                              style: const TextStyle(fontSize: 12))),
-                      BidHistoryTable(round: widget.round, headerCells: [
+                              style: const TextStyle(fontSize: 12)))),
+                      FittedBox(child: BidHistoryTable(round: widget.round, headerCells: [
                         paddingHorizontal(cellPad, headerCell("You")),
                         catImageCell(widget.catImageIndices[1]),
                         catImageCell(widget.catImageIndices[2]),
                         catImageCell(widget.catImageIndices[3]),
-                      ]),
+                      ])),
 
                       if (!isBiddingOver) ...[
                         // Considered using a SegmentedButton with options 1 through 7 rather than
                         // the +/- buttons, but Flutter enforces a minimum width on each option
                         // that makes it too wide.
-                        Row(
+                        FittedBox(child: Row(
                             spacing: 12,
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -1265,10 +1265,10 @@ class _BidDialogState extends State<BidDialog> {
                                     canIncrementBid() ? incrementBid : null,
                                 child: const Text("+", style: adjustBidTextStyle),
                               ),
-                            ]),
+                            ])),
                         paddingAll(
                             rowPadding,
-                            SegmentedButton<Suit?>(
+                            FittedBox(child: SegmentedButton<Suit?>(
                               segments: const [
                                 ButtonSegment(
                                     value: Suit.clubs, label: Text("♣")),
@@ -1288,8 +1288,8 @@ class _BidDialogState extends State<BidDialog> {
                                       contractBid.count, selectedSuits.first);
                                 });
                               },
-                            )),
-                        Row(
+                            ))),
+                        FittedBox(child: Row(
                           spacing: 8,
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1313,11 +1313,11 @@ class _BidDialogState extends State<BidDialog> {
                                 child: const Text("Redouble"),
                               ),
                           ],
-                        ),
+                        )),
                       ],
                       if (isBiddingOver) ...postBidRows(),
                       const SizedBox(height: 12),
-                      Row(
+                      FittedBox(child: Row(
                         spacing: 8,
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1327,7 +1327,7 @@ class _BidDialogState extends State<BidDialog> {
                             child: Text("Undo last bid"),
                           ),
                         ],
-                      ),
+                      )),
                       const SizedBox(height: 12),
                     ])))));
   }
