@@ -518,7 +518,7 @@ class _MyHomePageState extends State<MyHomePage> {
           borderRadius: BorderRadius.circular(shortSide * 0.05),
           boxShadow: [BoxShadow(
             color: const Color(0x66000000),
-            blurRadius: max(2, shortSide * 0.03),
+            blurRadius: shortSide * 0.03,
           )],
 
         ),
