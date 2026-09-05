@@ -511,7 +511,18 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _gameTable(final Layout layout) {
-    return Positioned.fromRect(rect: layout.cardArea(), child: Container(color: gameTableColor));
+    final shortSide = layout.displaySize.shortestSide;
+    return Positioned.fromRect(rect: layout.cardArea(), child: Container(
+        decoration: BoxDecoration(
+          color: gameTableColor,
+          borderRadius: BorderRadius.circular(shortSide * 0.05),
+          boxShadow: [BoxShadow(
+            color: const Color(0x66000000),
+            blurRadius: max(2, shortSide * 0.03),
+          )],
+
+        ),
+    ));
   }
 
   void _showAboutDialog(BuildContext context) async {

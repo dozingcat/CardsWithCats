@@ -181,11 +181,20 @@ class PositionedCard extends StatelessWidget {
             opacity: opacity,
             child: IgnorePointer(
               ignoring: ignorePointer,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(cornerRadius),
-                child: Container(
-                  color: bgColor,
-                  child: Stack(children: cardStack)
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(cornerRadius),
+                  boxShadow: [BoxShadow(
+                    color: const Color(0x66000000),
+                    blurRadius: cardRect.width * 0.02,
+                  )],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(cornerRadius),
+                  child: Container(
+                    color: bgColor,
+                    child: Stack(children: cardStack)
+                  ),
                 ),
               ),
             ),
@@ -468,8 +477,9 @@ class PlayerMoods extends StatelessWidget {
           ))
     ]);
 
+    final Widget animatedMoods;
     if (durationMillis == null) {
-      return TweenAnimationBuilder(
+      animatedMoods = TweenAnimationBuilder(
         tween: Tween(begin: 0.0, end: 1.0),
         duration: Duration(milliseconds: fadeInOutMillis),
         child: moodWidgets,
@@ -479,7 +489,7 @@ class PlayerMoods extends StatelessWidget {
     else {
       // Add 2 seconds for the fade in/out. The tween value is is milliseconds.
       int fullDuration = 2 * fadeInOutMillis + durationMillis!;
-      return TweenAnimationBuilder(
+      animatedMoods = TweenAnimationBuilder(
         tween: Tween(begin: 0.0, end: fullDuration.toDouble()),
         duration: Duration(milliseconds: fullDuration),
         child: moodWidgets,
@@ -495,6 +505,12 @@ class PlayerMoods extends StatelessWidget {
         },
       );
     }
+    // Mood bubbles are decorative, and every game draws them above the
+    // dialogs in its stack. Image hit tests as opaque across its whole box
+    // (transparent pixels included), and Opacity keeps hit testing after
+    // fading to zero, so without this the bubbles swallow taps aimed at
+    // whatever is underneath them.
+    return IgnorePointer(child: animatedMoods);
   }
 }
 
