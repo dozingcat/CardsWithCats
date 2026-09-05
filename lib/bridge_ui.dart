@@ -336,15 +336,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         _runDuplicateRound();
       }
       _updateStatsIfMatchOrRoundOver();
-      // Testing
-      // if (!round.isOver()) {
-      //   final ddPlays = doubleDummyResultForAllCards(
-      //     hands: [for (final p in round.players) p.hand],
-      //     currentTrick: round.currentTrick,
-      //     trump: round.trumpSuit(),
-      //   );
-      //   print("*** ddPlays: $ddPlays");
-      // }
     }
 
   }

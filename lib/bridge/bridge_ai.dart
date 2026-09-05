@@ -720,7 +720,6 @@ LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
   if (tricksForCard == null) {
     return null;
   }
-  final result = LinkedHashMap<PlayingCard, int>();
   final sortedCards = [...tricksForCard.keys];
 
   // For consistency, sort deterministically first by the number of tricks taken,
@@ -730,16 +729,18 @@ LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
   }
 
   sortedCards.sort((a, b) => sortVal(b) - sortVal(a));
+  final result = LinkedHashMap<PlayingCard, int>();
   for (final c in sortedCards) {
     result[c] = tricksForCard[c]!;
   }
   return result;
 }
 
-// The state of a completed round's play at the point where
-// [cardsInCurrentTrick] cards have been played to trick number
-// [completedTricks] (both zero-based): the cards each player still holds,
-// and the trick in progress.
+// The state of a completed round's play after [completedTricks] tricks have
+// been finished and [cardsInCurrentTrick] further cards have been played to
+// the trick in progress: the cards each player still holds, and that trick.
+// The finished tricks being round.previousTricks[0] through
+// [completedTricks] - 1, the trick in progress is at index [completedTricks].
 ({List<List<PlayingCard>> hands, TrickInProgress currentTrick})
     roundStateAtPointInPlay({
   required BridgeRound round,
