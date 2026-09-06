@@ -22,7 +22,6 @@ library;
 
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
@@ -70,13 +69,6 @@ typedef _SolveBoardC = Int32 Function(
 typedef _SolveBoardDart = int Function(
     _DdsDeal, int, int, int, Pointer<_DdsFutureTricks>, int);
 
-// compute() spawns a fresh isolate per call and statics are per-isolate, so
-// every worker re-runs the load below. That is cheap — isolates share the
-// process, so dlopen just refcounts an already-mapped library and the shim's
-// DdsEnsureInit is std::call_once — but it would repeat the status message
-// once per AI card play, so only the root isolate logs.
-bool get _isRootIsolate => Isolate.current.debugName == "main";
-
 int _ddsSuit(Suit s) => 3 - s.index;
 int _ddsRank(Rank r) => r.index + 2;
 
@@ -121,12 +113,21 @@ class DdsBackend {
     return _instance;
   }
 
+  /// True exactly once per process, for whichever isolate loads the library
+  /// first; see DdsClaimFirstLoadLog in dds_shim.cpp.
+  static bool _claimFirstLoadLog(DynamicLibrary lib) {
+    try {
+      return lib.lookupFunction<_IntC, _IntDart>("DdsClaimFirstLoadLog")() != 0;
+    } catch (_) {
+      // A libdds built before the shim gained this symbol: skip the message
+      // rather than failing the whole load over it.
+      return false;
+    }
+  }
+
   static DdsBackend? _tryLoad(String path, {required bool verbose}) {
     try {
       final lib = DynamicLibrary.open(path);
-      if (_isRootIsolate) {
-        print("DDS backend loaded from $path");
-      }
       // These come from dds_shim.cpp in our libdds build: process-wide
       // once-only initialization and exclusive thread-index slots (see
       // the threading note above).
@@ -138,9 +139,19 @@ class DdsBackend {
       final solveBoard =
           lib.lookupFunction<_SolveBoardC, _SolveBoardDart>("SolveBoard");
       ensureInit();
+      // compute() spawns a fresh isolate per call and statics are
+      // per-isolate, so every worker opens the library again. That is cheap
+      // — isolates share the process, so dlopen just refcounts an
+      // already-mapped library and DdsEnsureInit is std::call_once — but the
+      // status message would repeat once per AI card play, and the root
+      // isolate only solves when reviewing a finished round. Let the shim
+      // decide who logs.
+      if (_claimFirstLoadLog(lib)) {
+        print("DDS backend loaded from $path");
+      }
       return DdsBackend._(solveBoard, acquire, release);
     } catch (e) {
-      if (verbose && _isRootIsolate) {
+      if (verbose) {
         // DDS_LIB was set explicitly, so a failure is worth reporting.
         // Common causes: a relative path (the app's working directory is
         // not the repo — use an absolute path) and the macOS app sandbox

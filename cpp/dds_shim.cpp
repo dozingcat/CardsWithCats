@@ -51,6 +51,16 @@ extern "C" void DdsEnsureInit() {
   });
 }
 
+// True on the first call in the process and false afterwards, so a caller
+// can log the library load exactly once no matter which isolate gets there
+// first. Dart statics are per-isolate and every compute() isolate opens the
+// library again, so the Dart side cannot answer this on its own.
+extern "C" int DdsClaimFirstLoadLog() {
+  static std::atomic<bool> claimed(false);
+  bool expected = false;
+  return claimed.compare_exchange_strong(expected, true) ? 1 : 0;
+}
+
 extern "C" int DdsAcquireThreadIndex() {
   for (int i = 0; i < usableThreads; i++) {
     bool expected = false;
