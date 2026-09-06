@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'bridge/bridge_bidding.dart';
-import 'cards/round.dart';
 import 'cards/trick.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
@@ -70,11 +69,6 @@ final baseSuitDisplayOrder = [
 class BridgeMatchState extends State<BridgeMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
-  bool isClaimingRemainingTricks = false;
-  // Set once the player has acknowledged that the leader cannot lose another
-  // trick. The round then plays itself out, but through the normal animation
-  // path so every trick is still dealt and held on the table (#14, #16).
-  bool autoPlayingRemainingTricks = false;
   bool showPostBidDialog = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
@@ -111,34 +105,13 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     });
   }
 
-  // Drives the automatic playout after the player accepts that the leader has
-  // the rest of the round. Uses the same cards `claimRemainingTricks` would
-  // pick, one at a time, so every trick animates and holds like a played one.
-  bool _scheduleAutoPlayIfClaiming() {
-    if (!autoPlayingRemainingTricks) return false;
-    if (round.isOver() || round.status != BridgeRoundStatus.playing) return false;
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted || !autoPlayingRemainingTricks) return;
-      if (round.isOver() || round.status != BridgeRoundStatus.playing) return;
-      final legalPlays = round.legalPlaysForCurrentPlayer();
-      if (legalPlays.isEmpty) return;
-      _playCard(legalPlays.first);
-    });
-    return true;
-  }
-
   void _scheduleNextActionIfNeeded() {
-    if (_scheduleAutoPlayIfClaiming()) {
-      return;
-    }
     _scheduleNextAiBidIfNeeded();
     _scheduleNextAiPlayIfNeeded();
   }
 
   void _startRound() {
     _clearMoods();
-    isClaimingRemainingTricks = false;
-    autoPlayingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -325,27 +298,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (!autoPlayingRemainingTricks && _shouldLeaderClaimRemainingTricks()) {
-      setState(() {
-        isClaimingRemainingTricks = true;
-      });
-    } else {
-      _scheduleNextActionIfNeeded();
-    }
-  }
-
-  bool _shouldLeaderClaimRemainingTricks() {
-    return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit());
-  }
-
-  void _handleClaimTricksDialogOk() {
-    // Play the rest of the round out for the player rather than jumping to the
-    // score: the cards are the same ones `claimRemainingTricks` would have
-    // chosen, but each trick is dealt and held so it can be watched (#16).
-    setState(() {
-      isClaimingRemainingTricks = false;
-      autoPlayingRemainingTricks = true;
-    });
     _scheduleNextActionIfNeeded();
   }
 
@@ -359,9 +311,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldIgnoreCardClick() {
-    return (widget.dialogVisible ||
-        _shouldShowClaimTricksDialog() ||
-        autoPlayingRemainingTricks);
+    return widget.dialogVisible;
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -457,28 +407,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     );
   }
 
-  List<PlayerHandParams> _handsToShowForClaim(Layout layout) {
-    if (!_shouldShowClaimTricksDialog() || round.contract == null) {
-      return [];
-    }
-    List<int> playersToShow = switch (round.contract!.declarer) {
-      0 => [1, 3],
-      1 => [1, 2],
-      2 => [1, 3],
-      3 => [2, 3],
-      _ => [],
-    };
-    return playersToShow
-        .map((p) => PlayerHandParams(
-              playerIndex: p,
-              cards: round.players[p].hand,
-              highlightedCards: p == round.currentTrick.leader
-                  ? round.players[p].hand
-                  : const [],
-            ))
-        .toList();
-  }
-
   Widget allHandsForDebugging(layout) {
     final params = [0, 1, 2, 3]
         .map((p) => PlayerHandParams(
@@ -499,11 +427,9 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   Widget _playerCards(layout) {
     final humanHand = _humanNonDummyHand(layout);
     final dummyHand = _dummyHand(layout);
-    final claimHands = _handsToShowForClaim(layout);
     final allHands = [
       humanHand,
       if (dummyHand != null) dummyHand,
-      ...claimHands,
     ];
 
     return MultiplePlayerHandCards(
@@ -541,8 +467,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickHoldFinished: _trickHoldFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
-      trickHoldDuration:
-          autoPlayingRemainingTricks ? fastTrickHoldDuration : defaultTrickHoldDuration,
     );
   }
 
@@ -552,10 +476,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   bool _shouldShowPostBidDialog() {
     return !widget.dialogVisible && showPostBidDialog;
-  }
-
-  bool _shouldShowClaimTricksDialog() {
-    return !widget.dialogVisible && isClaimingRemainingTricks;
   }
 
   bool _shouldShowEndOfRoundDialog() {
@@ -591,8 +511,6 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
               onConfirm: _handlePostBidDialogConfirm,
               onResetBids: resetBids,
           ),
-        if (_shouldShowClaimTricksDialog())
-          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,

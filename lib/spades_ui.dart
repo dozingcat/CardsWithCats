@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:cards_with_cats/cards/round.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
@@ -62,11 +61,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
-  bool isClaimingRemainingTricks = false;
-  // Set once the player has acknowledged that the leader cannot lose another
-  // trick. The round then plays itself out, but through the normal animation
-  // path so every trick is still dealt and held on the table (#14, #16).
-  bool autoPlayingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -103,26 +97,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     });
   }
 
-  // Drives the automatic playout after the player accepts that the leader has
-  // the rest of the round. Uses the same cards `claimRemainingTricks` would
-  // pick, one at a time, so every trick animates and holds like a played one.
-  bool _scheduleAutoPlayIfClaiming() {
-    if (!autoPlayingRemainingTricks) return false;
-    if (round.isOver() || round.status != SpadesRoundStatus.playing) return false;
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted || !autoPlayingRemainingTricks) return;
-      if (round.isOver() || round.status != SpadesRoundStatus.playing) return;
-      final legalPlays = round.legalPlaysForCurrentPlayer();
-      if (legalPlays.isEmpty) return;
-      _playCard(legalPlays.first);
-    });
-    return true;
-  }
-
   void _scheduleNextActionIfNeeded() {
-    if (_scheduleAutoPlayIfClaiming()) {
-      return;
-    }
     _scheduleNextAiBidIfNeeded();
     _scheduleNextAiPlayIfNeeded();
   }
@@ -183,8 +158,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
-    isClaimingRemainingTricks = false;
-    autoPlayingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -319,21 +292,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
-  bool _shouldLeaderClaimRemainingTricks() {
-    return shouldLeaderClaimRemainingTricks(round, trump: Suit.spades);
-  }
-
-  void _handleClaimTricksDialogOk() {
-    // Play the rest of the round out for the player rather than jumping to the
-    // score: the cards are the same ones `claimRemainingTricks` would have
-    // chosen, but each trick is dealt and held so it can be watched (#16).
-    setState(() {
-      isClaimingRemainingTricks = false;
-      autoPlayingRemainingTricks = true;
-    });
-    _scheduleNextActionIfNeeded();
-  }
-
   // The completed trick has been on the table long enough to read; now sweep
   // it to the winner.
   void _trickHoldFinished() {
@@ -346,20 +304,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (!autoPlayingRemainingTricks && _shouldLeaderClaimRemainingTricks()) {
-      setState(() {
-        isClaimingRemainingTricks = true;
-      });
-    }
-    else {
-      _scheduleNextActionIfNeeded();
-    }
+    _scheduleNextActionIfNeeded();
   }
 
   bool _shouldIgnoreCardClick() {
-    return (widget.dialogVisible ||
-        _shouldShowClaimTricksDialog() ||
-        autoPlayingRemainingTricks);
+    return widget.dialogVisible;
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -417,14 +366,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       onCardClicked: handleHandCardClicked,
     ));
 
-    if (_shouldShowClaimTricksDialog()) {
-      handParams.addAll((const [1, 2, 3]).map((p) => PlayerHandParams(
-        playerIndex: p,
-        cards: round.players[p].hand,
-        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-      )));
-    }
-
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: handParams,
@@ -446,8 +387,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickHoldFinished: _trickHoldFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
-      trickHoldDuration:
-          autoPlayingRemainingTricks ? fastTrickHoldDuration : defaultTrickHoldDuration,
     );
   }
 
@@ -487,10 +426,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   bool _shouldShowPostBidDialog() {
     return !widget.dialogVisible && showPostBidDialog;
-  }
-
-  bool _shouldShowClaimTricksDialog() {
-    return !widget.dialogVisible && isClaimingRemainingTricks;
   }
 
   void makeBidForHuman(int bid) {
@@ -555,8 +490,6 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
           BidDialog(layout: layout, maxBid: maxPlayerBid(), onBid: makeBidForHuman),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
-        if (_shouldShowClaimTricksDialog())
-          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,
@@ -566,7 +499,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
             catImageIndices: widget.catImageIndices,
           ),
         ...bidSpeechBubbles(layout),
-        PlayerMoods(layout: layout, moods: playerMoods),
+        if (!_shouldShowEndOfRoundDialog())
+          PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
         if (shouldShowScoreOverlayToggle()) scoreOverlayButton(),
@@ -577,6 +511,10 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 }
 
 const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+
+// The score summary is opaque: the translucent grey left the table, the cats
+// and the trick showing through the numbers.
+const scoreDialogBackgroundColor = Color(0xF5F4F1E9);
 
 Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
@@ -788,7 +726,7 @@ class EndOfRoundDialog extends StatelessWidget {
     final dialog = Center(
         child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
-            backgroundColor: dialogBackgroundColor,
+            backgroundColor: scoreDialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
                 Row(

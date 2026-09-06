@@ -86,32 +86,4 @@ void main() {
     expect(modes.last, AnimationMode.none);
     expect(find.byType(PositionedCard), findsNothing);
   });
-
-  testWidgets("the hold is visible but shorter while claiming remaining tricks",
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TrickCards(
-            layout: computeLayout(context),
-            currentTrick: TrickInProgress(0, const []),
-            previousTricks: [finishedTrick],
-            animationMode: AnimationMode.holdingCompletedTrick,
-            numPlayers: 4,
-            trickHoldDuration: fastTrickHoldDuration,
-            onTrickCardAnimationFinished: () {},
-            onTrickHoldFinished: () {},
-            onTrickToWinnerAnimationFinished: () {},
-          ),
-        ),
-      ),
-    ));
-
-    // A claimed trick is still dealt out and readable rather than skipped (#16).
-    expect(fastTrickHoldDuration, greaterThan(Duration.zero));
-    expect(fastTrickHoldDuration, lessThan(defaultTrickHoldDuration));
-    await tester.pump(fastTrickHoldDuration * 0.5);
-    expect(find.byType(PositionedCard), findsNWidgets(4));
-    await tester.pump(fastTrickHoldDuration);
-  });
 }

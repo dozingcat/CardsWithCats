@@ -7,7 +7,6 @@ import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'cards/round.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -64,11 +63,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
-  bool isClaimingRemainingTricks = false;
-  // Set once the player has acknowledged that the leader cannot lose another
-  // trick. The round then plays itself out, but through the normal animation
-  // path so every trick is still dealt and held on the table (#14, #16).
-  bool autoPlayingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -104,26 +98,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     });
   }
 
-  // Drives the automatic playout after the player accepts that the leader has
-  // the rest of the round. Uses the same cards `claimRemainingTricks` would
-  // pick, one at a time, so every trick animates and holds like a played one.
-  bool _scheduleAutoPlayIfClaiming() {
-    if (!autoPlayingRemainingTricks) return false;
-    if (round.isOver() || round.status != OhHellRoundStatus.playing) return false;
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted || !autoPlayingRemainingTricks) return;
-      if (round.isOver() || round.status != OhHellRoundStatus.playing) return;
-      final legalPlays = round.legalPlaysForCurrentPlayer();
-      if (legalPlays.isEmpty) return;
-      _playCard(legalPlays.first);
-    });
-    return true;
-  }
-
   void _scheduleNextActionIfNeeded() {
-    if (_scheduleAutoPlayIfClaiming()) {
-      return;
-    }
     _scheduleNextAiBidIfNeeded();
     _scheduleNextAiPlayIfNeeded();
   }
@@ -186,8 +161,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   void _startRound() {
     _clearMoods();
-    isClaimingRemainingTricks = false;
-    autoPlayingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -306,24 +279,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
   }
 
-  bool _shouldLeaderClaimRemainingTricks() {
-    if (round.numCardsPerPlayer <= 5) {
-      return false;
-    }
-    return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit);
-  }
-
-  void _handleClaimTricksDialogOk() {
-    // Play the rest of the round out for the player rather than jumping to the
-    // score: the cards are the same ones `claimRemainingTricks` would have
-    // chosen, but each trick is dealt and held so it can be watched (#16).
-    setState(() {
-      isClaimingRemainingTricks = false;
-      autoPlayingRemainingTricks = true;
-    });
-    _scheduleNextActionIfNeeded();
-  }
-
   // The completed trick has been on the table long enough to read; now sweep
   // it to the winner.
   void _trickHoldFinished() {
@@ -336,20 +291,11 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (!autoPlayingRemainingTricks && _shouldLeaderClaimRemainingTricks()) {
-      setState(() {
-        isClaimingRemainingTricks = true;
-      });
-    }
-    else {
-      _scheduleNextActionIfNeeded();
-    }
+    _scheduleNextActionIfNeeded();
   }
 
   bool _shouldIgnoreCardClick() {
-    return (widget.dialogVisible ||
-        _shouldShowClaimTricksDialog() ||
-        autoPlayingRemainingTricks);
+    return widget.dialogVisible;
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -421,14 +367,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       onCardClicked: handleHandCardClicked,
     ));
 
-    if (_shouldShowClaimTricksDialog()) {
-      handParams.addAll((const [1, 2, 3]).map((p) => PlayerHandParams(
-        playerIndex: p,
-        cards: round.players[p].hand,
-        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-      )));
-    }
-
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: handParams,
@@ -450,8 +388,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickHoldFinished: _trickHoldFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
-      trickHoldDuration:
-          autoPlayingRemainingTricks ? fastTrickHoldDuration : defaultTrickHoldDuration,
     );
   }
 
@@ -487,10 +423,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 
   bool _shouldShowPostBidDialog() {
     return !widget.dialogVisible && showPostBidDialog;
-  }
-
-  bool _shouldShowClaimTricksDialog() {
-    return !widget.dialogVisible && isClaimingRemainingTricks;
   }
 
   void makeBidForHuman(int bid) {
@@ -561,8 +493,6 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
           BidDialog(layout: layout, round: round, onBid: makeBidForHuman, catImageIndices: widget.catImageIndices),
         if (_shouldShowPostBidDialog())
           PostBidDialog(layout: layout, round: round, onConfirm: _handlePostBidDialogConfirm),
-        if (_shouldShowClaimTricksDialog())
-          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,
@@ -572,7 +502,8 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
             catImageIndices: widget.catImageIndices,
           ),
         ...bidSpeechBubbles(layout),
-        PlayerMoods(layout: layout, moods: playerMoods),
+        if (!_shouldShowEndOfRoundDialog())
+          PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
         if (shouldShowScoreOverlayToggle()) scoreOverlayButton(),
@@ -583,6 +514,10 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
 }
 
 const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+
+// The score summary is opaque: the translucent grey left the table, the cats
+// and the trick showing through the numbers.
+const scoreDialogBackgroundColor = Color(0xF5F4F1E9);
 
 class BidDialog extends StatefulWidget {
   final Layout layout;
@@ -788,7 +723,7 @@ class EndOfRoundDialog extends StatelessWidget {
     final dialog = Center(
         child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
-            backgroundColor: dialogBackgroundColor,
+            backgroundColor: scoreDialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
                 Row(

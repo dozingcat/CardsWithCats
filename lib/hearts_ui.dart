@@ -7,7 +7,6 @@ import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'cards/round.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -63,11 +62,6 @@ class HeartsMatchDisplay extends StatefulWidget {
 class _HeartsMatchState extends State<HeartsMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
-  bool isClaimingRemainingTricks = false;
-  // Set once the player has acknowledged that the leader cannot lose another
-  // trick. The round then plays itself out, but through the normal animation
-  // path so every trick is still dealt and held on the table (#14, #16).
-  bool autoPlayingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   late HeartsMatch match;
   List<PlayingCard> selectedCardsToPass = [];
@@ -106,8 +100,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   void _startRound() {
     setState(() {
       _clearMoods();
-      isClaimingRemainingTricks = false;
-      autoPlayingRemainingTricks = false;
       if (round.isOver()) {
         match.finishRound();
       }
@@ -119,27 +111,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     widget.saveMatchFn(match);
   }
 
-  // Drives the automatic playout after the player accepts that the leader has
-  // the rest of the round. Uses the same cards `claimRemainingTricks` would
-  // pick, one at a time, so every trick animates and holds like a played one.
-  bool _scheduleAutoPlayIfClaiming() {
-    if (!autoPlayingRemainingTricks) return false;
-    if (round.isOver() || round.status != HeartsRoundStatus.playing) return false;
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted || !autoPlayingRemainingTricks) return;
-      if (round.isOver() || round.status != HeartsRoundStatus.playing) return;
-      final legalPlays = round.legalPlaysForCurrentPlayer();
-      if (legalPlays.isEmpty) return;
-      _playCard(legalPlays.first);
-    });
-    return true;
-  }
-
   void _scheduleAiPlayIfNeeded() {
     if (round.isOver()) {
-      return;
-    }
-    if (_scheduleAutoPlayIfClaiming()) {
       return;
     }
     if (round.currentPlayerIndex() != 0 && round.status == HeartsRoundStatus.playing) {
@@ -273,14 +246,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (!autoPlayingRemainingTricks && _shouldLeaderClaimRemainingTricks()) {
-      setState(() {
-        isClaimingRemainingTricks = true;
-      });
-    }
-    else {
-      _scheduleAiPlayIfNeeded();
-    }
+    _scheduleAiPlayIfNeeded();
   }
 
   void _passCards() {
@@ -304,25 +270,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     _scheduleAiPlayIfNeeded();
   }
 
-  bool _shouldLeaderClaimRemainingTricks() {
-    return shouldLeaderClaimRemainingTricks(round);
-  }
-
-  void _handleClaimTricksDialogOk() {
-    // Play the rest of the round out for the player rather than jumping to the
-    // score: the cards are the same ones `claimRemainingTricks` would have
-    // chosen, but each trick is dealt and held so it can be watched (#16).
-    setState(() {
-      isClaimingRemainingTricks = false;
-      autoPlayingRemainingTricks = true;
-    });
-    _scheduleAiPlayIfNeeded();
-  }
-
   bool _shouldIgnoreCardClick() {
-    return (widget.dialogVisible ||
-        _shouldShowClaimTricksDialog() ||
-        autoPlayingRemainingTricks);
+    return widget.dialogVisible;
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -437,14 +386,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       onCardClicked: handleHandCardClicked,
     ));
 
-    if (_shouldShowClaimTricksDialog()) {
-      handParams.addAll((const [1, 2, 3]).map((p) => PlayerHandParams(
-        playerIndex: p,
-        cards: round.players[p].hand,
-        highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
-      )));
-    }
-
     return MultiplePlayerHandCards(
         layout: layout,
         playerHands: handParams,
@@ -465,8 +406,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickHoldFinished: _trickHoldFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
-      trickHoldDuration:
-          autoPlayingRemainingTricks ? fastTrickHoldDuration : defaultTrickHoldDuration,
       cardBackgroundColors: cardBackgrounds(),
     );
   }
@@ -493,11 +432,15 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       subtitles.add(taken[i] != 0 ? "${taken[i] > 0 ? "+" : ""}${taken[i]}" : null);
     }
     // In Hearts the low score is the one to beat, so that's the seat to mark.
-    final best = round.initialScores
-        .reduce((a, b) => a < b ? a : b);
+    // Nobody is marked while the scores are level — at the start of a match
+    // that would just highlight the whole table.
+    final scores = round.initialScores.take(round.rules.numPlayers);
+    final best = scores.reduce(min);
     final leaders = <int>{};
-    for (int i = 0; i < round.rules.numPlayers; i++) {
-      if (round.initialScores[i] == best) leaders.add(i);
+    if (best != scores.reduce(max)) {
+      for (int i = 0; i < round.rules.numPlayers; i++) {
+        if (round.initialScores[i] == best) leaders.add(i);
+      }
     }
     return SeatTallies(
       layout: layout,
@@ -560,10 +503,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
         (round.status == HeartsRoundStatus.passing || _shouldShowNoPassingMessage());
   }
 
-  bool _shouldShowClaimTricksDialog() {
-    return !widget.dialogVisible && isClaimingRemainingTricks;
-  }
-
   bool _shouldShowEndOfRoundDialog() {
     // Wait for the final trick's animations: popping the dialog the instant the
     // last card lands hid the play that ended the round (#14).
@@ -605,8 +544,6 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             selectedCards: selectedCardsToPass,
             onConfirm: _passCards,
           ),
-        if (_shouldShowClaimTricksDialog())
-          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,
@@ -616,7 +553,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
             catImageIndices: widget.catImageIndices,
           ),
         if (_shouldShowSeatTallies()) _seatTallies(layout),
-        PlayerMoods(layout: layout, moods: playerMoods),
+        if (!_shouldShowEndOfRoundDialog())
+          PlayerMoods(layout: layout, moods: playerMoods),
         if (shouldShowScoreOverlay())
           PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
         if (shouldShowScoreOverlayToggle()) scoreOverlayButton(),
@@ -627,6 +565,10 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 }
 
 const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
+
+// The score summary is opaque: the translucent grey left the table, the cats
+// and the trick showing through the numbers.
+const scoreDialogBackgroundColor = Color(0xF5F4F1E9);
 
 // Subtle washes for the optional card tinting. Each stays light enough that a
 // card's pips and index read normally and a fanned run doesn't merge together.
@@ -762,7 +704,7 @@ class EndOfRoundDialog extends StatelessWidget {
     final dialog = Center(
         child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
-            backgroundColor: dialogBackgroundColor,
+            backgroundColor: scoreDialogBackgroundColor,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
                 Row(

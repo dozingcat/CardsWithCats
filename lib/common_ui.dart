@@ -20,10 +20,6 @@ enum AnimationMode {
 /// How long a completed trick stays on the table before moving to the winner.
 const defaultTrickHoldDuration = Duration(milliseconds: 1000);
 
-/// The same hold when the round is being played out automatically because the
-/// leader cannot lose another trick. Still visible, just brisker (issue #16).
-const fastTrickHoldDuration = Duration(milliseconds: 450);
-
 /// How long the completed trick takes to slide to the winner's seat.
 const trickToWinnerDuration = Duration(milliseconds: 350);
 
@@ -403,7 +399,7 @@ class MoodBubble extends StatelessWidget {
     // The side bubbles hang below their cat and the top one well below the top
     // cat, so a mood never lands on a seat's rank/score badge. Both are pulled
     // back up if the hand would otherwise reach them (issue #17).
-    final sideTop = min(dh / 2 + playerHeight * 0.85, dh * 0.69 - imageHeight - 8);
+    final sideTop = min(dh / 2 + playerHeight * 0.85, dh * 0.635 - imageHeight - 8);
     switch (playerIndex) {
       case 1:
         left = playerHeight / 2;
@@ -495,6 +491,11 @@ class PlayerMoods extends StatelessWidget {
 /// Hearts uses it for the running score so the player can see who is ahead
 /// without opening the score overlay (issue #18). Positions hug the table
 /// edges and stay clear of the trick cards, the hand, and the menu buttons.
+enum HandDisplayStyle {
+  normal,
+  dummy,
+}
+
 class SeatTallies extends StatelessWidget {
   final Layout layout;
 
@@ -845,48 +846,6 @@ Widget paddingAll(final double paddingPx, final Widget child) {
 
 Widget paddingHorizontal(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.only(left: paddingPx, right: paddingPx), child: child);
-}
-
-class ClaimRemainingTricksDialog extends StatelessWidget {
-  final Function() onOk;
-  final bool isHuman;
-  final int? catImageIndex;
-
-  const ClaimRemainingTricksDialog({
-    super.key,
-    required this.onOk,
-    this.isHuman = false,
-    this.catImageIndex,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Layout layout = computeLayout(context);
-    const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
-
-    final dialog = Center(
-        child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
-          insetPadding: EdgeInsets.zero,
-          backgroundColor: dialogBackgroundColor,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            paddingAll(15, Text("Remaining tricks claimed")),
-            paddingAll(
-                15,
-                ElevatedButton(
-                  onPressed: onOk,
-                  child: const Text("OK"),
-                )),
-          ])
-        ))
-    );
-
-    return dialog;
-  }
-}
-
-enum HandDisplayStyle {
-  normal,
-  dummy,
 }
 
 class PlayerHandCards extends StatelessWidget {
