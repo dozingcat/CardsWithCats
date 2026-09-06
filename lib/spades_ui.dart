@@ -203,6 +203,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       setState(() {
         round.playCard(card);
         animationMode = AnimationMode.movingTrickCard;
+        showPostBidDialog = false;
       });
       widget.saveMatchFn(match);
       _updateStatsIfMatchOrRoundOver();
