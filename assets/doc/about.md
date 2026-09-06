@@ -142,10 +142,7 @@ counterpart's score is -50. The difference is 160 points in your favor, which tr
 
 After each round ends, you can review the bidding and play for both your hand and the duplicate
 hand. The "double dummy" result for your hand is also shown; this is what the result would be if all
-players played perfectly and with full knowledge of where all the cards are. When reviewing the
-play, cards that were "mistakes" according to the double dummy solver will be highlighted, and a
-better play will be shown. (This doesn't necessarily mean that the play was "wrong", only that the
-player should have made a different decision if they had known where all the cards were).
+players played perfectly and with full knowledge of where all the cards are.
 
 The length of a match is set in the preferences and can be 1, 4, or 8 hands. The winner of the match
 is determined by the IMPs accumulated over all hands.
