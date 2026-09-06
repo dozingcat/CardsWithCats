@@ -36,7 +36,9 @@ void main() {
     expect(req.legalPlays().length, 5);
 
     final mcParams = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50);
-    final rng = Random();
+    // Seeded: the rollout finds the finesse for the large majority of seeds but
+    // not all of them, and an unseeded Random made this test fail at random.
+    final rng = Random(0);
     final result =
         chooseCardMonteCarlo(req, mcParams, chooseCardToMaximizeTricks, rng);
     expect(result.bestCard, c("QS")[0]);

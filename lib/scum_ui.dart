@@ -11,6 +11,10 @@ import 'package:flutter/material.dart';
 const dialogBackgroundColor = Color(0xF5F4F1E9);
 const aiDelayMillis = 650;
 
+/// How long the finished table stays uncovered so the cats' reactions to the
+/// final standings can be seen before the score dialog appears.
+const roundEndReactionDelay = Duration(milliseconds: 1600);
+
 Widget _paddingAll(final double paddingPx, final Widget child) {
   return Padding(padding: EdgeInsets.all(paddingPx), child: child);
 }
@@ -45,6 +49,10 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   late ScumMatch match;
   List<PlayingCard> selectedCards = [];
   Map<int, Mood> playerMoods = {};
+  // How many seats had already gone out the last time the cats reacted.
+  int _finishesReactedTo = 0;
+  bool showEndOfRoundDialog = false;
+  Timer? _endOfRoundHold;
   late StreamSubscription matchUpdateSubscription;
   bool processingAi = false;
   Timer? _stallWatchdog;
@@ -74,6 +82,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     matchUpdateSubscription.cancel();
     _stallWatchdog?.cancel();
     _dialogPoll?.cancel();
+    _endOfRoundHold?.cancel();
   }
 
   void _prepareRoundIfNeeded() {
@@ -98,6 +107,9 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   void _startRound() {
     selectedCards = [];
     playerMoods.clear();
+    _finishesReactedTo = 0;
+    _endOfRoundHold?.cancel();
+    showEndOfRoundDialog = false;
     _prepareRoundIfNeeded();
     widget.saveMatchFn(match);
     _scheduleAiIfNeeded();
@@ -117,7 +129,9 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     if (processingAi) return;
     if (round.status != ScumRoundStatus.playing) return;
     if (round.isOver()) {
-      _updateMoodsAfterRound();
+      setState(() {
+        _updateMoodsForFinishes();
+      });
       return;
     }
     processingAi = true;
@@ -231,9 +245,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
           }
         }
         selectedCards = [];
-        if (round.isOver()) {
-          _updateMoodsAfterRound();
-        }
+        _updateMoodsForFinishes();
       });
       widget.saveMatchFn(match);
       // Progress happened: push the stall deadline out again.
@@ -256,9 +268,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     setState(() {
       round.playCards(List.of(selectedCards));
       selectedCards = [];
-      if (round.isOver()) {
-        _updateMoodsAfterRound();
-      }
+      _updateMoodsForFinishes();
     });
     widget.saveMatchFn(match);
     _scheduleAiIfNeeded();
@@ -269,9 +279,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     setState(() {
       round.pass();
       selectedCards = [];
-      if (round.isOver()) {
-        _updateMoodsAfterRound();
-      }
+      _updateMoodsForFinishes();
     });
     widget.saveMatchFn(match);
     _scheduleAiIfNeeded();
@@ -318,17 +326,30 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     });
   }
 
-  void _updateMoodsAfterRound() {
-    playerMoods.clear();
+  /// Cats react the moment a seat sheds its last card, not just at the end of
+  /// the round (issue #19): whoever goes out first is grinning over the
+  /// presidency they just won, second place is pleased with the vice
+  /// presidency, and everyone still holding cards — now playing for Vice Scum
+  /// and Scum — is annoyed about it. Called after every play; it only fires
+  /// when the finish order has actually grown.
+  void _updateMoodsForFinishes({bool force = false}) {
     final order = round.finishOrder();
-    for (int i = 1; i < round.numberOfPlayers; i++) {
+    if (!force && order.length == _finishesReactedTo) return;
+    _finishesReactedTo = order.length;
+    if (order.isEmpty) return;
+    playerMoods.clear();
+    for (int i = 0; i < round.numberOfPlayers; i++) {
       final position = order.indexOf(i);
       if (position == 0) {
         playerMoods[i] = Mood.veryHappy;
       } else if (position == round.numberOfPlayers - 1) {
+        // Scum, once the round is settled.
         playerMoods[i] = Mood.mad;
-      } else if (position <= 1) {
+      } else if (position == 1) {
         playerMoods[i] = Mood.happy;
+      } else if (position < 0) {
+        // Still holding cards while somebody else banks a good rank.
+        playerMoods[i] = Mood.mad;
       }
     }
     bool hasHappy = playerMoods.containsValue(Mood.happy) ||
@@ -336,6 +357,23 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     bool hasMad = playerMoods.containsValue(Mood.mad);
     if (hasHappy) widget.soundPlayer.playHappySound();
     if (hasMad) widget.soundPlayer.playMadSound();
+    if (round.isOver()) {
+      _holdRoundEndForReactions();
+    }
+  }
+
+  /// Let the cats have their moment on an uncovered table before the score
+  /// dialog goes up over them (issue #17).
+  void _holdRoundEndForReactions() {
+    _endOfRoundHold?.cancel();
+    showEndOfRoundDialog = false;
+    _endOfRoundHold = Timer(roundEndReactionDelay, () {
+      if (!mounted) return;
+      setState(() {
+        showEndOfRoundDialog = true;
+        playerMoods.clear();
+      });
+    });
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -419,7 +457,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   bool _shouldIgnoreCardClicks() {
     // Card taps stay active during trading and while AI turns resolve —
     // swallowing them made quick taps feel like they needed repeating (#6).
-    return widget.dialogVisible || _shouldShowEndOfRoundDialog();
+    return widget.dialogVisible || round.isOver() || _shouldShowEndOfRoundDialog();
   }
 
   /// The played cards of the current trick, fanned near each player's seat.
@@ -489,71 +527,70 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
     return Stack(children: widgets);
   }
 
+  /// Role badges for every seat. They sit outside the play area so a rank
+  /// never covers a card that has been played, and "Vice President" wraps onto
+  /// two centered lines instead of stretching wide enough to reach the middle
+  /// of the table (issue #17).
   Widget _statusBadges(final Layout layout) {
-    final widgets = <Widget>[];
+    final ds = layout.displaySize;
+    final ph = layout.playerHeight;
     final ca = layout.cardArea();
+
     TextStyle badgeStyle(bool active, bool isScum) => TextStyle(
           fontSize: 13,
+          height: 1.15,
           fontWeight: active ? FontWeight.bold : FontWeight.normal,
           color: active
               ? Colors.yellow.shade200
               : (isScum ? Colors.red.shade100 : Colors.white70),
         );
-    Color backdrop(bool active) =>
-        active ? Colors.black.withValues(alpha: 0.75) : Colors.black38;
 
-    Offset positionFor(int player, double badgeWidth) {
-      switch (player) {
-        case 1:
-          return Offset(8, layout.displaySize.height / 2 - layout.playerHeight * 1.55);
-        case 2:
-          return Offset(layout.displaySize.width / 2 - badgeWidth / 2, ca.top + 4);
-        case 3:
-          return Offset(layout.displaySize.width - badgeWidth - 8,
-              layout.displaySize.height / 2 - layout.playerHeight * 1.55);
-        default:
-          // Very bottom right, out of the menu button's way and below the
-          // lowest row of hand cards.
-          return Offset(layout.displaySize.width - badgeWidth - 8,
-              layout.displaySize.height - 64);
-      }
-    }
-
-    for (int player = 0; player < round.numberOfPlayers; player++) {
+    Widget badge(int player) {
       final role = round.roleForPlayer(player);
-      final label = round.displayNameForPlayer(player);
+      // "Vice President" and "Vice Scum" read better stacked and centered than
+      // as one long line.
+      final label = round.displayNameForPlayer(player).replaceFirst("Vice ", "Vice\n");
       final cardCount = round.players[player].hand.length;
       final isActive = round.status == ScumRoundStatus.playing &&
           !round.isOver() &&
           round.currentPlayerIndex() == player;
-      final badgeWidth = max(label.length, 7) * 8.5 + 20.0;
-      final pos = positionFor(player, badgeWidth);
-      widgets.add(Positioned(
-        left: pos.dx,
-        top: pos.dy,
-        child: Container(
-          decoration: BoxDecoration(
-            color: backdrop(isActive),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(label, style: badgeStyle(isActive, role == ScumRole.scum)),
-              Text("$cardCount ${cardCount == 1 ? "card" : "cards"}",
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: isActive
-                          ? Colors.yellow.shade100
-                          : Colors.white60)),
-            ],
-          ),
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: isActive ? 0.75 : 0.45),
+          borderRadius: BorderRadius.circular(10),
         ),
-      ));
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(label,
+                textAlign: TextAlign.center,
+                style: badgeStyle(isActive, role == ScumRole.scum)),
+            Text("$cardCount ${cardCount == 1 ? "Card" : "Cards"}",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isActive ? Colors.yellow.shade100 : Colors.white60)),
+          ],
+        ),
+      );
     }
-    return Stack(children: widgets);
+
+    // Side seats sit above their play piles; the human's sits on the open strip
+    // between the bottom pile and the hand, where the Play/Pass row leaves a
+    // gap in the middle.
+    final sideTop = ds.height / 2 - ph * 2.0;
+    return Stack(children: [
+      Positioned(
+          left: 0,
+          right: 0,
+          top: _actionRowTop(layout) + 2,
+          child: Center(child: badge(0))),
+      Positioned(left: 4, top: sideTop, child: badge(1)),
+      Positioned(left: 0, right: 0, top: ca.top + 4, child: Center(child: badge(2))),
+      Positioned(right: 4, top: sideTop, child: badge(3)),
+    ]);
   }
 
   bool _shouldShowTradeDialog() {
@@ -561,7 +598,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return !widget.dialogVisible && round.isOver();
+    return !widget.dialogVisible && round.isOver() && showEndOfRoundDialog;
   }
 
   String _tradeMessage() {

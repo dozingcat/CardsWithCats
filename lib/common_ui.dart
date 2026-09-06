@@ -11,8 +11,22 @@ import 'common.dart';
 enum AnimationMode {
   none,
   movingTrickCard,
+  // The trick is complete and every card is face up on the table. Nothing
+  // moves during this phase; it exists so the player can actually see the
+  // card that closed the trick before it is swept away (issue #14).
+  holdingCompletedTrick,
   movingTrickToWinner,
 }
+
+/// How long a completed trick stays on the table before moving to the winner.
+const defaultTrickHoldDuration = Duration(milliseconds: 1000);
+
+/// The same hold when the round is being played out automatically because the
+/// leader cannot lose another trick. Still visible, just brisker (issue #16).
+const fastTrickHoldDuration = Duration(milliseconds: 450);
+
+/// How long the completed trick takes to slide to the winner's seat.
+const trickToWinnerDuration = Duration(milliseconds: 350);
 
 enum AiMode {
   allAi,
@@ -387,24 +401,28 @@ class MoodBubble extends StatelessWidget {
     var moodXFrac = 0.0;
     var moodYFrac = 0.0;
     final moodSize = imageHeight * moodImageHeightFraction;
+    // The side bubbles hang below their cat and the top one well below the top
+    // cat, so a mood never lands on a seat's rank/score badge. Both are pulled
+    // back up if the hand would otherwise reach them (issue #17).
+    final sideTop = min(dh / 2 + playerHeight * 0.85, dh * 0.69 - imageHeight - 8);
     switch (playerIndex) {
       case 1:
         left = playerHeight / 2;
-        top = dh / 2 - playerHeight * 1.6 / 2 - imageHeight;
+        top = sideTop;
         moodXFrac = 0.30;
         moodYFrac = 0.15;
         break;
       case 2:
         transform = Matrix4.rotationX(pi);
         left = dw / 2;
-        top = playerHeight * 1.1;
+        top = playerHeight * 1.75;
         moodXFrac = 0.33;
         moodYFrac = 0.48;
         break;
       case 3:
         transform = Matrix4.rotationY(pi);
         left = dw - playerHeight / 2 - imageWidth;
-        top = dh / 2 - playerHeight * 1.6 / 2 - imageHeight;
+        top = sideTop;
         moodXFrac = 0.30;
         moodYFrac = 0.15;
         break;
@@ -470,6 +488,84 @@ class PlayerMoods extends StatelessWidget {
       child: moodWidgets,
       builder: (context, double val, child) => Opacity(opacity: val, child: child),
     );
+  }
+}
+
+/// A compact, always-visible readout pinned next to each seat.
+///
+/// Hearts uses it for the running score so the player can see who is ahead
+/// without opening the score overlay (issue #18). Positions hug the table
+/// edges and stay clear of the trick cards, the hand, and the menu buttons.
+class SeatTallies extends StatelessWidget {
+  final Layout layout;
+
+  /// The main line for each seat, in player order. An empty string hides
+  /// that seat's readout entirely.
+  final List<String> values;
+
+  /// Optional second line per seat, e.g. points picked up in the current round.
+  final List<String?> subtitles;
+
+  /// Seats to draw with extra emphasis, e.g. whoever is currently winning.
+  final Set<int> highlighted;
+
+  const SeatTallies({
+    super.key,
+    required this.layout,
+    required this.values,
+    this.subtitles = const [],
+    this.highlighted = const {},
+  });
+
+  Widget _pill(int player) {
+    final subtitle = (player < subtitles.length) ? subtitles[player] : null;
+    final isHighlighted = highlighted.contains(player);
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: isHighlighted ? 0.72 : 0.55),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(values[player],
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isHighlighted ? Colors.yellow.shade200 : Colors.white,
+              )),
+          if (subtitle != null && subtitle.isNotEmpty)
+            Text(subtitle,
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = layout.displaySize;
+    final ph = layout.playerHeight;
+    // Just above the highest row the hand can occupy, so the readout never
+    // sits under the player's own cards.
+    final humanTop = ds.height * 0.69 - 46;
+    final sideTop = ds.height / 2 - ph * 1.7;
+
+    Widget? seat(int player, Widget Function(Widget) place) {
+      if (player >= values.length || values[player].isEmpty) return null;
+      return place(_pill(player));
+    }
+
+    final seats = <Widget?>[
+      seat(0, (c) => Positioned(left: 4, top: humanTop, child: c)),
+      seat(1, (c) => Positioned(left: 4, top: sideTop, child: c)),
+      seat(2,
+          (c) => Positioned(left: 0, right: 0, top: ph * 0.95, child: Center(child: c))),
+      seat(3, (c) => Positioned(right: 4, top: sideTop, child: c)),
+    ];
+    return Stack(children: [...seats.whereType<Widget>()]);
   }
 }
 
@@ -558,7 +654,9 @@ class TrickCards extends StatelessWidget {
   final AnimationMode animationMode;
   final int numPlayers;
   final void Function() onTrickCardAnimationFinished;
+  final void Function() onTrickHoldFinished;
   final void Function() onTrickToWinnerAnimationFinished;
+  final Duration trickHoldDuration;
   final List<DisplayedHand>? displayedHands;
   final List<Suit>? suitOrder;
   final Suit? trumpSuit;
@@ -572,7 +670,9 @@ class TrickCards extends StatelessWidget {
     required this.animationMode,
     required this.numPlayers,
     required this.onTrickCardAnimationFinished,
+    required this.onTrickHoldFinished,
     required this.onTrickToWinnerAnimationFinished,
+    this.trickHoldDuration = defaultTrickHoldDuration,
     this.displayedHands,
     this.suitOrder,
     this.trumpSuit,
@@ -581,6 +681,9 @@ class TrickCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (animationMode == AnimationMode.holdingCompletedTrick) {
+      return _completedTrickOnHold(layout, previousTricks.last);
+    }
     if (animationMode == AnimationMode.movingTrickToWinner) {
       return _trickCardsAnimatingToWinner(layout, previousTricks.last);
     }
@@ -666,22 +769,33 @@ class TrickCards extends StatelessWidget {
     return cardWidgets;
   }
 
-  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick trick) {
-    // Negative animation value means not moving. It might be better to have
-    // a separate state for "waiting to move trick", but that would make state
-    // transition logic more complex.
+  // The finished trick, sitting still where it was played. `onTrickHoldFinished`
+  // fires when the hold is up; until then every card — including the one that
+  // just closed the trick — stays face up in place.
+  Widget _completedTrickOnHold(final Layout layout, final Trick trick) {
     return TweenAnimationBuilder(
-        tween: Tween(begin: -3.0, end: 1.0),
-        duration: const Duration(milliseconds: 1000),
+        key: const ValueKey("completedTrickHold"),
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: trickHoldDuration,
+        onEnd: onTrickHoldFinished,
+        child: Stack(children: _staticTrickCards(layout, trick.leader, numPlayers, trick.cards)),
+        builder: (BuildContext context, double t, Widget? child) => child!);
+  }
+
+  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick trick) {
+    return TweenAnimationBuilder(
+        key: const ValueKey("trickToWinner"),
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: trickToWinnerDuration,
         onEnd: onTrickToWinnerAnimationFinished,
         builder: (BuildContext context, double t, Widget? child) {
           final List<Widget> cardWidgets = [];
           final endRect = layout.cardOriginAreaForPlayer(trick.winner);
           for (int i = 0; i < trick.cards.length; i++) {
-            int p = (trick.leader + i) % trick.cards.length;
+            int p = (trick.leader + i) % numPlayers;
             final startRect = layout.trickCardAreaForPlayer(p);
-            final center = startRect.center + (endRect.center - startRect.center) * max(0, t);
-            final scale = (t < 0) ? 1 : 1 - 0.75 * t;
+            final center = startRect.center + (endRect.center - startRect.center) * t;
+            final scale = 1 - 0.75 * t;
             Rect animRect =
                 Rect.fromCenter(center: center, width: endRect.width * scale, height: endRect.height * scale);
             cardWidgets.add(

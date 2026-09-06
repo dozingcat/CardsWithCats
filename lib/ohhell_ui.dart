@@ -65,6 +65,10 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   var animationMode = AnimationMode.none;
   bool showPostBidDialog = false;
   bool isClaimingRemainingTricks = false;
+  // Set once the player has acknowledged that the leader cannot lose another
+  // trick. The round then plays itself out, but through the normal animation
+  // path so every trick is still dealt and held on the table (#14, #16).
+  bool autoPlayingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   int currentBidder = 0;
   Map<int, Mood> playerMoods = {};
@@ -100,7 +104,26 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     });
   }
 
+  // Drives the automatic playout after the player accepts that the leader has
+  // the rest of the round. Uses the same cards `claimRemainingTricks` would
+  // pick, one at a time, so every trick animates and holds like a played one.
+  bool _scheduleAutoPlayIfClaiming() {
+    if (!autoPlayingRemainingTricks) return false;
+    if (round.isOver() || round.status != OhHellRoundStatus.playing) return false;
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted || !autoPlayingRemainingTricks) return;
+      if (round.isOver() || round.status != OhHellRoundStatus.playing) return;
+      final legalPlays = round.legalPlaysForCurrentPlayer();
+      if (legalPlays.isEmpty) return;
+      _playCard(legalPlays.first);
+    });
+    return true;
+  }
+
   void _scheduleNextActionIfNeeded() {
+    if (_scheduleAutoPlayIfClaiming()) {
+      return;
+    }
     _scheduleNextAiBidIfNeeded();
     _scheduleNextAiPlayIfNeeded();
   }
@@ -164,6 +187,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   void _startRound() {
     _clearMoods();
     isClaimingRemainingTricks = false;
+    autoPlayingRemainingTricks = false;
     if (round.isOver()) {
       match.finishRound();
     }
@@ -275,7 +299,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       _scheduleNextActionIfNeeded();
     } else {
       setState(() {
-        animationMode = AnimationMode.movingTrickToWinner;
+        animationMode = AnimationMode.holdingCompletedTrick;
         _updateMoodsAfterTrick();
         _playSoundsForMoods();
       });
@@ -290,19 +314,29 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   }
 
   void _handleClaimTricksDialogOk() {
-    claimRemainingTricks(round);
+    // Play the rest of the round out for the player rather than jumping to the
+    // score: the cards are the same ones `claimRemainingTricks` would have
+    // chosen, but each trick is dealt and held so it can be watched (#16).
     setState(() {
       isClaimingRemainingTricks = false;
+      autoPlayingRemainingTricks = true;
     });
-    _updateMoodsAfterTrick();
-    _playSoundsForMoods();
+    _scheduleNextActionIfNeeded();
+  }
+
+  // The completed trick has been on the table long enough to read; now sweep
+  // it to the winner.
+  void _trickHoldFinished() {
+    setState(() {
+      animationMode = AnimationMode.movingTrickToWinner;
+    });
   }
 
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (_shouldLeaderClaimRemainingTricks()) {
+    if (!autoPlayingRemainingTricks && _shouldLeaderClaimRemainingTricks()) {
       setState(() {
         isClaimingRemainingTricks = true;
       });
@@ -313,7 +347,9 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   }
 
   bool _shouldIgnoreCardClick() {
-    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
+    return (widget.dialogVisible ||
+        _shouldShowClaimTricksDialog() ||
+        autoPlayingRemainingTricks);
   }
 
   void handleHandCardClicked(final PlayingCard card) {
@@ -412,7 +448,10 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
       suitOrder: _suitDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
+      onTrickHoldFinished: _trickHoldFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
+      trickHoldDuration:
+          autoPlayingRemainingTricks ? fastTrickHoldDuration : defaultTrickHoldDuration,
     );
   }
 
@@ -462,7 +501,9 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   }
 
   bool _shouldShowEndOfRoundDialog() {
-    return !widget.dialogVisible && round.isOver();
+    // Wait for the final trick's animations: popping the dialog the instant the
+    // last card lands hid the play that ended the round (#14).
+    return !widget.dialogVisible && round.isOver() && animationMode == AnimationMode.none;
   }
 
   List<Widget> bidSpeechBubbles(final Layout layout) {
