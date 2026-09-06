@@ -58,8 +58,8 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Credits
 
-Cards With Cats is based on the original project by
-[Brian Nenninger](https://github.com/dozingcatsoftware/CardsWithCats).
+Scum, and the 0.x releases, by [rhY](https://github.com/crhy). Cards With Cats is based on the
+original project by [Brian Nenninger](https://github.com/dozingcat/CardsWithCats).
 
 - Cats by [AnnaliseArt](https://pixabay.com/illustrations/cats-hanging-cats-kitty-cat-paw-3611310/)
 - Cat emojis from [Noto Emoji](https://github.com/googlefonts/noto-emoji/)

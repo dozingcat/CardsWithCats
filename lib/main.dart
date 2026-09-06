@@ -30,8 +30,8 @@ import 'scum_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "0.4.0";
-const appLegalese = "© 2022-2025 Brian Nenninger";
+const appVersion = "0.4.2";
+const appLegalese = "© 2022-2025 Brian Nenninger · Scum and 0.4.x © 2026 rhY";
 
 const gameBackgroundColor = Color(0xFFC8D8CE);
 const gameTableColor = Color(0xFF155F43);

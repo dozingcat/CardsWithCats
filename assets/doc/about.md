@@ -1,4 +1,4 @@
-Comments or bug reports: [bnenning@gmail.com](mailto:bnenning@gmail.com)
+Comments or bug reports: [github.com/crhy/CardsWithCats/issues](https://github.com/crhy/CardsWithCats/issues)
 
 ## General
 
@@ -139,11 +139,16 @@ wins.
 
 ## License
 This application is released under the GNU General Public License, version 3. Source code is
-available [here](https://github.com/dozingcat/CardsWithCats).
+available [here](https://github.com/crhy/CardsWithCats). It is based on
+[Cards With Cats](https://github.com/dozingcat/CardsWithCats) by Brian Nenninger, released under
+the same license.
 
 
 ## Credits
 
+- Scum, and this release, by [rhY](https://github.com/crhy)
+- Hearts, Spades, Oh Hell, and the original app by
+[Brian Nenninger](https://github.com/dozingcat)
 - Cats by [AnnaliseArt on Pixabay](https://pixabay.com/illustrations/cats-hanging-cats-kitty-cat-paw-3611310/)
 - Thought bubble by [OpenClipart-Vectors on Pixabay](https://pixabay.com/vectors/balloon-bubble-speech-thought-150981/)
 - Cat emojis from [Noto Emoji by Google](https://github.com/googlefonts/noto-emoji/)
