@@ -22,6 +22,7 @@ library;
 
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
@@ -69,6 +70,13 @@ typedef _SolveBoardC = Int32 Function(
 typedef _SolveBoardDart = int Function(
     _DdsDeal, int, int, int, Pointer<_DdsFutureTricks>, int);
 
+// compute() spawns a fresh isolate per call and statics are per-isolate, so
+// every worker re-runs the load below. That is cheap — isolates share the
+// process, so dlopen just refcounts an already-mapped library and the shim's
+// DdsEnsureInit is std::call_once — but it would repeat the status message
+// once per AI card play, so only the root isolate logs.
+bool get _isRootIsolate => Isolate.current.debugName == "main";
+
 int _ddsSuit(Suit s) => 3 - s.index;
 int _ddsRank(Rank r) => r.index + 2;
 
@@ -76,12 +84,10 @@ class DdsBackend {
   final _SolveBoardDart _solveBoard;
   final _IntDart _acquireThreadIndex;
   final _ReleaseDart _releaseThreadIndex;
-  final Pointer<_DdsDeal> _deal;
-  final Pointer<_DdsFutureTricks> _fut;
   int nodesSearched = 0;
 
   DdsBackend._(this._solveBoard, this._acquireThreadIndex,
-      this._releaseThreadIndex, this._deal, this._fut);
+      this._releaseThreadIndex);
 
   static DdsBackend? _instance;
   static bool _loadAttempted = false;
@@ -118,7 +124,9 @@ class DdsBackend {
   static DdsBackend? _tryLoad(String path, {required bool verbose}) {
     try {
       final lib = DynamicLibrary.open(path);
-      print("DDS backend loaded from $path");
+      if (_isRootIsolate) {
+        print("DDS backend loaded from $path");
+      }
       // These come from dds_shim.cpp in our libdds build: process-wide
       // once-only initialization and exclusive thread-index slots (see
       // the threading note above).
@@ -130,15 +138,9 @@ class DdsBackend {
       final solveBoard =
           lib.lookupFunction<_SolveBoardC, _SolveBoardDart>("SolveBoard");
       ensureInit();
-      return DdsBackend._(
-        solveBoard,
-        acquire,
-        release,
-        calloc<_DdsDeal>(),
-        calloc<_DdsFutureTricks>(),
-      );
+      return DdsBackend._(solveBoard, acquire, release);
     } catch (e) {
-      if (verbose) {
+      if (verbose && _isRootIsolate) {
         // DDS_LIB was set explicitly, so a failure is worth reporting.
         // Common causes: a relative path (the app's working directory is
         // not the repo — use an absolute path) and the macOS app sandbox
@@ -149,18 +151,19 @@ class DdsBackend {
     }
   }
 
-  /// Fills the shared deal struct with this position, returning the total
-  /// number of cards still in play (hands plus the trick in progress).
-  ///
-  /// DDS has room for only three cards in the trick in progress; a
-  /// complete trick has to be resolved by the caller before solving.
-  int _fillDeal(List<List<PlayingCard>> hands, Suit? trump, int leader,
-      List<PlayingCard> trickCards) {
+  /// DDS has room for only three cards in the trick in progress; a complete
+  /// trick has to be resolved by the caller before solving.
+  static void _checkTrickCards(List<PlayingCard> trickCards) {
     if (trickCards.length > 3) {
       throw ArgumentError(
           "Trick in progress can have at most 3 cards, got ${trickCards.length}");
     }
-    final deal = _deal.ref;
+  }
+
+  /// Fills [deal] with this position, returning the total
+  /// number of cards still in play (hands plus the trick in progress).
+  int _fillDeal(_DdsDeal deal, List<List<PlayingCard>> hands, Suit? trump,
+      int leader, List<PlayingCard> trickCards) {
     deal.trump = trump == null ? 4 : _ddsSuit(trump);
     deal.first = leader;
     for (int i = 0; i < 3; i++) {
@@ -189,26 +192,36 @@ class DdsBackend {
   /// Returns null on a DDS error.
   int? solve(List<List<PlayingCard>> hands, Suit? trump, int leader,
       List<PlayingCard> trickCards) {
-    final totalCards = _fillDeal(hands, trump, leader, trickCards);
-    final threadIndex = _acquireThreadIndex();
-    if (threadIndex < 0) {
-      return null; // all DDS slots busy; caller falls back
-    }
-    final int res;
+    _checkTrickCards(trickCards);
+    final deal = calloc<_DdsDeal>();
+    final fut = calloc<_DdsFutureTricks>();
     try {
-      // solutions=1: only the best card's score is needed.
-      res = _solveBoard(_deal.ref, -1, 1, 1, _fut, threadIndex);
+      final totalCards = _fillDeal(deal.ref, hands, trump, leader, trickCards);
+      final threadIndex = _acquireThreadIndex();
+      if (threadIndex < 0) {
+        return null; // all DDS slots busy; caller falls back
+      }
+      final int res;
+      try {
+        // solutions=1: only the best card's score is needed.
+        res = _solveBoard(deal.ref, -1, 1, 1, fut, threadIndex);
+      } finally {
+        _releaseThreadIndex(threadIndex);
+      }
+      if (res != 1) {
+        return null;
+      }
+      nodesSearched += fut.ref.nodes;
+      final score = fut.ref.score[0];
+      final mover = (leader + trickCards.length) % 4;
+      final remainingTricks = totalCards ~/ 4;
+      return mover % 2 == 0 ? score : remainingTricks - score;
     } finally {
-      _releaseThreadIndex(threadIndex);
+      // SolveBoard takes the deal by value and only writes into `fut` for
+      // the duration of the call, so neither buffer outlives this scope.
+      calloc.free(deal);
+      calloc.free(fut);
     }
-    if (res != 1) {
-      return null;
-    }
-    nodesSearched += _fut.ref.nodes;
-    final score = _fut.ref.score[0];
-    final mover = (leader + trickCards.length) % 4;
-    final remainingTricks = totalCards ~/ 4;
-    return mover % 2 == 0 ? score : remainingTricks - score;
   }
 
   /// Tricks taken by the side on play for each card that player can legally
@@ -226,46 +239,54 @@ class DdsBackend {
   /// Returns null on a DDS error or when all solver slots are busy.
   Map<PlayingCard, int>? solveAllCards(List<List<PlayingCard>> hands,
       Suit? trump, int leader, List<PlayingCard> trickCards) {
-    _fillDeal(hands, trump, leader, trickCards);
-    final threadIndex = _acquireThreadIndex();
-    if (threadIndex < 0) {
-      return null; // all DDS slots busy; caller falls back
-    }
-    final int res;
+    _checkTrickCards(trickCards);
+    final dealPtr = calloc<_DdsDeal>();
+    final futPtr = calloc<_DdsFutureTricks>();
     try {
-      // solutions=3 scores every legal card rather than just the best one.
-      // mode=1 searches even when only one card is playable, so that every
-      // returned score is a real trick count rather than a -1 placeholder.
-      res = _solveBoard(_deal.ref, -1, 3, 1, _fut, threadIndex);
-    } finally {
-      _releaseThreadIndex(threadIndex);
-    }
-    if (res != 1) {
-      return null;
-    }
-    final fut = _fut.ref;
-    nodesSearched += fut.nodes;
-    if (fut.cards <= 0) {
-      return null;
-    }
-    final result = <PlayingCard, int>{};
-    for (int i = 0; i < fut.cards; i++) {
-      final score = fut.score[i];
-      if (score < 0) {
-        return null; // DDS declined to score this card.
+      _fillDeal(dealPtr.ref, hands, trump, leader, trickCards);
+      final threadIndex = _acquireThreadIndex();
+      if (threadIndex < 0) {
+        return null; // all DDS slots busy; caller falls back
       }
-      final suit = Suit.values[3 - fut.suit[i]];
-      result[PlayingCard(Rank.values[fut.rank[i] - 2], suit)] = score;
-      // DDS returns one entry per equivalence class; `equals` is a bit map
-      // of the lower ranks in the same suit that play identically, with
-      // bit 2 for the two through bit 14 for the ace.
-      final equalRanks = fut.equals[i];
-      for (int r = 2; r <= 14; r++) {
-        if (equalRanks & (1 << r) != 0) {
-          result[PlayingCard(Rank.values[r - 2], suit)] = score;
+      final int res;
+      try {
+        // solutions=3 scores every legal card rather than just the best one.
+        // mode=1 searches even when only one card is playable, so that every
+        // returned score is a real trick count rather than a -1 placeholder.
+        res = _solveBoard(dealPtr.ref, -1, 3, 1, futPtr, threadIndex);
+      } finally {
+        _releaseThreadIndex(threadIndex);
+      }
+      if (res != 1) {
+        return null;
+      }
+      final fut = futPtr.ref;
+      nodesSearched += fut.nodes;
+      if (fut.cards <= 0) {
+        return null;
+      }
+      final result = <PlayingCard, int>{};
+      for (int i = 0; i < fut.cards; i++) {
+        final score = fut.score[i];
+        if (score < 0) {
+          return null; // DDS declined to score this card.
+        }
+        final suit = Suit.values[3 - fut.suit[i]];
+        result[PlayingCard(Rank.values[fut.rank[i] - 2], suit)] = score;
+        // DDS returns one entry per equivalence class; `equals` is a bit map
+        // of the lower ranks in the same suit that play identically, with
+        // bit 2 for the two through bit 14 for the ace.
+        final equalRanks = fut.equals[i];
+        for (int r = 2; r <= 14; r++) {
+          if (equalRanks & (1 << r) != 0) {
+            result[PlayingCard(Rank.values[r - 2], suit)] = score;
+          }
         }
       }
+      return result;
+    } finally {
+      calloc.free(dealPtr);
+      calloc.free(futPtr);
     }
-    return result;
   }
 }
