@@ -15,7 +15,7 @@ void main() {
       final json = match.toJson();
       print(jsonEncode(json));
       final parsedMatch = BridgeMatch.fromJson(json, rng);
-      expect(parsedMatch != null, true);
+      expect(parsedMatch.toJson(), json);
     });
   });
 

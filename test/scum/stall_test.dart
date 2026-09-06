@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/scum/scum.dart';
 import 'package:cards_with_cats/scum/scum_ai.dart';
 import 'package:flutter_test/flutter_test.dart';

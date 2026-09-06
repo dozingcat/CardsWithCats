@@ -1,7 +1,6 @@
 import "dart:math";
 
 import "package:cards_with_cats/bridge/bridge_ai.dart";
-import "package:cards_with_cats/bridge/bridge_bidding.dart";
 import "package:cards_with_cats/cards/rollout.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:flutter_test/flutter_test.dart";

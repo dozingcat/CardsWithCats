@@ -91,7 +91,6 @@ void main() {
   });
 
   test("issue #10: the AI does not lead a high quad early", () {
-    final rng = Random(8);
     final hand = [
       card("KS"), card("KH"), card("KD"), card("KC"),
       card("3H"), card("4D"), card("5S"), card("6C"),

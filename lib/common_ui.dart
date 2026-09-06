@@ -1,6 +1,5 @@
 import 'dart:collection';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -1383,7 +1382,6 @@ LinkedHashMap<PlayingCard, Rect> _normalCardRects(
   else {
     return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, customCardSort: customCardSort);
   }
-  throw Exception();
 }
 
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
