@@ -63,6 +63,51 @@ class ScumPlayRequest {
   bool get amLeading => currentTrick.bestAction == null;
 }
 
+/// Tuning knobs for the cats' play.
+///
+/// The high-card reserve is on for the shipped bots; simulations turn it off
+/// to measure what it is worth (see tool/scum_ai_bench.dart).
+class ScumAiOptions {
+  /// Keep a reserve of high cards in proportion to the low cards still in
+  /// hand, rather than spending them on tricks that don't need them.
+  final bool retainHighCards;
+
+  /// Weight of the reserve when scoring a play.
+  final double controlWeight;
+
+  const ScumAiOptions({this.retainHighCards = true, this.controlWeight = 4.5});
+
+  static const standard = ScumAiOptions();
+  static const reckless = ScumAiOptions(retainHighCards: false);
+}
+
+/// Ranks that rarely win a trick outright, so they have to be shed on a trick
+/// this player leads or follows cheaply.
+const lowCardMaxValue = 8;
+
+/// Ranks that reliably buy back the lead.
+const highCardMinValue = 12;
+
+/// How short of lead-buying power the hand would be after playing `option`.
+///
+/// Every low card has to be dumped on a trick the cat leads, and each lead has
+/// to be bought with a high card. A hand stuffed with low cards therefore
+/// needs a matching reserve of high ones, and spending that reserve on a trick
+/// it didn't need strands the low cards for the rest of the round (issue #12).
+/// Zero when the play spends no high cards, so cheap beats are never
+/// discouraged.
+double controlDeficit(List<PlayingCard> hand, List<PlayingCard> option) {
+  final spent =
+      option.where((c) => c.rank.numericValue >= highCardMinValue).length;
+  if (spent == 0) return 0;
+  final low = hand.where((c) => c.rank.numericValue <= lowCardMaxValue).length;
+  final high =
+      hand.where((c) => c.rank.numericValue >= highCardMinValue).length;
+  final wanted = (low / 3).ceil();
+  final remaining = high - spent;
+  return max(0, wanted - remaining).toDouble();
+}
+
 /// Cards a president or vice president chooses to give down during the trade.
 class ScumTradeRequest {
   final List<PlayingCard> hand;
@@ -139,14 +184,16 @@ double pressureFromAbove(ScumPlayRequest req, Rank rank, int size) {
 
 /// Chooses the next play for an AI cat. Returns the cards to play, or an empty
 /// list to pass (only allowed when not leading).
-List<PlayingCard> chooseScumPlay(ScumPlayRequest req, Random rng) {
+List<PlayingCard> chooseScumPlay(ScumPlayRequest req, Random rng,
+    {ScumAiOptions options = ScumAiOptions.standard}) {
   if (req.amLeading) {
-    return _chooseLead(req, rng);
+    return _chooseLead(req, rng, options);
   }
-  return _chooseFollow(req, rng);
+  return _chooseFollow(req, rng, options);
 }
 
-List<PlayingCard> _chooseLead(ScumPlayRequest req, Random rng) {
+List<PlayingCard> _chooseLead(
+    ScumPlayRequest req, Random rng, ScumAiOptions aiOptions) {
   final options = legalSetsForHand(req.hand, null);
   assert(options.isNotEmpty);
 
@@ -204,6 +251,12 @@ List<PlayingCard> _chooseLead(ScumPlayRequest req, Random rng) {
       score += 1.5;
     }
 
+    // Hold back enough high cards to buy the leads the remaining low cards
+    // will need (#12).
+    if (aiOptions.retainHighCards) {
+      score -= controlDeficit(req.hand, option) * aiOptions.controlWeight;
+    }
+
     score += rng.nextDouble() * 0.75;
     if (score > bestScore) {
       bestScore = score;
@@ -221,7 +274,8 @@ Rank _lowestRank(List<PlayingCard> hand) {
   return lowest;
 }
 
-List<PlayingCard> _chooseFollow(ScumPlayRequest req, Random rng) {
+List<PlayingCard> _chooseFollow(
+    ScumPlayRequest req, Random rng, ScumAiOptions aiOptions) {
   final options = legalSetsForHand(req.hand, req.currentTrick);
   if (options.isEmpty) return []; // Forced pass.
   final best = req.currentTrick.bestAction!;
@@ -324,6 +378,14 @@ List<PlayingCard> _chooseFollow(ScumPlayRequest req, Random rng) {
         rank.index >= Rank.queen.index &&
         req.hand.length > option.length + 3) {
       score -= 8;
+    }
+
+    // Hold back enough high cards to buy the leads the remaining low cards
+    // will need. Since passScore is unaffected, a hand that is all trash and
+    // top cards now prefers to wait rather than spend an ace on a trick it
+    // does not need (#12).
+    if (aiOptions.retainHighCards) {
+      score -= controlDeficit(req.hand, option) * aiOptions.controlWeight;
     }
 
     // Block a rival who is about to go out.
