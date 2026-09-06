@@ -2,6 +2,42 @@
 
 All notable changes to the Scum game mode of Cards With Cats.
 
+## 0.4.2
+
+Gameplay, layout and bot fixes from the 0.4.1 playtest.
+
+- **Tricks finish on screen** (#14, #16): a completed trick now has a hold of
+  its own between the last card landing and the trick being swept to the
+  winner, so the play that ended it — often a bot's ace — is always visible
+  first. The end-of-round summary waits for those animations instead of
+  appearing the instant the last card is played, which used to hide the final
+  trick of every hand.
+- **No more auto-finishing** (#16): the "remaining tricks claimed" shortcut is
+  gone. When the leader can no longer lose a trick the hand still plays out
+  card by card, the way it would with real people at a table.
+- **Hearts score beside every cat** (#18): each seat shows its total and the
+  points it has picked up this round, with the current leader marked, so it is
+  easy to see who is worth dumping points on without opening the overlay.
+- **Layout** (#17): Scum role badges wrap "Vice President" onto two centered
+  lines, sit outside the play area so a rank never covers a played card, and
+  the player's own badge moved off the hand. Mood bubbles hang clear of the
+  seat badges and no longer sit on top of the score summary. Hearts point-card
+  tinting is a subtle wash rather than a solid fill, so an overlapping run of
+  hearts no longer reads as one pink block. The score summary itself is opaque.
+- **Cat reactions** (#19): the cats react the moment a seat goes out rather
+  than only at the end of the round — the new president grins, the vice
+  president is pleased, and everyone still holding cards is annoyed about it.
+  The finished table stays uncovered briefly so the reactions can be seen.
+- **Scum totals were wrong**: the end-of-round summary showed each player's
+  score from *before* the round it was summarizing, because the match totals
+  are only folded forward when Continue is pressed. It now includes the round
+  just played.
+- **Smarter cats** (#12): the Scum bots now keep a reserve of high cards in
+  proportion to the low cards they still have to shed, instead of spending an
+  ace on a trick that did not need it. Measured over 12000 simulated rounds
+  this improves their mean finish from 1.54 to 1.46 and drops last place from
+  27.3% to 22.7%.
+
 ## 0.4.1
 
 - Added the current main-menu and Scum screenshots to AppStream metadata so

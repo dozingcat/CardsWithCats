@@ -47,6 +47,34 @@ void main() {
     );
   }
 
+  testWidgets("the end-of-round summary adds this round's points to the total",
+      (tester) async {
+    // A round that is over but not yet folded into the match scores, which is
+    // exactly the state the summary is shown in.
+    final match = ScumMatch(ScumRuleSet(), Random(9));
+    match.scores = [10, 20, 30, 40];
+    const order = [1, 2, 3, 0];
+    for (int position = 0; position < order.length; position++) {
+      final player = match.currentRound.players[order[position]];
+      player.hand.clear();
+      player.finishPosition = position;
+    }
+    expect(match.currentRound.isOver(), true);
+
+    await tester.pumpWidget(makeDisplay(match));
+    await tester.pump();
+    // The summary waits briefly so the cats' reactions are visible first.
+    await tester.pump(roundEndReactionDelay * 2);
+
+    expect(find.text("Total score"), findsOneWidget);
+    // Round points are 0/3/2/1 for players 0..3 on this finish order, so the
+    // totals must be the prior scores plus those, not the prior scores alone.
+    for (final total in ["10", "23", "32", "41"]) {
+      expect(find.text(total), findsOneWidget, reason: "missing total $total");
+    }
+    expect(find.text("20"), findsNothing);
+  });
+
   testWidgets("renders hand and role badges in the trading phase",
       (tester) async {
     final match = matchWithHumanAsScum();

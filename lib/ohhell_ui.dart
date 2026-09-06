@@ -517,7 +517,7 @@ const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
 // The score summary is opaque: the translucent grey left the table, the cats
 // and the trick showing through the numbers.
-const scoreDialogBackgroundColor = Color(0xF5F4F1E9);
+const scoreDialogBackgroundColor = Color(0xFFF4F1E9);
 
 class BidDialog extends StatefulWidget {
   final Layout layout;

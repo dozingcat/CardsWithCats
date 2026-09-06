@@ -24,6 +24,9 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.4.2" date="2026-09-06" type="stable">
+      <description><p>Every trick now finishes on screen instead of being resolved for you, Hearts shows a running score beside each cat, the Scum table no longer covers cards with rank badges, and the cats react as soon as a player goes out.</p></description>
+    </release>
     <release version="0.4.1" date="2026-08-27" type="stable">
       <description><p>Adds the current menu and in-game screenshots to AppStream for display in SpacedBazaar.</p></description>
     </release>

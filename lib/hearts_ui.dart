@@ -568,7 +568,7 @@ const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
 // The score summary is opaque: the translucent grey left the table, the cats
 // and the trick showing through the numbers.
-const scoreDialogBackgroundColor = Color(0xF5F4F1E9);
+const scoreDialogBackgroundColor = Color(0xFFF4F1E9);
 
 // Subtle washes for the optional card tinting. Each stays light enough that a
 // card's pips and index read normally and a fanned run doesn't merge together.

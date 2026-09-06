@@ -9,6 +9,10 @@ import 'package:cards_with_cats/soundeffects.dart';
 import 'package:flutter/material.dart';
 
 const dialogBackgroundColor = Color(0xF5F4F1E9);
+
+// Fully opaque: the score summary must not let the table or the last trick
+// show through the numbers.
+const scoreDialogBackgroundColor = Color(0xFFF4F1E9);
 const aiDelayMillis = 650;
 
 /// How long the finished table stays uncovered so the cats' reactions to the
@@ -773,7 +777,7 @@ class EndOfRoundDialog extends StatelessWidget {
             insetPadding: EdgeInsets.symmetric(
                 horizontal: layout.displaySize.width * 0.04,
                 vertical: layout.displaySize.height * 0.04),
-            backgroundColor: dialogBackgroundColor,
+            backgroundColor: scoreDialogBackgroundColor,
             child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: layout.displaySize.width * 0.92,
@@ -811,8 +815,12 @@ class EndOfRoundDialog extends StatelessWidget {
                           row("Round points", [
                             for (int p = 0; p < round.numberOfPlayers; p++) roundPoints[p]
                           ]),
+                          // match.scores is only folded forward by finishRound(),
+                          // which runs when Continue is pressed — so the running
+                          // total has to add this round's points itself.
                           row("Total score", [
-                            for (int p = 0; p < round.numberOfPlayers; p++) match.scores[p]
+                            for (int p = 0; p < round.numberOfPlayers; p++)
+                              match.scores[p] + roundPoints[p]
                           ], bold: true),
                         ],
                       )),

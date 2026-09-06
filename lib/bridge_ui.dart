@@ -525,6 +525,10 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
 const dialogBackgroundColor = Color.fromARGB(0x80, 0xd8, 0xd8, 0xd8);
 
+// Fully opaque: the score summary must not let the table or the last trick
+// show through the numbers.
+const scoreDialogBackgroundColor = Color(0xFFF4F1E9);
+
 class BidDialog extends StatefulWidget {
   final Layout layout;
   final BridgeRound round;
@@ -882,7 +886,7 @@ class EndOfRoundDialog extends StatelessWidget {
             scale: layout.dialogScale(),
             child: Dialog(
                 insetPadding: EdgeInsets.zero,
-                backgroundColor: dialogBackgroundColor,
+                backgroundColor: scoreDialogBackgroundColor,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
