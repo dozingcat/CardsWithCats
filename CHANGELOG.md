@@ -28,6 +28,9 @@ Gameplay, layout and bot fixes from the 0.4.1 playtest.
   than only at the end of the round — the new president grins, the vice
   president is pleased, and everyone still holding cards is annoyed about it.
   The finished table stays uncovered briefly so the reactions can be seen.
+- **Scum trade prompt was cut off**: the "choose cards to give away" message
+  ran off both edges of the screen, because the dialog was laid out at the full
+  window width and then scaled up. It now wraps inside the window.
 - **Scum totals were wrong**: the end-of-round summary showed each player's
   score from *before* the round it was summarizing, because the match totals
   are only folded forward when Continue is pressed. It now includes the round

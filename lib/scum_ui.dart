@@ -635,10 +635,17 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
             scale: layout.dialogScale(),
             child: Dialog(
               backgroundColor: dialogBackgroundColor,
-              child: Column(
+              // Transform.scale doesn't change the laid-out size, so a dialog
+              // sized to the full window spilled off both edges once it was
+              // scaled up. Lay it out narrow enough that the scaled result fits.
+              child: SizedBox(
+                width: layout.displaySize.width / layout.dialogScale() - 32,
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _paddingAll(10, Text(_tradeMessage(), style: const TextStyle(fontSize: 15))),
+                  _paddingAll(10, Text(_tradeMessage(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 15))),
                   if (round.numCardsToSelectForTrade(0) > 0)
                     _paddingAll(
                         5,
@@ -658,6 +665,7 @@ class _ScumMatchState extends State<ScumMatchDisplay> {
                             : "Exchange cards"),
                       )),
                 ],
+                ),
               ),
             ),
           ),
