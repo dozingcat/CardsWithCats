@@ -29,13 +29,20 @@ extern "C" void DdsEnsureInit() {
   static std::once_flag flag;
   std::call_once(flag, [] {
     // Bound total memory on every platform. DDS treats the figure as
-    // +30% (332MB) and needs 30MB per small-table thread, so this
-    // yields min(cores, 11) small threads. Each slot serves one
-    // caller at a time; the app never has more than a few solves in
-    // flight, and a small table is plenty for single-deal solves.
-    // Benchmarking on an M4 Mac shows that small tables are at worst
-    // 10% slower than large tables, so using more memory wouldn't help.
-    SetResources(256, DDS_SHIM_MAX_THREADS);
+    // +30% (166MB) and needs 30MB per small-table thread, so this
+    // yields min(cores, 5) small threads. Each slot serves one caller
+    // at a time, and the app runs at most three concurrent solves: the
+    // AI for the player's round, the duplicate round replay, and the
+    // fire-and-forget par calculation, which can still be running when
+    // the next round starts.
+    //
+    // 128 rather than 256 also keeps DDS out of its large-table branch
+    // on low-core devices. SetResources picks large tables whenever
+    // cores * 160MB fits the budget, so with 256 a 2-core phone gets two
+    // 160MB large tables and a 4-core phone one -- the wrong trade
+    // exactly where memory is tightest. Benchmarking on an M4 Mac shows
+    // small tables are at worst 10% slower, so nothing is lost.
+    SetResources(128, DDS_SHIM_MAX_THREADS);
     DDSInfo info;
     GetDDSInfo(&info);
     usableThreads = info.noOfThreads;
