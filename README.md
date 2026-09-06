@@ -3,6 +3,8 @@
 Four classic card games, one table, and three surprisingly strategic cats.
 Play **Hearts**, **Spades**, **Oh Hell**, or **Scum** on Android and Linux.
 
+**[crhy.github.io/CardsWithCats](https://crhy.github.io/CardsWithCats/)**
+
 ![Cards With Cats main menu](screenshots/cards-with-cats-menu.png)
 
 ![A Scum match in Cards With Cats](screenshots/cards-with-cats-scum.png)

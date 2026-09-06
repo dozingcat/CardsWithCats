@@ -11,7 +11,9 @@
     card-table controls, persistent matches, and opponents with distinct strategy.</p>
   </description>
   <launchable type="desktop-id">io.github.crhy.CardsWithCats.desktop</launchable>
-  <url type="homepage">https://github.com/crhy/CardsWithCats</url>
+  <url type="homepage">https://crhy.github.io/CardsWithCats/</url>
+  <url type="bugtracker">https://github.com/crhy/CardsWithCats/issues</url>
+  <url type="vcs-browser">https://github.com/crhy/CardsWithCats</url>
   <developer id="io.github.crhy"><name>CRHY</name></developer>
   <screenshots>
     <screenshot type="default">
