@@ -1556,7 +1556,6 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
   List<BadDoubleDummyPlay?> doubleDummyMistakesForCurrentTrick() {
     final cache = showDuplicate ? ddDuplicateRoundMistakes : ddPlayerRoundMistakes;
     if (!cache.containsKey(trickIndex)) {
-      print("Cache miss for trick index $trickIndex");
       List<BadDoubleDummyPlay?> mistakes = [null, null, null, null];
       if (!selectedRound.isPassedOut()) {
         final displayedTrick = selectedRound.previousTricks[trickIndex];
