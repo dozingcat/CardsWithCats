@@ -1069,14 +1069,14 @@ class _NewGameDialogState extends State<NewGameDialog> {
                               )]),
 
                             ]),
-                            TableRow(children: [Row(children: [
-                              _paddingAll(20, ElevatedButton(
+                            TableRow(children: [FittedBox(child: Row(children: [
+                              _paddingAll(16, ElevatedButton(
                                   onPressed: () => widget.newGameFn(selectedGameType),
                                   child: const Text("Start match"))),
-                              _paddingAll(20, ElevatedButton(
+                              _paddingAll(16, ElevatedButton(
                                   onPressed: widget.cancelFn,
                                   child: const Text("Cancel"))),
-                            ])]),
+                            ]))]),
                           ],
                         )),
                   ],
