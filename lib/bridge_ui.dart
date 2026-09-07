@@ -1547,64 +1547,59 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
   // as reported by the double-dummy solver. This doesn't necessarily mean that
   // the play was game-theoretically wrong, only that if the player had known
   // where all the cards were, they should have played differently.
-  List<BadDoubleDummyPlay?> ddMistakes = [null, null, null, null];
+  Map<int, List<BadDoubleDummyPlay?>> ddPlayerRoundMistakes = {};
+  Map<int, List<BadDoubleDummyPlay?>> ddDuplicateRoundMistakes = {};
 
   BridgeRound get selectedRound =>
       showDuplicate ? widget.duplicateRound : widget.round;
 
-  @override
-  void initState() {
-    super.initState();
-    updateBetterCardPlays();
-  }
-
-  void updateBetterCardPlays() {
-    if (selectedRound.isPassedOut()) {
-      ddMistakes = [null, null, null, null];
-      return;
-    }
-    final displayedTrick = selectedRound.previousTricks[trickIndex];
-    for (int ci = 0; ci < selectedRound.numberOfPlayers; ci++) {
-      int playerIndex = (displayedTrick.leader + ci) % selectedRound.numberOfPlayers;
-      final ddEvaluations = doubleDummyResultForPreviousPointInRound(
-        round: selectedRound,
-        completedTricks: trickIndex,
-        cardsInCurrentTrick: ci,
-      );
-      if (ddEvaluations == null) {
-        ddMistakes[playerIndex] = null;
-      }
-      else {
-        final actualCardPlayed = displayedTrick.cards[ci];
-        int bestValue = ddEvaluations.entries.first.value;
-        int diff = bestValue - ddEvaluations[actualCardPlayed]!;
-        if (ddEvaluations[actualCardPlayed]! < bestValue) {
-          final bestPlays = ddEvaluations.keys
-              .where((card) => ddEvaluations[card] == bestValue)
-              .toList();
-          ddMistakes[playerIndex] = BadDoubleDummyPlay(actualCardPlayed, bestPlays, diff);
-        }
-        else {
-          ddMistakes[playerIndex] = null;
+  List<BadDoubleDummyPlay?> doubleDummyMistakesForCurrentTrick() {
+    final cache = showDuplicate ? ddDuplicateRoundMistakes : ddPlayerRoundMistakes;
+    if (!cache.containsKey(trickIndex)) {
+      print("Cache miss for trick index $trickIndex");
+      List<BadDoubleDummyPlay?> mistakes = [null, null, null, null];
+      if (!selectedRound.isPassedOut()) {
+        final displayedTrick = selectedRound.previousTricks[trickIndex];
+        for (int ci = 0; ci < selectedRound.numberOfPlayers; ci++) {
+          int playerIndex = (displayedTrick.leader + ci) % selectedRound.numberOfPlayers;
+          final ddEvaluations = doubleDummyResultForPreviousPointInRound(
+            round: selectedRound,
+            completedTricks: trickIndex,
+            cardsInCurrentTrick: ci,
+          );
+          if (ddEvaluations == null) {
+            // TODO: Would be better to show an error indicator here rather than
+            // silently indicating (and caching) "no mistakes".
+            continue;
+          }
+          else {
+            final actualCardPlayed = displayedTrick.cards[ci];
+            int bestValue = ddEvaluations.entries.first.value;
+            int diff = bestValue - ddEvaluations[actualCardPlayed]!;
+            if (ddEvaluations[actualCardPlayed]! < bestValue) {
+              final bestPlays = ddEvaluations.keys
+                  .where((card) => ddEvaluations[card] == bestValue)
+                  .toList();
+              mistakes[playerIndex] = BadDoubleDummyPlay(actualCardPlayed, bestPlays, diff);
+            }
+          }
         }
       }
+      cache[trickIndex] = mistakes;
     }
+    return cache[trickIndex]!;
   }
 
   void incrementTrickIndex() {
-    if (trickIndex >= selectedRound.previousTricks.length - 1) {
-      return;
+    if (trickIndex < selectedRound.previousTricks.length - 1) {
+      trickIndex += 1;
     }
-    trickIndex += 1;
-    updateBetterCardPlays();
   }
 
   void decrementTrickIndex() {
-    if (trickIndex <= 0) {
-      return;
+    if (trickIndex > 0) {
+      trickIndex -= 1;
     }
-    trickIndex -= 1;
-    updateBetterCardPlays();
   }
 
   Widget biddingTab() {
@@ -1625,12 +1620,13 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
       return paddingAll(20, const Text("No cards were played."));
     }
     final trick = tricks[trickIndex];
+    final ddMistakes = doubleDummyMistakesForCurrentTrick();
 
     Widget seatCard(int playerIndex) {
       final cardIndex = (playerIndex - trick.leader) % selectedRound.numberOfPlayers;
       final card = trick.cards[cardIndex];
       final isWinner = playerIndex == trick.winner;
-      const cardHeight = 72.0;
+      const cardHeight = 80.0;
       const cardWidth = cardHeight * defaultCardAspectRatio;
       final mistake = ddMistakes[playerIndex];
       return Container(
@@ -1727,7 +1723,6 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                           selected: {showDuplicate},
                           onSelectionChanged: (selection) => setState(() {
                             showDuplicate = selection.first;
-                            updateBetterCardPlays();
                             // Intentionally keep the trick index where it was.
                           }),
                         )),
