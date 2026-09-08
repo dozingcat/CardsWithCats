@@ -1,4 +1,4 @@
-package com.dozingcatsoftware.cardswithcats
+package io.github.crhy.scumwithcats
 
 import io.flutter.embedding.android.FlutterActivity
 

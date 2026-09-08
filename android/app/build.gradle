@@ -30,8 +30,8 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.dozingcatsoftware.cardswithcats"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "io.github.crhy.scumwithcats"
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -44,11 +44,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.dozingcatsoftware.cardswithcats"
+        applicationId = "io.github.crhy.scumwithcats"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
@@ -79,9 +79,9 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // Google Play release builds use the private upload key configured
+            // in android/key.properties, which is excluded from version control.
+            signingConfig = signingConfigs.release
         }
     }
 }
