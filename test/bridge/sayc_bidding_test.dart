@@ -1329,6 +1329,85 @@ void main() {
           "1S"); // five spades
     });
 
+    test("quantitative raises: balanced responses to a minor", () {
+      // The 3NT response is now capped at 16-18; 4NT invites with 19-20 and
+      // 6NT bids the slam with 21+ (self-play deal 159, seed 42: a 21-count
+      // had nothing better than 3NT and a 14-count opener passed it).
+      expect(openingBid("Q65", "AK8", "AQJ", "8654", history: ["1C", "pass"]),
+          "3NT"); // 16
+      expect(openingBid("J65", "AK8", "AQJ", "A954", history: ["1C", "pass"]),
+          "4NT"); // 19
+      expect(openingBid("Q65", "AK8", "AKJ", "A754", history: ["1C", "pass"]),
+          "6NT"); // 21
+      // Opener accepts the 19-20 invite with 14+.
+      final invite = ["1C", "pass", "4NT", "pass"];
+      expect(openingBid("A4", "K64", "752", "AK982", history: invite), "6NT");
+      expect(openingBid("A4", "K64", "752", "AQ982", history: invite), "Pass");
+    });
+
+    test("quantitative raises: opener over the 13-15 balanced 2NT response",
+        () {
+      final h = ["1C", "pass", "2NT", "pass"];
+      expect(openingBid("AQ", "K64", "K52", "A9752", history: h),
+          "3NT"); // 16
+      expect(openingBid("AQ", "K64", "K52", "AQ952", history: h),
+          "4NT"); // 18
+      expect(openingBid("AQ", "K64", "K52", "AKJ52", history: h),
+          "6NT"); // 20
+      // Responder accepts the invite with 14-15, declines with 13.
+      final invite = ["1C", "pass", "2NT", "pass", "4NT", "pass"];
+      expect(openingBid("A98", "K64", "KQ52", "Q98", history: invite), "6NT");
+      expect(openingBid("A98", "K64", "KQ52", "J98", history: invite), "Pass");
+    });
+
+    test("quantitative raises over notrump rebids", () {
+      // Opener's jump 2NT shows 18-19 (self-play deal 1709, seed 42: a
+      // 15-count raised to only 3NT).
+      final jump = ["1D", "pass", "1S", "pass", "2NT", "pass"];
+      expect(openingBid("QJ652", "Q4", "AJ9", "J87", history: jump), "3NT");
+      expect(openingBid("QJ652", "Q4", "AJ9", "KJ7", history: jump), "4NT");
+      expect(openingBid("QJ652", "Q4", "AJ9", "AJ7", history: jump), "6NT");
+      // Opener's accept of that invite (19 yes, 18 no) already existed.
+      final jumpInv = [...jump, "4NT", "pass"];
+      expect(openingBid("AQ4", "K64", "AQ52", "KJ9", history: jumpInv), "6NT");
+      expect(openingBid("AQ4", "K64", "AQ52", "QJ9", history: jumpInv), "Pass");
+      // The 12-14 2NT rebid after a two-over-one.
+      final low = ["1S", "pass", "2D", "pass", "2NT", "pass"];
+      expect(openingBid("A4", "K64", "AQ52", "KQ98", history: low), "3NT");
+      expect(openingBid("A4", "K64", "AQ52", "AQ98", history: low), "4NT");
+      expect(openingBid("A4", "AQ4", "AQ52", "KQ98", history: low), "6NT");
+      final lowInv = [...low, "4NT", "pass"];
+      expect(openingBid("AQ752", "K4", "K52", "Q98", history: lowInv), "6NT");
+      expect(openingBid("AQ752", "K4", "K52", "J98", history: lowInv), "Pass");
+    });
+
+    test("quantitative raises after 2C: 4NT over notrump rebids is not Blackwood",
+        () {
+      // 2C-2D-3NT shows 25-27 (self-play deal 1752, seed 42: an 8-count
+      // passed opposite 27).
+      final h3 = ["2C", "pass", "2D", "pass", "3NT", "pass"];
+      expect(openingBid("T9", "632", "7543", "QJ95", history: h3), "Pass");
+      expect(openingBid("K9", "632", "7543", "QJ95", history: h3), "4NT");
+      expect(openingBid("K9", "632", "7543", "KQ95", history: h3), "6NT");
+      expect(openingBid("AQJ", "AQ94", "AKQJ", "KT",
+              history: [...h3, "4NT", "pass"]),
+          "Pass"); // 26 declines
+      expect(openingBid("AQJ", "AQ94", "AKQJ", "AT",
+              history: [...h3, "4NT", "pass"]),
+          "6NT"); // 27 accepts
+      // 2C-2D-2NT shows 22-24.
+      final h2 = ["2C", "pass", "2D", "pass", "2NT", "pass"];
+      expect(openingBid("T9", "632", "7543", "KJ95", history: h2), "3NT");
+      expect(openingBid("K9", "Q32", "7543", "KJ95", history: h2), "4NT");
+      expect(openingBid("KQ9", "Q32", "754", "KJ95", history: h2), "6NT");
+      expect(openingBid("AQJ", "AQ94", "AKQJ", "42",
+              history: [...h2, "4NT", "pass"]),
+          "Pass"); // 23 declines
+      expect(openingBid("AKJ", "AQ94", "AKQJ", "42",
+              history: [...h2, "4NT", "pass"]),
+          "6NT"); // 24 accepts
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
@@ -1763,11 +1842,11 @@ void main() {
   });
 
   group("response rule coverage", () {
-    test("19+ balanced over a minor bids 3NT", () {
+    test("19-20 balanced over a minor invites slam with 4NT", () {
       final strong = selectSaycBid(hand("Q98", "K64", "AKQ", "KQT9"),
           ["1C", "pass"].map(BidAction.fromString).toList());
-      expect(strong.action.toString(), "3NT");
-      expect(strong.meaning.hcp, const Range(low: 16));
+      expect(strong.action.toString(), "4NT");
+      expect(strong.meaning.hcp, const Range(low: 19, high: 20));
     });
 
     test("12 HCP with a length point makes the limit raise", () {
