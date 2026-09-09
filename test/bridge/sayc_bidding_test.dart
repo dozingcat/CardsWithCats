@@ -1408,6 +1408,72 @@ void main() {
           "6NT"); // 24 accepts
     });
 
+    test("Blackwood over a raise of responder's suit", () {
+      // Deal 702 (seed 42): 22 total opposite opener's 13-15 raise blasted
+      // 4H; ask instead.
+      final raised = ["1D", "pass", "1H", "pass", "2H", "pass"];
+      expect(openingBid("K4", "AJT53", "A9", "AKQ5", history: raised), "4NT");
+      expect(openingBid("K4", "QJT53", "A9", "KQ65", history: raised), "4H");
+      // Opener answers, responder places.
+      expect(openingBid("A52", "K876", "KQJ84", "3",
+              history: [...raised, "4NT", "pass"]),
+          "5D"); // one ace
+      expect(openingBid("K4", "AJT53", "A9", "AKQ5",
+              history: [...raised, "4NT", "pass", "5D", "pass"]),
+          "6H"); // 3 + 1 aces
+    });
+
+    test("Blackwood opposite opener's jump to game", () {
+      // Deal 62 (seed 42): void + 7 hearts opposite the 16+ jump raise.
+      expect(openingBid("-", "AQT8765", "AJ", "7632",
+              history: ["1S", "pass", "2H", "pass", "4H", "pass"]),
+          "4NT");
+      // Deal 2200 (seed 42): 20 total opposite the self-sufficient 4S.
+      expect(openingBid("63", "KQJ85", "A2", "AKQ7",
+              history: ["1S", "pass", "2H", "pass", "4S", "pass"]),
+          "4NT");
+      // Deal 917 (seed 42): the self-sufficient suit needs no support.
+      final selfSuff = ["1H", "pass", "2C", "pass", "4H", "pass"];
+      expect(openingBid("J72", "-", "92", "AKQJ8754", history: selfSuff),
+          "4NT");
+      expect(openingBid("J72", "-", "92", "AKQJ8754",
+              history: [...selfSuff, "4NT", "pass", "5H", "pass"]),
+          "6H"); // 1 + 2 aces
+      // Over the 16-18 jump rebid a 20-count also asks; game hands raise.
+      expect(openingBid("63", "KQJ85", "A2", "AKQ7",
+              history: ["1S", "pass", "2H", "pass", "3S", "pass"]),
+          "4NT");
+      expect(openingBid("63", "KQJ85", "A2", "K973",
+              history: ["1S", "pass", "2H", "pass", "3S", "pass"]),
+          "4S");
+    });
+
+    test("Blackwood over limit and Jacoby raises", () {
+      final limit = ["1S", "pass", "3S", "pass"];
+      expect(openingBid("AKQJ84", "A5", "KQ4", "A2", history: limit), "4NT");
+      expect(openingBid("AKQJ84", "A5", "Q54", "32", history: limit), "4S");
+      expect(openingBid("T952", "K76", "A82", "KQ4",
+              history: [...limit, "4NT", "pass"]),
+          "5D"); // responder answers one ace
+      final jacoby = ["1S", "pass", "2NT", "pass"];
+      expect(openingBid("AKQJ84", "A5", "KQ4", "A2", history: jacoby), "4NT");
+      expect(openingBid("AJT984", "A5", "Q54", "Q2", history: jacoby), "4S");
+    });
+
+    test("Blackwood over the jump raise of opener's second suit", () {
+      // Deal 2342 (seed 42): 22 total with a singleton opposite the 10-12
+      // jump raise stopped in 4S; the shortness credit lets it ask.
+      final h = ["1D", "pass", "1H", "pass", "1S", "pass", "3S", "pass"];
+      expect(openingBid("AKT9", "KQ9", "AKQT6", "7", history: h), "4NT");
+      expect(openingBid("AKT9", "K93", "AQJT6", "7", history: h), "4S");
+      expect(openingBid("Q874", "AJ82", "3", "KQ63",
+              history: [...h, "4NT", "pass"]),
+          "5D"); // responder answers one ace
+      expect(openingBid("AKT9", "KQ9", "AKQT6", "7",
+              history: [...h, "4NT", "pass", "5D", "pass"]),
+          "6S"); // 2 + 1 aces
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
