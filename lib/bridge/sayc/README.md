@@ -360,12 +360,12 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 638 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 873 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 632 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 858 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
 Seed 1 findings by category: fallback-used 417, missed-game 144,
-silly-strain 50, missed-slam 25, thin-game 1, no-rule-matched 1.
+silly-strain 50, missed-slam 19, thin-game 1, no-rule-matched 1.
 Fallback-used is monitoring, not failure. The missed-game lint excuses
 stops below game when an opponent-bid suit is unstopped, there is no
 eight-card major fit, and the side holds under 28 points (no game is
@@ -373,7 +373,9 @@ attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
 Double-dummy accuracy (1200 deals): games bid make 73.3% of the time
-(precision), and 62.6% of double-dummy-makeable games get bid (recall);
-slams are 3/4 bid-and-making with 1.9% recall of the 161 DD slam chances —
-most DD "slams" lack the combined strength any bidding system would need
-(only 24 of the 161 have 31+ combined HCP).
+(precision), and 62.6% of double-dummy-makeable games get bid (recall).
+Slams are rare enough to need a bigger sample: over 6000 deals, 54 slams
+are bid of which 44 make double dummy (81.5% precision; the quantitative
+raises and fit-auction Blackwood entries together lifted this from 15 bid
+/ 12 making). Recall is 5.6% of DD slam chances — most DD "slams" lack the
+combined strength any bidding system would need.

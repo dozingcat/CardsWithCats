@@ -708,8 +708,26 @@ List<SaycRule> _minorResponseRules(ContractBid opening) {
     SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
-        description: "16+ HCP, balanced, no 4-card major",
-        hcp: const Range(low: 16),
+        description: "16-18 HCP, balanced, no 4-card major",
+        hcp: const Range(low: 16, high: 18),
+        balanced: true,
+        suitLengths: noMajor,
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(4),
+      BidMeaning(
+        description: "Quantitative: 19-20 HCP, balanced, invites 6NT",
+        hcp: const Range(low: 19, high: 20),
+        balanced: true,
+        suitLengths: noMajor,
+      ),
+    ),
+    SaycRule(
+      BidAction.noTrump(6),
+      BidMeaning(
+        description: "Slam: 21+ HCP balanced, 33+ combined",
+        hcp: const Range(low: 21),
         balanced: true,
         suitLengths: noMajor,
       ),
@@ -1076,6 +1094,44 @@ List<SaycRule> preemptResponseRules(ContractBid opening) {
 }
 
 // ---------------------------------------------------------------------------
+/// Slam evaluation once a trump fit is agreed: total points plus a credit
+/// for side-suit shortness (a void or singleton is worth about an extra
+/// ruffing trick that plain point count misses). Used only to gate slam
+/// tries; game decisions keep plain totalPoints.
+int fitSlamValue(HandAnalysis h, Suit trump) {
+  int bonus = 0;
+  for (final s in Suit.values) {
+    if (s == trump) continue;
+    final c = h.count(s);
+    if (c == 0) {
+      bonus += 3;
+    } else if (c == 1) {
+      bonus += 2;
+    }
+  }
+  return h.totalPoints + bonus;
+}
+
+/// A Blackwood 4NT rung for a fit auction where partner's call showed at
+/// least [partnerMin] points: fires when this hand brings the rest of the
+/// ~33 a small slam needs. Description-only advertisement (the ask itself
+/// is artificial and the gate uses the shortness credit). [extra] tightens
+/// the gate where self-play showed the bare arithmetic reaching thin slams
+/// (a 19+ jump to game is unlimited, so opposite it the bare 33 relies
+/// entirely on the shortness credit being real).
+SaycRule blackwoodAskRule(Suit trump, int partnerMin, {int extra = 0}) {
+  final gate = 33 - partnerMin + extra;
+  return SaycRule(
+    BidAction.noTrump(4),
+    BidMeaning(
+        description:
+            "Blackwood: asking for aces (slam values opposite $partnerMin+)",
+        artificial: true),
+    ignoreInfo: true,
+    require: (h) => fitSlamValue(h, trump) >= gate,
+  );
+}
+
 // Slam conventions: Blackwood (4NT over suits) and Gerber (4C over notrump)
 // ---------------------------------------------------------------------------
 
@@ -1100,7 +1156,8 @@ List<SaycRule> blackwoodAnswerRules() {
 /// bid a small slam missing at most one ace, otherwise stop at the five
 /// level; no 5NT king-ask or grand-slam exploration.
 List<SaycRule>? blackwoodPlacementRules(
-    BidAction opening, BidAction response, BidAction rebid, BidAction answer) {
+    BidAction opening, BidAction response, BidAction rebid, BidAction answer,
+    {Suit? trumpOverride}) {
   if (answer.bidType != BidType.contract ||
       answer.contractBid!.count != 5 ||
       answer.contractBid!.trump == null) {
@@ -1116,8 +1173,10 @@ List<SaycRule>? blackwoodPlacementRules(
   // The agreed trump suit.
   final openingBid =
       opening.bidType == BidType.contract ? opening.contractBid : null;
-  Suit? trump;
-  if (response == BidAction.noTrump(2) &&
+  Suit? trump = trumpOverride;
+  if (trump != null) {
+    // Caller knows the agreed suit (e.g. a raise of opener's second suit).
+  } else if (response == BidAction.noTrump(2) &&
       openingBid?.trump != null &&
       _isMajor(openingBid!.trump!)) {
     trump = openingBid.trump; // Jacoby 2NT
@@ -1728,6 +1787,7 @@ List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response,
     if (_isMajor(mySuit)) {
       // Jacoby 2NT.
       return [
+        blackwoodAskRule(mySuit, 13),
         SaycRule(
           BidAction.contract(4, mySuit),
           BidMeaning(
@@ -1747,10 +1807,26 @@ List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response,
     }
     return [
       SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Slam: 33+ combined HCP opposite 13-15 balanced",
+            hcp: const Range(low: 20)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 20,
+      ),
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description: "Quantitative: invites 6NT opposite 13-15",
+            hcp: const Range(low: 18, high: 19)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 18,
+      ),
+      SaycRule(
         BidAction.noTrump(3),
         BidMeaning(
             description: "Accepting 3NT opposite 13-15 balanced",
-            totalPoints: const Range(low: 13, high: 21)),
+            hcp: const Range(high: 17)),
         ignoreInfo: true,
       )
     ];
@@ -1759,6 +1835,29 @@ List<SaycRule> _oneSuitRebidRules(ContractBid opening, ContractBid response,
     return _rebidAfter1ntResponseRules(opening);
   }
   if (response.trump == null) {
+    if (!contested && response.count == 4 && !_isMajor(mySuit)) {
+      // Quantitative 4NT response (19-20 balanced): accept with 14+.
+      return [
+        SaycRule(
+          BidAction.noTrump(6),
+          BidMeaning(
+              description: "Accepting the slam invitation",
+              hcp: const Range(low: 14)),
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description: "Declining the slam invitation",
+              hcp: const Range(high: 13)),
+        ),
+      ];
+    }
+    if (!contested && response.count == 6) {
+      return [
+        SaycRule(BidAction.pass(),
+            BidMeaning(description: "Respecting partner's slam decision"))
+      ];
+    }
     if (!contested && response.count == 3 && !_isMajor(mySuit)) {
       // The 3NT response to a minor showed 16+ balanced: 17 of our own
       // makes 33+ combined a certainty.
@@ -1807,6 +1906,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         ignoreInfo: true,
         require: (h) => h.totalPoints <= 18,
       ),
+      blackwoodAskRule(mySuit, 6),
       SaycRule(
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
@@ -1827,6 +1927,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         ignoreInfo: true,
         require: (h) => h.totalPoints <= 13,
       ),
+      blackwoodAskRule(mySuit, 11),
       SaycRule(
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
@@ -2615,6 +2716,22 @@ List<SaycRule>? _responderRebidAfter2cRules(
     // 22-24 balanced; simplified (no Stayman/transfers here yet).
     return [
       SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Slam: 33+ combined HCP opposite 22-24",
+            hcp: const Range(low: 11)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 11,
+      ),
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description: "Quantitative: invites 6NT opposite 22-24",
+            hcp: const Range(low: 9, high: 10)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 9,
+      ),
+      SaycRule(
         BidAction.noTrump(3),
         BidMeaning(description: "To play", hcp: const Range(low: 3)),
       ),
@@ -2670,9 +2787,31 @@ List<SaycRule>? _responderRebidAfter2cRules(
     ];
   }
   if (rebid == BidAction.noTrump(3)) {
+    // 25-27 balanced.
     return [
-      SaycRule(BidAction.pass(),
-          BidMeaning(description: "Respecting partner's signoff"))
+      SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Slam: 33+ combined HCP opposite 25-27",
+            hcp: const Range(low: 8)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 8,
+      ),
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description: "Quantitative: invites 6NT opposite 25-27",
+            hcp: const Range(low: 5, high: 7)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 5,
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "No slam interest opposite 25-27",
+            hcp: const Range(high: 4)),
+        ignoreInfo: true,
+      ),
     ];
   }
   return null;
@@ -2836,8 +2975,34 @@ List<SaycRule> _responderRebidAfterSuitRules(
     return passOnly("Respecting partner's decision opposite the splinter");
   }
 
+  if (!contested &&
+      !oMajor &&
+      response == BidAction.noTrump(2) &&
+      rebid == ContractBid.noTrump(4)) {
+    // Opener's 4NT over our 13-15 balanced 2NT is quantitative (18-19):
+    // accept at the top of our range.
+    return [
+      SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Accepting the slam invitation",
+            hcp: const Range(low: 14, high: 15)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 14,
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "Declining the slam invitation",
+            hcp: const Range(low: 13, high: 13)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+
   // Our response was a raise: opener either invited or signed off.
   if (responseBid != null && responseBid.trump == oSuit) {
+    if (rebid == ContractBid.noTrump(4)) return blackwoodAnswerRules();
     if (rebid == ContractBid(3, oSuit) && responseBid.count == 2) {
       return [
         SaycRule(
@@ -3086,6 +3251,7 @@ List<SaycRule> _responderRebidAfterSuitRules(
       }
       if (responseBid.count == 2) {
         return [
+          blackwoodAskRule(mySuit, 13),
           SaycRule(
             myGame,
             BidMeaning(
@@ -3103,6 +3269,7 @@ List<SaycRule> _responderRebidAfterSuitRules(
       }
       if (responseBid.count >= 3) {
         return [
+          blackwoodAskRule(mySuit, 13),
           SaycRule(
             myGame,
             BidMeaning(
@@ -3133,6 +3300,7 @@ List<SaycRule> _responderRebidAfterSuitRules(
           ignoreInfo: true,
           require: (h) => h.totalPoints <= 12,
         ),
+        blackwoodAskRule(mySuit, 13),
         SaycRule(
           myGame,
           BidMeaning(
@@ -3148,6 +3316,7 @@ List<SaycRule> _responderRebidAfterSuitRules(
           // A two-over-one already promised 10+, so eleven tricks need
           // real extras; with less, four of the minor is the spot.
           return [
+            blackwoodAskRule(mySuit, 16),
             SaycRule(
               BidAction.contract(5, mySuit),
               BidMeaning(
@@ -3160,9 +3329,13 @@ List<SaycRule> _responderRebidAfterSuitRules(
                 ignoreInfo: true),
           ];
         }
-        return passOnly("Partner has bid game; nothing to add");
+        return [
+          blackwoodAskRule(mySuit, 16),
+          ...passOnly("Partner has bid game; nothing to add"),
+        ];
       }
       return [
+        blackwoodAskRule(mySuit, 16),
         SaycRule(
           myGame,
           BidMeaning(
@@ -3178,7 +3351,11 @@ List<SaycRule> _responderRebidAfterSuitRules(
         ),
       ];
     }
-    return passOnly("Respecting partner's signoff");
+    // A raise straight to game shows 19+.
+    return [
+      blackwoodAskRule(mySuit, 19, extra: 1),
+      ...passOnly("Respecting partner's signoff"),
+    ];
   }
 
   if (rebid.trump == null) {
@@ -3190,6 +3367,22 @@ List<SaycRule> _responderRebidAfterSuitRules(
       if (responseBid.count == 2) {
         // 2NT after a two-over-one (12-14).
         return [
+          SaycRule(
+            BidAction.noTrump(6),
+            BidMeaning(
+                description: "Slam: 33+ combined HCP opposite 12-14",
+                hcp: const Range(low: 21)),
+            ignoreInfo: true,
+            require: (h) => h.hcp >= 21,
+          ),
+          SaycRule(
+            BidAction.noTrump(4),
+            BidMeaning(
+                description: "Quantitative: invites 6NT opposite 12-14",
+                hcp: const Range(low: 19, high: 20)),
+            ignoreInfo: true,
+            require: (h) => h.hcp >= 19,
+          ),
           SaycRule(
             BidAction.noTrump(3),
             BidMeaning(
@@ -3275,6 +3468,22 @@ List<SaycRule> _responderRebidAfterSuitRules(
         require: (h) => myMajor && h.count(mySuit) >= 6,
       ),
       SaycRule(
+        BidAction.noTrump(6),
+        BidMeaning(
+            description: "Slam: 33+ combined HCP opposite 18-19",
+            hcp: const Range(low: 15)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 15,
+      ),
+      SaycRule(
+        BidAction.noTrump(4),
+        BidMeaning(
+            description: "Quantitative: invites 6NT opposite 18-19",
+            hcp: const Range(low: 13, high: 14)),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 13,
+      ),
+      SaycRule(
           BidAction.noTrump(3), BidMeaning(description: "Raising to game")),
     ];
   }
@@ -3354,7 +3563,7 @@ List<SaycRule> _responderRebidAfterSuitRules(
       ]);
       return rules;
     }
-    // Jump rebid, 16-18.
+    // Jump rebid, 16-18; a jump to game shows a self-sufficient suit, 19+.
     if (rebid.count >= 4) {
       if (!oMajor && rebid.count == 4) {
         // Opener's double jump to four of the minor shows 19+ and forces
@@ -3380,9 +3589,13 @@ List<SaycRule> _responderRebidAfterSuitRules(
           ),
         ];
       }
-      return passOnly("Respecting partner's game decision");
+      return [
+        blackwoodAskRule(oSuit, 19, extra: 1),
+        ...passOnly("Respecting partner's game decision"),
+      ];
     }
     return [
+      blackwoodAskRule(oSuit, 16),
       SaycRule(
         BidAction.contract(4, oSuit),
         BidMeaning(
@@ -3585,7 +3798,45 @@ List<SaycRule>? openerThirdCallRules(
     return _twoNtOpenerThirdRules(response, rebid, r2);
   }
   if (opening == BidAction.contract(2, Suit.clubs)) {
-    if (r2 == BidAction.noTrump(4)) return blackwoodAnswerRules();
+    if (r2 == BidAction.noTrump(4)) {
+      // 4NT directly over our notrump rebid is quantitative; with a suit
+      // in the picture it is Blackwood.
+      if (rebid == BidAction.noTrump(2)) {
+        // 22-24 shown: accept at the top.
+        return [
+          SaycRule(
+            BidAction.noTrump(6),
+            BidMeaning(
+                description: "Accepting the slam invitation",
+                hcp: const Range(low: 24, high: 24)),
+          ),
+          SaycRule(
+            BidAction.pass(),
+            BidMeaning(
+                description: "Declining the slam invitation",
+                hcp: const Range(low: 22, high: 23)),
+          ),
+        ];
+      }
+      if (rebid == BidAction.noTrump(3)) {
+        // 25-27 shown: accept at the top.
+        return [
+          SaycRule(
+            BidAction.noTrump(6),
+            BidMeaning(
+                description: "Accepting the slam invitation",
+                hcp: const Range(low: 27, high: 27)),
+          ),
+          SaycRule(
+            BidAction.pass(),
+            BidMeaning(
+                description: "Declining the slam invitation",
+                hcp: const Range(low: 25, high: 26)),
+          ),
+        ];
+      }
+      return blackwoodAnswerRules();
+    }
     if (r2 == BidAction.noTrump(2)) {
       // Responder denied a fit but the 2C auction is game-forcing.
       final rules = <SaycRule>[];
@@ -4136,9 +4387,12 @@ List<SaycRule> _oneSuitOpenerThirdRules(
   if (r2.trump == rebidBid.trump &&
       r2.count == rebidBid.count + 2 &&
       r2.count < (_isMajor(rebidBid.trump!) ? 4 : 5)) {
-    // Invitational jump raise of the second suit.
-    return inviteRules(
-        suitGame(rebidBid.trump!), 15, const Range(low: 13), false);
+    // Invitational jump raise of the second suit (10-12).
+    return [
+      blackwoodAskRule(rebidBid.trump!, 10),
+      ...inviteRules(
+          suitGame(rebidBid.trump!), 15, const Range(low: 13), false),
+    ];
   }
   if (rebidBid.trump != null &&
       rebidBid.trump != oSuit &&
@@ -6818,6 +7072,10 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         return blackwoodPlacementRules(
             opening, calls[first + 2], calls[first + 4], calls[first + 8]);
       }
+      if (n == first + 10 && calls[first + 8] == BidAction.noTrump(4)) {
+        // Opener asked Blackwood at its third call.
+        return blackwoodAnswerRules();
+      }
       return null;
     }
     if (n == first + 2) {
@@ -6921,6 +7179,15 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     if (n == first + 8) {
       return openerThirdCallRules(
           opening, calls[first + 2], calls[first + 4], calls[first + 6]);
+    }
+    if (n == first + 12 &&
+        calls[first + 8] == BidAction.noTrump(4) &&
+        calls[first + 6].bidType == BidType.contract) {
+      // Placing the contract after partner answered the Blackwood 4NT we
+      // asked at our third call; the trump suit is what partner raised.
+      return blackwoodPlacementRules(opening, calls[first + 2],
+          calls[first + 4], calls[first + 10],
+          trumpOverride: calls[first + 6].contractBid!.trump);
     }
     return null;
   }
