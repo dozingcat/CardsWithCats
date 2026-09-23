@@ -101,6 +101,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedHeartsReceivedCards = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
+  CardImageSet cardImageSet = defaultCardImageSet;
 
   @override
   void initState() {
@@ -139,6 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (![1, 4, 8].contains(bridgeRoundsPerMatch)) {
         bridgeRoundsPerMatch = 4;
       }
+      cardImageSet = cardImageSetForName(preferences.getString("cardImageSet"));
 
       statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
@@ -243,6 +245,13 @@ class _MyHomePageState extends State<MyHomePage> {
       bridgeRoundsPerMatch = numRounds;
     });
     preferences.setInt("bridgeRoundsPerMatch", numRounds);
+  }
+
+  void setCardImageSet(CardImageSet imageSet) {
+    setState(() {
+      cardImageSet = imageSet;
+    });
+    preferences.setString("cardImageSet", imageSet.name);
   }
 
   void _showMainMenu() {
@@ -674,6 +683,14 @@ class _MyHomePageState extends State<MyHomePage> {
                               },
                             ),
                             const ListTile(
+                                dense: true,
+                                title: Text("Card images", style: labelStyle)),
+                            CardImageSetPicker(
+                              imageSets: cardImageSets,
+                              selectedSet: cardImageSet,
+                              onSelected: setCardImageSet,
+                            ),
+                            const ListTile(
                                 title: Text("Hearts",
                                     style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
                             makeHeartsRuleCheckboxRow(
@@ -934,6 +951,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tintPointCards: useTintedHeartsPointCards,
               tintReceivedCards: useTintedHeartsReceivedCards,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (matchType == GameType.spades)
             SpadesMatchDisplay(
@@ -947,6 +965,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (matchType == GameType.ohHell)
             OhHellMatchDisplay(
@@ -960,6 +979,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (matchType == GameType.bridge)
             BridgeMatchDisplay(
@@ -974,6 +994,7 @@ class _MyHomePageState extends State<MyHomePage> {
               rotateDummyToTop: rotateBridgeDummyToTop,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
           if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),

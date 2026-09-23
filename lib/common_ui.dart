@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
@@ -19,13 +20,55 @@ enum AiMode {
   humanPlayer0,
 }
 
-const defaultCardAspectRatio = 521.0 / 726;
+enum CardImageSource {
+  assets,
+  filesystem,
+}
+
+class CardImageSet {
+  // Unique identifier, stored in preferences.
+  final String name;
+  final String displayName;
+  final CardImageSource source;
+  final String basePath;
+  // Width divided by height.
+  final double aspectRatio;
+
+  const CardImageSet(this.name, this.displayName, this.source, this.basePath, this.aspectRatio);
+
+  // Transparent images are drawn over a background color (e.g. for trump cards),
+  // solid images are used otherwise.
+  String imagePath(PlayingCard card, {bool transparent = false}) {
+    return "$basePath/${transparent ? 'transparent' : 'solid'}/${card.toString()}.webp";
+  }
+
+  ImageProvider imageProvider(PlayingCard card, {bool transparent = false}) {
+    final path = imagePath(card, transparent: transparent);
+    return switch (source) {
+      CardImageSource.assets => AssetImage(path),
+      CardImageSource.filesystem => FileImage(File(path)),
+    };
+  }
+}
+
+const defaultCardImageSet = CardImageSet("default", "Default", .assets, "assets/cards/default", 521.0 / 726);
+
+const cardImageSets = [
+  defaultCardImageSet,
+  CardImageSet("original", "Original", .assets, "assets/cards/original", 500.0 / 726),
+];
+
+CardImageSet cardImageSetForName(String? name) {
+  return cardImageSets.firstWhere((s) => s.name == name, orElse: () => defaultCardImageSet);
+}
 
 class Layout {
   late Size displaySize;
   late double playerHeight;
   late EdgeInsets padding;
-  double cardAspectRatio = defaultCardAspectRatio;
+  CardImageSet cardImageSet = defaultCardImageSet;
+
+  double get cardAspectRatio => cardImageSet.aspectRatio;
 
   Rect cardArea() {
     final border = playerHeight * 0.9;
@@ -104,7 +147,7 @@ const defaultTrumpBackgroundColor = Color.fromARGB(255, 255, 215, 0);
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
-  final double cardAspectRatio;
+  final CardImageSet cardImageSet;
   final double dimming;
   final double rotation;
   final double opacity;
@@ -117,7 +160,7 @@ class PositionedCard extends StatelessWidget {
     super.key,
     required this.rect,
     required this.card,
-    this.cardAspectRatio = defaultCardAspectRatio,
+    required this.cardImageSet,
     this.onCardClicked,
     this.dimming = 0.0,
     this.rotation = 0.0,
@@ -143,13 +186,10 @@ class PositionedCard extends StatelessWidget {
     // below and draw the transparent card on top of it so that the background
     // will show through the transparent parts. If there's no background,
     // we use the solid version of the card image.
-    final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
+    final cardRect = centeredSubrectWithAspectRatio(rect, cardImageSet.aspectRatio);
     final cardStack = <Widget>[];
     Color? bgColor = cardBackgroundColor();
-    final cardImagePath = bgColor != null ?
-        "assets/cards/transparent/${card.toString()}.webp" :
-        "assets/cards/solid/${card.toString()}.webp";
-    cardStack.add(Image(image: AssetImage(cardImagePath)));
+    cardStack.add(Image(image: cardImageSet.imageProvider(card, transparent: bgColor != null)));
 
     // To dim a card, we draw a partially transparent black rectangle over it.
     if (dimming > 0) {
@@ -201,6 +241,87 @@ class PositionedCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Shows sample cards from each image set and lets the user select one.
+class CardImageSetPicker extends StatelessWidget {
+  final List<CardImageSet> imageSets;
+  final CardImageSet selectedSet;
+  final void Function(CardImageSet) onSelected;
+  final double cardHeight;
+
+  static final sampleCards = [
+    PlayingCard(Rank.ace, Suit.spades),
+    PlayingCard(Rank.king, Suit.hearts),
+    PlayingCard(Rank.seven, Suit.diamonds),
+  ];
+
+  const CardImageSetPicker({
+    super.key,
+    required this.imageSets,
+    required this.selectedSet,
+    required this.onSelected,
+    this.cardHeight = 56,
+  });
+
+  Widget _sampleCard(CardImageSet imageSet, PlayingCard card) {
+    final cornerRadius = cardHeight * imageSet.aspectRatio * 0.05;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color.fromRGBO(64, 64, 64, 1.0), width: 0),
+        borderRadius: BorderRadius.circular(cornerRadius),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(cornerRadius),
+        child: Image(
+          image: imageSet.imageProvider(card),
+          height: cardHeight,
+          width: cardHeight * imageSet.aspectRatio,
+          fit: BoxFit.fill,
+        ),
+      ),
+    );
+  }
+
+  Widget _imageSetTile(CardImageSet imageSet) {
+    final isSelected = imageSet.name == selectedSet.name;
+    return GestureDetector(
+      onTap: () => onSelected(imageSet),
+      child: Container(
+        margin: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.withValues(alpha: 0.15) : null,
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.transparent,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: sampleCards.map((c) => _sampleCard(imageSet, c)).toList(),
+          ),
+          const SizedBox(height: 4),
+          Text(imageSet.displayName, style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          )),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(children: imageSets.map(_imageSetTile).toList()),
     );
   }
 }
@@ -659,6 +780,7 @@ class TrickCards extends StatelessWidget {
       {double opacity = 1, bool ignorePointer = false}) {
     final cardRect = layout.trickCardAreaForPlayer(playerIndex);
     return PositionedCard(
+        cardImageSet: layout.cardImageSet,
         rect: cardRect,
         card: card,
         isTrump: card.suit == trumpSuit,
@@ -749,6 +871,7 @@ class TrickCards extends StatelessWidget {
             animRect = Rect.fromCenter(center: animRect.center, width: startRect.width * scale, height: startRect.height * scale);
           }
           return PositionedCard(
+              cardImageSet: layout.cardImageSet,
               rect: animRect,
               card: cards.last,
               isTrump: cards.last.suit == trumpSuit,
@@ -781,6 +904,7 @@ class TrickCards extends StatelessWidget {
                 Rect.fromCenter(center: center, width: endRect.width * scale, height: endRect.height * scale);
             cardWidgets.add(
                 PositionedCard(
+                    cardImageSet: layout.cardImageSet,
                     rect: animRect,
                     card: trick.cards[i],
                     isTrump: trick.cards[i].suit == trumpSuit,
@@ -927,6 +1051,7 @@ class PlayerHandCards extends StatelessWidget {
               final startRect = previousRects[card]!;
               final endRect = entry.value;
               cardImages.add(PositionedCard(
+                cardImageSet: layout.cardImageSet,
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
                 isTrump: card.suit == trumpSuit,
@@ -944,6 +1069,7 @@ class PlayerHandCards extends StatelessWidget {
     for (final entry in rects.entries) {
       final card = entry.key;
       cardImages.add(PositionedCard(
+        cardImageSet: layout.cardImageSet,
         rect: entry.value,
         card: card,
         isTrump: card.suit == trumpSuit,
@@ -1446,7 +1572,7 @@ Widget scoreToggleIconButton({
   );
 }
 
-Layout computeLayout(BuildContext context) {
+Layout computeLayout(BuildContext context, {CardImageSet cardImageSet = defaultCardImageSet}) {
   final baseSize = MediaQuery.sizeOf(context);
   // paddingOf returns the padding needed to avoid display cutouts.
   final padding = MediaQuery.paddingOf(context);
@@ -1458,5 +1584,6 @@ Layout computeLayout(BuildContext context) {
     ..displaySize = adjustedSize
     ..playerHeight = adjustedSize.shortestSide * 0.125
     ..padding = padding
+    ..cardImageSet = cardImageSet
     ;
 }

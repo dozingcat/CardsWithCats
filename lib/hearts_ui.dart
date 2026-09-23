@@ -40,6 +40,7 @@ class HeartsMatchDisplay extends StatefulWidget {
   final bool tintPointCards;
   final bool tintReceivedCards;
   final StatsStore statsStore;
+  final CardImageSet cardImageSet;
 
   const HeartsMatchDisplay({
     Key? key,
@@ -54,6 +55,7 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.tintPointCards,
     required this.tintReceivedCards,
     required this.statsStore,
+    required this.cardImageSet,
   }) : super(key: key);
 
   @override
@@ -491,7 +493,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final layout = computeLayout(context);
+    final layout = computeLayout(context, cardImageSet: widget.cardImageSet);
 
     return Stack(
       children: <Widget>[

@@ -20,10 +20,14 @@ def convert(input_file: str, output_file: str):
     dst_pixels = dst.load()
     for y in range(height):
         for x in range(width):
-            red, green, blue, alpha = src_pixels[x, y]
-            if alpha < 1:
-                dst_pixels[x, y] = (red, green, blue, alpha)
+            p = src_pixels[x, y]
+            # If alpha is present and less than 1, don't modify.
+            if len(p) == 4 and p[3] < 1:
+                dst_pixels[x, y] = tuple(p)
                 continue
+            red = p[0]
+            green = p[1]
+            blue = p[2]
             # Take RGB inverses and normalize to [0, 1]
             rneg = 1 - red / 255
             bneg = 1 - blue / 255

@@ -70,9 +70,12 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/audio/
-    - assets/cards/
-    - assets/cards/solid/
-    - assets/cards/transparent/
+    - assets/cards/default/
+    - assets/cards/default/solid/
+    - assets/cards/default/transparent/
+    - assets/cards/original/
+    - assets/cards/original/solid/
+    - assets/cards/original/transparent/
     - assets/cats/
     - assets/doc/
     - assets/misc/

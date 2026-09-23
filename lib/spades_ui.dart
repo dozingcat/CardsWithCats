@@ -39,6 +39,7 @@ class SpadesMatchDisplay extends StatefulWidget {
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
+  final CardImageSet cardImageSet;
 
   const SpadesMatchDisplay({
     Key? key,
@@ -52,6 +53,7 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
+    required this.cardImageSet,
   }) : super(key: key);
 
   @override
@@ -506,7 +508,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final layout = computeLayout(context);
+    final layout = computeLayout(context, cardImageSet: widget.cardImageSet);
 
     return Stack(
       children: <Widget>[
