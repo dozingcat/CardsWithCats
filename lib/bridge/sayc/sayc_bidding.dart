@@ -5657,7 +5657,11 @@ List<SaycRule> overcallCueRebidRules(ContractBid theirOpening,
   final ntMin = 25 - cueFloor;
   final minorGameMin = 15;
   final rules = <SaycRule>[];
-  if (theirSuit != null && cheapestLevel(null, over) <= 3) {
+  // With a major the cue has found the eight-card fit, so game is played
+  // there; 3NT is the alternative only for a minor.
+  if (!_isMajor(suit) &&
+      theirSuit != null &&
+      cheapestLevel(null, over) <= 3) {
     rules.add(SaycRule(
       BidAction.noTrump(3),
       BidMeaning(

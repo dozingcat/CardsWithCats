@@ -1549,6 +1549,11 @@ void main() {
       final h = ["1S", "2H", "pass", "2S", "pass"];
       expect(openingBid("T5", "KQJ85", "K54", "Q32", history: h), "3H");
       expect(openingBid("T5", "KQJ85", "AK4", "Q32", history: h), "4H");
+      // With a major the known fit beats 3NT even with their suit stopped.
+      expect(openingBid("A5", "KQJ85", "K54", "Q32", history: h), "4H");
+      expect(openingBid("KJ872", "A95", "KQ3", "64",
+              history: ["1H", "1S", "pass", "2H", "pass"]),
+          "4S");
       final m = ["1S", "2C", "pass", "2S", "pass"];
       expect(openingBid("A5", "K4", "Q54", "AKJ852", history: m), "3NT");
       expect(openingBid("T5", "Q4", "954", "AKJ852", history: m), "3C");
