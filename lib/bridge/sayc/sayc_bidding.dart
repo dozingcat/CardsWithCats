@@ -5464,7 +5464,9 @@ List<SaycRule>? advanceOvercallRules(
   // The invitational jump raise must land below game; over a two-level
   // overcall the invite goes through the cue bid (limit raise) instead,
   // and with no cue available the single raise stretches to cover it.
-  final jumpBelowGame = raiseLevel + 1 < (_isMajor(suit) ? 4 : 5);
+  // A minor's jump raise must also stay below 3NT, the likelier game:
+  // jumping to four of a minor bypasses it on an invitational hand.
+  final jumpBelowGame = raiseLevel + 1 <= 3;
   // Opposite a weak jump overcall the cue would force to game (the
   // "signoff" is already at the four level), so there the wide single
   // raise simply furthers the preempt.
@@ -5610,6 +5612,66 @@ List<SaycRule>? advanceOvercallRules(
   rules.add(SaycRule(BidAction.pass(),
       BidMeaning(description: "No suitable advance of the overcall")));
   return rules;
+}
+
+/// Overcaller's rebid after partner's single raise of a two-level minor
+/// overcall to three, which (with no jump available below 3NT) covers
+/// 6-12. 3NT needs a stopper in their suit; without one, four of the minor
+/// is a game try the advancer accepts from the top of the range.
+List<SaycRule> overcallWideRaiseRebidRules(
+    ContractBid theirOpening, ContractBid overcall) {
+  final suit = overcall.trump!;
+  final theirSuit = theirOpening.trump;
+  bool stopped(HandAnalysis h) => theirSuit == null || h.hasStopper(theirSuit);
+  return [
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+          description: "Game opposite the 6-12 raise, their suit stopped",
+          totalPoints: const Range(low: 16)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 16 && stopped(h),
+    ),
+    SaycRule(
+      BidAction.contract(4, suit),
+      BidMeaning(
+          description:
+              "Game try opposite the 6-12 raise, no stopper for notrump",
+          totalPoints: const Range(low: 16)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 16,
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "No game opposite the 6-12 raise",
+          totalPoints: const Range(high: 15)),
+      ignoreInfo: true,
+    ),
+  ];
+}
+
+/// Advancer's answer to the overcaller's four-of-a-minor game try over our
+/// 6-12 raise.
+List<SaycRule> overcallWideRaiseTryAnswerRules(ContractBid overcall) {
+  final suit = overcall.trump!;
+  return [
+    SaycRule(
+      BidAction.contract(5, suit),
+      BidMeaning(
+          description: "Accepting the game try: top of the 6-12 raise",
+          totalPoints: const Range(low: 10, high: 12)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 10,
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "Declining the game try",
+          totalPoints: const Range(high: 9)),
+      ignoreInfo: true,
+    ),
+  ];
 }
 
 /// Overcaller's rebid after partner cue-bids the opponents' suit (a limit
@@ -7012,6 +7074,35 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         return advanceOvercallRules(openBid, action.contractBid!, last,
             balancingNt: balancing);
       }
+    }
+    if (myActions.length == 1 &&
+        partnerActions.length == 1 &&
+        oppActions.length == 1 &&
+        isSuitBid(myActions[0]) &&
+        openBid.count == 1 &&
+        !_isMajor(myActions[0].contractBid!.trump!) &&
+        myActions[0].contractBid!.count == 2 &&
+        cheapestLevel(myActions[0].contractBid!.trump!, openBid) == 2 &&
+        partnerActions[0] ==
+            BidAction.contract(3, myActions[0].contractBid!.trump!) &&
+        calls[n - 1].bidType == BidType.pass) {
+      // Partner's 6-12 raise of my two-level minor overcall.
+      return overcallWideRaiseRebidRules(openBid, myActions[0].contractBid!);
+    }
+    if (myActions.length == 1 &&
+        partnerActions.length == 2 &&
+        oppActions.length == 1 &&
+        isSuitBid(partnerActions[0]) &&
+        openBid.count == 1 &&
+        !_isMajor(partnerActions[0].contractBid!.trump!) &&
+        partnerActions[0].contractBid!.count == 2 &&
+        myActions[0] ==
+            BidAction.contract(3, partnerActions[0].contractBid!.trump!) &&
+        partnerActions[1] ==
+            BidAction.contract(4, partnerActions[0].contractBid!.trump!) &&
+        calls[n - 1].bidType == BidType.pass) {
+      // Partner's game try over my 6-12 raise of the minor overcall.
+      return overcallWideRaiseTryAnswerRules(partnerActions[0].contractBid!);
     }
     if (myActions.length == 1 &&
         partnerActions.length == 1 &&

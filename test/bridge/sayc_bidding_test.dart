@@ -1520,6 +1520,29 @@ void main() {
       expect(openingBid("T5", "KQJ85", "AK4", "Q32",
               history: [...h, "2S", "pass"]),
           "4H");
+      // A minor never jumps to the four level past 3NT: over a two-level
+      // minor overcall the single raise covers 6-12.
+      expect(openingBid("AK76", "8732", "54", "A32",
+              history: ["1S", "2C", "pass"]),
+          "3C");
+      expect(openingBid("K976", "8732", "54", "A32",
+              history: ["1S", "2C", "pass"]),
+          "3C");
+      // The overcaller bids on over the wide raise only with real extras:
+      // 3NT with a stopper, else a 4m game try that the advancer raises
+      // from the top of the range (self-play deal 149, seed 1).
+      final wide = ["1S", "2C", "pass", "3C", "pass"];
+      expect(openingBid("A5", "K4", "Q54", "AKJ852", history: wide), "3NT");
+      expect(openingBid("T5", "KQ", "954", "AKJ852", history: wide),
+          "Pass"); // 15 total
+      expect(openingBid("97", "4", "AT6", "AKQJ542", history: wide), "4C");
+      final tryH = [...wide, "4C", "pass"];
+      expect(openingBid("KQJT6", "A6", "T98", "873", history: tryH), "5C");
+      expect(openingBid("KJT6", "86", "T98", "Q873", history: tryH), "Pass");
+      // Over a one-level minor overcall the jump to three stays invitational.
+      expect(openingBid("AK76", "873", "A32", "543",
+              history: ["1C", "1D", "pass"]),
+          "3D");
       // Over a 1-level overcall the invitational jump raise is unchanged.
       expect(openingBid("AK63", "A73", "542", "543",
               history: ["1C", "1H", "pass"]),

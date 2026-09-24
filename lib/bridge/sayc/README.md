@@ -360,11 +360,11 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 640 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 869 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 639 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 867 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 424, missed-game 145,
+Seed 1 findings by category: fallback-used 425, missed-game 143,
 silly-strain 50, missed-slam 19, thin-game 1, no-rule-matched 1.
 Fallback-used is monitoring, not failure. The missed-game lint excuses
 stops below game when an opponent-bid suit is unstopped, there is no
