@@ -5460,23 +5460,48 @@ List<SaycRule>? advanceOvercallRules(
           description: "Too weak to advance the overcall",
           totalPoints: const Range(high: 5)),
     ),
-    SaycRule(
-      BidAction.contract(raiseLevel, suit),
-      BidMeaning(
-        description: "Raise: 3+ $name, 6-10 points",
-        totalPoints: const Range(low: 6, high: 10),
-        suitLengths: {suit: const Range(low: 3)},
-      ),
+  ];
+  // The invitational jump raise must land below game; over a two-level
+  // overcall the invite goes through the cue bid (limit raise) instead,
+  // and with no cue available the single raise stretches to cover it.
+  final jumpBelowGame = raiseLevel + 1 < (_isMajor(suit) ? 4 : 5);
+  // Opposite a weak jump overcall the cue would force to game (the
+  // "signoff" is already at the four level), so there the wide single
+  // raise simply furthers the preempt.
+  final cueForInvite = !jumpBelowGame &&
+      !weakJump &&
+      _isMajor(suit) &&
+      theirSuit != null &&
+      cheapestLevel(theirSuit, over) <= 3;
+  final singleMax = jumpBelowGame || cueForInvite ? 10 : 12;
+  rules.add(SaycRule(
+    BidAction.contract(raiseLevel, suit),
+    BidMeaning(
+      description: "Raise: 3+ $name, 6-$singleMax points",
+      totalPoints: Range(low: 6, high: singleMax),
+      suitLengths: {suit: const Range(low: 3)},
     ),
-    SaycRule(
-      BidAction.contract(raiseLevel + 1 > 4 ? 4 : raiseLevel + 1, suit),
+  ));
+  if (jumpBelowGame) {
+    rules.add(SaycRule(
+      BidAction.contract(raiseLevel + 1, suit),
       BidMeaning(
         description: "Jump raise: 3+ $name, 11-12 points",
         totalPoints: const Range(low: 11, high: 12),
         suitLengths: {suit: const Range(low: 3)},
       ),
-    ),
-  ];
+    ));
+  } else if (cueForInvite) {
+    rules.add(SaycRule(
+      BidAction.contract(cheapestLevel(theirSuit!, over), theirSuit),
+      BidMeaning(
+        description: "Cue bid: limit raise of $name, ${11 + shift}-${12 + shift} points",
+        totalPoints: Range(low: 11 + shift, high: 12 + shift),
+        suitLengths: {suit: const Range(low: 3)},
+        artificial: true,
+      ),
+    ));
+  }
   if (_isMajor(suit)) {
     rules.add(SaycRule(
       BidAction.contract(4, suit),

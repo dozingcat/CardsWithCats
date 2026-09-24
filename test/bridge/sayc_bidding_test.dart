@@ -1502,6 +1502,30 @@ void main() {
       expect(openingBid("T62", "9873", "KT8", "987", history: run), "Pass");
     });
 
+    test("invitational raises of a 2-level overcall stay below game", () {
+      // Manual-play hand: the "jump raise" over a 2-level overcall landed
+      // in game with 11 points opposite a 10-point floor; cue-bid instead.
+      final h = ["1S", "2H", "pass"];
+      expect(openingBid("AK63", "A73", "54", "5432", history: h), "2S");
+      expect(openingBid("K963", "A73", "54", "5432", history: h), "3H");
+      expect(openingBid("AK63", "A73", "K4", "5432", history: h), "4H");
+      // Overcaller signs off on a minimum and the advancer respects it;
+      // with 13+ the overcaller accepts.
+      expect(openingBid("T5", "KQJ85", "K54", "Q32",
+              history: [...h, "2S", "pass"]),
+          "3H");
+      expect(openingBid("AK63", "A73", "54", "5432",
+              history: [...h, "2S", "pass", "3H", "pass"]),
+          "Pass");
+      expect(openingBid("T5", "KQJ85", "AK4", "Q32",
+              history: [...h, "2S", "pass"]),
+          "4H");
+      // Over a 1-level overcall the invitational jump raise is unchanged.
+      expect(openingBid("AK63", "A73", "542", "543",
+              history: ["1C", "1H", "pass"]),
+          "3H");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
