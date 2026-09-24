@@ -1474,6 +1474,34 @@ void main() {
           "6S"); // 2 + 1 aces
     });
 
+    test("penalty double of a 1NT opening", () {
+      // 15+ doubles for penalty; below that, pass or the natural overcall.
+      expect(openingBid("AQ87", "KJ4", "AQ92", "K3", history: ["1NT"]), "Double");
+      expect(openingBid("AQ8", "KJ4", "A952", "J32", history: ["1NT"]), "Double");
+      expect(openingBid("AQ8", "KJ4", "A952", "T32", history: ["1NT"]),
+          "Pass");
+      // With 15+ the double takes priority over the 6-card overcall.
+      expect(openingBid("AQ", "KJ4", "QT9752", "K3", history: ["1NT"]), "Double");
+      // Balancing seat plays the same way.
+      expect(openingBid("AQ87", "KJ4", "AQ92", "K3",
+              history: ["1NT", "pass", "pass"]),
+          "Double");
+    });
+
+    test("advancing the penalty double of 1NT", () {
+      // Manual-play hand: the forced advance scrambled to 2C as if the
+      // double were takeout; passing to defend is the default.
+      final h = ["1NT", "X", "pass"];
+      expect(openingBid("T62", "K93", "KT8", "9876", history: h), "Pass");
+      expect(openingBid("K9765", "T3", "862", "A32", history: h), "Pass");
+      // Only a bust with a 5+ suit pulls.
+      expect(openingBid("97652", "T3", "862", "432", history: h), "2S");
+      // If they run, double the runout for penalty with trumps and values.
+      final run = ["1NT", "X", "2H"];
+      expect(openingBid("T62", "KQ93", "KT8", "A87", history: run), "Double");
+      expect(openingBid("T62", "9873", "KT8", "987", history: run), "Pass");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");

@@ -4450,6 +4450,15 @@ List<SaycRule> directActionRules(ContractBid opening,
     // 6-card suit; no conventional defenses (Cappelletti/DONT) yet.
     final rules = <SaycRule>[];
     if (opening.count == 1) {
+      // A double of 1NT is penalty-oriented: a hand at least as good as
+      // their opening (partner pulls only when weak with a long suit).
+      rules.add(SaycRule(
+        BidAction.double(),
+        BidMeaning(
+          description: "Penalty double of 1NT: 15+ HCP",
+          hcp: const Range(low: 15),
+        ),
+      ));
       for (final suit in Suit.values) {
         rules.add(SaycRule(
           BidAction.contract(2, suit),
@@ -4894,6 +4903,56 @@ List<SaycRule>? rhoDoubleRules(BidAction opening) {
 /// when RHO passed the advance is forced. When RHO redoubled, all passes are
 /// suppressed: even a worthless hand runs to a suit rather than offering to
 /// defend a redoubled contract.
+/// Advancing partner's penalty double of a 1NT opening. The double shows a
+/// hand that expects to beat 1NT, so passing to defend is the default; only
+/// a weak hand with a long suit pulls (it offers no defensive tricks and a
+/// suit partscore rates better than defending with nothing). If the
+/// opener's side runs to a suit ([runout] non-null), a double of that is
+/// penalty too.
+List<SaycRule> oneNtDoubleAdvanceRules(ContractBid? runout) {
+  if (runout?.trump != null) {
+    final theirSuit = runout!.trump!;
+    return [
+      SaycRule(
+        BidAction.double(),
+        BidMeaning(
+          description:
+              "Penalty double of the runout: 4+ ${_suitNames[theirSuit]}, 8+ HCP",
+          hcp: const Range(low: 8),
+          suitLengths: {theirSuit: const Range(low: 4)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 8 && h.count(theirSuit) >= 4,
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(description: "Nothing to say over the runout"),
+      ),
+    ];
+  }
+  return [
+    for (final suit in Suit.values)
+      SaycRule(
+        BidAction.contract(2, suit),
+        BidMeaning(
+          description:
+              "Pulling the penalty double: weak with 5+ ${_suitNames[suit]}",
+          hcp: const Range(high: 4),
+          suitLengths: {suit: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.hcp <= 4 &&
+            h.count(suit) >= 5 &&
+            bestSuit(h, Suit.values.where((s) => h.count(s) >= 5)) == suit,
+      ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(description: "Leaving the penalty double in"),
+    ),
+  ];
+}
+
 List<SaycRule> advanceDoubleRules(
     ContractBid theirOpening, ContractBid over, bool forced,
     {bool redoubled = false}) {
@@ -6904,6 +6963,10 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       }
       if (last == null) return null;
       if (action.bidType == BidType.double) {
+        if (openBid.trump == null && openBid.count == 1) {
+          // Partner's double of their 1NT opening is penalty, not takeout.
+          return oneNtDoubleAdvanceRules(last == openBid ? null : last);
+        }
         return advanceDoubleRules(
             openBid, last, calls[n - 1].bidType == BidType.pass,
             redoubled: calls[n - 1].bidType == BidType.redouble);
