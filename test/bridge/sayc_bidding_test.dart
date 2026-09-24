@@ -1542,6 +1542,42 @@ void main() {
           "3H");
     });
 
+    test("advancing an overcall after a negative double: systems on", () {
+      final h = ["1C", "1S", "X"];
+      expect(openingBid("Q87", "J62", "K874", "432", history: h), "2S");
+      expect(openingBid("Q876", "J2", "K874", "432", history: h), "3S");
+      expect(openingBid("Q8765", "J2", "K874", "32", history: h), "4S");
+      expect(openingBid("K63", "A73", "A54", "K543", history: h), "2C");
+      // Redouble: 10+ without a fit; weak hands without a fit pass.
+      expect(openingBid("Q2", "AQ73", "KJ54", "543", history: h), "Redouble");
+      expect(openingBid("32", "Q873", "J954", "543", history: h), "Pass");
+      // The overcaller then answers the cue bid as usual.
+      expect(openingBid("KJ872", "K95", "Q43", "64",
+              history: [...h, "2C", "pass"]),
+          "2S");
+    });
+
+    test("negative doubler reads opener's rebid over the advancer's raise",
+        () {
+      // Self-play deal 280 (seed 1): opener's 2S over the 2H raise is the
+      // cheapest bid, not a 16-18 jump; a 9-count competes no further.
+      final h = ["1D", "1H", "X", "2H", "2S", "pass"];
+      expect(openingBid("A765", "2", "976", "KJ865", history: h), "Pass");
+      expect(openingBid("A765", "2", "976", "AQJ65", history: h),
+          "3S"); // 12 total invites
+    });
+
+    test("opener answers the negative double over the advancer's redouble",
+        () {
+      // Self-play deal 202 (seed 1): the redoubled 1S was passed out.
+      expect(openingBid("AT53", "96", "J6", "AQJ63",
+              history: ["1C", "1S", "X", "XX"]),
+          isNot("Pass"));
+      expect(openingBid("Q94", "K87", "AQT985", "9",
+              history: ["1D", "1H", "X", "XX"]),
+          "2D");
+    });
+
     test("advancer passes the minimum signoff with a limit raise", () {
       final h = ["1H", "1S", "pass", "2H", "pass", "2S", "pass"];
       expect(openingBid("KQ3", "J62", "A854", "832", history: h), "Pass");

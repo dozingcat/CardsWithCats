@@ -5410,7 +5410,7 @@ List<SaycRule> overcallerNewSuitRebidRules(
 /// Advance partner's overcall; `over` is the last bid in the auction.
 List<SaycRule>? advanceOvercallRules(
     ContractBid theirOpening, ContractBid overcall, ContractBid over,
-    {bool balancingNt = false}) {
+    {bool balancingNt = false, bool rhoDoubled = false}) {
   if (overcall.trump == null) {
     if (over == overcall) {
       if (overcall.count == 1) {
@@ -5548,6 +5548,22 @@ List<SaycRule>? advanceOvercallRules(
         totalPoints: Range(low: 13 + shift),
         suitLengths: {suit: const Range(low: 3)},
       ),
+    ));
+  }
+  if (rhoDoubled) {
+    // Over their negative double: 10+ without a fit for partner, warning
+    // that our side may hold the balance of power (with a fit, raise or
+    // cue-bid as usual).
+    rules.add(SaycRule(
+      BidAction.redouble(),
+      BidMeaning(
+        description:
+            "Redouble: 10+ points, usually without $name support",
+        totalPoints: const Range(low: 10),
+        suitLengths: {suit: const Range(high: 2)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 10 && h.count(suit) <= 2,
     ));
   }
 
@@ -6373,7 +6389,11 @@ List<SaycRule> negativeDoubleRebidRules(
 
 /// Responder's second call: we made a negative double, partner bid.
 List<SaycRule> negativeDoubleResponseRebidRules(
-    ContractBid opening, ContractBid overcall, ContractBid rebid) {
+    ContractBid opening, ContractBid overcall, ContractBid rebid,
+    {ContractBid? over}) {
+  // Opener's rebid is "cheapest" or a jump relative to the last bid before
+  // it: the overcall, or the advancer's raise when they competed.
+  final before = over ?? overcall;
   final oSuit = opening.trump!;
   final oMajor = _isMajor(oSuit);
   final oName = _suitNames[oSuit]!;
@@ -6391,7 +6411,7 @@ List<SaycRule> negativeDoubleResponseRebidRules(
     if (rebid.count >= 4) {
       return passOnly("Game reached; nothing more to say");
     }
-    if (rebid.count == cheapestLevel(major, overcall)) {
+    if (rebid.count == cheapestLevel(major, before)) {
       // Partner 13-15.
       return [
         SaycRule(
@@ -6446,7 +6466,7 @@ List<SaycRule> negativeDoubleResponseRebidRules(
     if (rebid.count >= 3) {
       return passOnly("Respecting partner's game decision");
     }
-    if (rebid.count == cheapestLevel(null, overcall)) {
+    if (rebid.count == cheapestLevel(null, before)) {
       // 12-14.
       return [
         SaycRule(
@@ -6490,7 +6510,7 @@ List<SaycRule> negativeDoubleResponseRebidRules(
     ];
   }
   if (rebid.trump == oSuit) {
-    if (rebid.count > cheapestLevel(oSuit, overcall)) {
+    if (rebid.count > cheapestLevel(oSuit, before)) {
       // Opener jumped in his own suit, showing 16+: drive to game with
       // 10+ instead of the usual 13.
       return [
@@ -7088,6 +7108,19 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     }
     if (partnerActions.length == 1 &&
         myActions.isEmpty &&
+        oppActions.length == 2 &&
+        isSuitBid(partnerActions[0]) &&
+        calls[n - 1].bidType == BidType.double &&
+        calls[n - 2] == partnerActions[0]) {
+      // RHO doubled partner's overcall (negative double): systems on, and
+      // redouble becomes available.
+      return advanceOvercallRules(
+          openBid, partnerActions[0].contractBid!,
+          partnerActions[0].contractBid!,
+          rhoDoubled: true);
+    }
+    if (partnerActions.length == 1 &&
+        myActions.isEmpty &&
         oppActions.length <= 2 &&
         (calls[n - 1].bidType == BidType.pass ||
             calls[n - 1].bidType == BidType.contract ||
@@ -7340,7 +7373,8 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
           suitOpening &&
           isSuitBid(rho1)) {
         return negativeDoubleResponseRebidRules(opening.contractBid!,
-            rho1.contractBid!, partnerRebid.contractBid!);
+            rho1.contractBid!, partnerRebid.contractBid!,
+            over: lho.bidType == BidType.contract ? lho.contractBid : null);
       }
       if (partnerRebid.bidType == BidType.pass &&
           lho.bidType == BidType.contract &&
@@ -7444,6 +7478,16 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     // Their jump overcall took away the cue; partner's 4m is the
     // game-forcing raise with no stopper.
     return jumpOvercallRaiseRebidRules(
+        opening.contractBid!, calls[first + 1].contractBid!);
+  }
+  if (n == first + 4 &&
+      isOneLevelSuitOpening(opening) &&
+      isSuitBid(calls[first + 1]) &&
+      calls[first + 2].bidType == BidType.double &&
+      calls[first + 3].bidType == BidType.redouble) {
+    // The advancer redoubled partner's negative double: answer the double
+    // as usual rather than leaving their contract redoubled.
+    return negativeDoubleRebidRules(
         opening.contractBid!, calls[first + 1].contractBid!);
   }
   if (n == first + 4 && calls[first + 3].bidType == BidType.pass) {
