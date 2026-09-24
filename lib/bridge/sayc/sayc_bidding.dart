@@ -5461,21 +5461,20 @@ List<SaycRule>? advanceOvercallRules(
           totalPoints: const Range(high: 5)),
     ),
   ];
-  // The invitational jump raise must land below game; over a two-level
-  // overcall the invite goes through the cue bid (limit raise) instead,
-  // and with no cue available the single raise stretches to cover it.
-  // A minor's jump raise must also stay below 3NT, the likelier game:
-  // jumping to four of a minor bypasses it on an invitational hand.
+  // Raises: the single raise, the invitational jump (only when it stays at
+  // the three level: a major jump would be game, and a minor jump past 3NT
+  // bypasses the likelier game), and the cue bid of their suit as "limit
+  // raise or better" — 11+ when no invitational jump exists, 13+ when it
+  // does. The cue is forcing for a round; the overcaller signs off with a
+  // minimum and the advancer bids game with the values for it (see
+  // [overcallCueRebidRules] and [advanceAfterCueSignoffRules]). Opposite a
+  // weak jump overcall the cue would force to game, so there (and when no
+  // cue is available) the older direct raises stand.
   final jumpBelowGame = raiseLevel + 1 <= 3;
-  // Opposite a weak jump overcall the cue would force to game (the
-  // "signoff" is already at the four level), so there the wide single
-  // raise simply furthers the preempt.
-  final cueForInvite = !jumpBelowGame &&
-      !weakJump &&
-      _isMajor(suit) &&
-      theirSuit != null &&
-      cheapestLevel(theirSuit, over) <= 3;
-  final singleMax = jumpBelowGame || cueForInvite ? 10 : 12;
+  final cueLevel = theirSuit == null ? 99 : cheapestLevel(theirSuit, over);
+  final useCue = !weakJump && theirSuit != null && cueLevel <= 3;
+  final cueFloor = jumpBelowGame ? 13 : 11;
+  final singleMax = jumpBelowGame || useCue ? 10 : 12;
   rules.add(SaycRule(
     BidAction.contract(raiseLevel, suit),
     BidMeaning(
@@ -5493,18 +5492,24 @@ List<SaycRule>? advanceOvercallRules(
         suitLengths: {suit: const Range(low: 3)},
       ),
     ));
-  } else if (cueForInvite) {
-    rules.add(SaycRule(
-      BidAction.contract(cheapestLevel(theirSuit!, over), theirSuit),
-      BidMeaning(
-        description: "Cue bid: limit raise of $name, ${11 + shift}-${12 + shift} points",
-        totalPoints: Range(low: 11 + shift, high: 12 + shift),
-        suitLengths: {suit: const Range(low: 3)},
-        artificial: true,
-      ),
-    ));
   }
-  if (_isMajor(suit)) {
+  final cueRule = !useCue
+      ? null
+      : SaycRule(
+          BidAction.contract(cueLevel, theirSuit),
+          BidMeaning(
+            description:
+                "Cue bid: limit raise or better in $name, $cueFloor+ points",
+            totalPoints: Range(low: cueFloor),
+            suitLengths: {suit: const Range(low: 3)},
+            artificial: true,
+          ),
+        );
+  // A major's support comes first; for a minor, natural notrump with their
+  // suit stopped and the direct minor game rank ahead of the cue (below).
+  if (cueRule != null && _isMajor(suit)) {
+    rules.add(cueRule);
+  } else if (cueRule == null && _isMajor(suit)) {
     rules.add(SaycRule(
       BidAction.contract(4, suit),
       BidMeaning(
@@ -5535,12 +5540,13 @@ List<SaycRule>? advanceOvercallRules(
         totalPoints: Range(low: 10 + shift),
         suitLengths: {s: const Range(low: 5)},
       ),
-      // With game values and support for the overcall, the forcing
-      // cue-bid (or game raise) below is preferred to this non-forcing
+      // With support and cue-bid values (or game values when no cue is
+      // available), the forcing raise is preferred to this non-forcing
       // change of suit, which the overcaller may pass.
       require: (h) =>
           newSuitChoice(h) == s &&
-          (h.totalPoints <= 12 + shift || h.count(suit) < 3),
+          (h.count(suit) < 3 ||
+              h.totalPoints < (useCue ? cueFloor : 13 + shift)),
     ));
   }
   final ntLevel = cheapestLevel(null, over);
@@ -5575,7 +5581,9 @@ List<SaycRule>? advanceOvercallRules(
     ));
   }
   if (!_isMajor(suit) && cheapestLevel(suit, over) <= 5) {
-    // Game values but no stopper for notrump: raise the minor to game.
+    // Game values but no stopper for notrump: raise the minor to game with
+    // a real fit, otherwise cue-bid (or, with no cue, jump raise as a
+    // stopgap with three trumps).
     rules.add(SaycRule(
       BidAction.contract(5, suit),
       BidMeaning(
@@ -5584,10 +5592,9 @@ List<SaycRule>? advanceOvercallRules(
         suitLengths: {suit: const Range(low: 4)},
       ),
     ));
-    // Only three trumps and no stopper: cue-bid their suit (limit raise
-    // or better) so the overcaller can choose 3NT with a stopper.
-    final cueLevel = theirSuit != null ? cheapestLevel(theirSuit, over) : 99;
-    if (theirSuit != null && cueLevel <= 3) {
+    if (cueRule != null) {
+      rules.add(cueRule);
+    } else if (theirSuit != null && cueLevel <= 3) {
       rules.add(SaycRule(
         BidAction.contract(cueLevel, theirSuit),
         BidMeaning(
@@ -5598,7 +5605,6 @@ List<SaycRule>? advanceOvercallRules(
         ),
       ));
     } else if (raiseLevel + 1 < 5) {
-      // No cue available: jump raise as a stopgap.
       rules.add(SaycRule(
         BidAction.contract(raiseLevel + 1, suit),
         BidMeaning(
@@ -5614,66 +5620,6 @@ List<SaycRule>? advanceOvercallRules(
   return rules;
 }
 
-/// Overcaller's rebid after partner's single raise of a two-level minor
-/// overcall to three, which (with no jump available below 3NT) covers
-/// 6-12. 3NT needs a stopper in their suit; without one, four of the minor
-/// is a game try the advancer accepts from the top of the range.
-List<SaycRule> overcallWideRaiseRebidRules(
-    ContractBid theirOpening, ContractBid overcall) {
-  final suit = overcall.trump!;
-  final theirSuit = theirOpening.trump;
-  bool stopped(HandAnalysis h) => theirSuit == null || h.hasStopper(theirSuit);
-  return [
-    SaycRule(
-      BidAction.noTrump(3),
-      BidMeaning(
-          description: "Game opposite the 6-12 raise, their suit stopped",
-          totalPoints: const Range(low: 16)),
-      ignoreInfo: true,
-      require: (h) => h.totalPoints >= 16 && stopped(h),
-    ),
-    SaycRule(
-      BidAction.contract(4, suit),
-      BidMeaning(
-          description:
-              "Game try opposite the 6-12 raise, no stopper for notrump",
-          totalPoints: const Range(low: 16)),
-      ignoreInfo: true,
-      require: (h) => h.totalPoints >= 16,
-    ),
-    SaycRule(
-      BidAction.pass(),
-      BidMeaning(
-          description: "No game opposite the 6-12 raise",
-          totalPoints: const Range(high: 15)),
-      ignoreInfo: true,
-    ),
-  ];
-}
-
-/// Advancer's answer to the overcaller's four-of-a-minor game try over our
-/// 6-12 raise.
-List<SaycRule> overcallWideRaiseTryAnswerRules(ContractBid overcall) {
-  final suit = overcall.trump!;
-  return [
-    SaycRule(
-      BidAction.contract(5, suit),
-      BidMeaning(
-          description: "Accepting the game try: top of the 6-12 raise",
-          totalPoints: const Range(low: 10, high: 12)),
-      ignoreInfo: true,
-      require: (h) => h.totalPoints >= 10,
-    ),
-    SaycRule(
-      BidAction.pass(),
-      BidMeaning(
-          description: "Declining the game try",
-          totalPoints: const Range(high: 9)),
-      ignoreInfo: true,
-    ),
-  ];
-}
-
 /// Overcaller's rebid after partner cue-bids the opponents' suit (a limit
 /// raise or better of the overcall). The cue is forcing: with a stopper in
 /// their suit choose 3NT, with extras raise to game, otherwise sign off in
@@ -5684,24 +5630,32 @@ List<SaycRule> overcallCueRebidRules(ContractBid theirOpening,
   final name = _suitNames[suit]!;
   final theirSuit = theirOpening.trump;
   final gameCount = _isMajor(suit) ? 4 : 5;
+  // The cue shows 11+ when advancer had no invitational jump available,
+  // 13+ when it did (see [advanceOvercallRules]).
+  final cueFloor = cheapestLevel(suit, overcall) + 1 <= 3 ? 13 : 11;
+  final ntMin = 25 - cueFloor;
+  final minorGameMin = 15;
   final rules = <SaycRule>[];
   if (theirSuit != null && cheapestLevel(null, over) <= 3) {
     rules.add(SaycRule(
       BidAction.noTrump(3),
       BidMeaning(
           description: "Game in notrump: ${_suitNames[theirSuit]} stopped",
-          totalPoints: const Range(low: 12)),
+          totalPoints: Range(low: ntMin)),
       ignoreInfo: true,
-      require: (h) => h.totalPoints >= 12 && h.hasStopper(theirSuit),
+      require: (h) => h.totalPoints >= ntMin && h.hasStopper(theirSuit),
     ));
   }
   final level = cheapestLevel(suit, over);
   if (level <= gameCount) {
+    final gameMin = _isMajor(suit) ? 13 : minorGameMin;
     rules.add(SaycRule(
       BidAction.contract(gameCount, suit),
       BidMeaning(
           description: "Game raise: extra values opposite the cue bid",
-          totalPoints: const Range(low: 13)),
+          totalPoints: Range(low: gameMin)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= gameMin,
     ));
   }
   if (forced && level <= gameCount) {
@@ -5715,6 +5669,70 @@ List<SaycRule> overcallCueRebidRules(ContractBid theirOpening,
         BidMeaning(description: "Nothing more to say over the cue bid")));
   }
   return rules;
+}
+
+/// Advancer's call after cue-bidding a raise of partner's overcall and
+/// hearing the answer. Over the minimum signoff: game with the values for
+/// it (4M with 13+; for a minor 3NT with 13+ and a stopper in their suit,
+/// five with 16+), otherwise pass. Over game or 3NT, pass.
+List<SaycRule> advanceAfterCueSignoffRules(
+    ContractBid theirOpening, ContractBid overcall, ContractBid answer) {
+  final suit = overcall.trump!;
+  final name = _suitNames[suit]!;
+  final theirSuit = theirOpening.trump!;
+  final done = [
+    SaycRule(BidAction.pass(),
+        BidMeaning(description: "Partner placed the contract"))
+  ];
+  if (answer.trump != suit || answer.count >= (_isMajor(suit) ? 4 : 5)) {
+    return done;
+  }
+  if (_isMajor(suit)) {
+    return [
+      SaycRule(
+        BidAction.contract(4, suit),
+        BidMeaning(
+            description: "Game opposite the minimum overcall",
+            totalPoints: const Range(low: 13)),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 13,
+      ),
+      SaycRule(
+        BidAction.pass(),
+        BidMeaning(
+            description: "Limit raise opposite a minimum",
+            totalPoints: const Range(high: 12)),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  return [
+    if (answer.count <= 3)
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description:
+                "Game in notrump: ${_suitNames[theirSuit]} stopped, 13+",
+            totalPoints: const Range(low: 13)),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 13 && h.hasStopper(theirSuit),
+      ),
+    SaycRule(
+      BidAction.contract(5, suit),
+      BidMeaning(
+          description: "Game in $name opposite the minimum overcall",
+          totalPoints: const Range(low: 16)),
+      ignoreInfo: true,
+      require: (h) => h.totalPoints >= 16,
+    ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description: "No game opposite the minimum overcall",
+          totalPoints: const Range(high: 15)),
+      ignoreInfo: true,
+    ),
+  ];
 }
 
 /// Responder's call after passing, when partner reopened with a double.
@@ -7076,33 +7094,18 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       }
     }
     if (myActions.length == 1 &&
-        partnerActions.length == 1 &&
-        oppActions.length == 1 &&
-        isSuitBid(myActions[0]) &&
-        openBid.count == 1 &&
-        !_isMajor(myActions[0].contractBid!.trump!) &&
-        myActions[0].contractBid!.count == 2 &&
-        cheapestLevel(myActions[0].contractBid!.trump!, openBid) == 2 &&
-        partnerActions[0] ==
-            BidAction.contract(3, myActions[0].contractBid!.trump!) &&
-        calls[n - 1].bidType == BidType.pass) {
-      // Partner's 6-12 raise of my two-level minor overcall.
-      return overcallWideRaiseRebidRules(openBid, myActions[0].contractBid!);
-    }
-    if (myActions.length == 1 &&
         partnerActions.length == 2 &&
-        oppActions.length == 1 &&
+        oppActions.skip(1).every((a) => a.bidType == BidType.double) &&
         isSuitBid(partnerActions[0]) &&
-        openBid.count == 1 &&
-        !_isMajor(partnerActions[0].contractBid!.trump!) &&
-        partnerActions[0].contractBid!.count == 2 &&
-        myActions[0] ==
-            BidAction.contract(3, partnerActions[0].contractBid!.trump!) &&
-        partnerActions[1] ==
-            BidAction.contract(4, partnerActions[0].contractBid!.trump!) &&
+        openBid.trump != null &&
+        myActions[0].bidType == BidType.contract &&
+        myActions[0].contractBid!.trump == openBid.trump &&
+        partnerActions[1].bidType == BidType.contract &&
         calls[n - 1].bidType == BidType.pass) {
-      // Partner's game try over my 6-12 raise of the minor overcall.
-      return overcallWideRaiseTryAnswerRules(partnerActions[0].contractBid!);
+      // Partner answered my cue-bid raise of the overcall (a double of the
+      // cue by their side changes nothing).
+      return advanceAfterCueSignoffRules(openBid,
+          partnerActions[0].contractBid!, partnerActions[1].contractBid!);
     }
     if (myActions.length == 1 &&
         partnerActions.length == 1 &&

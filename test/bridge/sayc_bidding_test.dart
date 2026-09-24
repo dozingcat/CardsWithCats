@@ -1502,51 +1502,61 @@ void main() {
       expect(openingBid("T62", "9873", "KT8", "987", history: run), "Pass");
     });
 
-    test("invitational raises of a 2-level overcall stay below game", () {
-      // Manual-play hand: the "jump raise" over a 2-level overcall landed
-      // in game with 11 points opposite a 10-point floor; cue-bid instead.
+    test("cue bid of their suit is a limit raise or better", () {
+      // Manual-play hands: over a two-level overcall the invitational jump
+      // raise would be game (or pass 3NT for a minor), so the cue bid
+      // carries every 11+ raise, majors and minors alike.
       final h = ["1S", "2H", "pass"];
       expect(openingBid("AK63", "A73", "54", "5432", history: h), "2S");
+      expect(openingBid("AK63", "A73", "K4", "5432", history: h), "2S");
       expect(openingBid("K963", "A73", "54", "5432", history: h), "3H");
-      expect(openingBid("AK63", "A73", "K4", "5432", history: h), "4H");
-      // Overcaller signs off on a minimum and the advancer respects it;
-      // with 13+ the overcaller accepts.
-      expect(openingBid("T5", "KQJ85", "K54", "Q32",
-              history: [...h, "2S", "pass"]),
-          "3H");
-      expect(openingBid("AK63", "A73", "54", "5432",
-              history: [...h, "2S", "pass", "3H", "pass"]),
-          "Pass");
-      expect(openingBid("T5", "KQJ85", "AK4", "Q32",
-              history: [...h, "2S", "pass"]),
-          "4H");
-      // A minor never jumps to the four level past 3NT: over a two-level
-      // minor overcall the single raise covers 6-12.
-      expect(openingBid("AK76", "8732", "54", "A32",
-              history: ["1S", "2C", "pass"]),
-          "3C");
-      expect(openingBid("K976", "8732", "54", "A32",
-              history: ["1S", "2C", "pass"]),
-          "3C");
-      // The overcaller bids on over the wide raise only with real extras:
-      // 3NT with a stopper, else a 4m game try that the advancer raises
-      // from the top of the range (self-play deal 149, seed 1).
-      final wide = ["1S", "2C", "pass", "3C", "pass"];
-      expect(openingBid("A5", "K4", "Q54", "AKJ852", history: wide), "3NT");
-      expect(openingBid("T5", "KQ", "954", "AKJ852", history: wide),
-          "Pass"); // 15 total
-      expect(openingBid("97", "4", "AT6", "AKQJ542", history: wide), "4C");
-      final tryH = [...wide, "4C", "pass"];
-      expect(openingBid("KQJT6", "A6", "T98", "873", history: tryH), "5C");
-      expect(openingBid("KJT6", "86", "T98", "Q873", history: tryH), "Pass");
-      // Over a one-level minor overcall the jump to three stays invitational.
+      final m = ["1S", "2C", "pass"];
+      expect(openingBid("AK76", "8732", "54", "A32", history: m), "2S");
+      expect(openingBid("9876", "AK3", "542", "AK2", history: m), "2S");
+      expect(openingBid("K976", "8732", "54", "A32", history: m), "3C");
+      // Over a one-level overcall the invitational jump stays, so the cue
+      // shows 13+.
+      final one = ["1C", "1H", "pass"];
+      expect(openingBid("AK63", "A73", "542", "543", history: one), "3H");
+      expect(openingBid("AK63", "A73", "K42", "543", history: one), "2C");
       expect(openingBid("AK76", "873", "A32", "543",
               history: ["1C", "1D", "pass"]),
           "3D");
-      // Over a 1-level overcall the invitational jump raise is unchanged.
-      expect(openingBid("AK63", "A73", "542", "543",
-              history: ["1C", "1H", "pass"]),
-          "3H");
+    });
+
+    test("overcaller's rebid over the cue bid", () {
+      final h = ["1S", "2H", "pass", "2S", "pass"];
+      expect(openingBid("T5", "KQJ85", "K54", "Q32", history: h), "3H");
+      expect(openingBid("T5", "KQJ85", "AK4", "Q32", history: h), "4H");
+      final m = ["1S", "2C", "pass", "2S", "pass"];
+      expect(openingBid("A5", "K4", "Q54", "AKJ852", history: m), "3NT");
+      expect(openingBid("T5", "Q4", "954", "AKJ852", history: m), "3C");
+      // Self-play deal 149 (seed 1): the long-suit 17-count now reaches
+      // the making 5D opposite the cue.
+      expect(openingBid("KQJT6", "A6", "T983", "87",
+              history: ["pass", "1H", "2D", "pass"]),
+          "2H");
+      expect(openingBid("97", "4", "AKQJ542", "AT6",
+              history: ["pass", "1H", "2D", "pass", "2H", "pass"]),
+          "5D");
+    });
+
+    test("advancer continues after the overcaller's minimum signoff", () {
+      final h = ["1S", "2H", "pass", "2S", "pass", "3H", "pass"];
+      expect(openingBid("AK63", "A73", "K4", "5432", history: h), "4H");
+      expect(openingBid("AK63", "A73", "54", "5432", history: h), "Pass");
+      final m = ["1S", "2C", "pass", "2S", "pass", "3C", "pass"];
+      expect(openingBid("A876", "AK3", "542", "K32", history: m), "3NT");
+      expect(openingBid("9876", "AK3", "A42", "AK2", history: m), "5C");
+      expect(openingBid("9876", "AK3", "542", "AK2", history: m), "Pass");
+      expect(openingBid("AK63", "A73", "54", "5432",
+              history: ["1S", "2H", "pass", "2S", "pass", "4H", "pass"]),
+          "Pass");
+      // Self-play deal 1022 (seed 1): opener doubling the 13+ cue changes
+      // nothing, and the advancer still bids game.
+      expect(openingBid("AQT2", "KQ2", "54", "A964",
+              history: ["1D", "1S", "pass", "2D", "X", "2S", "pass"]),
+          "4S");
     });
 
     test("raises keep their meanings", () {
