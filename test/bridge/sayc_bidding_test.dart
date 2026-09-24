@@ -1524,6 +1524,27 @@ void main() {
           "3D");
     });
 
+    test("preemptive jump to game in partner's major", () {
+      final h = ["1S", "2H", "pass"];
+      // Weak with five trumps, or four and a singleton or void.
+      expect(openingBid("5", "KJ873", "Q8742", "32", history: h), "4H");
+      expect(openingBid("-", "Q8732", "KJ8742", "32", history: h), "4H");
+      expect(openingBid("5", "KJ87", "Q87432", "32", history: h), "4H");
+      // Four trumps without shortness, or only three, make the plain raise.
+      expect(openingBid("T5", "KJ87", "Q874", "432", history: h), "3H");
+      expect(openingBid("5", "KJ8", "Q87432", "432", history: h), "3H");
+      // Strong hands still cue-bid.
+      expect(openingBid("5", "KQ873", "AK742", "32", history: h), "2S");
+      // Also over a one-level overcall.
+      expect(openingBid("5", "KJ873", "Q8742", "32",
+              history: ["1C", "1H", "pass"]),
+          "4H");
+      // Over a weak jump overcall 4H is the plain raise, not a new rung.
+      expect(openingBid("T5", "KJ87", "Q874", "432",
+              history: ["1S", "3H", "pass"]),
+          "4H");
+    });
+
     test("overcaller's rebid over the cue bid", () {
       final h = ["1S", "2H", "pass", "2S", "pass"];
       expect(openingBid("T5", "KQJ85", "K54", "Q32", history: h), "3H");

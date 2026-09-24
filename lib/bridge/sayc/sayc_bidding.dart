@@ -5475,6 +5475,27 @@ List<SaycRule>? advanceOvercallRules(
   final useCue = !weakJump && theirSuit != null && cueLevel <= 3;
   final cueFloor = jumpBelowGame ? 13 : 11;
   final singleMax = jumpBelowGame || useCue ? 10 : 12;
+  if (_isMajor(suit) && raiseLevel < 4) {
+    // Preemptive jump to game: bid to the level of the fit at once with a
+    // weak, shapely hand (strong raises go through the cue bid). Matches
+    // responder's preemptive raise in competition.
+    bool shortSuit(HandAnalysis h) =>
+        Suit.values.any((x) => x != suit && h.count(x) <= 1);
+    rules.add(SaycRule(
+      BidAction.contract(4, suit),
+      BidMeaning(
+        description:
+            "Preemptive raise to game: 5+ $name (or 4 with a singleton or void), 6-10 points",
+        totalPoints: const Range(low: 6, high: 10),
+        suitLengths: {suit: const Range(low: 4)},
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.totalPoints >= 6 &&
+          h.totalPoints <= 10 &&
+          (h.count(suit) >= 5 || (h.count(suit) == 4 && shortSuit(h))),
+    ));
+  }
   rules.add(SaycRule(
     BidAction.contract(raiseLevel, suit),
     BidMeaning(
