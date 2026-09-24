@@ -5461,19 +5461,20 @@ List<SaycRule>? advanceOvercallRules(
           totalPoints: const Range(high: 5)),
     ),
   ];
-  // Raises: the single raise, the invitational jump (only when it stays at
-  // the three level: a major jump would be game, and a minor jump past 3NT
-  // bypasses the likelier game), and the cue bid of their suit as "limit
-  // raise or better" — 11+ when no invitational jump exists, 13+ when it
-  // does. The cue is forcing for a round; the overcaller signs off with a
-  // minimum and the advancer bids game with the values for it (see
-  // [overcallCueRebidRules] and [advanceAfterCueSignoffRules]). Opposite a
-  // weak jump overcall the cue would force to game, so there (and when no
-  // cue is available) the older direct raises stand.
+  // Raises, as in SAYC: the single raise (6-10, 3+ trumps), preemptive
+  // jumps (a single jump with four trumps, the jump to game in a major with
+  // more shape), and the cue bid of their suit as "limit raise or better"
+  // (11+), forcing for a round: the overcaller signs off with a minimum and
+  // the advancer bids game with the values for it (see
+  // [overcallCueRebidRules] and [advanceAfterCueSignoffRules]). Jumps stay
+  // at the three level (a minor jump past 3NT bypasses the likelier game).
+  // Opposite a weak jump overcall the cue would force to game, so there
+  // (and when no cue is available) the older direct raises stand, with an
+  // invitational jump.
   final jumpBelowGame = raiseLevel + 1 <= 3;
   final cueLevel = theirSuit == null ? 99 : cheapestLevel(theirSuit, over);
   final useCue = !weakJump && theirSuit != null && cueLevel <= 3;
-  final cueFloor = jumpBelowGame ? 13 : 11;
+  const cueFloor = 11;
   final singleMax = jumpBelowGame || useCue ? 10 : 12;
   if (_isMajor(suit) && raiseLevel < 4) {
     // Preemptive jump to game: bid to the level of the fit at once with a
@@ -5496,15 +5497,16 @@ List<SaycRule>? advanceOvercallRules(
           (h.count(suit) >= 5 || (h.count(suit) == 4 && shortSuit(h))),
     ));
   }
-  rules.add(SaycRule(
-    BidAction.contract(raiseLevel, suit),
-    BidMeaning(
-      description: "Raise: 3+ $name, 6-$singleMax points",
-      totalPoints: Range(low: 6, high: singleMax),
-      suitLengths: {suit: const Range(low: 3)},
-    ),
-  ));
-  if (jumpBelowGame) {
+  if (jumpBelowGame && useCue) {
+    rules.add(SaycRule(
+      BidAction.contract(raiseLevel + 1, suit),
+      BidMeaning(
+        description: "Preemptive jump raise: 4+ $name, 6-10 points",
+        totalPoints: const Range(low: 6, high: 10),
+        suitLengths: {suit: const Range(low: 4)},
+      ),
+    ));
+  } else if (jumpBelowGame) {
     rules.add(SaycRule(
       BidAction.contract(raiseLevel + 1, suit),
       BidMeaning(
@@ -5514,6 +5516,14 @@ List<SaycRule>? advanceOvercallRules(
       ),
     ));
   }
+  rules.add(SaycRule(
+    BidAction.contract(raiseLevel, suit),
+    BidMeaning(
+      description: "Raise: 3+ $name, 6-$singleMax points",
+      totalPoints: Range(low: 6, high: singleMax),
+      suitLengths: {suit: const Range(low: 3)},
+    ),
+  ));
   final cueRule = !useCue
       ? null
       : SaycRule(
@@ -5651,10 +5661,9 @@ List<SaycRule> overcallCueRebidRules(ContractBid theirOpening,
   final name = _suitNames[suit]!;
   final theirSuit = theirOpening.trump;
   final gameCount = _isMajor(suit) ? 4 : 5;
-  // The cue shows 11+ when advancer had no invitational jump available,
-  // 13+ when it did (see [advanceOvercallRules]).
-  final cueFloor = cheapestLevel(suit, overcall) + 1 <= 3 ? 13 : 11;
-  final ntMin = 25 - cueFloor;
+  // The cue shows 11+ (limit raise or better; see [advanceOvercallRules]).
+  const cueFloor = 11;
+  const ntMin = 25 - cueFloor;
   final minorGameMin = 15;
   final rules = <SaycRule>[];
   // With a major the cue has found the eight-card fit, so game is played

@@ -1514,14 +1514,38 @@ void main() {
       expect(openingBid("AK76", "8732", "54", "A32", history: m), "2S");
       expect(openingBid("9876", "AK3", "542", "AK2", history: m), "2S");
       expect(openingBid("K976", "8732", "54", "A32", history: m), "3C");
-      // Over a one-level overcall the invitational jump stays, so the cue
-      // shows 13+.
+      // Over a one-level overcall too: the cue shows 11+, and the jump
+      // raise is preemptive (SAYC).
       final one = ["1C", "1H", "pass"];
-      expect(openingBid("AK63", "A73", "542", "543", history: one), "3H");
+      expect(openingBid("AK63", "A73", "542", "543", history: one), "2C");
       expect(openingBid("AK63", "A73", "K42", "543", history: one), "2C");
       expect(openingBid("AK76", "873", "A32", "543",
               history: ["1C", "1D", "pass"]),
+          "2C");
+    });
+
+    test("single jump raise of an overcall is preemptive", () {
+      final h = ["1H", "1S", "pass"];
+      expect(openingBid("Q876", "J2", "K874", "432", history: h), "3S");
+      expect(openingBid("Q87", "J62", "K874", "432", history: h), "2S");
+      // Five trumps (or four with shortness) jump to game instead.
+      expect(openingBid("Q8765", "J2", "K874", "32", history: h), "4S");
+      expect(openingBid("Q876", "J2", "K8742", "32", history: h), "3S");
+      expect(openingBid("Q876", "J32", "K8742", "3", history: h), "4S");
+      // Minor: preemptive 3D over 1C 1D.
+      expect(openingBid("Q76", "J2", "K874", "8432",
+              history: ["1C", "1D", "pass"]),
           "3D");
+      // With no cue available (their 1NT) the jump stays invitational.
+      expect(openingBid("A76", "K32", "Q874", "432",
+              history: ["1NT", "2H", "pass"]),
+          "3H");
+    });
+
+    test("advancer passes the minimum signoff with a limit raise", () {
+      final h = ["1H", "1S", "pass", "2H", "pass", "2S", "pass"];
+      expect(openingBid("KQ3", "J62", "A854", "832", history: h), "Pass");
+      expect(openingBid("KQ3", "J62", "A854", "K32", history: h), "4S");
     });
 
     test("preemptive jump to game in partner's major", () {
