@@ -58,8 +58,8 @@ const cardImageSets = [
   CardImageSet("original", "Original", .assets, "assets/cards/original", 500.0 / 726),
 ];
 
-CardImageSet cardImageSetForName(String? name) {
-  return cardImageSets.firstWhere((s) => s.name == name, orElse: () => defaultCardImageSet);
+CardImageSet cardImageSetForName(String? name, List<CardImageSet> imageSets) {
+  return imageSets.firstWhere((s) => s.name == name, orElse: () => defaultCardImageSet);
 }
 
 class Layout {
@@ -245,11 +245,20 @@ class PositionedCard extends StatelessWidget {
   }
 }
 
-// Shows sample cards from each image set and lets the user select one.
-class CardImageSetPicker extends StatelessWidget {
+// Shows sample cards from the selected image set, with a button to show all
+// available sets (one per line) and choose a different one.
+class CardImageSetPicker extends StatefulWidget {
   final List<CardImageSet> imageSets;
   final CardImageSet selectedSet;
   final void Function(CardImageSet) onSelected;
+  // If either is set, shows a button to add a new image set. If both are set,
+  // the button shows a menu to choose between them.
+  final void Function()? onAddFromDirectory;
+  final void Function()? onAddFromZip;
+  // If set, shows a delete button on filesystem (user-imported) image sets.
+  final void Function(CardImageSet)? onDelete;
+  // Shows a progress indicator in place of the add button.
+  final bool isImporting;
   final double cardHeight;
 
   static final sampleCards = [
@@ -263,10 +272,24 @@ class CardImageSetPicker extends StatelessWidget {
     required this.imageSets,
     required this.selectedSet,
     required this.onSelected,
+    this.onAddFromDirectory,
+    this.onAddFromZip,
+    this.onDelete,
+    this.isImporting = false,
     this.cardHeight = 56,
   });
 
+  @override
+  State<CardImageSetPicker> createState() => _CardImageSetPickerState();
+}
+
+class _CardImageSetPickerState extends State<CardImageSetPicker> {
+  bool expanded = false;
+
+  static const nameStyle = TextStyle(fontSize: 14);
+
   Widget _sampleCard(CardImageSet imageSet, PlayingCard card) {
+    final cardHeight = widget.cardHeight;
     final cornerRadius = cardHeight * imageSet.aspectRatio * 0.05;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 1),
@@ -286,12 +309,51 @@ class CardImageSetPicker extends StatelessWidget {
     );
   }
 
-  Widget _imageSetTile(CardImageSet imageSet) {
-    final isSelected = imageSet.name == selectedSet.name;
+  // Uses a fixed width so that names line up regardless of each set's aspect ratio.
+  Widget _sampleCards(CardImageSet imageSet) {
+    final numCards = CardImageSetPicker.sampleCards.length;
+    return SizedBox(
+      width: numCards * (widget.cardHeight * 0.75 + 2),
+      child: Row(
+        children: CardImageSetPicker.sampleCards.map((c) => _sampleCard(imageSet, c)).toList(),
+      ),
+    );
+  }
+
+  Widget _imageSetName(CardImageSet imageSet, {bool bold = false}) {
+    return Text(
+      imageSet.displayName,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: bold ? nameStyle.copyWith(fontWeight: FontWeight.bold) : nameStyle,
+    );
+  }
+
+  Widget _collapsed() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+      child: Row(children: [
+        _sampleCards(widget.selectedSet),
+        const SizedBox(width: 12),
+        Expanded(child: _imageSetName(widget.selectedSet)),
+        TextButton(
+          onPressed: () => setState(() {expanded = true;}),
+          child: const Text("Change"),
+        ),
+      ]),
+    );
+  }
+
+  Widget _imageSetRow(CardImageSet imageSet) {
+    final isSelected = imageSet.name == widget.selectedSet.name;
+    final canDelete = widget.onDelete != null && imageSet.source == CardImageSource.filesystem;
     return GestureDetector(
-      onTap: () => onSelected(imageSet),
+      onTap: () {
+        widget.onSelected(imageSet);
+        setState(() {expanded = false;});
+      },
       child: Container(
-        margin: const EdgeInsets.all(4),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.withValues(alpha: 0.15) : null,
@@ -301,28 +363,73 @@ class CardImageSetPicker extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: sampleCards.map((c) => _sampleCard(imageSet, c)).toList(),
-          ),
-          const SizedBox(height: 4),
-          Text(imageSet.displayName, style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          )),
+        child: Row(children: [
+          _sampleCards(imageSet),
+          const SizedBox(width: 12),
+          Expanded(child: _imageSetName(imageSet, bold: isSelected)),
+          if (canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: "Delete",
+              visualDensity: VisualDensity.compact,
+              onPressed: () => widget.onDelete!(imageSet),
+            ),
         ]),
       ),
     );
   }
 
+  bool get _canAdd => widget.onAddFromDirectory != null || widget.onAddFromZip != null;
+
+  Widget _addButton() {
+    const icon = Icon(Icons.add_photo_alternate_outlined);
+    const label = Text("Add...", overflow: TextOverflow.ellipsis);
+    final fromDirectory = widget.onAddFromDirectory;
+    final fromZip = widget.onAddFromZip;
+    if (fromDirectory != null && fromZip != null) {
+      return MenuAnchor(
+        menuChildren: [
+          MenuItemButton(onPressed: fromDirectory, child: const Text("From folder...")),
+          MenuItemButton(onPressed: fromZip, child: const Text("From zip file...")),
+        ],
+        builder: (context, controller, child) => TextButton.icon(
+          onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+          icon: icon,
+          label: label,
+        ),
+      );
+    }
+    return TextButton.icon(onPressed: fromDirectory ?? fromZip, icon: icon, label: label);
+  }
+
+  Widget _expanded() {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      ...widget.imageSets.map(_imageSetRow),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(children: [
+          if (_canAdd && widget.isImporting) ...const [
+            Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+            Flexible(child: Text("Importing...", overflow: TextOverflow.ellipsis)),
+          ],
+          if (_canAdd && !widget.isImporting)
+            Flexible(child: _addButton()),
+          const Spacer(),
+          TextButton(
+            onPressed: () => setState(() {expanded = false;}),
+            child: const Text("Done"),
+          ),
+        ]),
+      ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(children: imageSets.map(_imageSetTile).toList()),
-    );
+    return expanded ? _expanded() : _collapsed();
   }
 }
 
