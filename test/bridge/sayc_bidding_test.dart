@@ -1679,6 +1679,15 @@ void main() {
           "3NT");
     });
 
+    test("fallback plays game in a long major rather than 3NT", () {
+      // Manual-play hand: seven spades opposite partner's 1NT advance chose
+      // 3NT because no support was promised.
+      final h = ["1C", "1S", "pass", "1NT", "pass"];
+      expect(openingBid("AQT9763", "KQ2", "7", "A2", history: h), "4S");
+      // Six cards in an unbalanced hand too.
+      expect(openingBid("AQ9763", "KQ2", "7", "A32", history: h), "4S");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
