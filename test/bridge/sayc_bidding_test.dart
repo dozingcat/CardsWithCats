@@ -1684,8 +1684,9 @@ void main() {
       // 3NT because no support was promised.
       final h = ["1C", "1S", "pass", "1NT", "pass"];
       expect(openingBid("AQT9763", "KQ2", "7", "A2", history: h), "4S");
-      // Six cards in an unbalanced hand too.
+      // Six cards too, including the flattest 6-3-2-2 shape.
       expect(openingBid("AQ9763", "KQ2", "7", "A32", history: h), "4S");
+      expect(openingBid("AQ9763", "KQ2", "72", "A3", history: h), "4S");
     });
 
     test("raises keep their meanings", () {

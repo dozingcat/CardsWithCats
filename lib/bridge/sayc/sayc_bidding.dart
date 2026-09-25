@@ -7019,13 +7019,12 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
         final g = minorGame(fit);
         if (g != null) return g;
       }
-      // A long major of our own is the trump suit even with no support
-      // promised: seven cards, or six in an unbalanced hand, play game
-      // there rather than in 3NT (partner may hold a void, but the suit's
-      // tricks need no entries and ruffs protect the weak side).
+      // A long major of our own (six or more cards) is the trump suit even
+      // with no support promised: play game there rather than in 3NT
+      // (partner may hold a void, but the suit's tricks need no entries
+      // and ruffs protect the weak side).
       for (final major in [Suit.spades, Suit.hearts]) {
-        final length = analysis.count(major);
-        if ((length >= 7 || (length >= 6 && !analysis.isBalanced)) &&
+        if (analysis.count(major) >= 6 &&
             !enemySuits.contains(major) &&
             cheapestLevel(major, lastBid) <= 4) {
           return result(BidAction.contract(4, major),
