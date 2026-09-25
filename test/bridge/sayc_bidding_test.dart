@@ -962,7 +962,9 @@ void main() {
       expect(openingBid("K32", "A32", "K2", "KQ432", history: raised), "4S");
       expect(openingBid("K32", "432", "32", "KQJ43", history: raised), "Pass");
       final nt = ["1S", "pass", "2C", "pass", "2NT", "pass"];
-      expect(openingBid("K32", "A32", "K2", "KQ432", history: nt), "3NT");
+      // Three spades opposite the five-card opening: the 5-3 fit.
+      expect(openingBid("K32", "A32", "K2", "KQ432", history: nt), "4S");
+      expect(openingBid("K2", "A32", "K32", "KQ432", history: nt), "3NT");
     });
 
     test("responder needs extras to convert the 4m raise to five", () {
@@ -1644,6 +1646,47 @@ void main() {
       expect(openingBid("AQT2", "KQ2", "54", "A964",
               history: ["1D", "1S", "pass", "2D", "X", "2S", "pass"]),
           "4S");
+    });
+
+    test("responder plays the known 5-3 major fit instead of 3NT", () {
+      // Manual-play hand: 3-card heart support opposite the 1H opening
+      // chose 3NT after opener's 2D (and 2NT) rebid.
+      final h = ["1H", "pass", "2C", "pass"];
+      expect(openingBid("63", "A32", "K2", "AK5432",
+              history: [...h, "2D", "pass"]),
+          "4H");
+      expect(openingBid("63", "A32", "K2", "AK5432",
+              history: [...h, "2NT", "pass"]),
+          "4H");
+      // Same after a one-level response and other rebids.
+      final one = ["1H", "pass", "1S", "pass"];
+      for (final rebid in ["1NT", "2C", "2D"]) {
+        expect(openingBid("Q632", "A32", "K2", "AK54",
+                history: [...one, rebid, "pass"]),
+            "4H",
+            reason: rebid);
+      }
+      expect(openingBid("Q632", "A32", "K2", "AK54",
+              history: [...one, "3D", "pass"]),
+          "4H");
+      // With only a doubleton, 3NT stays.
+      expect(openingBid("Q632", "A3", "K32", "AK54",
+              history: [...one, "2C", "pass"]),
+          "3NT");
+      // Opening a minor promises no five-card suit: unchanged.
+      expect(openingBid("A32", "63", "K2", "AK5432",
+              history: ["1D", "pass", "2C", "pass", "2NT", "pass"]),
+          "3NT");
+    });
+
+    test("fallback plays game in a long major rather than 3NT", () {
+      // Manual-play hand: seven spades opposite partner's 1NT advance chose
+      // 3NT because no support was promised.
+      final h = ["1C", "1S", "pass", "1NT", "pass"];
+      expect(openingBid("AQT9763", "KQ2", "7", "A2", history: h), "4S");
+      // Six cards too, including the flattest 6-3-2-2 shape.
+      expect(openingBid("AQ9763", "KQ2", "7", "A32", history: h), "4S");
+      expect(openingBid("AQ9763", "KQ2", "72", "A3", history: h), "4S");
     });
 
     test("raises keep their meanings", () {

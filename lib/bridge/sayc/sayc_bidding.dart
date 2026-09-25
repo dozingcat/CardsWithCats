@@ -2335,6 +2335,45 @@ List<SaycRule> _rebidAfterNewSuitRules(
 List<SaycRule>? responderRebidRules(
     BidAction opening, BidAction response, BidAction rebid,
     {bool contested = false}) {
+  final rules = _responderRebidRulesBase(opening, response, rebid,
+      contested: contested);
+  if (rules == null) return null;
+  final openBid =
+      opening.bidType == BidType.contract ? opening.contractBid : null;
+  if (openBid == null ||
+      openBid.count != 1 ||
+      openBid.trump == null ||
+      !_isMajor(openBid.trump!)) {
+    return rules;
+  }
+  // A one-of-a-major opening promised five cards, so with three-card
+  // support the eight-card fit is known: wherever responder would choose
+  // 3NT as the game, play four of the major instead, on the same values.
+  final major = openBid.trump!;
+  final game = BidAction.contract(4, major);
+  return [
+    for (final r in rules) ...[
+      if (r.action == BidAction.noTrump(3))
+        SaycRule(
+          game,
+          BidMeaning(
+            description:
+                "Game in the known ${_suitNames[major]} fit: 3+ support",
+            hcp: r.meaning.hcp,
+            totalPoints: r.meaning.totalPoints,
+            suitLengths: {major: const Range(low: 3)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(major) >= 3 && r.matches(h),
+        ),
+      r,
+    ],
+  ];
+}
+
+List<SaycRule>? _responderRebidRulesBase(
+    BidAction opening, BidAction response, BidAction rebid,
+    {bool contested = false}) {
   if (rebid.bidType != BidType.contract) return null;
   if (opening == BidAction.noTrump(1)) {
     return _responderRebidAfter1ntRules(response, rebid);
@@ -6979,6 +7018,18 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
         }
         final g = minorGame(fit);
         if (g != null) return g;
+      }
+      // A long major of our own (six or more cards) is the trump suit even
+      // with no support promised: play game there rather than in 3NT
+      // (partner may hold a void, but the suit's tricks need no entries
+      // and ruffs protect the weak side).
+      for (final major in [Suit.spades, Suit.hearts]) {
+        if (analysis.count(major) >= 6 &&
+            !enemySuits.contains(major) &&
+            cheapestLevel(major, lastBid) <= 4) {
+          return result(BidAction.contract(4, major),
+              "Fallback: game in our long ${_suitNames[major]} suit");
+        }
       }
       if (cheapestLevel(null, lastBid) <= 3) {
         return result(BidAction.noTrump(3),
