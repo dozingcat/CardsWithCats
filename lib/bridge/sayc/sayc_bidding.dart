@@ -5469,8 +5469,11 @@ List<SaycRule>? advanceOvercallRules(
   // [overcallCueRebidRules] and [advanceAfterCueSignoffRules]). Jumps stay
   // at the three level (a minor jump past 3NT bypasses the likelier game).
   // Opposite a weak jump overcall the cue would force to game, so there
-  // (and when no cue is available) the older direct raises stand, with an
-  // invitational jump.
+  // (and when no cue is available, as over their notrump) the older direct
+  // raises stand: the single raise widens to 6-12 and a major raises to
+  // game with 13+. No jump is possible below game in those auctions: a
+  // three-level jump needs a one-level overcall of a suit opening, where
+  // the cue is always available.
   final jumpBelowGame = raiseLevel + 1 <= 3;
   final cueLevel = theirSuit == null ? 99 : cheapestLevel(theirSuit, over);
   final useCue = !weakJump && theirSuit != null && cueLevel <= 3;
@@ -5504,15 +5507,6 @@ List<SaycRule>? advanceOvercallRules(
         description: "Preemptive jump raise: 4+ $name, 6-10 points",
         totalPoints: const Range(low: 6, high: 10),
         suitLengths: {suit: const Range(low: 4)},
-      ),
-    ));
-  } else if (jumpBelowGame) {
-    rules.add(SaycRule(
-      BidAction.contract(raiseLevel + 1, suit),
-      BidMeaning(
-        description: "Jump raise: 3+ $name, 11-12 points",
-        totalPoints: const Range(low: 11, high: 12),
-        suitLengths: {suit: const Range(low: 3)},
       ),
     ));
   }

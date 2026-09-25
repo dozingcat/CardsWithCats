@@ -1536,7 +1536,8 @@ void main() {
       expect(openingBid("Q76", "J2", "K874", "8432",
               history: ["1C", "1D", "pass"]),
           "3D");
-      // With no cue available (their 1NT) the jump stays invitational.
+      // With no cue available (their 1NT) and no jump below game, the
+      // single raise covers invitational values too.
       expect(openingBid("A76", "K32", "Q874", "432",
               history: ["1NT", "2H", "pass"]),
           "3H");
