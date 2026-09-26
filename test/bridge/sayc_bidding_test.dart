@@ -1689,6 +1689,32 @@ void main() {
       expect(openingBid("AQ9763", "KQ2", "72", "A3", history: h), "4S");
     });
 
+    test("opener prefers 3NT to five of a minor opposite a raise", () {
+      // Manual-play hand: a balanced 15-count bid 5D opposite the 11-13
+      // limit raise.
+      final limit = ["1D", "pass", "3D", "pass"];
+      expect(openingBid("Q876", "A2", "A543", "A32", history: limit), "3NT");
+      expect(openingBid("A7", "K2", "AQ8543", "A32", history: limit), "3NT");
+      // A singleton makes eleven tricks realistic with 15+.
+      expect(openingBid("7", "AK2", "AQ8543", "K32", history: limit), "5D");
+      expect(openingBid("7", "A32", "KQ854", "A432", history: limit),
+          "Pass"); // 14 with shortness
+      expect(openingBid("7", "A32", "KQ854", "9432", history: limit),
+          "Pass"); // 13 total: minimum
+      // Opposite the single raise game needs 19+.
+      final single = ["1D", "pass", "2D", "pass"];
+      expect(openingBid("AQ8", "KJ2", "AK543", "A3", history: single), "3NT");
+      expect(openingBid("7", "AKJ2", "AKQ854", "A3", history: single), "5D");
+      expect(openingBid("Q876", "A2", "AK543", "A3", history: single), "3D");
+      // Majors are unchanged.
+      expect(openingBid("Q87", "A2", "A5432", "A32",
+              history: ["1D", "pass", "3D", "pass"]),
+          "3NT");
+      expect(openingBid("A2", "Q8765", "A54", "A32",
+              history: ["1H", "pass", "3H", "pass"]),
+          "4H");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");

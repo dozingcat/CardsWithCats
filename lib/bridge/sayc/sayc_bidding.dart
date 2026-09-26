@@ -1887,6 +1887,29 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
   final mySuit = opening.trump!;
   final name = _suitNames[mySuit]!;
   final gameLevel = _isMajor(mySuit) ? 4 : 5;
+  bool hasShortness(HandAnalysis h) =>
+      Suit.values.any((s) => s != mySuit && h.count(s) <= 1);
+
+  // Game opposite a minor raise: 3NT (nine tricks) unless a singleton or
+  // void makes eleven tricks in the minor realistic.
+  List<SaycRule> minorGame(int ntMin, int shortMin) => [
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(
+              description: "Game in notrump opposite the $name raise",
+              totalPoints: Range(low: ntMin)),
+          ignoreInfo: true,
+          require: (h) => h.totalPoints >= ntMin && !hasShortness(h),
+        ),
+        SaycRule(
+          BidAction.contract(5, mySuit),
+          BidMeaning(
+              description: "Game in $name with shortness",
+              totalPoints: Range(low: shortMin)),
+          ignoreInfo: true,
+          require: (h) => h.totalPoints >= shortMin && hasShortness(h),
+        ),
+      ];
   if (response.count == 2) {
     // Single raise, 6-10.
     return [
@@ -1907,6 +1930,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         require: (h) => h.totalPoints <= 18,
       ),
       blackwoodAskRule(mySuit, 6),
+      if (!_isMajor(mySuit)) ...minorGame(19, 19),
       SaycRule(
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
@@ -1917,7 +1941,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
     ];
   }
   if (response.count == 3) {
-    // Limit raise, 11-12.
+    // Limit raise, 11-12 (11-13 for a minor).
     return [
       SaycRule(
         BidAction.pass(),
@@ -1928,6 +1952,25 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         require: (h) => h.totalPoints <= 13,
       ),
       blackwoodAskRule(mySuit, 11),
+      if (!_isMajor(mySuit)) ...[
+        ...minorGame(14, 15),
+        SaycRule(
+          BidAction.contract(5, mySuit),
+          BidMeaning(
+              description: "Game in $name with extras",
+              totalPoints: const Range(low: 17)),
+          ignoreInfo: true,
+          require: (h) => h.totalPoints >= 17,
+        ),
+        SaycRule(
+          BidAction.pass(),
+          BidMeaning(
+              description:
+                  "Declining: shortness but too little for eleven tricks",
+              totalPoints: const Range(low: 14, high: 14)),
+          ignoreInfo: true,
+        ),
+      ],
       SaycRule(
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
