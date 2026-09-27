@@ -359,8 +359,8 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
         });
       },
       child: Container(
-        margin: const EdgeInsets.all(3),
-        padding: const EdgeInsets.only(top: 6, left: 6, right: 6, bottom: 2),
+        margin: const EdgeInsets.all(2),
+        padding: const EdgeInsets.only(top: 6, left: 6, right: 6, bottom: 0),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.withValues(alpha: 0.15) : null,
           border: Border.all(
