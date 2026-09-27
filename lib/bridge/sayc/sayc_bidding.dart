@@ -5078,7 +5078,7 @@ List<SaycRule> advanceDoubleRules(
         // When the invitational jump would land in game (see the jump tier)
         // it doesn't exist, and the cheap advance covers everything below
         // game-forcing strength.
-        final maxPoints = level + 1 < (_isMajor(suit) ? 4 : 5) ? 8 : 11;
+        final maxPoints = level + 1 <= 3 ? 8 : 11;
         rules.add(SaycRule(
           BidAction.contract(level, suit),
           BidMeaning(
@@ -5094,9 +5094,11 @@ List<SaycRule> advanceDoubleRules(
           require: (h) => best(h) == suit,
         ));
       } else if (tier == "jump") {
-        // An invitational jump must land below game; hands worth game use
-        // the "game" tier.
-        if (level + 1 >= (_isMajor(suit) ? 4 : 5)) continue;
+        // An invitational jump must stay at the three level: a major jump
+        // to four is game, and a minor jump to four bypasses 3NT (the
+        // likelier game when the doubler holds their suit stopped). Hands
+        // worth game use the "game" tier.
+        if (level + 1 > 3) continue;
         rules.add(SaycRule(
           BidAction.contract(level + 1, suit),
           BidMeaning(
@@ -5271,6 +5273,23 @@ List<SaycRule> doublerRebidRules(
           h.hasStopper(theirSuit) &&
           cheapestLevel(null, advance) <= 3,
     ),
+    // With the values to raise a minor advance to game, nine tricks in
+    // notrump beat eleven in the minor when their suit is stopped and the
+    // hand has no ruffing value.
+    if (!_isMajor(aSuit))
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description:
+                "Game in notrump: 20+ points, ${_suitNames[theirSuit]} stopped",
+            totalPoints: const Range(low: 20)),
+        ignoreInfo: true,
+        require: (h) =>
+            h.totalPoints >= 20 &&
+            h.hasStopper(theirSuit) &&
+            !Suit.values.any((x) => x != aSuit && h.count(x) <= 1) &&
+            cheapestLevel(null, advance) <= 3,
+      ),
     SaycRule(
       BidAction.contract(gameLevel, aSuit),
       BidMeaning(

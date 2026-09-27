@@ -1715,6 +1715,32 @@ void main() {
           "4H");
     });
 
+    test("minor advances of a takeout double keep 3NT in reach", () {
+      // Self-play deal 1061 (seed 1): the invitational jump to 4C over the
+      // double of 2H skipped 3NT, and the doubler's 5C failed where 3NT
+      // made. The cheap advance now covers 0-11.
+      final h = ["2H", "X", "pass"];
+      expect(openingBid("53", "84", "Q6532", "Q862", history: h), "3D");
+      expect(openingBid("K5", "84", "J653", "AQ862", history: h),
+          "3C"); // 11 total
+      // Majors and one-level minors are unchanged.
+      expect(openingBid("KQ52", "84", "Q653", "A86",
+              history: ["1H", "X", "pass"]),
+          "2S");
+      expect(openingBid("K5", "84", "Q653", "AQ862",
+              history: ["1H", "X", "pass"]),
+          "3C");
+      // Self-play deal 2446 (seed 1): a 20-point doubler with the spade ace
+      // and no shortness plays 3NT rather than 5C opposite the forced 3C.
+      expect(openingBid("AT", "AKT6", "JT", "AQJ74",
+              history: ["2S", "pass", "pass", "X", "pass", "3C", "pass"]),
+          "3NT");
+      // With a singleton, five of the minor.
+      expect(openingBid("A", "AKT6", "JT5", "AQJ74",
+              history: ["2S", "pass", "pass", "X", "pass", "3C", "pass"]),
+          "5C");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
