@@ -56,6 +56,8 @@ const defaultCardImageSet = CardImageSet("default", "Default", .assets, "assets/
 const cardImageSets = [
   defaultCardImageSet,
   CardImageSet("original", "Original", .assets, "assets/cards/original", 500.0 / 726),
+  CardImageSet("large", "Large text", .assets, "assets/cards/large", 500.0 / 700),
+  CardImageSet("large_four_color", "Large 4 color", .assets, "assets/cards/large_four_color", 500.0 / 700),
 ];
 
 CardImageSet cardImageSetForName(String? name, List<CardImageSet> imageSets) {
@@ -246,15 +248,18 @@ class PositionedCard extends StatelessWidget {
 }
 
 // Shows sample cards from the selected image set, with a button to show all
-// available sets (one per line) and choose a different one.
+// available sets in a grid and choose a different one.
 class CardImageSetPicker extends StatefulWidget {
   final List<CardImageSet> imageSets;
   final CardImageSet selectedSet;
   final void Function(CardImageSet) onSelected;
-  // If either is set, shows a button to add a new image set. If both are set,
-  // the button shows a menu to choose between them.
-  final void Function()? onAddFromDirectory;
-  final void Function()? onAddFromZip;
+  final String label;
+  final TextStyle? labelStyle;
+  // Buttons shown after tapping "Add...", as (label, callback) pairs. If empty,
+  // there's no add button.
+  final List<(String, void Function())> addActions;
+  // Explanation shown above the add action buttons.
+  final String addHelpText;
   // If set, shows a delete button on filesystem (user-imported) image sets.
   final void Function(CardImageSet)? onDelete;
   // Shows a progress indicator in place of the add button.
@@ -272,8 +277,10 @@ class CardImageSetPicker extends StatefulWidget {
     required this.imageSets,
     required this.selectedSet,
     required this.onSelected,
-    this.onAddFromDirectory,
-    this.onAddFromZip,
+    this.label = "Cards",
+    this.labelStyle,
+    this.addActions = const [],
+    this.addHelpText = "",
     this.onDelete,
     this.isImporting = false,
     this.cardHeight = 56,
@@ -285,8 +292,9 @@ class CardImageSetPicker extends StatefulWidget {
 
 class _CardImageSetPickerState extends State<CardImageSetPicker> {
   bool expanded = false;
+  bool showingAddHelp = false;
 
-  static const nameStyle = TextStyle(fontSize: 14);
+  static const nameStyle = TextStyle(fontSize: 13);
 
   Widget _sampleCard(CardImageSet imageSet, PlayingCard card) {
     final cardHeight = widget.cardHeight;
@@ -309,23 +317,15 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
     );
   }
 
-  // Uses a fixed width so that names line up regardless of each set's aspect ratio.
+  // Uses a fixed width so that layout doesn't depend on each set's aspect ratio.
   Widget _sampleCards(CardImageSet imageSet) {
     final numCards = CardImageSetPicker.sampleCards.length;
     return SizedBox(
       width: numCards * (widget.cardHeight * 0.75 + 2),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: CardImageSetPicker.sampleCards.map((c) => _sampleCard(imageSet, c)).toList(),
       ),
-    );
-  }
-
-  Widget _imageSetName(CardImageSet imageSet, {bool bold = false}) {
-    return Text(
-      imageSet.displayName,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: bold ? nameStyle.copyWith(fontWeight: FontWeight.bold) : nameStyle,
     );
   }
 
@@ -333,9 +333,13 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
       child: Row(children: [
-        _sampleCards(widget.selectedSet),
-        const SizedBox(width: 12),
-        Expanded(child: _imageSetName(widget.selectedSet)),
+        Text(widget.label, style: widget.labelStyle),
+        const SizedBox(width: 16),
+        Expanded(child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: _sampleCards(widget.selectedSet),
+        )),
         TextButton(
           onPressed: () => setState(() {expanded = true;}),
           child: const Text("Change"),
@@ -344,17 +348,19 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
     );
   }
 
-  Widget _imageSetRow(CardImageSet imageSet) {
+  Widget _imageSetCell(CardImageSet imageSet) {
     final isSelected = imageSet.name == widget.selectedSet.name;
     final canDelete = widget.onDelete != null && imageSet.source == CardImageSource.filesystem;
-    return GestureDetector(
+    final cell = GestureDetector(
       onTap: () {
         widget.onSelected(imageSet);
-        setState(() {expanded = false;});
+        setState(() {
+          showingAddHelp = false;
+        });
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        padding: const EdgeInsets.all(6),
+        margin: const EdgeInsets.all(3),
+        padding: const EdgeInsets.only(top: 6, left: 6, right: 6, bottom: 2),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.withValues(alpha: 0.15) : null,
           border: Border.all(
@@ -363,68 +369,113 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
           ),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(children: [
-          _sampleCards(imageSet),
-          const SizedBox(width: 12),
-          Expanded(child: _imageSetName(imageSet, bold: isSelected)),
-          if (canDelete)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: "Delete",
-              visualDensity: VisualDensity.compact,
-              onPressed: () => widget.onDelete!(imageSet),
-            ),
-        ]),
-      ),
-    );
-  }
-
-  bool get _canAdd => widget.onAddFromDirectory != null || widget.onAddFromZip != null;
-
-  Widget _addButton() {
-    const icon = Icon(Icons.add_photo_alternate_outlined);
-    const label = Text("Add...", overflow: TextOverflow.ellipsis);
-    final fromDirectory = widget.onAddFromDirectory;
-    final fromZip = widget.onAddFromZip;
-    if (fromDirectory != null && fromZip != null) {
-      return MenuAnchor(
-        menuChildren: [
-          MenuItemButton(onPressed: fromDirectory, child: const Text("From folder...")),
-          MenuItemButton(onPressed: fromZip, child: const Text("From zip file...")),
-        ],
-        builder: (context, controller, child) => TextButton.icon(
-          onPressed: () => controller.isOpen ? controller.close() : controller.open(),
-          icon: icon,
-          label: label,
-        ),
-      );
-    }
-    return TextButton.icon(onPressed: fromDirectory ?? fromZip, icon: icon, label: label);
-  }
-
-  Widget _expanded() {
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      ...widget.imageSets.map(_imageSetRow),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(children: [
-          if (_canAdd && widget.isImporting) ...const [
-            Padding(
-              padding: EdgeInsets.all(12),
-              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-            Flexible(child: Text("Importing...", overflow: TextOverflow.ellipsis)),
-          ],
-          if (_canAdd && !widget.isImporting)
-            Flexible(child: _addButton()),
-          const Spacer(),
-          TextButton(
-            onPressed: () => setState(() {expanded = false;}),
-            child: const Text("Done"),
+        child: Column(children: [
+          FittedBox(fit: BoxFit.scaleDown, child: _sampleCards(imageSet)),
+          const SizedBox(height: 4),
+          Text(
+            imageSet.displayName,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: isSelected ? nameStyle.copyWith(fontWeight: FontWeight.bold) : nameStyle,
           ),
         ]),
       ),
+    );
+    if (!canDelete) {
+      return cell;
+    }
+    // StackFit.expand makes the cell fill the grid row height like cells without a delete button.
+    return Stack(fit: StackFit.expand, children: [
+      cell,
+      Positioned(top: 0, right: 0, child: Tooltip(
+        message: "Delete",
+        child: GestureDetector(
+          onTap: () => widget.onDelete!(imageSet),
+          child: const CircleAvatar(
+            radius: 11,
+            backgroundColor: Colors.black54,
+            child: Icon(Icons.close, size: 15, color: Colors.white),
+          ),
+        ),
+      )),
     ]);
+  }
+
+  Widget _grid() {
+    const numColumns = 2;
+    final sets = widget.imageSets;
+    return Column(children: [
+      for (int i = 0; i < sets.length; i += numColumns)
+        // IntrinsicHeight and stretch make cells in the same row the same height.
+        IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (int j = i; j < i + numColumns; j++)
+            Expanded(child: j < sets.length ? _imageSetCell(sets[j]) : const SizedBox()),
+        ])),
+    ]);
+  }
+
+  Widget _addHelp() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(widget.addHelpText, style: nameStyle),
+        const SizedBox(height: 4),
+        Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+          TextButton(
+            onPressed: () => setState(() {showingAddHelp = false;}),
+            child: const Text("Cancel"),
+          ),
+          for (final (label, action) in widget.addActions)
+            FilledButton.tonal(
+              onPressed: () {
+                setState(() {showingAddHelp = false;});
+                action();
+              },
+              child: Text(label),
+            ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _bottomRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(children: [
+        if (widget.addActions.isNotEmpty && widget.isImporting) ...const [
+          Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          Flexible(child: Text("Importing...", overflow: TextOverflow.ellipsis)),
+        ],
+        if (widget.addActions.isNotEmpty && !widget.isImporting)
+          Flexible(child: TextButton.icon(
+            onPressed: () => setState(() {showingAddHelp = true;}),
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: const Text("Add...", overflow: TextOverflow.ellipsis),
+          )),
+        const Spacer(),
+        TextButton(
+          onPressed: () => setState(() {
+            expanded = false;
+            showingAddHelp = false;
+          }),
+          child: const Text("Done"),
+        ),
+      ]),
+    );
+  }
+
+  Widget _expanded() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _grid(),
+        if (showingAddHelp && !widget.isImporting) _addHelp() else _bottomRow(),
+      ]),
+    );
   }
 
   @override

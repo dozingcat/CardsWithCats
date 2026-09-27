@@ -269,6 +269,46 @@ class _MyHomePageState extends State<MyHomePage> {
   bool get _canImportCardImagesFromDirectory =>
       Platform.isMacOS || Platform.isLinux || Platform.isWindows;
 
+  List<(String, void Function())> _cardImageImportActions() {
+    if (Platform.isMacOS) {
+      // macOS has a native picker that can choose either a file or a folder.
+      return [("Choose file or folder...", _importCardImageSetFromZipOrDirectory)];
+    }
+    if (_canImportCardImagesFromDirectory) {
+      return [
+        ("Choose zip file...", _importCardImageSetFromZip),
+        ("Choose folder...", _importCardImageSetFromDirectory),
+      ];
+    }
+    return [("Choose file...", _importCardImageSetFromZip)];
+  }
+
+  String _cardImageImportHelpText() {
+    final source = _canImportCardImagesFromDirectory ? "a zip file or folder" : "a zip file";
+    return "Choose $source with an image for each of the 52 cards. "
+        "Name each image with the card's rank (2-9, T, J, Q, K, A) and suit (C, D, H, S), "
+        "like 2C.png, TD.jpg, or QS.webp.";
+  }
+
+  Future<void> _importCardImageSetFromZipOrDirectory() async {
+    final paths = await FilePicker.pickFileAndDirectoryPaths(
+        dialogTitle: "Select zip file or folder with card images",
+        type: FileType.custom,
+        allowedExtensions: ["zip"],
+    );
+    if (paths.isEmpty) {
+      return;
+    }
+    final path = paths.first;
+    if (await FileSystemEntity.isDirectory(path)) {
+      await _importCardImageSet(path, (baseDir) =>
+          importCardImageSet(sourceDir: path, baseDir: baseDir));
+    } else {
+      await _importCardImageSet(path, (baseDir) =>
+          importCardImageSetFromZip(zipPath: path, baseDir: baseDir));
+    }
+  }
+
   Future<void> _importCardImageSetFromDirectory() async {
     final sourceDir = await FilePicker.getDirectoryPath(dialogTitle: "Select folder with card images");
     if (sourceDir == null) {
@@ -799,16 +839,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setTintedTrumpCardsEnabled(checked == true);
                               },
                             ),
-                            const ListTile(
-                                dense: true,
-                                title: Text("Card images", style: labelStyle)),
                             CardImageSetPicker(
                               imageSets: availableCardImageSets,
                               selectedSet: cardImageSet,
                               onSelected: setCardImageSet,
-                              onAddFromDirectory: _canImportCardImagesFromDirectory
-                                  ? _importCardImageSetFromDirectory : null,
-                              onAddFromZip: _importCardImageSetFromZip,
+                              labelStyle: labelStyle,
+                              addActions: _cardImageImportActions(),
+                              addHelpText: _cardImageImportHelpText(),
                               onDelete: _deleteCardImageSet,
                               isImporting: isImportingCardImages,
                             ),

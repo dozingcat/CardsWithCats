@@ -79,6 +79,12 @@ flutter:
     - assets/cards/original/
     - assets/cards/original/solid/
     - assets/cards/original/transparent/
+    - assets/cards/large/
+    - assets/cards/large/solid/
+    - assets/cards/large/transparent/
+    - assets/cards/large_four_color/
+    - assets/cards/large_four_color/solid/
+    - assets/cards/large_four_color/transparent/
     - assets/cats/
     - assets/doc/
     - assets/misc/
