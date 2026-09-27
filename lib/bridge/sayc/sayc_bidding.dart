@@ -7300,6 +7300,38 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
   }
   if (first == null) return openingRules();
 
+  // Our Jacoby transfer over partner's 1NT (opening or overcall) was
+  // doubled and partner passed: complete it ourselves rather than leave
+  // the side playing the transfer suit (usually theirs) doubled.
+  bool firstActionOf(int index) => [
+        for (int i = index % 4; i < index; i += 4) calls[i]
+      ].every((c) => c.bidType == BidType.pass);
+  if (n >= 6 &&
+      calls[n - 6] == BidAction.noTrump(1) &&
+      firstActionOf(n - 6) &&
+      firstActionOf(n - 4) &&
+      calls[n - 5].bidType == BidType.pass &&
+      (calls[n - 4] == BidAction.contract(2, Suit.diamonds) ||
+          calls[n - 4] == BidAction.contract(2, Suit.hearts)) &&
+      calls[n - 3].bidType == BidType.double &&
+      calls[n - 2].bidType == BidType.pass &&
+      calls[n - 1].bidType == BidType.pass) {
+    final target = calls[n - 4] == BidAction.contract(2, Suit.diamonds)
+        ? Suit.hearts
+        : Suit.spades;
+    return [
+      SaycRule(
+        BidAction.contract(2, target),
+        BidMeaning(
+          description:
+              "Completing our doubled transfer: 5+ ${_suitNames[target]}",
+          suitLengths: {target: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+
   // Positions relative to the caller: (n - i) % 4 is 0 for the caller's own
   // calls, 2 for partner's, and odd for the opponents'.
   final openerOffset = (n - first) % 4;

@@ -364,8 +364,8 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 624 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 865 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 623 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 862 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
 Seed 1 findings by category: fallback-used 416, missed-game 137,

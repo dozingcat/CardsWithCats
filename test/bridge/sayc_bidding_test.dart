@@ -1788,6 +1788,23 @@ void main() {
       expect(openingBid("KT92", "Q643", "AK2", "A7",
               history: ["1D", "1NT", "pass", "2C", "X"]),
           "2H");
+      // If partner passes the double anyway, the transfer bidder completes
+      // it rather than leave the side in the transfer suit doubled.
+      expect(openingBid("Q8753", "J2", "9854", "32",
+              history: ["1H", "1NT", "pass", "2H", "X", "pass", "pass"]),
+          "2S");
+      expect(openingBid("Q8753", "J2", "9854", "32",
+              history: ["1NT", "pass", "2H", "X", "pass", "pass"]),
+          "2S");
+      expect(openingBid("J2", "Q8753", "9854", "32",
+              history: ["1NT", "pass", "2D", "X", "pass", "pass"]),
+          "2H");
+      // Not after a natural 2H: here 1NT was a response and 2H opener's
+      // rebid (self-play deal 707, seed 42).
+      expect(openingBid("A2", "KQJ863", "AK2", "73",
+              history: ["1H", "pass", "1NT", "pass", "2H", "X", "pass",
+                  "pass"]),
+          isNot("2S"));
     });
 
     test("raises keep their meanings", () {
