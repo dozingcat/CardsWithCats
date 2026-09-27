@@ -349,6 +349,10 @@ dart run scripts/bidding_audit.dart --deals 5000 --chaos 0.15
 
 # Bidding accuracy against double-dummy truth (needs cpp/build_libdds.sh):
 DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart --deals 1200
+
+# Five-of-a-minor games vs 3NT by the same side, double dummy, grouped by
+# the rule that chose 5m (the lints treat both games alike):
+DDS_LIB=native/libdds.dylib dart run scripts/minor_game_scan.dart --deals 20000
 ```
 
 ### Audit conventions and current results (2026-08-30)
@@ -361,7 +365,7 @@ down as gaps get fixed; a jump up means a regression.
 | Run | Result |
 | --- | --- |
 | seed 1, 3000 deals (test set) | 624 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 861 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 867 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
 Seed 1 findings by category: fallback-used 416, missed-game 137,
