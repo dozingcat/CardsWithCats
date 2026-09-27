@@ -1690,7 +1690,7 @@ void main() {
     });
 
     test("opener prefers 3NT to five of a minor opposite a raise", () {
-      // Manual-play hand: a balanced 15-count bid 5D opposite the 11-13
+      // Manual-play hand: a balanced 14-count bid 5D opposite the 11-13
       // limit raise.
       final limit = ["1D", "pass", "3D", "pass"];
       expect(openingBid("Q876", "A2", "A543", "A32", history: limit), "3NT");
