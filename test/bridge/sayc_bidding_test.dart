@@ -1741,6 +1741,39 @@ void main() {
           "5C");
     });
 
+    test("strong negative double with one major and no natural bid", () {
+      // Manual-play hand: 15 points, four hearts, no diamond stopper, and
+      // no five-card suit passed 1C (2D).
+      final h = ["1C", "2D"];
+      expect(openingBid("AK8", "K964", "J65", "A76", history: h), "Double");
+      // Too weak to promise another bid: still no double with one major.
+      expect(openingBid("Q8", "K964", "J65", "Q762", history: h), "Pass");
+      // Both majors: the ordinary negative double.
+      expect(openingBid("Q874", "K964", "J6", "Q76", history: h), "Double");
+      // A stopper allows a natural 3NT instead.
+      expect(openingBid("AK8", "K964", "KJ5", "976", history: h), "3NT");
+    });
+
+    test("continuing after the strong one-major negative double", () {
+      const r = "AK8 K964 J65 A76";
+      String bid(String h) {
+        final p = r.split(" ");
+        return openingBid(p[0], p[1], p[2], p[3],
+            history: h.split(" "));
+      }
+
+      expect(bid("1C 2D X pass 2H pass"), "4H");
+      expect(bid("1C 2D X pass 2S pass"), "3H"); // no spade fit
+      expect(bid("1C 2D X pass 3S pass"), "4S"); // 4-3 opposite the jump
+      expect(bid("1C 2D X pass 2NT pass"), "3NT");
+      expect(bid("1C 2D X pass 3C pass"), "5C"); // no diamond stopper
+      // Opener after responder shows the hearts.
+      final shown = ["1C", "2D", "X", "pass", "2S", "pass", "3H", "pass"];
+      expect(openingBid("KQ32", "Q82", "4", "KQJ52", history: shown), "4H");
+      expect(openingBid("KQ32", "82", "A4", "KQJ52", history: shown), "3NT");
+      expect(openingBid("KQ32", "82", "4", "KQJ652", history: shown), "5C");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");

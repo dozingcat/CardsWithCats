@@ -4729,6 +4729,50 @@ SaycRule? _negativeDoubleRule(ContractBid opening, ContractBid overcall) {
   );
 }
 
+/// Opener's call after a strong one-major negative double: opener bid the
+/// other major, and responder then showed its own four-card major
+/// (forcing). Raise with three-card support, 3NT with their suit stopped,
+/// otherwise game in the opened minor with length or the 4-3 major fit.
+List<SaycRule> negativeDoubleMajorShownRules(
+    ContractBid opening, ContractBid overcall, Suit responderMajor) {
+  final oSuit = opening.trump!;
+  final theirSuit = overcall.trump!;
+  final name = _suitNames[responderMajor]!;
+  return [
+    SaycRule(
+      BidAction.contract(4, responderMajor),
+      BidMeaning(
+        description: "Raising $name with three-card support",
+        suitLengths: {responderMajor: const Range(low: 3)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.count(responderMajor) >= 3,
+    ),
+    SaycRule(
+      BidAction.noTrump(3),
+      BidMeaning(
+          description: "Game in notrump: ${_suitNames[theirSuit]} stopped"),
+      ignoreInfo: true,
+      require: (h) => h.hasStopper(theirSuit),
+    ),
+    if (!_isMajor(oSuit))
+      SaycRule(
+        BidAction.contract(5, oSuit),
+        BidMeaning(
+          description: "Game in ${_suitNames[oSuit]}: long suit, no stopper",
+          suitLengths: {oSuit: const Range(low: 5)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(oSuit) >= 5,
+      ),
+    SaycRule(
+      BidAction.contract(4, responderMajor),
+      BidMeaning(description: "Game in $name: no better spot"),
+      ignoreInfo: true,
+    ),
+  ];
+}
+
 /// Responder's options after partner opens one of a suit and RHO overcalls.
 List<SaycRule> interferenceResponseRules(
     ContractBid opening, ContractBid overcall) {
@@ -4953,6 +4997,28 @@ List<SaycRule> interferenceResponseRules(
           totalPoints: const Range(low: 13)),
       ignoreInfo: true,
       require: (h) => h.totalPoints >= 13 && h.hasStopper(overcallSuit),
+    ));
+  }
+  // With both majors unbid the negative double normally shows both; a
+  // hand with one four-card major and game values but no natural call
+  // (no five-card suit, no stopper for notrump) doubles too, planning to
+  // bid again.
+  final unbidMajors = [Suit.hearts, Suit.spades]
+      .where((m) => m != suit && m != overcallSuit)
+      .toList();
+  if (unbidMajors.length == 2 &&
+      unbidMajors.every((m) => cheapestLevel(m, overcall) <= 2)) {
+    rules.add(SaycRule(
+      BidAction.double(),
+      BidMeaning(
+        description:
+            "Negative double: one 4-card major, 13+ points, will bid again",
+        totalPoints: const Range(low: 13),
+        artificial: true,
+      ),
+      ignoreInfo: true,
+      require: (h) =>
+          h.totalPoints >= 13 && unbidMajors.any((m) => h.count(m) >= 4),
     ));
   }
   rules.add(SaycRule(BidAction.pass(),
@@ -6506,6 +6572,40 @@ List<SaycRule> negativeDoubleResponseRebidRules(
     if (rebid.count >= 4) {
       return passOnly("Game reached; nothing more to say");
     }
+    // Without four-card support (a strong double with the other major):
+    // 3NT with their suit stopped, else show the other major naturally
+    // (forcing, since the double promised another bid).
+    final otherMajor = implied.where((m) => m != major).firstOrNull;
+    final noFit = <SaycRule>[
+      if (cheapestLevel(null, rebid) <= 3)
+        SaycRule(
+          BidAction.noTrump(3),
+          BidMeaning(
+              description:
+                  "No $name fit: game in notrump with ${_suitNames[theirSuit]} stopped",
+              totalPoints: const Range(low: 13)),
+          ignoreInfo: true,
+          require: (h) =>
+              h.count(major) < 4 &&
+              h.totalPoints >= 13 &&
+              h.hasStopper(theirSuit),
+        ),
+      if (otherMajor != null && cheapestLevel(otherMajor, rebid) <= 3)
+        SaycRule(
+          BidAction.contract(cheapestLevel(otherMajor, rebid), otherMajor),
+          BidMeaning(
+            description:
+                "No $name fit: 4+ ${_suitNames[otherMajor]}, 13+ points, forcing",
+            totalPoints: const Range(low: 13),
+            suitLengths: {otherMajor: const Range(low: 4)},
+          ),
+          ignoreInfo: true,
+          require: (h) =>
+              h.count(major) < 4 &&
+              h.totalPoints >= 13 &&
+              h.count(otherMajor) >= 4,
+        ),
+    ];
     if (rebid.count == cheapestLevel(major, before)) {
       // Partner 13-15.
       return [
@@ -6517,6 +6617,7 @@ List<SaycRule> negativeDoubleResponseRebidRules(
           ignoreInfo: true,
           require: (h) => h.totalPoints <= 9,
         ),
+        ...noFit,
         SaycRule(
           BidAction.contract(rebid.count + 1, major),
           BidMeaning(
@@ -6540,6 +6641,19 @@ List<SaycRule> negativeDoubleResponseRebidRules(
     }
     // Partner jumped, 16-18.
     return [
+      ...noFit,
+      // With only three-card support and nothing else to say, the 4-3 fit
+      // is game with 29+ combined.
+      SaycRule(
+        BidAction.contract(4, major),
+        BidMeaning(
+          description: "Game in the 4-3 $name fit opposite the jump",
+          totalPoints: const Range(low: 13),
+          suitLengths: {major: const Range(low: 3, high: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(major) == 3 && h.totalPoints >= 13,
+      ),
       SaycRule(
         BidAction.contract(4, major),
         BidMeaning(
@@ -6702,6 +6816,20 @@ List<SaycRule> negativeDoubleResponseRebidRules(
         ),
         ignoreInfo: true,
         require: (h) => h.totalPoints <= 13 && h.count(oSuit) >= 3,
+      ));
+    }
+    if (!oMajor && rebid.count < 5) {
+      // Game values, support, and no stopper for notrump: five of the
+      // minor opposite opener's long suit.
+      rules.add(SaycRule(
+        BidAction.contract(5, oSuit),
+        BidMeaning(
+          description: "Game in $oName: 3+ support, no stopper for notrump",
+          totalPoints: const Range(low: 14),
+          suitLengths: {oSuit: const Range(low: 3)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.totalPoints >= 14 && h.count(oSuit) >= 3,
       ));
     }
     if (!oMajor && rebid.count == 4) {
@@ -7514,6 +7642,23 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     // doubled: choose between penalties and the cheapest fit.
     return actionDoubleAdvanceRules(opening.contractBid!,
         calls[first + 2].contractBid!, calls[first + 3].contractBid!);
+  }
+  if (n == first + 8 &&
+      isOneLevelSuitOpening(opening) &&
+      isSuitBid(calls[first + 1]) &&
+      calls[first + 2].bidType == BidType.double &&
+      calls[first + 3].bidType == BidType.pass &&
+      isSuitBid(calls[first + 4]) &&
+      _isMajor(calls[first + 4].contractBid!.trump!) &&
+      calls[first + 5].bidType == BidType.pass &&
+      isSuitBid(calls[first + 6]) &&
+      _isMajor(calls[first + 6].contractBid!.trump!) &&
+      calls[first + 6].contractBid!.trump !=
+          calls[first + 4].contractBid!.trump &&
+      calls[first + 7].bidType == BidType.pass) {
+    // Partner's strong negative double showed the other major.
+    return negativeDoubleMajorShownRules(opening.contractBid!,
+        calls[first + 1].contractBid!, calls[first + 6].contractBid!.trump!);
   }
   if (n == first + 8 &&
       isOneLevelSuitOpening(opening) &&
