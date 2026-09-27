@@ -1774,6 +1774,22 @@ void main() {
       expect(openingBid("KQ32", "82", "4", "KQJ652", history: shown), "5C");
     });
 
+    test("1NT overcaller completes a transfer the opener doubled", () {
+      // Manual-play hand: after 1H 1NT pass 2H (transfer), the opener's
+      // double of its own suit left the overcaller to the fallback, which
+      // passed.
+      expect(openingBid("KT92", "Q643", "AK2", "A7",
+              history: ["1H", "1NT", "pass", "2H", "X"]),
+          "2S");
+      expect(openingBid("KT92", "Q643", "AK2", "A7",
+              history: ["1S", "1NT", "pass", "2D", "X"]),
+          "2H");
+      // Stayman doubled: answers as usual.
+      expect(openingBid("KT92", "Q643", "AK2", "A7",
+              history: ["1D", "1NT", "pass", "2C", "X"]),
+          "2H");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");

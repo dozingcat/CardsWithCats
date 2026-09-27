@@ -7457,11 +7457,13 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         partnerActions.length == 1 &&
         partnerActions[0].bidType == BidType.contract &&
         oppActions.length <= 2 &&
-        calls[n - 1].bidType == BidType.pass) {
+        (calls[n - 1].bidType == BidType.pass ||
+            calls[n - 1].bidType == BidType.double)) {
       // Partner responded to my 1NT overcall (direct or balancing) with
       // systems on; answer as a 1NT opener would (Stayman, transfer
       // completions, Gerber). Only when the opponents haven't bid over
-      // the response.
+      // the response; a double of it (typically lead-directing) takes no
+      // room, so the answers stand, as after a 1NT opening.
       ContractBid? last;
       for (int i = n - 1; i >= 0; i--) {
         if (calls[i].bidType == BidType.contract) {
