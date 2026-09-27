@@ -30,7 +30,7 @@ import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
 const appTitle = "Cards With Cats";
-const appVersion = "1.4.3";
+const appVersion = "1.4.4";
 const appLegalese = "© 2022-2026 Brian Nenninger";
 
 const gameBackgroundColor = Color.fromRGBO(180, 216, 180, 1);
@@ -1249,14 +1249,14 @@ class _NewGameDialogState extends State<NewGameDialog> {
                               )]),
 
                             ]),
-                            TableRow(children: [Row(children: [
-                              _paddingAll(20, ElevatedButton(
+                            TableRow(children: [FittedBox(child: Row(children: [
+                              _paddingAll(16, ElevatedButton(
                                   onPressed: () => widget.newGameFn(selectedGameType),
                                   child: const Text("Start match"))),
-                              _paddingAll(20, ElevatedButton(
+                              _paddingAll(16, ElevatedButton(
                                   onPressed: widget.cancelFn,
                                   child: const Text("Cancel"))),
-                            ])]),
+                            ]))]),
                           ],
                         )),
                   ],

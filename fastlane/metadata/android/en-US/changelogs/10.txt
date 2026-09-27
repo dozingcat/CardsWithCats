@@ -1,0 +1,3 @@
+- Drop shadows and rounded corners in UI.
+- Show double-dummy errors when reviewing bridge play.
+- Improved memory usage.

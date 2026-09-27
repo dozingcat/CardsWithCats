@@ -962,7 +962,9 @@ void main() {
       expect(openingBid("K32", "A32", "K2", "KQ432", history: raised), "4S");
       expect(openingBid("K32", "432", "32", "KQJ43", history: raised), "Pass");
       final nt = ["1S", "pass", "2C", "pass", "2NT", "pass"];
-      expect(openingBid("K32", "A32", "K2", "KQ432", history: nt), "3NT");
+      // Three spades opposite the five-card opening: the 5-3 fit.
+      expect(openingBid("K32", "A32", "K2", "KQ432", history: nt), "4S");
+      expect(openingBid("K2", "A32", "K32", "KQ432", history: nt), "3NT");
     });
 
     test("responder needs extras to convert the 4m raise to five", () {
@@ -1329,13 +1331,424 @@ void main() {
           "1S"); // five spades
     });
 
+    test("quantitative raises: balanced responses to a minor", () {
+      // The 3NT response is now capped at 16-18; 4NT invites with 19-20 and
+      // 6NT bids the slam with 21+ (self-play deal 159, seed 42: a 21-count
+      // had nothing better than 3NT and a 14-count opener passed it).
+      expect(openingBid("Q65", "AK8", "AQJ", "8654", history: ["1C", "pass"]),
+          "3NT"); // 16
+      expect(openingBid("J65", "AK8", "AQJ", "A954", history: ["1C", "pass"]),
+          "4NT"); // 19
+      expect(openingBid("Q65", "AK8", "AKJ", "A754", history: ["1C", "pass"]),
+          "6NT"); // 21
+      // Opener accepts the 19-20 invite with 14+.
+      final invite = ["1C", "pass", "4NT", "pass"];
+      expect(openingBid("A4", "K64", "752", "AK982", history: invite), "6NT");
+      expect(openingBid("A4", "K64", "752", "AQ982", history: invite), "Pass");
+    });
+
+    test("quantitative raises: opener over the 13-15 balanced 2NT response",
+        () {
+      final h = ["1C", "pass", "2NT", "pass"];
+      expect(openingBid("AQ", "K64", "K52", "A9752", history: h),
+          "3NT"); // 16
+      expect(openingBid("AQ", "K64", "K52", "AQ952", history: h),
+          "4NT"); // 18
+      expect(openingBid("AQ", "K64", "K52", "AKJ52", history: h),
+          "6NT"); // 20
+      // Responder accepts the invite with 14-15, declines with 13.
+      final invite = ["1C", "pass", "2NT", "pass", "4NT", "pass"];
+      expect(openingBid("A98", "K64", "KQ52", "Q98", history: invite), "6NT");
+      expect(openingBid("A98", "K64", "KQ52", "J98", history: invite), "Pass");
+    });
+
+    test("quantitative raises over notrump rebids", () {
+      // Opener's jump 2NT shows 18-19 (self-play deal 1709, seed 42: a
+      // 15-count raised to only 3NT).
+      final jump = ["1D", "pass", "1S", "pass", "2NT", "pass"];
+      expect(openingBid("QJ652", "Q4", "AJ9", "J87", history: jump), "3NT");
+      expect(openingBid("QJ652", "Q4", "AJ9", "KJ7", history: jump), "4NT");
+      expect(openingBid("QJ652", "Q4", "AJ9", "AJ7", history: jump), "6NT");
+      // Opener's accept of that invite (19 yes, 18 no) already existed.
+      final jumpInv = [...jump, "4NT", "pass"];
+      expect(openingBid("AQ4", "K64", "AQ52", "KJ9", history: jumpInv), "6NT");
+      expect(openingBid("AQ4", "K64", "AQ52", "QJ9", history: jumpInv), "Pass");
+      // The 12-14 2NT rebid after a two-over-one.
+      final low = ["1S", "pass", "2D", "pass", "2NT", "pass"];
+      expect(openingBid("A4", "K64", "AQ52", "KQ98", history: low), "3NT");
+      expect(openingBid("A4", "K64", "AQ52", "AQ98", history: low), "4NT");
+      expect(openingBid("A4", "AQ4", "AQ52", "KQ98", history: low), "6NT");
+      final lowInv = [...low, "4NT", "pass"];
+      expect(openingBid("AQ752", "K4", "K52", "Q98", history: lowInv), "6NT");
+      expect(openingBid("AQ752", "K4", "K52", "J98", history: lowInv), "Pass");
+    });
+
+    test("quantitative raises after 2C: 4NT over notrump rebids is not Blackwood",
+        () {
+      // 2C-2D-3NT shows 25-27 (self-play deal 1752, seed 42: an 8-count
+      // passed opposite 27).
+      final h3 = ["2C", "pass", "2D", "pass", "3NT", "pass"];
+      expect(openingBid("T9", "632", "7543", "QJ95", history: h3), "Pass");
+      expect(openingBid("K9", "632", "7543", "QJ95", history: h3), "4NT");
+      expect(openingBid("K9", "632", "7543", "KQ95", history: h3), "6NT");
+      expect(openingBid("AQJ", "AQ94", "AKQJ", "KT",
+              history: [...h3, "4NT", "pass"]),
+          "Pass"); // 26 declines
+      expect(openingBid("AQJ", "AQ94", "AKQJ", "AT",
+              history: [...h3, "4NT", "pass"]),
+          "6NT"); // 27 accepts
+      // 2C-2D-2NT shows 22-24.
+      final h2 = ["2C", "pass", "2D", "pass", "2NT", "pass"];
+      expect(openingBid("T9", "632", "7543", "KJ95", history: h2), "3NT");
+      expect(openingBid("K9", "Q32", "7543", "KJ95", history: h2), "4NT");
+      expect(openingBid("KQ9", "Q32", "754", "KJ95", history: h2), "6NT");
+      expect(openingBid("AQJ", "AQ94", "AKQJ", "42",
+              history: [...h2, "4NT", "pass"]),
+          "Pass"); // 23 declines
+      expect(openingBid("AKJ", "AQ94", "AKQJ", "42",
+              history: [...h2, "4NT", "pass"]),
+          "6NT"); // 24 accepts
+    });
+
+    test("Blackwood over a raise of responder's suit", () {
+      // Deal 702 (seed 42): 22 total opposite opener's 13-15 raise blasted
+      // 4H; ask instead.
+      final raised = ["1D", "pass", "1H", "pass", "2H", "pass"];
+      expect(openingBid("K4", "AJT53", "A9", "AKQ5", history: raised), "4NT");
+      expect(openingBid("K4", "QJT53", "A9", "KQ65", history: raised), "4H");
+      // Opener answers, responder places.
+      expect(openingBid("A52", "K876", "KQJ84", "3",
+              history: [...raised, "4NT", "pass"]),
+          "5D"); // one ace
+      expect(openingBid("K4", "AJT53", "A9", "AKQ5",
+              history: [...raised, "4NT", "pass", "5D", "pass"]),
+          "6H"); // 3 + 1 aces
+    });
+
+    test("Blackwood opposite opener's jump to game", () {
+      // Deal 62 (seed 42): void + 7 hearts opposite the 16+ jump raise.
+      expect(openingBid("-", "AQT8765", "AJ", "7632",
+              history: ["1S", "pass", "2H", "pass", "4H", "pass"]),
+          "4NT");
+      // Deal 2200 (seed 42): 20 total opposite the self-sufficient 4S.
+      expect(openingBid("63", "KQJ85", "A2", "AKQ7",
+              history: ["1S", "pass", "2H", "pass", "4S", "pass"]),
+          "4NT");
+      // Deal 917 (seed 42): the self-sufficient suit needs no support.
+      final selfSuff = ["1H", "pass", "2C", "pass", "4H", "pass"];
+      expect(openingBid("J72", "-", "92", "AKQJ8754", history: selfSuff),
+          "4NT");
+      expect(openingBid("J72", "-", "92", "AKQJ8754",
+              history: [...selfSuff, "4NT", "pass", "5H", "pass"]),
+          "6H"); // 1 + 2 aces
+      // Over the 16-18 jump rebid a 20-count also asks; game hands raise.
+      expect(openingBid("63", "KQJ85", "A2", "AKQ7",
+              history: ["1S", "pass", "2H", "pass", "3S", "pass"]),
+          "4NT");
+      expect(openingBid("63", "KQJ85", "A2", "K973",
+              history: ["1S", "pass", "2H", "pass", "3S", "pass"]),
+          "4S");
+    });
+
+    test("Blackwood over limit and Jacoby raises", () {
+      final limit = ["1S", "pass", "3S", "pass"];
+      expect(openingBid("AKQJ84", "A5", "KQ4", "A2", history: limit), "4NT");
+      expect(openingBid("AKQJ84", "A5", "Q54", "32", history: limit), "4S");
+      expect(openingBid("T952", "K76", "A82", "KQ4",
+              history: [...limit, "4NT", "pass"]),
+          "5D"); // responder answers one ace
+      final jacoby = ["1S", "pass", "2NT", "pass"];
+      expect(openingBid("AKQJ84", "A5", "KQ4", "A2", history: jacoby), "4NT");
+      expect(openingBid("AJT984", "A5", "Q54", "Q2", history: jacoby), "4S");
+    });
+
+    test("Blackwood over the jump raise of opener's second suit", () {
+      // Deal 2342 (seed 42): 22 total with a singleton opposite the 10-12
+      // jump raise stopped in 4S; the shortness credit lets it ask.
+      final h = ["1D", "pass", "1H", "pass", "1S", "pass", "3S", "pass"];
+      expect(openingBid("AKT9", "KQ9", "AKQT6", "7", history: h), "4NT");
+      expect(openingBid("AKT9", "K93", "AQJT6", "7", history: h), "4S");
+      expect(openingBid("Q874", "AJ82", "3", "KQ63",
+              history: [...h, "4NT", "pass"]),
+          "5D"); // responder answers one ace
+      expect(openingBid("AKT9", "KQ9", "AKQT6", "7",
+              history: [...h, "4NT", "pass", "5D", "pass"]),
+          "6S"); // 2 + 1 aces
+    });
+
+    test("penalty double of a 1NT opening", () {
+      // 15+ doubles for penalty; below that, pass or the natural overcall.
+      expect(openingBid("AQ87", "KJ4", "AQ92", "K3", history: ["1NT"]), "Double");
+      expect(openingBid("AQ8", "KJ4", "A952", "J32", history: ["1NT"]), "Double");
+      expect(openingBid("AQ8", "KJ4", "A952", "T32", history: ["1NT"]),
+          "Pass");
+      // With 15+ the double takes priority over the 6-card overcall.
+      expect(openingBid("AQ", "KJ4", "QT9752", "K3", history: ["1NT"]), "Double");
+      // Balancing seat plays the same way.
+      expect(openingBid("AQ87", "KJ4", "AQ92", "K3",
+              history: ["1NT", "pass", "pass"]),
+          "Double");
+    });
+
+    test("advancing the penalty double of 1NT", () {
+      // Manual-play hand: the forced advance scrambled to 2C as if the
+      // double were takeout; passing to defend is the default.
+      final h = ["1NT", "X", "pass"];
+      expect(openingBid("T62", "K93", "KT8", "9876", history: h), "Pass");
+      expect(openingBid("K9765", "T3", "862", "A32", history: h), "Pass");
+      // Only a bust with a 5+ suit pulls.
+      expect(openingBid("97652", "T3", "862", "432", history: h), "2S");
+      // If they run, double the runout for penalty with trumps and values.
+      final run = ["1NT", "X", "2H"];
+      expect(openingBid("T62", "KQ93", "KT8", "A87", history: run), "Double");
+      expect(openingBid("T62", "9873", "KT8", "987", history: run), "Pass");
+    });
+
+    test("cue bid of their suit is a limit raise or better", () {
+      // Manual-play hands: over a two-level overcall the invitational jump
+      // raise would be game (or pass 3NT for a minor), so the cue bid
+      // carries every 11+ raise, majors and minors alike.
+      final h = ["1S", "2H", "pass"];
+      expect(openingBid("AK63", "A73", "54", "5432", history: h), "2S");
+      expect(openingBid("AK63", "A73", "K4", "5432", history: h), "2S");
+      expect(openingBid("K963", "A73", "54", "5432", history: h), "3H");
+      final m = ["1S", "2C", "pass"];
+      expect(openingBid("AK76", "8732", "54", "A32", history: m), "2S");
+      expect(openingBid("9876", "AK3", "542", "AK2", history: m), "2S");
+      expect(openingBid("K976", "8732", "54", "A32", history: m), "3C");
+      // Over a one-level overcall too: the cue shows 11+, and the jump
+      // raise is preemptive (SAYC).
+      final one = ["1C", "1H", "pass"];
+      expect(openingBid("AK63", "A73", "542", "543", history: one), "2C");
+      expect(openingBid("AK63", "A73", "K42", "543", history: one), "2C");
+      expect(openingBid("AK76", "873", "A32", "543",
+              history: ["1C", "1D", "pass"]),
+          "2C");
+    });
+
+    test("single jump raise of an overcall is preemptive", () {
+      final h = ["1H", "1S", "pass"];
+      expect(openingBid("Q876", "J2", "K874", "432", history: h), "3S");
+      expect(openingBid("Q87", "J62", "K874", "432", history: h), "2S");
+      // Five trumps (or four with shortness) jump to game instead.
+      expect(openingBid("Q8765", "J2", "K874", "32", history: h), "4S");
+      expect(openingBid("Q876", "J2", "K8742", "32", history: h), "3S");
+      expect(openingBid("Q876", "J32", "K8742", "3", history: h), "4S");
+      // Minor: preemptive 3D over 1C 1D.
+      expect(openingBid("Q76", "J2", "K874", "8432",
+              history: ["1C", "1D", "pass"]),
+          "3D");
+      // With no cue available (their 1NT) and no jump below game, the
+      // single raise covers invitational values too.
+      expect(openingBid("A76", "K32", "Q874", "432",
+              history: ["1NT", "2H", "pass"]),
+          "3H");
+    });
+
+    test("advancing an overcall after a negative double: systems on", () {
+      final h = ["1C", "1S", "X"];
+      expect(openingBid("Q87", "J62", "K874", "432", history: h), "2S");
+      expect(openingBid("Q876", "J2", "K874", "432", history: h), "3S");
+      expect(openingBid("Q8765", "J2", "K874", "32", history: h), "4S");
+      expect(openingBid("K63", "A73", "A54", "K543", history: h), "2C");
+      // Redouble: 10+ without a fit; weak hands without a fit pass.
+      expect(openingBid("Q2", "AQ73", "KJ54", "543", history: h), "Redouble");
+      expect(openingBid("32", "Q873", "J954", "543", history: h), "Pass");
+      // The overcaller then answers the cue bid as usual.
+      expect(openingBid("KJ872", "K95", "Q43", "64",
+              history: [...h, "2C", "pass"]),
+          "2S");
+    });
+
+    test("negative doubler reads opener's rebid over the advancer's raise",
+        () {
+      // Self-play deal 280 (seed 1): opener's 2S over the 2H raise is the
+      // cheapest bid, not a 16-18 jump; a 9-count competes no further.
+      final h = ["1D", "1H", "X", "2H", "2S", "pass"];
+      expect(openingBid("A765", "2", "976", "KJ865", history: h), "Pass");
+      expect(openingBid("A765", "2", "976", "AQJ65", history: h),
+          "3S"); // 12 total invites
+    });
+
+    test("opener answers the negative double over the advancer's redouble",
+        () {
+      // Self-play deal 202 (seed 1): the redoubled 1S was passed out.
+      expect(openingBid("AT53", "96", "J6", "AQJ63",
+              history: ["1C", "1S", "X", "XX"]),
+          isNot("Pass"));
+      expect(openingBid("Q94", "K87", "AQT985", "9",
+              history: ["1D", "1H", "X", "XX"]),
+          "2D");
+    });
+
+    test("advancer passes the minimum signoff with a limit raise", () {
+      final h = ["1H", "1S", "pass", "2H", "pass", "2S", "pass"];
+      expect(openingBid("KQ3", "J62", "A854", "832", history: h), "Pass");
+      expect(openingBid("KQ3", "J62", "A854", "K32", history: h), "4S");
+    });
+
+    test("preemptive jump to game in partner's major", () {
+      final h = ["1S", "2H", "pass"];
+      // Weak with five trumps, or four and a singleton or void.
+      expect(openingBid("5", "KJ873", "Q8742", "32", history: h), "4H");
+      expect(openingBid("-", "Q8732", "KJ8742", "32", history: h), "4H");
+      expect(openingBid("5", "KJ87", "Q87432", "32", history: h), "4H");
+      // Four trumps without shortness, or only three, make the plain raise.
+      expect(openingBid("T5", "KJ87", "Q874", "432", history: h), "3H");
+      expect(openingBid("5", "KJ8", "Q87432", "432", history: h), "3H");
+      // Strong hands still cue-bid.
+      expect(openingBid("5", "KQ873", "AK742", "32", history: h), "2S");
+      // Also over a one-level overcall.
+      expect(openingBid("5", "KJ873", "Q8742", "32",
+              history: ["1C", "1H", "pass"]),
+          "4H");
+      // Over a weak jump overcall 4H is the plain raise, not a new rung.
+      expect(openingBid("T5", "KJ87", "Q874", "432",
+              history: ["1S", "3H", "pass"]),
+          "4H");
+    });
+
+    test("overcaller's rebid over the cue bid", () {
+      final h = ["1S", "2H", "pass", "2S", "pass"];
+      expect(openingBid("T5", "KQJ85", "K54", "Q32", history: h), "3H");
+      expect(openingBid("T5", "KQJ85", "AK4", "Q32", history: h), "4H");
+      // With a major the known fit beats 3NT even with their suit stopped.
+      expect(openingBid("A5", "KQJ85", "K54", "Q32", history: h), "4H");
+      expect(openingBid("KJ872", "A95", "KQ3", "64",
+              history: ["1H", "1S", "pass", "2H", "pass"]),
+          "4S");
+      final m = ["1S", "2C", "pass", "2S", "pass"];
+      expect(openingBid("A5", "K4", "Q54", "AKJ852", history: m), "3NT");
+      expect(openingBid("T5", "Q4", "954", "AKJ852", history: m), "3C");
+      // Self-play deal 149 (seed 1): the long-suit 17-count now reaches
+      // the making 5D opposite the cue.
+      expect(openingBid("KQJT6", "A6", "T983", "87",
+              history: ["pass", "1H", "2D", "pass"]),
+          "2H");
+      expect(openingBid("97", "4", "AKQJ542", "AT6",
+              history: ["pass", "1H", "2D", "pass", "2H", "pass"]),
+          "5D");
+    });
+
+    test("advancer continues after the overcaller's minimum signoff", () {
+      final h = ["1S", "2H", "pass", "2S", "pass", "3H", "pass"];
+      expect(openingBid("AK63", "A73", "K4", "5432", history: h), "4H");
+      expect(openingBid("AK63", "A73", "54", "5432", history: h), "Pass");
+      final m = ["1S", "2C", "pass", "2S", "pass", "3C", "pass"];
+      expect(openingBid("A876", "AK3", "542", "K32", history: m), "3NT");
+      expect(openingBid("9876", "AK3", "A42", "AK2", history: m), "5C");
+      expect(openingBid("9876", "AK3", "542", "AK2", history: m), "Pass");
+      expect(openingBid("AK63", "A73", "54", "5432",
+              history: ["1S", "2H", "pass", "2S", "pass", "4H", "pass"]),
+          "Pass");
+      // Self-play deal 1022 (seed 1): opener doubling the 13+ cue changes
+      // nothing, and the advancer still bids game.
+      expect(openingBid("AQT2", "KQ2", "54", "A964",
+              history: ["1D", "1S", "pass", "2D", "X", "2S", "pass"]),
+          "4S");
+    });
+
+    test("responder plays the known 5-3 major fit instead of 3NT", () {
+      // Manual-play hand: 3-card heart support opposite the 1H opening
+      // chose 3NT after opener's 2D (and 2NT) rebid.
+      final h = ["1H", "pass", "2C", "pass"];
+      expect(openingBid("63", "A32", "K2", "AK5432",
+              history: [...h, "2D", "pass"]),
+          "4H");
+      expect(openingBid("63", "A32", "K2", "AK5432",
+              history: [...h, "2NT", "pass"]),
+          "4H");
+      // Same after a one-level response and other rebids.
+      final one = ["1H", "pass", "1S", "pass"];
+      for (final rebid in ["1NT", "2C", "2D"]) {
+        expect(openingBid("Q632", "A32", "K2", "AK54",
+                history: [...one, rebid, "pass"]),
+            "4H",
+            reason: rebid);
+      }
+      expect(openingBid("Q632", "A32", "K2", "AK54",
+              history: [...one, "3D", "pass"]),
+          "4H");
+      // With only a doubleton, 3NT stays.
+      expect(openingBid("Q632", "A3", "K32", "AK54",
+              history: [...one, "2C", "pass"]),
+          "3NT");
+      // Opening a minor promises no five-card suit: unchanged.
+      expect(openingBid("A32", "63", "K2", "AK5432",
+              history: ["1D", "pass", "2C", "pass", "2NT", "pass"]),
+          "3NT");
+    });
+
+    test("fallback plays game in a long major rather than 3NT", () {
+      // Manual-play hand: seven spades opposite partner's 1NT advance chose
+      // 3NT because no support was promised.
+      final h = ["1C", "1S", "pass", "1NT", "pass"];
+      expect(openingBid("AQT9763", "KQ2", "7", "A2", history: h), "4S");
+      // Six cards too, including the flattest 6-3-2-2 shape.
+      expect(openingBid("AQ9763", "KQ2", "7", "A32", history: h), "4S");
+      expect(openingBid("AQ9763", "KQ2", "72", "A3", history: h), "4S");
+    });
+
+    test("opener prefers 3NT to five of a minor opposite a raise", () {
+      // Manual-play hand: a balanced 14-count bid 5D opposite the 11-13
+      // limit raise.
+      final limit = ["1D", "pass", "3D", "pass"];
+      expect(openingBid("Q876", "A2", "A543", "A32", history: limit), "3NT");
+      expect(openingBid("A7", "K2", "AQ8543", "A32", history: limit), "3NT");
+      // A singleton makes eleven tricks realistic with 15+.
+      expect(openingBid("7", "AK2", "AQ8543", "K32", history: limit), "5D");
+      expect(openingBid("7", "A32", "KQ854", "A432", history: limit),
+          "Pass"); // 14 with shortness
+      expect(openingBid("7", "A32", "KQ854", "9432", history: limit),
+          "Pass"); // 13 total: minimum
+      // Opposite the single raise game needs 19+.
+      final single = ["1D", "pass", "2D", "pass"];
+      expect(openingBid("AQ8", "KJ2", "AK543", "A3", history: single), "3NT");
+      expect(openingBid("7", "AKJ2", "AKQ854", "A3", history: single), "5D");
+      expect(openingBid("Q876", "A2", "AK543", "A3", history: single), "3D");
+      // Majors are unchanged.
+      expect(openingBid("Q87", "A2", "A5432", "A32",
+              history: ["1D", "pass", "3D", "pass"]),
+          "3NT");
+      expect(openingBid("A2", "Q8765", "A54", "A32",
+              history: ["1H", "pass", "3H", "pass"]),
+          "4H");
+    });
+
+    test("minor advances of a takeout double keep 3NT in reach", () {
+      // Self-play deal 1061 (seed 1): the invitational jump to 4C over the
+      // double of 2H skipped 3NT, and the doubler's 5C failed where 3NT
+      // made. The cheap advance now covers 0-11.
+      final h = ["2H", "X", "pass"];
+      expect(openingBid("53", "84", "Q6532", "Q862", history: h), "3D");
+      expect(openingBid("K5", "84", "J653", "AQ862", history: h),
+          "3C"); // 11 total
+      // Majors and one-level minors are unchanged.
+      expect(openingBid("KQ52", "84", "Q653", "A86",
+              history: ["1H", "X", "pass"]),
+          "2S");
+      expect(openingBid("K5", "84", "Q653", "AQ862",
+              history: ["1H", "X", "pass"]),
+          "3C");
+      // Self-play deal 2446 (seed 1): a 20-point doubler with the spade ace
+      // and no shortness plays 3NT rather than 5C opposite the forced 3C.
+      expect(openingBid("AT", "AKT6", "JT", "AQJ74",
+              history: ["2S", "pass", "pass", "X", "pass", "3C", "pass"]),
+          "3NT");
+      // With a singleton, five of the minor.
+      expect(openingBid("A", "AKT6", "JT5", "AQJ74",
+              history: ["2S", "pass", "pass", "X", "pass", "3C", "pass"]),
+          "5C");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
       expect(openingBid("K32", "K32", "KQ32", "432", history: ["1H", "2C"]),
           "3H");
+      // A 13-count with four trumps cue-bids; the direct 4H is preemptive.
       expect(openingBid("32", "K432", "AK32", "K32", history: ["1H", "1S"]),
-          "4H");
+          "2S");
     });
 
     test("three-level free bids with 12+", () {
@@ -1762,11 +2175,11 @@ void main() {
   });
 
   group("response rule coverage", () {
-    test("19+ balanced over a minor bids 3NT", () {
+    test("19-20 balanced over a minor invites slam with 4NT", () {
       final strong = selectSaycBid(hand("Q98", "K64", "AKQ", "KQT9"),
           ["1C", "pass"].map(BidAction.fromString).toList());
-      expect(strong.action.toString(), "3NT");
-      expect(strong.meaning.hcp, const Range(low: 16));
+      expect(strong.action.toString(), "4NT");
+      expect(strong.meaning.hcp, const Range(low: 19, high: 20));
     });
 
     test("12 HCP with a length point makes the limit raise", () {
@@ -1861,9 +2274,10 @@ void main() {
           "3S");
       expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1S", "2H"]),
           "3H");
-      // Four trumps still raise to game directly.
+      // Four trumps with game values also cue-bid; the direct 4H is the
+      // preemptive raise.
       expect(openingBid("T6", "K952", "AT87", "AK6", history: ["1H", "2S"]),
-          "4H");
+          "3S");
       // Minor opening: cue with support and no stopper, 3NT with one.
       expect(openingBid("T62", "K9", "AT875", "AK6", history: ["1D", "2S"]),
           "3S");
@@ -1873,6 +2287,37 @@ void main() {
       // deal 429, seed 1).
       expect(openingBid("J8532", "Q2", "AKQ6", "63", history: ["1D", "1H"]),
           "1S");
+    });
+
+    test("preemptive raise to game over an overcall", () {
+      // Five trumps, or four with a singleton or void, 6-12 points.
+      expect(openingBid("T6", "K9532", "A873", "43", history: ["1H", "1S"]),
+          "4H");
+      expect(openingBid("T6", "K952", "AT8732", "4", history: ["1H", "1S"]),
+          "4H");
+      expect(openingBid("T6", "K952", "AT8732", "4", history: ["1H", "2S"]),
+          "4H");
+      // Four trumps without shortness make the ordinary raise.
+      expect(openingBid("T62", "K952", "A873", "43", history: ["1H", "1S"]),
+          "2H");
+      // Strong hands cue-bid instead, whatever the shape.
+      expect(openingBid("6", "K952", "AT873", "AK4", history: ["1H", "1S"]),
+          "2S");
+      // Too weak even for a preemptive raise.
+      expect(openingBid("T6", "T9532", "9873", "43", history: ["1H", "1S"]),
+          "Pass");
+    });
+
+    test("game raise with support when a lower-suit jump overcall takes the cue",
+        () {
+      // Over 1H 3C the cue would be 4C: bid the game directly.
+      expect(openingBid("T62", "K95", "AT87", "AK6", history: ["1H", "3C"]),
+          "4H");
+      expect(openingBid("AK6", "K9", "AT875", "T62", history: ["1D", "3C"]),
+          "4D");
+      expect(openingBid("43", "K7", "AQJ73", "KQ72",
+              history: ["1D", "3C", "4D", "pass"]),
+          "5D");
     });
 
     test("game raise with 3-card support when the jump overcall takes the cue",
