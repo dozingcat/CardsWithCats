@@ -1807,6 +1807,32 @@ void main() {
           isNot("2S"));
     });
 
+    test("a four-level raise of an overcall needs values or shape", () {
+      // Manual-play hand: 6 points raised partner's 3C overcall of a weak
+      // two to 4C.
+      expect(openingBid("43", "Q432", "5432", "A32",
+              history: ["2S", "3C", "pass"]),
+          "Pass");
+      expect(openingBid("43", "Q32", "5432", "A432",
+              history: ["2S", "3H", "pass"]),
+          "Pass");
+      // 9+ raises.
+      expect(openingBid("43", "Q432", "K432", "A32",
+              history: ["2S", "3C", "pass"]),
+          "4C");
+      expect(openingBid("43", "Q32", "K432", "A432",
+              history: ["2S", "3H", "pass"]),
+          "4H");
+      // Weak with trump length and shortness competes.
+      expect(openingBid("4", "Q432", "5432", "A432",
+              history: ["2S", "3C", "pass"]),
+          "4C");
+      // Raises of a weak jump overcall stay preemptive.
+      expect(openingBid("T5", "KJ8", "Q874", "6432",
+              history: ["1S", "3H", "pass"]),
+          "4H");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
