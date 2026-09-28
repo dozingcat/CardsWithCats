@@ -75,7 +75,6 @@ flutter:
     - assets/audio/
     - assets/cards/default/
     - assets/cards/default/solid/
-    - assets/cards/default/transparent/
     - assets/cards/original/
     - assets/cards/original/solid/
     - assets/cards/original/transparent/
