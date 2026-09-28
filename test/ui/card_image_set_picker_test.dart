@@ -20,7 +20,6 @@ void main() {
       onDelete: onDelete,
       addActions: addActions,
       addHelpText: "Help text",
-      previewVariant: solidCardImageVariant,
     )))));
   }
 

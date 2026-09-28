@@ -102,10 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedHeartsReceivedCards = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
-  final cardImageSettings = CardImageSettings(
-    builtInSets: cardImageSets,
-    importVariants: cardImageVariants,
-  );
+  final cardImageSettings = CardImageSettings(builtInSets: cardImageSets);
 
   @override
   void initState() {
@@ -695,7 +692,6 @@ class _MyHomePageState extends State<MyHomePage> {
                             CardImageSetPreference(
                               settings: cardImageSettings,
                               labelStyle: labelStyle,
-                              previewVariant: solidCardImageVariant,
                             ),
                             const ListTile(
                                 title: Text("Hearts",

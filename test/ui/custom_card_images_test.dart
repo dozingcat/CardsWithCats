@@ -2,50 +2,12 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:cards_with_cats/card_images.dart';
-import 'package:cards_with_cats/common_ui.dart';
 import 'package:cards_with_cats/custom_card_images.dart';
-import 'package:cards_with_cats/transparent_card_images.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 void main() {
-  group('makeTransparentCardImage', () {
-    List<num> convertPixel(int r, int g, int b, [int a = 255]) {
-      final src = img.Image(width: 1, height: 1, numChannels: 4)..setPixelRgba(0, 0, r, g, b, a);
-      final px = makeTransparentCardImage(src).getPixel(0, 0);
-      return [px.r, px.g, px.b, px.a];
-    }
-
-    test('white becomes transparent', () {
-      expect(convertPixel(255, 255, 255)[3], 1);
-    });
-
-    test('black is unchanged', () {
-      expect(convertPixel(0, 0, 0), [0, 0, 0, 255]);
-    });
-
-    test('colors are separated into color and alpha', () {
-      // Examples from scripts/make_transparent_cards.py.
-      expect(convertPixel(255, 128, 128), [255, 0, 0, 127]);
-      expect(convertPixel(255, 128, 64), [255, 85, 0, 191]);
-    });
-
-    test('fully transparent pixels are unchanged', () {
-      expect(convertPixel(10, 20, 30, 0), [10, 20, 30, 0]);
-    });
-
-    test('works with RGB images', () {
-      final src = img.Image(width: 2, height: 1)
-        ..setPixelRgb(0, 0, 255, 255, 255)
-        ..setPixelRgb(1, 0, 255, 0, 0);
-      final dst = makeTransparentCardImage(src);
-      expect(dst.getPixel(0, 0).a, 1);
-      final red = dst.getPixel(1, 0);
-      expect([red.r, red.g, red.b, red.a], [255, 0, 0, 255]);
-    });
-  });
-
   group('import', () {
     late Directory tmp;
     late Directory sourceDir;
@@ -89,18 +51,16 @@ void main() {
 
     test('imports and reloads', () async {
       writeCards();
-      final imageSet = await importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir, variants: cardImageVariants);
+      final imageSet = await importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir);
       expect(imageSet.displayName, 'My Cards');
       expect(imageSet.source, CardImageSource.filesystem);
       expect(imageSet.aspectRatio, closeTo(50 / 70, 1e-9));
       for (final s in suits) {
         for (final r in ranks) {
-          for (final kind in ['solid', 'transparent']) {
-            final f = File(p.join(imageSet.basePath, kind, '$r$s.webp'));
-            expect(f.existsSync(), true, reason: f.path);
-            final decoded = img.decodeWebP(f.readAsBytesSync())!;
-            expect([decoded.width, decoded.height], [50, 70]);
-          }
+          final f = File(p.join(imageSet.basePath, '$r$s.webp'));
+          expect(f.existsSync(), true, reason: f.path);
+          final decoded = img.decodeWebP(f.readAsBytesSync())!;
+          expect([decoded.width, decoded.height], [50, 70]);
         }
       }
 
@@ -118,7 +78,7 @@ void main() {
     test('fails if cards are missing', () async {
       writeCards(skip: {'QS', '2H'});
       await expectLater(
-          importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir, variants: cardImageVariants),
+          importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir),
           throwsA(isA<CardImageImportException>().having(
               (e) => e.message, 'message', contains('2 cards: 2H, QS'))));
       expect(baseDir.existsSync() ? baseDir.listSync() : [], isEmpty);
@@ -128,7 +88,7 @@ void main() {
       writeCards();
       File(p.join(sourceDir.path, 'AS.webp')).writeAsStringSync('not an image');
       await expectLater(
-          importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir, variants: cardImageVariants),
+          importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir),
           throwsA(isA<CardImageImportException>()));
       expect(baseDir.listSync(), isEmpty);
     });
@@ -161,18 +121,16 @@ void main() {
     void expectCompleteSet(CardImageSet imageSet, int width, int height) {
       for (final s in suits) {
         for (final r in ranks) {
-          for (final kind in ['solid', 'transparent']) {
-            final f = File(p.join(imageSet.basePath, kind, '$r$s.webp'));
-            final decoded = img.decodeWebP(f.readAsBytesSync())!;
-            expect([decoded.width, decoded.height], [width, height], reason: f.path);
-          }
+          final f = File(p.join(imageSet.basePath, '$r$s.webp'));
+          final decoded = img.decodeWebP(f.readAsBytesSync())!;
+          expect([decoded.width, decoded.height], [width, height], reason: f.path);
         }
       }
     }
 
     test('imports from zip', () async {
       final zipPath = writeZip();
-      final imageSet = await importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir, variants: cardImageVariants);
+      final imageSet = await importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir);
       expect(imageSet.displayName, 'Zipped Cards');
       expect(imageSet.aspectRatio, closeTo(40 / 60, 1e-9));
       expectCompleteSet(imageSet, 40, 60);
@@ -190,14 +148,14 @@ void main() {
         'cards/back.png': deeperImage,
         'cards/extra/AS.png': deeperImage,
       });
-      final imageSet = await importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir, variants: cardImageVariants);
+      final imageSet = await importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir);
       expectCompleteSet(imageSet, 40, 60);
     });
 
     test('fails if zip is missing cards', () async {
       final zipPath = writeZip(skip: {'TD'});
       await expectLater(
-          importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir, variants: cardImageVariants),
+          importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir),
           throwsA(isA<CardImageImportException>().having(
               (e) => e.message, 'message', contains('1 card: TD'))));
       expect(baseDir.existsSync() ? baseDir.listSync() : [], isEmpty);
@@ -207,7 +165,7 @@ void main() {
       final zipPath = p.join(tmp.path, 'bad.zip');
       File(zipPath).writeAsStringSync('not a zip file');
       await expectLater(
-          importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir, variants: cardImageVariants),
+          importCardImageSetFromZip(zipPath: zipPath, baseDir: baseDir),
           throwsA(isA<CardImageImportException>().having(
               (e) => e.message, 'message', contains('Unable to read zip file'))));
     });

@@ -8,8 +8,6 @@ import 'card_images.dart';
 import 'cards/card.dart';
 import 'cards/trick.dart';
 import 'common.dart';
-import 'custom_card_images.dart';
-import 'transparent_card_images.dart';
 
 enum AnimationMode {
   none,
@@ -21,16 +19,6 @@ enum AiMode {
   allAi,
   humanPlayer0,
 }
-
-// Card images have "solid" and "transparent" variants. Transparent images are
-// drawn over a background color (e.g. for tinted trump cards).
-const solidCardImageVariant = "solid";
-const transparentCardImageVariant = "transparent";
-
-const cardImageVariants = [
-  CardImageVariant(solidCardImageVariant),
-  CardImageVariant(transparentCardImageVariant, makeTransparentCardImage),
-];
 
 const defaultCardImageSet = CardImageSet("default", "Default", .assets, "assets/cards/default", 521.0 / 726);
 
@@ -171,7 +159,7 @@ class PositionedCard extends StatelessWidget {
       tint = Color.lerp(tint ?? Colors.white, Colors.black, dimming);
     }
     cardStack.add(Image(
-      image: cardImageSet.imageProvider(card.toString(), variant: solidCardImageVariant),
+      image: cardImageSet.imageProvider(card.toString()),
       color: tint,
       colorBlendMode: BlendMode.modulate,
     ));

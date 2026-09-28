@@ -1640,7 +1640,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Stack(children: [
-            Image(image: cardImageSet.imageProvider(card.toString(), variant: solidCardImageVariant), height: cardHeight),
+            Image(image: cardImageSet.imageProvider(card.toString()), height: cardHeight),
             if (mistake != null)
               SizedBox(
                   height: cardHeight,
