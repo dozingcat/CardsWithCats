@@ -5677,13 +5677,29 @@ List<SaycRule>? advanceOvercallRules(
       ),
     ));
   }
+  // A single raise that lands at the four level is game in a major and
+  // bypasses 3NT in a minor, so opposite a sound overcall it needs real
+  // values (9+) or trump length and shape to compete on (five trumps, or
+  // four with a singleton or void). Raises of a weak jump overcall stay
+  // preemptive.
+  final fourLevelRaise = raiseLevel >= 4 && !weakJump;
+  bool competitiveShape(HandAnalysis h) =>
+      h.count(suit) >= 5 ||
+      (h.count(suit) == 4 &&
+          Suit.values.any((x) => x != suit && h.count(x) <= 1));
   rules.add(SaycRule(
     BidAction.contract(raiseLevel, suit),
     BidMeaning(
-      description: "Raise: 3+ $name, 6-$singleMax points",
+      description: fourLevelRaise
+          ? "Raise: 3+ $name, 9-$singleMax points "
+              "(or 6+ with trump length and shortness)"
+          : "Raise: 3+ $name, 6-$singleMax points",
       totalPoints: Range(low: 6, high: singleMax),
       suitLengths: {suit: const Range(low: 3)},
     ),
+    require: fourLevelRaise
+        ? (h) => h.totalPoints >= 9 || competitiveShape(h)
+        : null,
   ));
   final cueRule = !useCue
       ? null
