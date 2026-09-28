@@ -28,14 +28,10 @@ class CardImageSet {
 
   const CardImageSet(this.name, this.displayName, this.source, this.basePath, this.aspectRatio);
 
-  // `variant` is an optional subdirectory, for apps that have multiple versions
-  // of each card image.
-  String imagePath(String cardName, {String? variant}) {
-    return variant == null ? "$basePath/$cardName.webp" : "$basePath/$variant/$cardName.webp";
-  }
+  String imagePath(String cardName) => "$basePath/$cardName.webp";
 
-  ImageProvider imageProvider(String cardName, {String? variant}) {
-    final path = imagePath(cardName, variant: variant);
+  ImageProvider imageProvider(String cardName) {
+    final path = imagePath(cardName);
     return switch (source) {
       CardImageSource.assets => AssetImage(path),
       CardImageSource.filesystem => FileImage(File(path)),
@@ -53,8 +49,6 @@ CardImageSet cardImageSetForName(String? name, List<CardImageSet> imageSets) {
 class CardImageSettings extends ChangeNotifier {
   // The app's bundled image sets. The first one is the default.
   final List<CardImageSet> builtInSets;
-  // The versions of each card image that are created when importing a set.
-  final List<CardImageVariant> importVariants;
   final String prefsKey;
   SharedPreferences? _preferences;
   late CardImageSet _selectedSet;
@@ -64,7 +58,6 @@ class CardImageSettings extends ChangeNotifier {
 
   CardImageSettings({
     required this.builtInSets,
-    this.importVariants = defaultCardImageVariants,
     this.prefsKey = "cardImageSet",
   }) {
     assert(builtInSets.isNotEmpty);
@@ -129,15 +122,12 @@ class CardImageSetPreference extends StatelessWidget {
   final CardImageSettings settings;
   final TextStyle? labelStyle;
   final double cardHeight;
-  // Image variant to show in previews, see CardImageSet.imagePath.
-  final String? previewVariant;
 
   const CardImageSetPreference({
     super.key,
     required this.settings,
     this.labelStyle,
     this.cardHeight = 56,
-    this.previewVariant,
   });
 
   // Folder access is unreliable on mobile because of platform sandboxing,
@@ -178,11 +168,11 @@ class CardImageSetPreference extends StatelessWidget {
     if (await FileSystemEntity.isDirectory(path)) {
       if (!context.mounted) return;
       await _importSet(context, path, (baseDir) =>
-          importCardImageSet(sourceDir: path, baseDir: baseDir, variants: settings.importVariants));
+          importCardImageSet(sourceDir: path, baseDir: baseDir));
     } else {
       if (!context.mounted) return;
       await _importSet(context, path, (baseDir) =>
-          importCardImageSetFromZip(zipPath: path, baseDir: baseDir, variants: settings.importVariants));
+          importCardImageSetFromZip(zipPath: path, baseDir: baseDir));
     }
   }
 
@@ -192,7 +182,7 @@ class CardImageSetPreference extends StatelessWidget {
       return;
     }
     await _importSet(context, sourceDir, (baseDir) =>
-        importCardImageSet(sourceDir: sourceDir, baseDir: baseDir, variants: settings.importVariants));
+        importCardImageSet(sourceDir: sourceDir, baseDir: baseDir));
   }
 
   Future<void> _importFromZip(BuildContext context) async {
@@ -210,7 +200,6 @@ class CardImageSetPreference extends StatelessWidget {
           zipPath: zipPath,
           baseDir: baseDir,
           displayName: file.name.replaceFirst(RegExp(r"\.zip$", caseSensitive: false), ""),
-          variants: settings.importVariants,
       ));
     } finally {
       // On mobile the picked file is copied to a temporary location.
@@ -281,7 +270,6 @@ class CardImageSetPreference extends StatelessWidget {
         onDelete: (imageSet) => _deleteSet(context, imageSet),
         isImporting: settings.isImporting,
         cardHeight: cardHeight,
-        previewVariant: previewVariant,
       ),
     );
   }
@@ -305,8 +293,6 @@ class CardImageSetPicker extends StatefulWidget {
   // Shows a progress indicator in place of the add button.
   final bool isImporting;
   final double cardHeight;
-  // Image variant to show, see CardImageSet.imagePath.
-  final String? previewVariant;
 
   static const sampleCards = ["AS", "KH", "7D"];
 
@@ -322,7 +308,6 @@ class CardImageSetPicker extends StatefulWidget {
     this.onDelete,
     this.isImporting = false,
     this.cardHeight = 56,
-    this.previewVariant,
   });
 
   @override
@@ -347,7 +332,7 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(cornerRadius),
         child: Image(
-          image: imageSet.imageProvider(cardName, variant: widget.previewVariant),
+          image: imageSet.imageProvider(cardName),
           height: cardHeight,
           width: cardHeight * imageSet.aspectRatio,
           fit: BoxFit.fill,

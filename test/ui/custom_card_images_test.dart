@@ -55,6 +55,7 @@ void main() {
       expect(imageSet.displayName, 'My Cards');
       expect(imageSet.source, CardImageSource.filesystem);
       expect(imageSet.aspectRatio, closeTo(50 / 70, 1e-9));
+      expect(imageSet.imagePath('AS'), p.join(imageSet.basePath, 'AS.webp'));
       for (final s in suits) {
         for (final r in ranks) {
           final f = File(p.join(imageSet.basePath, '$r$s.webp'));
@@ -170,42 +171,8 @@ void main() {
               (e) => e.message, 'message', contains('Unable to read zip file'))));
     });
 
-    test('default variant stores images in the set directory', () async {
-      writeCards();
-      final imageSet = await importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir);
-      for (final s in suits) {
-        for (final r in ranks) {
-          final f = File(p.join(imageSet.basePath, '$r$s.webp'));
-          final decoded = img.decodeWebP(f.readAsBytesSync())!;
-          expect([decoded.width, decoded.height], [50, 70], reason: f.path);
-        }
-      }
-      expect(Directory(p.join(imageSet.basePath, 'solid')).existsSync(), false);
-      expect(imageSet.imagePath('AS'), p.join(imageSet.basePath, 'AS.webp'));
-    });
-
-    test('transform variants are generated from the source image', () async {
-      writeCards();
-      final imageSet = await importCardImageSet(sourceDir: sourceDir.path, baseDir: baseDir, variants: const [
-        CardImageVariant('original'),
-        CardImageVariant('green', _greenImage),
-      ]);
-      // The source images are solid red. Lossy compression can change values slightly.
-      final original = img.decodeWebP(File(imageSet.imagePath('AS', variant: 'original')).readAsBytesSync())!;
-      final green = img.decodeWebP(File(imageSet.imagePath('AS', variant: 'green')).readAsBytesSync())!;
-      final op = original.getPixel(10, 10);
-      final gp = green.getPixel(10, 10);
-      expect([op.r > 200, op.g < 50], [true, true]);
-      expect([gp.r < 50, gp.g > 200], [true, true]);
-      expect([green.width, green.height], [50, 70]);
-    });
-
     test('loads nothing if base directory does not exist', () async {
       expect(await loadCustomCardImageSets(baseDir), isEmpty);
     });
   });
 }
-
-// Transforms must be top-level functions because they run in background isolates.
-img.Image _greenImage(img.Image src) =>
-    img.Image(width: src.width, height: src.height)..clear(img.ColorRgb8(0, 255, 0));

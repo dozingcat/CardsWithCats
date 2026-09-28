@@ -9,8 +9,7 @@ import 'package:path/path.dart' as p;
 import 'card_images.dart';
 
 // User-imported card images are stored in subdirectories of the base directory,
-// using the same layout as the bundled assets: 2C.webp, 3C.webp, etc, optionally
-// in a subdirectory for each variant (see CardImageVariant).
+// using the same layout as the bundled assets (2C.webp, 3C.webp, etc).
 // Each subdirectory also has an info.json file with the display name and aspect ratio.
 // Absolute paths aren't stored, because on iOS the app's container directory
 // can change between launches.
@@ -22,22 +21,6 @@ const _webpQuality = 90;
 const _maxZipEntrySize = 25 * 1024 * 1024;
 
 final _allCardNames = [for (final s in "CDHS".split("")) for (final r in "23456789TJQKA".split("")) "$r$s"];
-
-// A version of each card image that an app needs. Each variant is stored in its
-// own subdirectory, or directly in the image set directory if `subdirectory` is
-// null. If `transform` is set, the variant is created by applying it to the
-// imported image. `transform` must be a top-level or static function, because
-// it's called in background isolates.
-class CardImageVariant {
-  final String? subdirectory;
-  final img.Image Function(img.Image)? transform;
-
-  const CardImageVariant([this.subdirectory, this.transform]);
-}
-
-// Stores the imported images as-is (converted to webp if needed) directly in the
-// image set directory.
-const defaultCardImageVariants = [CardImageVariant()];
 
 class CardImageImportException implements Exception {
   final String message;
@@ -90,13 +73,13 @@ Future<void> deleteCustomCardImageSet(CardImageSet imageSet) async {
 }
 
 // Imports card images from `sourceDir`, which must contain an image for each card
-// named like "2C.webp" or "TH.png". Writes each of `variants` as webp images in a
-// new subdirectory of `baseDir`. The display name defaults to the name of `sourceDir`.
+// named like "2C.webp" or "TH.png". Converts the images to webp if needed and
+// stores them in a new subdirectory of `baseDir`. The display name defaults to
+// the name of `sourceDir`.
 Future<CardImageSet> importCardImageSet({
   required String sourceDir,
   required Directory baseDir,
   String? displayName,
-  List<CardImageVariant> variants = defaultCardImageVariants,
 }) async {
   displayName ??= p.basename(sourceDir);
   final sourceFiles = await _findCardImageFiles(sourceDir);
@@ -106,7 +89,7 @@ Future<CardImageSet> importCardImageSet({
   // won't be picked up by loadCustomCardImageSets.
   final tmpDir = "$destDir.tmp";
   try {
-    final aspectRatio = await _convertCardImages(sourceFiles, tmpDir, variants);
+    final aspectRatio = await _convertCardImages(sourceFiles, tmpDir);
     await File(p.join(tmpDir, _infoFilename)).writeAsString(jsonEncode({
       "displayName": displayName,
       "aspectRatio": aspectRatio,
@@ -130,7 +113,6 @@ Future<CardImageSet> importCardImageSetFromZip({
   required String zipPath,
   required Directory baseDir,
   String? displayName,
-  List<CardImageVariant> variants = defaultCardImageVariants,
 }) async {
   final extractDir = await Directory.systemTemp.createTemp("card_images_zip");
   try {
@@ -139,7 +121,6 @@ Future<CardImageSet> importCardImageSetFromZip({
         sourceDir: extractDir.path,
         baseDir: baseDir,
         displayName: displayName ?? p.basenameWithoutExtension(zipPath),
-        variants: variants,
     );
   } finally {
     await extractDir.delete(recursive: true);
@@ -222,13 +203,10 @@ Future<Map<String, String>> _findCardImageFiles(String sourceDir) async {
   return {for (final c in _allCardNames) c: filesByCard[c]!};
 }
 
-// Writes webp images for each card and variant to `destDir`, and returns the aspect
-// ratio. Conversion is CPU-intensive so it's split across background isolates.
-Future<double> _convertCardImages(
-    Map<String, String> sourceFiles, String destDir, List<CardImageVariant> variants) async {
-  for (final v in variants) {
-    await Directory(_variantDir(destDir, v)).create(recursive: true);
-  }
+// Writes a webp image for each card to `destDir`, and returns the aspect ratio.
+// Conversion is CPU-intensive so it's split across background isolates.
+Future<double> _convertCardImages(Map<String, String> sourceFiles, String destDir) async {
+  await Directory(destDir).create(recursive: true);
 
   final entries = sourceFiles.entries.toList();
   final numWorkers = Platform.numberOfProcessors.clamp(1, 8);
@@ -238,7 +216,7 @@ Future<double> _convertCardImages(
   final sizes = await Future.wait(batches.map((batch) => Isolate.run(() {
     final result = <String, (int, int)>{};
     for (final (cardName, path) in batch) {
-      result[cardName] = _convertCardImage(cardName, path, destDir, variants);
+      result[cardName] = _convertCardImage(cardName, path, destDir);
     }
     return result;
   })));
@@ -246,31 +224,18 @@ Future<double> _convertCardImages(
   return width / height;
 }
 
-String _variantDir(String destDir, CardImageVariant variant) {
-  final subdirectory = variant.subdirectory;
-  return subdirectory == null ? destDir : p.join(destDir, subdirectory);
-}
-
 // Returns the (width, height) of the image.
-(int, int) _convertCardImage(
-    String cardName, String sourcePath, String destDir, List<CardImageVariant> variants) {
+(int, int) _convertCardImage(String cardName, String sourcePath, String destDir) {
   final bytes = File(sourcePath).readAsBytesSync();
   final image = img.decodeNamedImage(sourcePath, bytes);
   if (image == null) {
     throw CardImageImportException("Unable to read image: ${p.basename(sourcePath)}");
   }
-  for (final variant in variants) {
-    final destPath = p.join(_variantDir(destDir, variant), "$cardName.webp");
-    final transform = variant.transform;
-    if (transform != null) {
-      // Transforms may add transparency, so keep full alpha quality.
-      File(destPath).writeAsBytesSync(img.encodeWebP(
-          transform(image), lossless: false, quality: _webpQuality, alphaQuality: 100));
-    } else if (p.extension(sourcePath).toLowerCase() == ".webp") {
-      File(destPath).writeAsBytesSync(bytes);
-    } else {
-      File(destPath).writeAsBytesSync(img.encodeWebP(image, lossless: false, quality: _webpQuality));
-    }
+  final destPath = p.join(destDir, "$cardName.webp");
+  if (p.extension(sourcePath).toLowerCase() == ".webp") {
+    File(destPath).writeAsBytesSync(bytes);
+  } else {
+    File(destPath).writeAsBytesSync(img.encodeWebP(image, lossless: false, quality: _webpQuality));
   }
   return (image.width, image.height);
 }
