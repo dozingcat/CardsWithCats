@@ -1636,7 +1636,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Stack(children: [
-            Image.asset("assets/cards/solid/${card.toString()}.webp", height: cardHeight),
+            Image.asset("assets/cards/${card.toString()}.webp", height: cardHeight),
             if (mistake != null)
               SizedBox(
                   height: cardHeight,

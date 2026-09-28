@@ -139,22 +139,20 @@ class PositionedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // If the card has a background color, we set it in the top-level Container
-    // below and draw the transparent card on top of it so that the background
-    // will show through the transparent parts. If there's no background,
-    // we use the solid version of the card image.
     final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
     final cardStack = <Widget>[];
-    Color? bgColor = cardBackgroundColor();
-    final cardImagePath = bgColor != null ?
-        "assets/cards/transparent/${card.toString()}.webp" :
-        "assets/cards/solid/${card.toString()}.webp";
-    cardStack.add(Image(image: AssetImage(cardImagePath)));
-
-    // To dim a card, we draw a partially transparent black rectangle over it.
+    // A background color tints the card by multiplying it with the card image,
+    // so white areas become the background color and black areas stay black.
+    // Dimming darkens the card by blending the tint color towards black.
+    Color? tint = cardBackgroundColor();
     if (dimming > 0) {
-      cardStack.add(Container(color: Color.fromRGBO(0, 0, 0, dimming)));
+      tint = Color.lerp(tint ?? Colors.white, Colors.black, dimming);
     }
+    cardStack.add(Image(
+      image: AssetImage("assets/cards/${card.toString()}.webp"),
+      color: tint,
+      colorBlendMode: BlendMode.modulate,
+    ));
 
     // The card images don't have an edge border so we draw it manually.
     // Width of 0 makes the border one physical pixel.
@@ -169,8 +167,7 @@ class PositionedCard extends StatelessWidget {
       ),
     ));
 
-    // ClipRRect clips the background color and dimming rectangle
-    // to the card's rounded rect.
+    // ClipRRect clips the card image to the rounded rect.
     return Positioned.fromRect(
       rect: cardRect,
       child: Transform.rotate(
@@ -191,10 +188,7 @@ class PositionedCard extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(cornerRadius),
-                  child: Container(
-                    color: bgColor,
-                    child: Stack(children: cardStack)
-                  ),
+                  child: Stack(children: cardStack),
                 ),
               ),
             ),
