@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'cards/round.dart';
+import 'card_images.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -40,6 +41,7 @@ class HeartsMatchDisplay extends StatefulWidget {
   final bool tintPointCards;
   final bool tintReceivedCards;
   final StatsStore statsStore;
+  final CardImageSet cardImageSet;
 
   const HeartsMatchDisplay({
     Key? key,
@@ -54,6 +56,7 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.tintPointCards,
     required this.tintReceivedCards,
     required this.statsStore,
+    required this.cardImageSet,
   }) : super(key: key);
 
   @override
@@ -491,7 +494,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final layout = computeLayout(context);
+    final layout = computeLayout(context, cardImageSet: widget.cardImageSet);
 
     return Stack(
       children: <Widget>[

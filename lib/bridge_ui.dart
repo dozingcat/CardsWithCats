@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'bridge/sayc/sayc_bidding.dart';
 import 'cards/round.dart';
 import 'cards/trick.dart';
+import 'card_images.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -76,6 +77,7 @@ class BridgeMatchDisplay extends StatefulWidget {
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
+  final CardImageSet cardImageSet;
 
   const BridgeMatchDisplay({
     super.key,
@@ -90,6 +92,7 @@ class BridgeMatchDisplay extends StatefulWidget {
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
+    required this.cardImageSet,
   });
 
   @override
@@ -908,7 +911,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final layout = computeLayout(context);
+    final layout = computeLayout(context, cardImageSet: widget.cardImageSet);
     _ensureDoubleDummyResult();
     final showAllHands = false;
 
@@ -1626,7 +1629,8 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
       final card = trick.cards[cardIndex];
       final isWinner = playerIndex == trick.winner;
       const cardHeight = 80.0;
-      const cardWidth = cardHeight * defaultCardAspectRatio;
+      final cardImageSet = widget.layout.cardImageSet;
+      final cardWidth = cardHeight * cardImageSet.aspectRatio;
       final mistake = ddMistakes[playerIndex];
       return Container(
           decoration: BoxDecoration(
@@ -1636,7 +1640,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Stack(children: [
-            Image.asset("assets/cards/${card.toString()}.webp", height: cardHeight),
+            Image(image: cardImageSet.imageProvider(card.toString()), height: cardHeight),
             if (mistake != null)
               SizedBox(
                   height: cardHeight,

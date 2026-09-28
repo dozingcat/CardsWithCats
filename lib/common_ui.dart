@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'card_images.dart';
 import 'cards/card.dart';
 import 'cards/trick.dart';
 import 'common.dart';
@@ -19,13 +20,22 @@ enum AiMode {
   humanPlayer0,
 }
 
-const defaultCardAspectRatio = 521.0 / 726;
+const defaultCardImageSet = CardImageSet("default", "Default", .assets, "assets/cards/default", 521.0 / 726);
+
+const cardImageSets = [
+  defaultCardImageSet,
+  CardImageSet("original", "Original", .assets, "assets/cards/original", 500.0 / 726),
+  CardImageSet("large", "Large text", .assets, "assets/cards/large", 500.0 / 700),
+  CardImageSet("large_four_color", "Large 4 color", .assets, "assets/cards/large_four_color", 500.0 / 700),
+];
 
 class Layout {
   late Size displaySize;
   late double playerHeight;
   late EdgeInsets padding;
-  double cardAspectRatio = defaultCardAspectRatio;
+  CardImageSet cardImageSet = defaultCardImageSet;
+
+  double get cardAspectRatio => cardImageSet.aspectRatio;
 
   Rect cardArea() {
     final border = playerHeight * 0.9;
@@ -104,7 +114,7 @@ const defaultTrumpBackgroundColor = Color.fromARGB(255, 255, 215, 0);
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
-  final double cardAspectRatio;
+  final CardImageSet cardImageSet;
   final double dimming;
   final double rotation;
   final double opacity;
@@ -117,7 +127,7 @@ class PositionedCard extends StatelessWidget {
     super.key,
     required this.rect,
     required this.card,
-    this.cardAspectRatio = defaultCardAspectRatio,
+    required this.cardImageSet,
     this.onCardClicked,
     this.dimming = 0.0,
     this.rotation = 0.0,
@@ -139,7 +149,7 @@ class PositionedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardRect = centeredSubrectWithAspectRatio(rect, cardAspectRatio);
+    final cardRect = centeredSubrectWithAspectRatio(rect, cardImageSet.aspectRatio);
     final cardStack = <Widget>[];
     // A background color tints the card by multiplying it with the card image,
     // so white areas become the background color and black areas stay black.
@@ -149,7 +159,7 @@ class PositionedCard extends StatelessWidget {
       tint = Color.lerp(tint ?? Colors.white, Colors.black, dimming);
     }
     cardStack.add(Image(
-      image: AssetImage("assets/cards/${card.toString()}.webp"),
+      image: cardImageSet.imageProvider(card.toString()),
       color: tint,
       colorBlendMode: BlendMode.modulate,
     ));
@@ -653,6 +663,7 @@ class TrickCards extends StatelessWidget {
       {double opacity = 1, bool ignorePointer = false}) {
     final cardRect = layout.trickCardAreaForPlayer(playerIndex);
     return PositionedCard(
+        cardImageSet: layout.cardImageSet,
         rect: cardRect,
         card: card,
         isTrump: card.suit == trumpSuit,
@@ -743,6 +754,7 @@ class TrickCards extends StatelessWidget {
             animRect = Rect.fromCenter(center: animRect.center, width: startRect.width * scale, height: startRect.height * scale);
           }
           return PositionedCard(
+              cardImageSet: layout.cardImageSet,
               rect: animRect,
               card: cards.last,
               isTrump: cards.last.suit == trumpSuit,
@@ -775,6 +787,7 @@ class TrickCards extends StatelessWidget {
                 Rect.fromCenter(center: center, width: endRect.width * scale, height: endRect.height * scale);
             cardWidgets.add(
                 PositionedCard(
+                    cardImageSet: layout.cardImageSet,
                     rect: animRect,
                     card: trick.cards[i],
                     isTrump: trick.cards[i].suit == trumpSuit,
@@ -921,6 +934,7 @@ class PlayerHandCards extends StatelessWidget {
               final startRect = previousRects[card]!;
               final endRect = entry.value;
               cardImages.add(PositionedCard(
+                cardImageSet: layout.cardImageSet,
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
                 isTrump: card.suit == trumpSuit,
@@ -938,6 +952,7 @@ class PlayerHandCards extends StatelessWidget {
     for (final entry in rects.entries) {
       final card = entry.key;
       cardImages.add(PositionedCard(
+        cardImageSet: layout.cardImageSet,
         rect: entry.value,
         card: card,
         isTrump: card.suit == trumpSuit,
@@ -1440,7 +1455,7 @@ Widget scoreToggleIconButton({
   );
 }
 
-Layout computeLayout(BuildContext context) {
+Layout computeLayout(BuildContext context, {CardImageSet cardImageSet = defaultCardImageSet}) {
   final baseSize = MediaQuery.sizeOf(context);
   // paddingOf returns the padding needed to avoid display cutouts.
   final padding = MediaQuery.paddingOf(context);
@@ -1452,5 +1467,6 @@ Layout computeLayout(BuildContext context) {
     ..displaySize = adjustedSize
     ..playerHeight = adjustedSize.shortestSide * 0.125
     ..padding = padding
+    ..cardImageSet = cardImageSet
     ;
 }

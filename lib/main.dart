@@ -24,6 +24,7 @@ import 'ohhell_ui.dart';
 import 'spades/spades.dart';
 
 import 'common_ui.dart';
+import 'card_images.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
@@ -101,21 +102,36 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedHeartsReceivedCards = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
+  final cardImageSettings = CardImageSettings(builtInSets: cardImageSets);
 
   @override
   void initState() {
     super.initState();
     catIndices = randomizedCatImageIndices(rng);
     soundPlayer.init();
+    cardImageSettings.addListener(_cardImageSettingsChanged);
     _readPreferences();
 
     runAnimationTimingTestIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    cardImageSettings.dispose();
+    super.dispose();
+  }
+
+  CardImageSet get cardImageSet => cardImageSettings.selectedSet;
+
+  void _cardImageSettingsChanged() {
+    setState(() {});
   }
 
   void _readPreferences() async {
     final statsDir = await getApplicationSupportDirectory();
     print("Application support directory: $statsDir");
     preferences = await SharedPreferences.getInstance();
+    await cardImageSettings.load(preferences);
     // preferences.clear();
     // preferences.remove("matchType");
     setState(() {
@@ -673,6 +689,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setTintedTrumpCardsEnabled(checked == true);
                               },
                             ),
+                            CardImageSetPreference(
+                              settings: cardImageSettings,
+                              labelStyle: labelStyle,
+                            ),
                             const ListTile(
                                 title: Text("Hearts",
                                     style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
@@ -934,6 +954,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tintPointCards: useTintedHeartsPointCards,
               tintReceivedCards: useTintedHeartsReceivedCards,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (matchType == GameType.spades)
             SpadesMatchDisplay(
@@ -947,6 +968,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (matchType == GameType.ohHell)
             OhHellMatchDisplay(
@@ -960,6 +982,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (matchType == GameType.bridge)
             BridgeMatchDisplay(
@@ -974,6 +997,7 @@ class _MyHomePageState extends State<MyHomePage> {
               rotateDummyToTop: rotateBridgeDummyToTop,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
+              cardImageSet: cardImageSet,
             ),
           if (dialogMode == DialogMode.mainMenu) _mainMenuDialog(context, layout),
           if (dialogMode == DialogMode.preferences) _preferencesDialog(context, layout),

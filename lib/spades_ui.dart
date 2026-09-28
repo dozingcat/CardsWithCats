@@ -9,6 +9,7 @@ import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'card_images.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -39,6 +40,7 @@ class SpadesMatchDisplay extends StatefulWidget {
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
+  final CardImageSet cardImageSet;
 
   const SpadesMatchDisplay({
     Key? key,
@@ -52,6 +54,7 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
+    required this.cardImageSet,
   }) : super(key: key);
 
   @override
@@ -506,7 +509,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final layout = computeLayout(context);
+    final layout = computeLayout(context, cardImageSet: widget.cardImageSet);
 
     return Stack(
       children: <Widget>[
