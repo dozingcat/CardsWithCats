@@ -7,7 +7,6 @@ import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_json.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:cards_with_cats/stats_dialog.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -25,7 +24,7 @@ import 'ohhell_ui.dart';
 import 'spades/spades.dart';
 
 import 'common_ui.dart';
-import 'custom_card_images.dart';
+import 'card_images.dart';
 import 'hearts_ui.dart';
 import 'spades_ui.dart';
 
@@ -103,26 +102,39 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedHeartsReceivedCards = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
-  CardImageSet cardImageSet = defaultCardImageSet;
-  // Built-in image sets followed by user-imported sets.
-  List<CardImageSet> availableCardImageSets = cardImageSets;
-  bool isImportingCardImages = false;
+  final cardImageSettings = CardImageSettings(
+    builtInSets: cardImageSets,
+    importVariants: cardImageVariants,
+  );
 
   @override
   void initState() {
     super.initState();
     catIndices = randomizedCatImageIndices(rng);
     soundPlayer.init();
+    cardImageSettings.addListener(_cardImageSettingsChanged);
     _readPreferences();
 
     runAnimationTimingTestIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    cardImageSettings.dispose();
+    super.dispose();
+  }
+
+  CardImageSet get cardImageSet => cardImageSettings.selectedSet;
+
+  void _cardImageSettingsChanged() {
+    setState(() {});
   }
 
   void _readPreferences() async {
     final statsDir = await getApplicationSupportDirectory();
     print("Application support directory: $statsDir");
     preferences = await SharedPreferences.getInstance();
-    final customCardImageSets = await loadCustomCardImageSets(_customCardImagesDir(statsDir));
+    await cardImageSettings.load(preferences);
     // preferences.clear();
     // preferences.remove("matchType");
     setState(() {
@@ -146,8 +158,6 @@ class _MyHomePageState extends State<MyHomePage> {
       if (![1, 4, 8].contains(bridgeRoundsPerMatch)) {
         bridgeRoundsPerMatch = 4;
       }
-      availableCardImageSets = [...cardImageSets, ...customCardImageSets];
-      cardImageSet = cardImageSetForName(preferences.getString("cardImageSet"), availableCardImageSets);
 
       statsStore = JsonFileStatsStore(baseDirectory: statsDir);
     });
@@ -252,163 +262,6 @@ class _MyHomePageState extends State<MyHomePage> {
       bridgeRoundsPerMatch = numRounds;
     });
     preferences.setInt("bridgeRoundsPerMatch", numRounds);
-  }
-
-  void setCardImageSet(CardImageSet imageSet) {
-    setState(() {
-      cardImageSet = imageSet;
-    });
-    preferences.setString("cardImageSet", imageSet.name);
-  }
-
-  Directory _customCardImagesDir(Directory appSupportDir) =>
-      Directory("${appSupportDir.path}/card_images");
-
-  // Folder access is unreliable on mobile because of platform sandboxing,
-  // so only zip files are supported there.
-  bool get _canImportCardImagesFromDirectory =>
-      Platform.isMacOS || Platform.isLinux || Platform.isWindows;
-
-  List<(String, void Function())> _cardImageImportActions() {
-    if (Platform.isMacOS) {
-      // macOS has a native picker that can choose either a file or a folder.
-      return [("Choose file or folder...", _importCardImageSetFromZipOrDirectory)];
-    }
-    if (_canImportCardImagesFromDirectory) {
-      return [
-        ("Choose zip file...", _importCardImageSetFromZip),
-        ("Choose folder...", _importCardImageSetFromDirectory),
-      ];
-    }
-    return [("Choose file...", _importCardImageSetFromZip)];
-  }
-
-  String _cardImageImportHelpText() {
-    final source = _canImportCardImagesFromDirectory ? "a zip file or folder" : "a zip file";
-    return "Choose $source with an image for each of the 52 cards. "
-        "Name each image with the card's rank (2-9, T, J, Q, K, A) and suit (C, D, H, S), "
-        "like 2C.png, TD.jpg, or QS.webp.";
-  }
-
-  Future<void> _importCardImageSetFromZipOrDirectory() async {
-    final paths = await FilePicker.pickFileAndDirectoryPaths(
-        dialogTitle: "Select zip file or folder with card images",
-        type: FileType.custom,
-        allowedExtensions: ["zip"],
-    );
-    if (paths.isEmpty) {
-      return;
-    }
-    final path = paths.first;
-    if (await FileSystemEntity.isDirectory(path)) {
-      await _importCardImageSet(path, (baseDir) =>
-          importCardImageSet(sourceDir: path, baseDir: baseDir));
-    } else {
-      await _importCardImageSet(path, (baseDir) =>
-          importCardImageSetFromZip(zipPath: path, baseDir: baseDir));
-    }
-  }
-
-  Future<void> _importCardImageSetFromDirectory() async {
-    final sourceDir = await FilePicker.getDirectoryPath(dialogTitle: "Select folder with card images");
-    if (sourceDir == null) {
-      return;
-    }
-    await _importCardImageSet(sourceDir, (baseDir) =>
-        importCardImageSet(sourceDir: sourceDir, baseDir: baseDir));
-  }
-
-  Future<void> _importCardImageSetFromZip() async {
-    final file = await FilePicker.pickFile(
-        dialogTitle: "Select zip file with card images",
-        type: FileType.custom,
-        allowedExtensions: ["zip"],
-    );
-    final zipPath = file?.path;
-    if (file == null || zipPath == null) {
-      return;
-    }
-    try {
-      await _importCardImageSet(file.name, (baseDir) => importCardImageSetFromZip(
-          zipPath: zipPath,
-          baseDir: baseDir,
-          displayName: file.name.replaceFirst(RegExp(r"\.zip$", caseSensitive: false), ""),
-      ));
-    } finally {
-      // On mobile the picked file is copied to a temporary location.
-      if (Platform.isAndroid || Platform.isIOS) {
-        FilePicker.clearTemporaryFiles();
-      }
-    }
-  }
-
-  Future<void> _importCardImageSet(
-      String source, Future<CardImageSet> Function(Directory baseDir) importFn) async {
-    setState(() {
-      isImportingCardImages = true;
-    });
-    try {
-      final baseDir = _customCardImagesDir(await getApplicationSupportDirectory());
-      final imageSet = await importFn(baseDir);
-      setState(() {
-        availableCardImageSets = [...availableCardImageSets, imageSet];
-      });
-      setCardImageSet(imageSet);
-    } catch (ex) {
-      print("Failed to import card images from $source: $ex");
-      if (mounted) {
-        _showMessageDialog("Unable to import card images",
-            "$ex\n\nThere should be an image for each card, "
-            "with names like 2C.png, TD.webp, or QS.jpg.");
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isImportingCardImages = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _deleteCardImageSet(CardImageSet imageSet) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete card images?"),
-        content: Text("Remove \"${imageSet.displayName}\" from the available card images?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Delete")),
-        ],
-      ),
-    );
-    if (confirmed != true) {
-      return;
-    }
-    if (imageSet.name == cardImageSet.name) {
-      setCardImageSet(defaultCardImageSet);
-    }
-    setState(() {
-      availableCardImageSets = availableCardImageSets.where((s) => s.name != imageSet.name).toList();
-    });
-    try {
-      await deleteCustomCardImageSet(imageSet);
-    } catch (ex) {
-      print("Failed to delete card images in ${imageSet.basePath}: $ex");
-    }
-  }
-
-  void _showMessageDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK")),
-        ],
-      ),
-    );
   }
 
   void _showMainMenu() {
@@ -839,15 +692,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setTintedTrumpCardsEnabled(checked == true);
                               },
                             ),
-                            CardImageSetPicker(
-                              imageSets: availableCardImageSets,
-                              selectedSet: cardImageSet,
-                              onSelected: setCardImageSet,
+                            CardImageSetPreference(
+                              settings: cardImageSettings,
                               labelStyle: labelStyle,
-                              addActions: _cardImageImportActions(),
-                              addHelpText: _cardImageImportHelpText(),
-                              onDelete: _deleteCardImageSet,
-                              isImporting: isImportingCardImages,
+                              previewVariant: solidCardImageVariant,
                             ),
                             const ListTile(
                                 title: Text("Hearts",

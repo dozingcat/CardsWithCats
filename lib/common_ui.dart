@@ -1,13 +1,15 @@
 import 'dart:collection';
-import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'card_images.dart';
 import 'cards/card.dart';
 import 'cards/trick.dart';
 import 'common.dart';
+import 'custom_card_images.dart';
+import 'transparent_card_images.dart';
 
 enum AnimationMode {
   none,
@@ -20,36 +22,15 @@ enum AiMode {
   humanPlayer0,
 }
 
-enum CardImageSource {
-  assets,
-  filesystem,
-}
+// Card images have "solid" and "transparent" variants. Transparent images are
+// drawn over a background color (e.g. for tinted trump cards).
+const solidCardImageVariant = "solid";
+const transparentCardImageVariant = "transparent";
 
-class CardImageSet {
-  // Unique identifier, stored in preferences.
-  final String name;
-  final String displayName;
-  final CardImageSource source;
-  final String basePath;
-  // Width divided by height.
-  final double aspectRatio;
-
-  const CardImageSet(this.name, this.displayName, this.source, this.basePath, this.aspectRatio);
-
-  // Transparent images are drawn over a background color (e.g. for trump cards),
-  // solid images are used otherwise.
-  String imagePath(PlayingCard card, {bool transparent = false}) {
-    return "$basePath/${transparent ? 'transparent' : 'solid'}/${card.toString()}.webp";
-  }
-
-  ImageProvider imageProvider(PlayingCard card, {bool transparent = false}) {
-    final path = imagePath(card, transparent: transparent);
-    return switch (source) {
-      CardImageSource.assets => AssetImage(path),
-      CardImageSource.filesystem => FileImage(File(path)),
-    };
-  }
-}
+const cardImageVariants = [
+  CardImageVariant(solidCardImageVariant),
+  CardImageVariant(transparentCardImageVariant, makeTransparentCardImage),
+];
 
 const defaultCardImageSet = CardImageSet("default", "Default", .assets, "assets/cards/default", 521.0 / 726);
 
@@ -59,10 +40,6 @@ const cardImageSets = [
   CardImageSet("large", "Large text", .assets, "assets/cards/large", 500.0 / 700),
   CardImageSet("large_four_color", "Large 4 color", .assets, "assets/cards/large_four_color", 500.0 / 700),
 ];
-
-CardImageSet cardImageSetForName(String? name, List<CardImageSet> imageSets) {
-  return imageSets.firstWhere((s) => s.name == name, orElse: () => defaultCardImageSet);
-}
 
 class Layout {
   late Size displaySize;
@@ -184,6 +161,7 @@ class PositionedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final useColorFilter = true;
     // If the card has a background color, we set it in the top-level Container
     // below and draw the transparent card on top of it so that the background
     // will show through the transparent parts. If there's no background,
@@ -191,10 +169,18 @@ class PositionedCard extends StatelessWidget {
     final cardRect = centeredSubrectWithAspectRatio(rect, cardImageSet.aspectRatio);
     final cardStack = <Widget>[];
     Color? bgColor = cardBackgroundColor();
-    cardStack.add(Image(image: cardImageSet.imageProvider(card, transparent: bgColor != null)));
+    if (useColorFilter && dimming > 0) {
+      bgColor = Color.lerp(bgColor ?? Colors.white, Colors.black, dimming);
+    }
+    bool useTransparentCard = !useColorFilter && bgColor != null;
+    cardStack.add(Image(
+        color: useColorFilter ? bgColor : null,
+        colorBlendMode: BlendMode.modulate,
+        image: cardImageSet.imageProvider(card.toString(),
+          variant: useTransparentCard ? transparentCardImageVariant : solidCardImageVariant)));
 
     // To dim a card, we draw a partially transparent black rectangle over it.
-    if (dimming > 0) {
+    if (dimming > 0 && !useColorFilter) {
       cardStack.add(Container(color: Color.fromRGBO(0, 0, 0, dimming)));
     }
 
@@ -210,6 +196,15 @@ class PositionedCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(cornerRadius),
       ),
     ));
+
+    final cardWidget = useColorFilter
+    ? Stack(children: cardStack)
+        :
+    Container(
+        color: bgColor,
+        child: Stack(children: cardStack)
+    );
+
 
     // ClipRRect clips the background color and dimming rectangle
     // to the card's rounded rect.
@@ -233,10 +228,7 @@ class PositionedCard extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(cornerRadius),
-                  child: Container(
-                    color: bgColor,
-                    child: Stack(children: cardStack)
-                  ),
+                  child: cardWidget,
                 ),
               ),
             ),
@@ -244,243 +236,6 @@ class PositionedCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-// Shows sample cards from the selected image set, with a button to show all
-// available sets in a grid and choose a different one.
-class CardImageSetPicker extends StatefulWidget {
-  final List<CardImageSet> imageSets;
-  final CardImageSet selectedSet;
-  final void Function(CardImageSet) onSelected;
-  final String label;
-  final TextStyle? labelStyle;
-  // Buttons shown after tapping "Add...", as (label, callback) pairs. If empty,
-  // there's no add button.
-  final List<(String, void Function())> addActions;
-  // Explanation shown above the add action buttons.
-  final String addHelpText;
-  // If set, shows a delete button on filesystem (user-imported) image sets.
-  final void Function(CardImageSet)? onDelete;
-  // Shows a progress indicator in place of the add button.
-  final bool isImporting;
-  final double cardHeight;
-
-  static final sampleCards = [
-    PlayingCard(Rank.ace, Suit.spades),
-    PlayingCard(Rank.king, Suit.hearts),
-    PlayingCard(Rank.seven, Suit.diamonds),
-  ];
-
-  const CardImageSetPicker({
-    super.key,
-    required this.imageSets,
-    required this.selectedSet,
-    required this.onSelected,
-    this.label = "Cards",
-    this.labelStyle,
-    this.addActions = const [],
-    this.addHelpText = "",
-    this.onDelete,
-    this.isImporting = false,
-    this.cardHeight = 56,
-  });
-
-  @override
-  State<CardImageSetPicker> createState() => _CardImageSetPickerState();
-}
-
-class _CardImageSetPickerState extends State<CardImageSetPicker> {
-  bool expanded = false;
-  bool showingAddHelp = false;
-
-  static const nameStyle = TextStyle(fontSize: 13);
-
-  Widget _sampleCard(CardImageSet imageSet, PlayingCard card) {
-    final cardHeight = widget.cardHeight;
-    final cornerRadius = cardHeight * imageSet.aspectRatio * 0.05;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 1),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color.fromRGBO(64, 64, 64, 1.0), width: 0),
-        borderRadius: BorderRadius.circular(cornerRadius),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(cornerRadius),
-        child: Image(
-          image: imageSet.imageProvider(card),
-          height: cardHeight,
-          width: cardHeight * imageSet.aspectRatio,
-          fit: BoxFit.fill,
-        ),
-      ),
-    );
-  }
-
-  // Uses a fixed width so that layout doesn't depend on each set's aspect ratio.
-  Widget _sampleCards(CardImageSet imageSet) {
-    final numCards = CardImageSetPicker.sampleCards.length;
-    return SizedBox(
-      width: numCards * (widget.cardHeight * 0.75 + 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: CardImageSetPicker.sampleCards.map((c) => _sampleCard(imageSet, c)).toList(),
-      ),
-    );
-  }
-
-  Widget _collapsed() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
-      child: Row(children: [
-        Text(widget.label, style: widget.labelStyle),
-        const SizedBox(width: 16),
-        Expanded(child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: _sampleCards(widget.selectedSet),
-        )),
-        TextButton(
-          onPressed: () => setState(() {expanded = true;}),
-          child: const Text("Change"),
-        ),
-      ]),
-    );
-  }
-
-  Widget _imageSetCell(CardImageSet imageSet) {
-    final isSelected = imageSet.name == widget.selectedSet.name;
-    final canDelete = widget.onDelete != null && imageSet.source == CardImageSource.filesystem;
-    final cell = GestureDetector(
-      onTap: () {
-        widget.onSelected(imageSet);
-        setState(() {
-          showingAddHelp = false;
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.all(2),
-        padding: const EdgeInsets.only(top: 6, left: 6, right: 6, bottom: 0),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.withValues(alpha: 0.15) : null,
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.transparent,
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(children: [
-          FittedBox(fit: BoxFit.scaleDown, child: _sampleCards(imageSet)),
-          const SizedBox(height: 4),
-          Text(
-            imageSet.displayName,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: isSelected ? nameStyle.copyWith(fontWeight: FontWeight.bold) : nameStyle,
-          ),
-        ]),
-      ),
-    );
-    if (!canDelete) {
-      return cell;
-    }
-    // StackFit.expand makes the cell fill the grid row height like cells without a delete button.
-    return Stack(fit: StackFit.expand, children: [
-      cell,
-      Positioned(top: 0, right: 0, child: Tooltip(
-        message: "Delete",
-        child: GestureDetector(
-          onTap: () => widget.onDelete!(imageSet),
-          child: const CircleAvatar(
-            radius: 11,
-            backgroundColor: Colors.black54,
-            child: Icon(Icons.close, size: 15, color: Colors.white),
-          ),
-        ),
-      )),
-    ]);
-  }
-
-  Widget _grid() {
-    const numColumns = 2;
-    final sets = widget.imageSets;
-    return Column(children: [
-      for (int i = 0; i < sets.length; i += numColumns)
-        // IntrinsicHeight and stretch make cells in the same row the same height.
-        IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          for (int j = i; j < i + numColumns; j++)
-            Expanded(child: j < sets.length ? _imageSetCell(sets[j]) : const SizedBox()),
-        ])),
-    ]);
-  }
-
-  Widget _addHelp() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.addHelpText, style: nameStyle),
-        const SizedBox(height: 4),
-        Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
-          TextButton(
-            onPressed: () => setState(() {showingAddHelp = false;}),
-            child: const Text("Cancel"),
-          ),
-          for (final (label, action) in widget.addActions)
-            FilledButton.tonal(
-              onPressed: () {
-                setState(() {showingAddHelp = false;});
-                action();
-              },
-              child: Text(label),
-            ),
-        ]),
-      ]),
-    );
-  }
-
-  Widget _bottomRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(children: [
-        if (widget.addActions.isNotEmpty && widget.isImporting) ...const [
-          Padding(
-            padding: EdgeInsets.all(12),
-            child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-          ),
-          Flexible(child: Text("Importing...", overflow: TextOverflow.ellipsis)),
-        ],
-        if (widget.addActions.isNotEmpty && !widget.isImporting)
-          Flexible(child: TextButton.icon(
-            onPressed: () => setState(() {showingAddHelp = true;}),
-            icon: const Icon(Icons.add_photo_alternate_outlined),
-            label: const Text("Add...", overflow: TextOverflow.ellipsis),
-          )),
-        const Spacer(),
-        TextButton(
-          onPressed: () => setState(() {
-            expanded = false;
-            showingAddHelp = false;
-          }),
-          child: const Text("Done"),
-        ),
-      ]),
-    );
-  }
-
-  Widget _expanded() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _grid(),
-        if (showingAddHelp && !widget.isImporting) _addHelp() else _bottomRow(),
-      ]),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return expanded ? _expanded() : _collapsed();
   }
 }
 

@@ -1,18 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
-import 'cards/card.dart';
-import 'common_ui.dart';
+import 'card_images.dart';
 
 // User-imported card images are stored in subdirectories of the base directory,
-// using the same layout as the bundled assets (solid/2C.webp, transparent/2C.webp).
+// using the same layout as the bundled assets: 2C.webp, 3C.webp, etc, optionally
+// in a subdirectory for each variant (see CardImageVariant).
 // Each subdirectory also has an info.json file with the display name and aspect ratio.
 // Absolute paths aren't stored, because on iOS the app's container directory
 // can change between launches.
@@ -23,7 +21,23 @@ const _webpQuality = 90;
 // Guards against zip files with huge (or maliciously compressed) entries.
 const _maxZipEntrySize = 25 * 1024 * 1024;
 
-final _allCardNames = [for (final s in Suit.values) for (final r in Rank.values) PlayingCard(r, s).toString()];
+final _allCardNames = [for (final s in "CDHS".split("")) for (final r in "23456789TJQKA".split("")) "$r$s"];
+
+// A version of each card image that an app needs. Each variant is stored in its
+// own subdirectory, or directly in the image set directory if `subdirectory` is
+// null. If `transform` is set, the variant is created by applying it to the
+// imported image. `transform` must be a top-level or static function, because
+// it's called in background isolates.
+class CardImageVariant {
+  final String? subdirectory;
+  final img.Image Function(img.Image)? transform;
+
+  const CardImageVariant([this.subdirectory, this.transform]);
+}
+
+// Stores the imported images as-is (converted to webp if needed) directly in the
+// image set directory.
+const defaultCardImageVariants = [CardImageVariant()];
 
 class CardImageImportException implements Exception {
   final String message;
@@ -76,13 +90,13 @@ Future<void> deleteCustomCardImageSet(CardImageSet imageSet) async {
 }
 
 // Imports card images from `sourceDir`, which must contain an image for each card
-// named like "2C.webp" or "TH.png". Creates the transparent versions of each image
-// and stores everything in a new subdirectory of `baseDir`. The display name
-// defaults to the name of `sourceDir`.
+// named like "2C.webp" or "TH.png". Writes each of `variants` as webp images in a
+// new subdirectory of `baseDir`. The display name defaults to the name of `sourceDir`.
 Future<CardImageSet> importCardImageSet({
   required String sourceDir,
   required Directory baseDir,
   String? displayName,
+  List<CardImageVariant> variants = defaultCardImageVariants,
 }) async {
   displayName ??= p.basename(sourceDir);
   final sourceFiles = await _findCardImageFiles(sourceDir);
@@ -92,7 +106,7 @@ Future<CardImageSet> importCardImageSet({
   // won't be picked up by loadCustomCardImageSets.
   final tmpDir = "$destDir.tmp";
   try {
-    final aspectRatio = await _convertCardImages(sourceFiles, tmpDir);
+    final aspectRatio = await _convertCardImages(sourceFiles, tmpDir, variants);
     await File(p.join(tmpDir, _infoFilename)).writeAsString(jsonEncode({
       "displayName": displayName,
       "aspectRatio": aspectRatio,
@@ -116,6 +130,7 @@ Future<CardImageSet> importCardImageSetFromZip({
   required String zipPath,
   required Directory baseDir,
   String? displayName,
+  List<CardImageVariant> variants = defaultCardImageVariants,
 }) async {
   final extractDir = await Directory.systemTemp.createTemp("card_images_zip");
   try {
@@ -124,6 +139,7 @@ Future<CardImageSet> importCardImageSetFromZip({
         sourceDir: extractDir.path,
         baseDir: baseDir,
         displayName: displayName ?? p.basenameWithoutExtension(zipPath),
+        variants: variants,
     );
   } finally {
     await extractDir.delete(recursive: true);
@@ -206,11 +222,13 @@ Future<Map<String, String>> _findCardImageFiles(String sourceDir) async {
   return {for (final c in _allCardNames) c: filesByCard[c]!};
 }
 
-// Writes solid and transparent versions of each card to `destDir`, and returns the
-// aspect ratio. Conversion is CPU-intensive so it's split across background isolates.
-Future<double> _convertCardImages(Map<String, String> sourceFiles, String destDir) async {
-  await Directory(p.join(destDir, "solid")).create(recursive: true);
-  await Directory(p.join(destDir, "transparent")).create(recursive: true);
+// Writes webp images for each card and variant to `destDir`, and returns the aspect
+// ratio. Conversion is CPU-intensive so it's split across background isolates.
+Future<double> _convertCardImages(
+    Map<String, String> sourceFiles, String destDir, List<CardImageVariant> variants) async {
+  for (final v in variants) {
+    await Directory(_variantDir(destDir, v)).create(recursive: true);
+  }
 
   final entries = sourceFiles.entries.toList();
   final numWorkers = Platform.numberOfProcessors.clamp(1, 8);
@@ -220,7 +238,7 @@ Future<double> _convertCardImages(Map<String, String> sourceFiles, String destDi
   final sizes = await Future.wait(batches.map((batch) => Isolate.run(() {
     final result = <String, (int, int)>{};
     for (final (cardName, path) in batch) {
-      result[cardName] = _convertCardImage(cardName, path, destDir);
+      result[cardName] = _convertCardImage(cardName, path, destDir, variants);
     }
     return result;
   })));
@@ -228,67 +246,31 @@ Future<double> _convertCardImages(Map<String, String> sourceFiles, String destDi
   return width / height;
 }
 
+String _variantDir(String destDir, CardImageVariant variant) {
+  final subdirectory = variant.subdirectory;
+  return subdirectory == null ? destDir : p.join(destDir, subdirectory);
+}
+
 // Returns the (width, height) of the image.
-(int, int) _convertCardImage(String cardName, String sourcePath, String destDir) {
+(int, int) _convertCardImage(
+    String cardName, String sourcePath, String destDir, List<CardImageVariant> variants) {
   final bytes = File(sourcePath).readAsBytesSync();
   final image = img.decodeNamedImage(sourcePath, bytes);
   if (image == null) {
     throw CardImageImportException("Unable to read image: ${p.basename(sourcePath)}");
   }
-  final solidPath = p.join(destDir, "solid", "$cardName.webp");
-  if (p.extension(sourcePath).toLowerCase() == ".webp") {
-    File(solidPath).writeAsBytesSync(bytes);
-  } else {
-    File(solidPath).writeAsBytesSync(img.encodeWebP(image, lossless: false, quality: _webpQuality));
+  for (final variant in variants) {
+    final destPath = p.join(_variantDir(destDir, variant), "$cardName.webp");
+    final transform = variant.transform;
+    if (transform != null) {
+      // Transforms may add transparency, so keep full alpha quality.
+      File(destPath).writeAsBytesSync(img.encodeWebP(
+          transform(image), lossless: false, quality: _webpQuality, alphaQuality: 100));
+    } else if (p.extension(sourcePath).toLowerCase() == ".webp") {
+      File(destPath).writeAsBytesSync(bytes);
+    } else {
+      File(destPath).writeAsBytesSync(img.encodeWebP(image, lossless: false, quality: _webpQuality));
+    }
   }
-  final transparent = makeTransparentCardImage(image);
-  File(p.join(destDir, "transparent", "$cardName.webp")).writeAsBytesSync(
-      img.encodeWebP(transparent, lossless: false, quality: _webpQuality, alphaQuality: 100));
   return (image.width, image.height);
-}
-
-// "Removes" white background by adding as much transparency as possible while
-// keeping the same result when drawing the image on top of solid white.
-// Solid white becomes fully transparent, solid black is unchanged.
-// This is a port of scripts/make_transparent_cards.py.
-// Examples (rgba components in [0,1]):
-//   red=1, green=0.5, blue=0.5 => red=1, green=0, blue=0, alpha=0.5
-//   red=1, green=0.5, blue=0.25 => red=1, green=1/3, blue=0, alpha=0.75
-//   red=1, green=1, blue=1 => alpha=0, rgb=<anything>
-img.Image makeTransparentCardImage(img.Image src) {
-  final srcBytes = src
-      .convert(format: img.Format.uint8, numChannels: 4)
-      .getBytes(order: img.ChannelOrder.rgba);
-  final dstBytes = Uint8List(src.width * src.height * 4);
-  for (int i = 0; i < dstBytes.length; i += 4) {
-    final red = srcBytes[i];
-    final green = srcBytes[i + 1];
-    final blue = srcBytes[i + 2];
-    final alpha = srcBytes[i + 3];
-    // If the pixel is already fully transparent, don't modify.
-    if (alpha == 0) {
-      dstBytes.setRange(i, i + 4, srcBytes, i);
-      continue;
-    }
-    // Take RGB inverses and normalize to [0, 1]
-    final rneg = 1 - red / 255;
-    final gneg = 1 - green / 255;
-    final bneg = 1 - blue / 255;
-    // Alpha is the maximum inverse value.
-    final af = max(rneg, max(gneg, bneg));
-    if (af == 0) {
-      dstBytes[i + 3] = 1;
-      continue;
-    }
-    // The component with maximum inverse will have an output inverse
-    // component of 1, so that when it's blended with white
-    // (whose inverse is 0), the result will be the original input.
-    dstBytes[i] = (255 * (1 - rneg / af)).round();
-    dstBytes[i + 1] = (255 * (1 - gneg / af)).round();
-    dstBytes[i + 2] = (255 * (1 - bneg / af)).round();
-    dstBytes[i + 3] = (255 * af).round();
-  }
-  return img.Image.fromBytes(
-      width: src.width, height: src.height, bytes: dstBytes.buffer,
-      numChannels: 4, order: img.ChannelOrder.rgba);
 }

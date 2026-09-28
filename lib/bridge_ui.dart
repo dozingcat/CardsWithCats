@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'bridge/sayc/sayc_bidding.dart';
 import 'cards/round.dart';
 import 'cards/trick.dart';
+import 'card_images.dart';
 import 'common_ui.dart';
 import 'cards/card.dart';
 import 'cards/rollout.dart';
@@ -1639,7 +1640,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Stack(children: [
-            Image(image: cardImageSet.imageProvider(card), height: cardHeight),
+            Image(image: cardImageSet.imageProvider(card.toString(), variant: solidCardImageVariant), height: cardHeight),
             if (mistake != null)
               SizedBox(
                   height: cardHeight,
