@@ -3,6 +3,7 @@
 // it can be shared between apps. Cards are identified by names like "2C" or "TH".
 
 import 'dart:io';
+import 'dart:math';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -318,10 +319,12 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
   bool expanded = false;
   bool showingAddHelp = false;
 
-  static const nameStyle = TextStyle(fontSize: 13);
+  static const nameStyle = TextStyle(fontSize: 14);
+  static const cellMargin = EdgeInsets.all(2);
+  static const cellPadding = EdgeInsets.only(top: 6, left: 6, right: 6, bottom: 0);
+  static const cellBorderWidth = 2.0;
 
-  Widget _sampleCard(CardImageSet imageSet, String cardName) {
-    final cardHeight = widget.cardHeight;
+  Widget _sampleCard(CardImageSet imageSet, String cardName, double cardHeight) {
     final cornerRadius = cardHeight * imageSet.aspectRatio * 0.05;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 1),
@@ -342,13 +345,19 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
   }
 
   // Uses a fixed width so that layout doesn't depend on each set's aspect ratio.
-  Widget _sampleCards(CardImageSet imageSet) {
-    final numCards = CardImageSetPicker.sampleCards.length;
+  static double _sampleCardsWidth(double cardHeight) =>
+      CardImageSetPicker.sampleCards.length * (cardHeight * 0.75 + 2);
+
+  // Inverse of _sampleCardsWidth: the card height that fits in the given width.
+  static double _sampleCardHeightForWidth(double width) =>
+      (width / CardImageSetPicker.sampleCards.length - 2) / 0.75;
+
+  Widget _sampleCards(CardImageSet imageSet, double cardHeight) {
     return SizedBox(
-      width: numCards * (widget.cardHeight * 0.75 + 2),
+      width: _sampleCardsWidth(cardHeight),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: CardImageSetPicker.sampleCards.map((c) => _sampleCard(imageSet, c)).toList(),
+        children: CardImageSetPicker.sampleCards.map((c) => _sampleCard(imageSet, c, cardHeight)).toList(),
       ),
     );
   }
@@ -362,19 +371,20 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
         Expanded(child: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: _sampleCards(widget.selectedSet),
+          child: _sampleCards(widget.selectedSet, widget.cardHeight),
         )),
         TextButton(
           onPressed: () => setState(() {expanded = true;}),
-          child: const Text("Change"),
+          child: Text("Change", style: widget.labelStyle),
         ),
       ]),
     );
   }
 
-  Widget _imageSetCell(CardImageSet imageSet) {
+  Widget _imageSetCell(CardImageSet imageSet, double cardHeight) {
     final isSelected = imageSet.name == widget.selectedSet.name;
     final canDelete = widget.onDelete != null && imageSet.source == CardImageSource.filesystem;
+    final baseLabelStyle = widget.labelStyle ?? const TextStyle();
     final cell = GestureDetector(
       onTap: () {
         widget.onSelected(imageSet);
@@ -383,25 +393,25 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
         });
       },
       child: Container(
-        margin: const EdgeInsets.all(4),
-        padding: const EdgeInsets.only(top: 6),
+        margin: cellMargin,
+        padding: cellPadding,
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.withValues(alpha: 0.15) : null,
           border: Border.all(
             color: isSelected ? Colors.blue : Colors.transparent,
-            width: 2,
+            width: cellBorderWidth,
           ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(children: [
-          FittedBox(fit: BoxFit.scaleDown, child: _sampleCards(imageSet)),
+          _sampleCards(imageSet, cardHeight),
           const SizedBox(height: 4),
           Text(
             imageSet.displayName,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: isSelected ? nameStyle.copyWith(fontWeight: FontWeight.bold) : nameStyle,
+            style: isSelected ? baseLabelStyle.copyWith(fontWeight: FontWeight.bold) : baseLabelStyle,
           ),
         ]),
       ),
@@ -429,14 +439,22 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
   Widget _grid() {
     const numColumns = 2;
     final sets = widget.imageSets;
-    return Column(children: [
-      for (int i = 0; i < sets.length; i += numColumns)
-        // IntrinsicHeight and stretch make cells in the same row the same height.
-        IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          for (int j = i; j < i + numColumns; j++)
-            Expanded(child: j < sets.length ? _imageSetCell(sets[j]) : const SizedBox()),
-        ])),
-    ]);
+    // Shrink the sample cards if they don't fit in the cells. This computes the
+    // size directly rather than using FittedBox, because IntrinsicHeight would use
+    // the unscaled height of the FittedBox's child and leave extra space.
+    return LayoutBuilder(builder: (context, constraints) {
+      final cellContentWidth = constraints.maxWidth / numColumns -
+          cellMargin.horizontal - cellPadding.horizontal - 2 * cellBorderWidth;
+      final cardHeight = min(widget.cardHeight, _sampleCardHeightForWidth(cellContentWidth));
+      return Column(children: [
+        for (int i = 0; i < sets.length; i += numColumns)
+          // IntrinsicHeight and stretch make cells in the same row the same height.
+          IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (int j = i; j < i + numColumns; j++)
+              Expanded(child: j < sets.length ? _imageSetCell(sets[j], cardHeight) : const SizedBox()),
+          ])),
+      ]);
+    });
   }
 
   Widget _addHelp() {
@@ -475,18 +493,18 @@ class _CardImageSetPickerState extends State<CardImageSetPicker> {
           Flexible(child: Text("Importing...", overflow: TextOverflow.ellipsis)),
         ],
         if (widget.addActions.isNotEmpty && !widget.isImporting)
-          Flexible(child: TextButton.icon(
+          TextButton.icon(
             onPressed: () => setState(() {showingAddHelp = true;}),
             icon: const Icon(Icons.add_photo_alternate_outlined),
-            label: const Text("Add...", overflow: TextOverflow.ellipsis),
-          )),
+            label: Text("Add...", overflow: TextOverflow.ellipsis, style: widget.labelStyle),
+          ),
         const Spacer(),
         TextButton(
           onPressed: () => setState(() {
             expanded = false;
             showingAddHelp = false;
           }),
-          child: const Text("Done"),
+          child: Text("Done", style: widget.labelStyle),
         ),
       ]),
     );
