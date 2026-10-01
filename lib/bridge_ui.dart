@@ -1123,7 +1123,6 @@ class _BidDialogState extends State<BidDialog> {
     }
 
     final bidHistory = widget.round.bidHistory;
-    final dealer = widget.round.dealer;
     final isBiddingOver = widget.round.contract != null || widget.round.isPassedOut();
     final hasHumanBid = bidHistory.any((b) => b.player == 0);
 
@@ -1234,7 +1233,7 @@ class _BidDialogState extends State<BidDialog> {
                 scale: widget.layout.dialogScale(),
                 child: Dialog(
                     backgroundColor: dialogBackgroundColor,
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    child: FittedBox(fit: .scaleDown, child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: FittedBox(child: Text(
@@ -1332,7 +1331,7 @@ class _BidDialogState extends State<BidDialog> {
                         ],
                       )),
                       const SizedBox(height: 12),
-                    ])))));
+                    ]))))));
   }
 }
 
@@ -1435,7 +1434,7 @@ class EndOfRoundDialog extends StatelessWidget {
             child: Dialog(
                 insetPadding: EdgeInsets.zero,
                 backgroundColor: dialogBackgroundColor,
-                child: Column(
+                child: FittedBox(fit: .scaleDown, child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     makeRow([
@@ -1501,7 +1500,7 @@ class EndOfRoundDialog extends StatelessWidget {
                               ))
                       ]),
                   ],
-                ))));
+                )))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),
@@ -1628,7 +1627,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
       final cardIndex = (playerIndex - trick.leader) % selectedRound.numberOfPlayers;
       final card = trick.cards[cardIndex];
       final isWinner = playerIndex == trick.winner;
-      const cardHeight = 80.0;
+      const cardHeight = 90.0;
       final cardImageSet = widget.layout.cardImageSet;
       final cardWidth = cardHeight * cardImageSet.aspectRatio;
       final mistake = ddMistakes[playerIndex];
@@ -1701,13 +1700,17 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = computeLayout(context);
+    final maxDialogHeight = layout.displaySize.height * 0.95 / layout.dialogScale();
+
     return Center(
         child: Transform.scale(
             scale: widget.layout.dialogScale(),
             child: Dialog(
                 insetPadding: EdgeInsets.zero,
                 backgroundColor: dialogBackgroundColor,
-                child: Column(
+                child: ConstrainedBox(constraints: BoxConstraints(maxHeight: maxDialogHeight),
+                    child: FittedBox(fit: .scaleDown, child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     paddingAll(
@@ -1760,7 +1763,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                     ElevatedButton(onPressed: widget.onClose, child: const Text("Back")),
                     const SizedBox(height: 8),
                   ],
-                ))));
+                ))))));
   }
 }
 

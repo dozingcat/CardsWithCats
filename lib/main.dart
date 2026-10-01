@@ -569,7 +569,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Center(
             child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
                 backgroundColor: dialogBackgroundColor,
-                child: Column(
+                child: FittedBox(fit: .scaleDown, child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _paddingAll(
@@ -589,7 +589,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ],
                         )),
                   ],
-                )))));
+                ))))));
   }
 
   Widget _preferencesDialog(final BuildContext context, final Layout layout) {

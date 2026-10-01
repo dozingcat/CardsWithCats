@@ -666,7 +666,7 @@ class EndOfRoundDialog extends StatelessWidget {
         child: Transform.scale(scale: layout.dialogScale(), child: Dialog(
             insetPadding: EdgeInsets.zero,
             backgroundColor: dialogBackgroundColor,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+            child: FittedBox(fit: .scaleDown, child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -728,7 +728,7 @@ class EndOfRoundDialog extends StatelessWidget {
                         ))
                   ],
                 ),
-            ]))));
+            ])))));
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: -1.0, end: 1.0),
