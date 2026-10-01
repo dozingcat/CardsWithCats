@@ -670,7 +670,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 thumbVisibility: true,
                 child: SingleChildScrollView(
                     primary: true,
-                    child: Container(
+                    child: Material(
                         color: dialogTableBackgroundColor,
                         child: Column(children: [
                             CheckboxListTile(

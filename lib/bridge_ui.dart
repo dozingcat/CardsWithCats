@@ -1636,11 +1636,14 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
           decoration: BoxDecoration(
             border: Border.all(
                 color: isWinner ? Colors.amber : Colors.transparent,
-                width: 2.5),
-            borderRadius: BorderRadius.circular(5),
+                width: 4.0),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Stack(children: [
-            Image(image: cardImageSet.imageProvider(card.toString()), height: cardHeight),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(cardWidth * 0.05),
+              child: Image(image: cardImageSet.imageProvider(card.toString()), height: cardHeight),
+            ),
             if (mistake != null)
               SizedBox(
                   height: cardHeight,
@@ -1685,7 +1688,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
               : null,
         ),
         Text("Trick ${trickIndex + 1} of ${tricks.length}",
-            style: const TextStyle(fontSize: 12)),
+            style: const TextStyle(fontSize: 14)),
         IconButton(
           icon: const Icon(Icons.chevron_right),
           onPressed: trickIndex < tricks.length - 1
@@ -1730,7 +1733,7 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                           }),
                         )),
                     Text(roundResultDescription(selectedRound),
-                        style: const TextStyle(fontSize: 14)),
+                        style: const TextStyle(fontSize: 16)),
                     paddingAll(
                         8,
                         SegmentedButton<int>(
@@ -1753,12 +1756,9 @@ class _RoundDetailsDialogState extends State<RoundDetailsDialog> {
                         )),
                     if (selectedTabIndex == 0) biddingTab(),
                     if (selectedTabIndex == 1) playTab(),
-                    paddingAll(
-                        10,
-                        ElevatedButton(
-                          onPressed: widget.onClose,
-                          child: const Text("Back"),
-                        )),
+                    const SizedBox(height: 4),
+                    ElevatedButton(onPressed: widget.onClose, child: const Text("Back")),
+                    const SizedBox(height: 8),
                   ],
                 ))));
   }
