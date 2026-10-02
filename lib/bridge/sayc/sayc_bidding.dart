@@ -1094,6 +1094,28 @@ List<SaycRule> preemptResponseRules(ContractBid opening) {
 }
 
 // ---------------------------------------------------------------------------
+/// Honors among the top five (A K Q J T) the hand holds in [suit].
+int topFiveHonors(HandAnalysis h, Suit suit) => h.cards
+    .where((c) =>
+        c.suit == suit &&
+        (c.rank == Rank.ace ||
+            c.rank == Rank.king ||
+            c.rank == Rank.queen ||
+            c.rank == Rank.jack ||
+            c.rank == Rank.ten))
+    .length;
+
+/// Trump tricks worth defending for: 5+ HCP in the suit, or length with
+/// three of the top five honors (KJT97 sitting over declarer), counted from
+/// four cards when [highLevel] (their contract is at the four level or
+/// higher) and from five below that.
+bool strongTrumpHolding(HandAnalysis h, Suit suit, {bool highLevel = false}) {
+  final len = h.count(suit);
+  if (len < 4) return false;
+  return h.suitHcp(suit) >= 5 ||
+      (topFiveHonors(h, suit) >= 3 && (highLevel || len >= 5));
+}
+
 /// Slam evaluation once a trump fit is agreed: total points plus a credit
 /// for side-suit shortness (a void or singleton is worth about an extra
 /// ruffing trick that plain point count misses). Used only to gate slam
@@ -5185,16 +5207,23 @@ List<SaycRule> advanceDoubleRules(
 
   final rules = <SaycRule>[];
   if (forced && theirSuit != null) {
-    // Converting the takeout double with strong trumps in their suit.
+    // Converting the takeout double with strong trumps in their suit. Over
+    // a four-level contract partner's double already carries the values,
+    // so the trump tricks matter more than outside strength.
+    final highLevel = over.count >= 4;
+    final minHcp = highLevel ? 4 : 8;
     rules.add(SaycRule(
       BidAction.pass(),
       BidMeaning(
         description:
             "Penalty pass: converting the double with ${_suitNames[theirSuit]} tricks",
-        hcp: const Range(low: 8),
+        hcp: Range(low: minHcp),
         suitLengths: {theirSuit: const Range(low: 4)},
       ),
-      require: (h) => h.suitHcp(theirSuit) >= 5,
+      ignoreInfo: true,
+      require: (h) =>
+          h.hcp >= minHcp &&
+          strongTrumpHolding(h, theirSuit, highLevel: highLevel),
     ));
   }
   if (!forced && !redoubled) {
@@ -7491,7 +7520,20 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
     return result(
         BidAction.noTrump(3), "Fallback: 3NT with stoppers in their suits");
   }
-  if (lastBid.count >= 3 && combined >= 23 && !alreadyDoubled) {
+  // Doubling on combined strength is for a genuine preempt (their side's
+  // only bid); once they've bid twice they've shown values and a fit, and
+  // the double needs some defense in their suit.
+  final theirContractBids = [
+    for (int i = 0; i < n; i++)
+      if ((n - i) % 2 == 1 && calls[i].bidType == BidType.contract) i
+  ].length;
+  final theirSuit = lastBid.trump;
+  final trumpDefense = theirSuit == null ||
+      (analysis.count(theirSuit) >= 3 && analysis.suitHcp(theirSuit) >= 3);
+  if (lastBid.count >= 3 &&
+      combined >= 23 &&
+      !alreadyDoubled &&
+      (theirContractBids == 1 || trumpDefense)) {
     return result(BidAction.double(),
         "Fallback: doubling their preempt on combined strength");
   }
