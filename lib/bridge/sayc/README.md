@@ -373,11 +373,11 @@ dart run scripts/complete_deal.dart "1S 2C 2S pass 4NT pass" \
     "AKQJ432 AKJ2 K2 -" _ _ _
 ```
 
-`test/bridge/sayc_audit_test.dart` holds known failures from an adversarial
-audit (2026-10), all on AI-only deals. Each is wrapped in `knownFailure`, so
-the suite passes while the engine still makes the bad call; once a fix
-makes the case pass it fails with "now passes", and the fix should turn it
-back into a plain `test`.
+`test/bridge/sayc_audit_test.dart` holds the cases from an adversarial audit
+(2026-10), all on AI-only deals; all 24 are now fixed and plain tests. New
+known failures can use its `knownFailure` wrapper: the suite passes while
+the engine still makes the bad call, and the case fails with "now passes"
+once a fix makes it pass, to be turned back into a plain `test`.
 
 ### Audit conventions and current results (2026-08-30)
 
@@ -388,33 +388,33 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 534 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 749 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 477 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 666 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 331, missed-game 132,
-silly-strain 50, missed-slam 19, thin-game 1, no-rule-matched 1.
+Seed 1 findings by category: fallback-used 279, missed-game 127,
+silly-strain 50, missed-slam 18, thin-game 2, no-rule-matched 1.
 Fallback-used is monitoring, not failure. The missed-game lint excuses
 stops below game when an opponent-bid suit is unstopped, there is no
 eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 71.7% of the time
-(precision), and 62.7% of double-dummy-makeable games get bid (recall).
-52 slams are bid, of which 45 make (86.5% precision; the quantitative
+Double-dummy accuracy over 6000 deals: games bid make 71.4% of the time
+(precision), and 63.2% of double-dummy-makeable games get bid (recall).
+52 slams are bid, of which 44 make (84.6% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
-/ 12 making). Recall is 5.5% of DD slam chances — most DD "slams" lack the
+/ 12 making). Recall is 5.4% of DD slam chances — most DD "slams" lack the
 combined strength any bidding system would need.
 
 Precision and recall leave doubled contracts out, so they can't see
 sacrifices. The script also scores every deal (non-vulnerable, doubled
 contracts included) against double-dummy par — the result of both sides
 bidding optimally from the double-dummy trick table, including
-sacrifices — and reports the average IMPs lost per deal: currently 4.52,
+sacrifices — and reports the average IMPs lost per deal: currently 4.50,
 with 27.3% of deals within 10 points of par. The absolute number is
 harsh by design (par sees all four hands); compare it between versions.
 Doubled contracts that went down are split into good sacrifices (cheaper
-than the opponents' best makeable contract: 73, saving 19390 points)
-and bad ones (90, costing 20980). The split is from the declaring side's
+than the opponents' best makeable contract: 75, saving 19960 points)
+and bad ones (89, costing 20290). The split is from the declaring side's
 point of view, so our penalty doubles of their contracts count here too.

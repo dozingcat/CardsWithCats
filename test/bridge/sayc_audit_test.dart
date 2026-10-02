@@ -105,7 +105,7 @@ void main() {
       expect(call, "5H"); // two aces
     });
 
-    knownFailure("minor-suit Blackwood doesn't bid slam missing two aces", () {
+    test("minor-suit Blackwood doesn't bid slam missing two aces", () {
       // 1S-2C-3C-4NT-5D: the asker holds one ace and nothing gates the ask
       // on controls; the 5D answer (one ace) is above five clubs, so the
       // placement forces 6C with the ace of diamonds and ace of clubs
@@ -116,7 +116,8 @@ void main() {
         "A4 KQ5 K5 KQJ654",
         "65 764 876432 32",
       ], "1S pass 2C pass 3C pass");
-      expect(finalContract(history)!.count, lessThan(6),
+      // With one ace and clubs as trumps the asker doesn't ask.
+      expect(finalContract(history), ContractBid.noTrump(3),
           reason: "auction: ${history.join(' ')}");
     });
 
@@ -147,7 +148,7 @@ void main() {
       expect(call, "3H");
     });
 
-    knownFailure("responder doesn't pass opener's 18-19 3NT rebid with 18 HCP", () {
+    test("responder doesn't pass opener's 18-19 3NT rebid with 18 HCP", () {
       // Self-play seed 99 deal 780: 36+ combined HCP.
       final call = engineCallAfter([
         "T9762 872 AT965 -",
@@ -155,10 +156,10 @@ void main() {
         "8 943 8742 98763",
         "QJ AQ65 QJ KQJ54",
       ], "pass 1S pass 2C pass 3NT pass");
-      expect(call, isNot("Pass"));
+      expect(call, "6NT");
     });
 
-    knownFailure("Stayman finds a fit and a 20-count responder looks for slam", () {
+    test("Stayman finds a fit and a 20-count responder looks for slam", () {
       // 35-37 combined HCP with a 4-4 spade fit stops in 4S.
       final history = engineAuction([
         "KJ54 Q32 AK3 Q32",
@@ -166,11 +167,11 @@ void main() {
         "AQ32 AK7 Q4 AK54",
         "T8 T6 T9865 JT98",
       ], "1NT pass 2C pass 2S pass");
-      expect(finalContract(history)!.count, greaterThanOrEqualTo(6),
+      expect(finalContract(history), ContractBid(6, Suit.spades),
           reason: "auction: ${history.join(' ')}");
     });
 
-    knownFailure("2C-2D-2S: a raise with values doesn't stop in game", () {
+    test("2C-2D-2S: a raise with values doesn't stop in game", () {
       // 35 HCP and a nine-card fit: responder's jump to 4S is the same
       // call with 1 HCP or 11, and opener always passes it.
       final history = engineAuction([
@@ -179,7 +180,8 @@ void main() {
         "8543 A543 K543 K",
         "- 876 876 8765432",
       ], "2C pass 2D pass 2S pass");
-      expect(finalContract(history)!.count, greaterThanOrEqualTo(6),
+      // 3S positive raise, Blackwood, 6S.
+      expect(finalContract(history), ContractBid(6, Suit.spades),
           reason: "auction: ${history.join(' ')}");
     });
 
@@ -195,17 +197,17 @@ void main() {
       expect(call, "4H");
     });
 
-    knownFailure("a strong takeout doubler acts again after a raise", () {
+    test("a strong takeout doubler acts again after a raise", () {
       final call = engineCallAfter([
         "T3 AJ4 KJ976 KT9",
         "AKQJ52 K87 AQ4 2",
         "876 2 8532 AQ753",
         "94 QT9653 T J864",
       ], "1D X 2D pass pass");
-      expect(call, isNot("Pass"));
+      expect(call, "2S");
     });
 
-    knownFailure("responder raises partner's weak two to game over an overcall", () {
+    test("responder raises partner's weak two to game over an overcall", () {
       // The same hand bids 4S over 2S-P and 2S-X; over 2S-(3H) the
       // fallback only competes to 3S.
       final call = engineCallAfter([
@@ -217,7 +219,7 @@ void main() {
       expect(call, "4S");
     });
 
-    knownFailure("advancer acts opposite a weak jump overcall with a fit and 14", () {
+    test("advancer acts opposite a weak jump overcall with a fit and 14", () {
       // Raises opposite a weak jump stop at 12 points and game needs 17,
       // so 13-16 with a fit (here an 11-card fit) passes.
       final call = engineCallAfter([
@@ -226,7 +228,7 @@ void main() {
         "- T65 QT532 A9876",
         "K852 A8 A964 K52",
       ], "1H 2S pass");
-      expect(call, isNot("Pass"));
+      expect(call, "4S");
     });
 
     test("responder acts over 1NT-(2C) with 10 HCP and both majors", () {
@@ -241,7 +243,7 @@ void main() {
       expect(call, "3C"); // cue bid: Stayman, game forcing
     });
 
-    knownFailure("a nine-card solid suit does more than a simple overcall", () {
+    test("a nine-card solid suit does more than a simple overcall", () {
       // Self-play seed 2026 deal 368: 3D over 3C with AKQJ98654 and 15
       // HCP is passed out; 5D makes 12 tricks.
       final call = engineCallAfter([
@@ -250,10 +252,10 @@ void main() {
         "K94 - AKQJ98654 Q",
         "AQ8652 97643 T2 -",
       ], "pass 3C");
-      expect(call, isNot("3D"));
+      expect(call, "5D");
     });
 
-    knownFailure("opener's reopening rebid shows a strong hand", () {
+    test("opener's reopening rebid shows a strong hand", () {
       // The reopening table has a single cheapest-level suit rebid, so 19
       // HCP with seven solid spades bids the same 2S as a minimum.
       final call = engineCallAfter([
@@ -262,7 +264,7 @@ void main() {
         "2 85 8765 QJ7643",
         "T6543 2 KT94 T98",
       ], "1S 2H pass pass");
-      expect(call, isNot("2S"));
+      expect(call, "4S");
     });
   });
 
@@ -353,7 +355,7 @@ void main() {
   });
 
   group("audit: notrump games with a long suit or a void", () {
-    knownFailure("seven solid spades play in 4S, not 3NT, opposite a singleton",
+    test("seven solid spades play in 4S, not 3NT, opposite a singleton",
         () {
       // The same hand bids 4S over a 1NT rebid.
       final call = engineCallAfter([
@@ -365,7 +367,7 @@ void main() {
       expect(call, "4S");
     });
 
-    knownFailure("no 3NT with a void in opener's suit and a fit for the second", () {
+    test("no 3NT with a void in opener's suit and a fit for the second", () {
       // Self-play seed 2026 deal 99: responder is void in hearts with
       // four clubs opposite opener's 3C; NS make 13 tricks in clubs.
       final call = engineCallAfter([
@@ -374,7 +376,7 @@ void main() {
         "AJT2 - K9852 AQ74",
         "98 K9753 T7643 3",
       ], "1H pass 2D pass 3C pass");
-      expect(call, isNot("3NT"));
+      expect(call, "4C"); // forcing raise, short in hearts
     });
   });
 }
