@@ -1878,6 +1878,33 @@ void main() {
           "Pass");
     });
 
+    test("preempting over their 1NT", () {
+      // Seven cards, or a good six, with 5-9 HCP in the direct seat.
+      expect(openingBid("32", "KQJ8765", "32", "32", history: ["1NT"]), "3H");
+      expect(openingBid("32", "AQ8765", "432", "32", history: ["1NT"]), "3H");
+      expect(openingBid("2", "32", "AK8765", "Q432", history: ["1NT"]), "3D");
+      // A poor six or too few points pass; never in the balancing seat.
+      expect(openingBid("32", "Q98765", "432", "K2", history: ["1NT"]),
+          "Pass");
+      expect(openingBid("32", "KQJ8765", "32", "32",
+              history: ["1NT", "pass", "pass"]),
+          "Pass");
+      // The advancer raises a major to game on a doubleton with 15+.
+      expect(openingBid("AKQ2", "32", "AKJ2", "432",
+              history: ["1NT", "3H", "pass"]),
+          "4H");
+      // Self-play deal 4936 (seed 1): no redouble when the preempt is
+      // doubled (that answers only a negative double).
+      expect(openingBid("8", "32", "QJT8732", "A98",
+              history: ["1NT", "3S", "X"]),
+          "Pass");
+      // Self-play deal 1519: over the cooperative double, 3NT with their
+      // suit stopped before a four-card major the double didn't promise.
+      expect(openingBid("A972", "A9", "AQ85", "J43",
+              history: ["1NT", "3H", "X", "pass"]),
+          "3NT");
+    });
+
     test("1NT opener and responder after the cue bid", () {
       final cue = ["1NT", "2C", "3C", "pass"];
       expect(openingBid("AK3", "Q32", "KJ4", "Q432", history: cue), "3NT");
