@@ -10,10 +10,14 @@
 ///       [--deals N] [--seed N] [--show N] [--workers N]
 ///
 /// --show N prints the first N deals' auction, result, par, and trick table.
-/// --workers N splits the deals across N isolates (results are identical to
-/// a single worker; DDS allows up to min(cores, 16) concurrent solves).
+/// --workers N splits the deals across N workers, with identical results.
+/// Workers run as child processes of up to four isolates each: the DDS shim
+/// gives each process only min(cores, 5) solver slots (its memory budget
+/// is sized for phones), so isolates in one process stop scaling past that.
+/// The children rerun this script with --start and --json (internal).
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -41,6 +45,48 @@ class _Stats {
   int badSacrifices = 0, badCost = 0;
   // --show output for deals in this range, in order.
   final shown = <String>[];
+
+  static const _fields = [
+    "gamesBid", "gamesBidMakeable", "gameChances", "gameChancesBid", //
+    "slamsBid", "slamsBidMakeable", "slamChances", "slamChancesBid",
+    "doubledExcluded", "impsLost", "atPar", "doubledMade",
+    "goodSacrifices", "goodSaved", "badSacrifices", "badCost",
+  ];
+
+  List<int> get _values => [
+        gamesBid, gamesBidMakeable, gameChances, gameChancesBid, //
+        slamsBid, slamsBidMakeable, slamChances, slamChancesBid,
+        doubledExcluded, impsLost, atPar, doubledMade,
+        goodSacrifices, goodSaved, badSacrifices, badCost,
+      ];
+
+  String toJson() => jsonEncode({
+        for (int i = 0; i < _fields.length; i++) _fields[i]: _values[i],
+        "shown": shown,
+      });
+
+  static _Stats fromJson(String text) {
+    final m = jsonDecode(text) as Map<String, dynamic>;
+    int v(String k) => m[k] as int;
+    return _Stats()
+      ..gamesBid = v("gamesBid")
+      ..gamesBidMakeable = v("gamesBidMakeable")
+      ..gameChances = v("gameChances")
+      ..gameChancesBid = v("gameChancesBid")
+      ..slamsBid = v("slamsBid")
+      ..slamsBidMakeable = v("slamsBidMakeable")
+      ..slamChances = v("slamChances")
+      ..slamChancesBid = v("slamChancesBid")
+      ..doubledExcluded = v("doubledExcluded")
+      ..impsLost = v("impsLost")
+      ..atPar = v("atPar")
+      ..doubledMade = v("doubledMade")
+      ..goodSacrifices = v("goodSacrifices")
+      ..goodSaved = v("goodSaved")
+      ..badSacrifices = v("badSacrifices")
+      ..badCost = v("badCost")
+      ..shown.addAll((m["shown"] as List).cast<String>());
+  }
 
   void add(_Stats o) {
     gamesBid += o.gamesBid;
@@ -174,11 +220,58 @@ _Stats _analyze(int seed, int start, int end, int show) {
   return st;
 }
 
+/// Deals [start, end) split across [isolates] isolates in this process.
+Future<_Stats> _analyzeInProcess(
+    int seed, int start, int end, int show, int isolates) async {
+  if (isolates <= 1) return _analyze(seed, start, end, show);
+  final n = end - start;
+  final bounds = [
+    for (int w = 0; w <= isolates; w++) start + n * w ~/ isolates
+  ];
+  final parts = await Future.wait([
+    for (int w = 0; w < isolates; w++)
+      Isolate.run(() => _analyze(seed, bounds[w], bounds[w + 1], show)),
+  ]);
+  final st = _Stats();
+  parts.forEach(st.add);
+  return st;
+}
+
+/// Runs deals [start, end) in a child process of this script with
+/// [isolates] isolates, forwarding its progress output.
+Future<_Stats> _analyzeInChild(
+    int seed, int start, int end, int show, int isolates) async {
+  final script = Platform.script.toFilePath();
+  final args = [
+    if (script.endsWith(".dart")) script,
+    "--seed", "$seed", "--start", "$start", "--deals", "${end - start}",
+    "--show", "$show", "--workers", "$isolates", "--json",
+  ];
+  final child = await Process.start(Platform.resolvedExecutable, args);
+  final out = StringBuffer();
+  final done = child.stdout.transform(utf8.decoder).forEach(out.write);
+  await child.stderr.forEach((bytes) {
+    // Only the progress dots; the library-load line belongs to the parent.
+    final text = utf8.decode(bytes).replaceAll(RegExp(r"[^.]"), "");
+    if (text.isNotEmpty) stderr.write(text);
+  });
+  await done;
+  final code = await child.exitCode;
+  final lines = out.toString().trim().split("\n");
+  if (code != 0 || lines.isEmpty || !lines.last.startsWith("{")) {
+    stderr.writeln("worker for deals $start-${end - 1} failed (exit $code)");
+    exit(1);
+  }
+  return _Stats.fromJson(lines.last);
+}
+
 Future<void> main(List<String> args) async {
   int deals = 400;
   int seed = 1;
   int show = 0;
   int workers = 1;
+  int start = 0;
+  bool json = false;
   for (int i = 0; i < args.length; i++) {
     switch (args[i]) {
       case "--deals":
@@ -189,22 +282,46 @@ Future<void> main(List<String> args) async {
         show = int.parse(args[++i]);
       case "--workers":
         workers = int.parse(args[++i]);
+      case "--start":
+        start = int.parse(args[++i]);
+      case "--json":
+        json = true;
     }
   }
   if (DdsBackend.instance == null) {
     print("DDS backend unavailable; set DDS_LIB (cpp/build_libdds.sh)");
     exit(1);
   }
+  final end = start + deals;
 
+  if (json) {
+    // Child process: analyze the range and report the counts.
+    final st =
+        await _analyzeInProcess(seed, start, end, show, workers);
+    print(st.toJson());
+    return;
+  }
+
+  const isolatesPerProcess = 4;
   final st = _Stats();
-  if (workers <= 1) {
-    st.add(_analyze(seed, 0, deals, show));
+  if (workers <= isolatesPerProcess) {
+    st.add(await _analyzeInProcess(seed, start, end, show, workers));
   } else {
-    // Contiguous ranges, merged in order so --show output stays ordered.
-    final bounds = [for (int w = 0; w <= workers; w++) deals * w ~/ workers];
+    // Contiguous ranges in proportion to each process's isolates, merged in
+    // order so --show output stays ordered.
+    final processes = (workers + isolatesPerProcess - 1) ~/ isolatesPerProcess;
+    final per = [
+      for (int p = 0; p < processes; p++)
+        workers ~/ processes + (p < workers % processes ? 1 : 0)
+    ];
+    final bounds = [start];
+    for (int p = 0, used = 0; p < processes; p++) {
+      used += per[p];
+      bounds.add(start + deals * used ~/ workers);
+    }
     final parts = await Future.wait([
-      for (int w = 0; w < workers; w++)
-        Isolate.run(() => _analyze(seed, bounds[w], bounds[w + 1], show)),
+      for (int p = 0; p < processes; p++)
+        _analyzeInChild(seed, bounds[p], bounds[p + 1], show, per[p]),
     ]);
     parts.forEach(st.add);
   }
