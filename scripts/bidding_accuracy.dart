@@ -10,16 +10,15 @@
 ///       [--deals N] [--seed N] [--show N] [--workers N]
 ///
 /// --show N prints the first N deals' auction, result, par, and trick table.
-/// --workers N splits the deals across N workers, with identical results.
-/// Workers run as child processes of up to four isolates each: the DDS shim
-/// gives each process only min(cores, 5) solver slots (its memory budget
-/// is sized for phones), so isolates in one process stop scaling past that.
-/// The children rerun this script with --start and --json (internal).
+/// --workers N splits the deals across N child processes, with identical
+/// results. They're processes rather than isolates because the DDS shim
+/// gives each process only min(cores, 5) solver slots (its memory budget is
+/// sized for phones). The children rerun this script with --start and
+/// --json (internal).
 library;
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:cards_with_cats/bridge/bridge.dart';
 import 'package:cards_with_cats/bridge/dd_scoring.dart';
@@ -109,9 +108,7 @@ class _Stats {
   }
 }
 
-/// Analyzes deals [start, end) of [seed], showing those below [show]. Runs
-/// in its own isolate when there are several workers, so it loads DDS
-/// itself.
+/// Analyzes deals [start, end) of [seed], showing those below [show].
 _Stats _analyze(int seed, int start, int end, int show) {
   final dds = DdsBackend.instance!;
   final st = _Stats();
@@ -120,14 +117,10 @@ _Stats _analyze(int seed, int start, int end, int show) {
     final hands = dealHands(seed, i);
     final history = runDeal(hands).history;
 
-    // Double-dummy tricks for a declarer; null means every DDS thread slot
-    // was busy (more workers than slots), so wait for one.
+    // Double-dummy tricks for a declarer.
     int tricksFor(int declarer, Suit? trump) {
-      while (true) {
-        final ns = dds.solve(hands, trump, (declarer + 1) % 4, const []);
-        if (ns != null) return declarer % 2 == 0 ? ns : 13 - ns;
-        sleep(const Duration(milliseconds: 1));
-      }
+      final ns = dds.solve(hands, trump, (declarer + 1) % 4, const [])!;
+      return declarer % 2 == 0 ? ns : 13 - ns;
     }
 
     // Max tricks for each side in each strain (best declarer).
@@ -220,32 +213,14 @@ _Stats _analyze(int seed, int start, int end, int show) {
   return st;
 }
 
-/// Deals [start, end) split across [isolates] isolates in this process.
-Future<_Stats> _analyzeInProcess(
-    int seed, int start, int end, int show, int isolates) async {
-  if (isolates <= 1) return _analyze(seed, start, end, show);
-  final n = end - start;
-  final bounds = [
-    for (int w = 0; w <= isolates; w++) start + n * w ~/ isolates
-  ];
-  final parts = await Future.wait([
-    for (int w = 0; w < isolates; w++)
-      Isolate.run(() => _analyze(seed, bounds[w], bounds[w + 1], show)),
-  ]);
-  final st = _Stats();
-  parts.forEach(st.add);
-  return st;
-}
-
-/// Runs deals [start, end) in a child process of this script with
-/// [isolates] isolates, forwarding its progress output.
-Future<_Stats> _analyzeInChild(
-    int seed, int start, int end, int show, int isolates) async {
+/// Runs deals [start, end) in a child process of this script, forwarding
+/// its progress output.
+Future<_Stats> _analyzeInChild(int seed, int start, int end, int show) async {
   final script = Platform.script.toFilePath();
   final args = [
     if (script.endsWith(".dart")) script,
     "--seed", "$seed", "--start", "$start", "--deals", "${end - start}",
-    "--show", "$show", "--workers", "$isolates", "--json",
+    "--show", "$show", "--json",
   ];
   final child = await Process.start(Platform.resolvedExecutable, args);
   final out = StringBuffer();
@@ -296,32 +271,21 @@ Future<void> main(List<String> args) async {
 
   if (json) {
     // Child process: analyze the range and report the counts.
-    final st =
-        await _analyzeInProcess(seed, start, end, show, workers);
-    print(st.toJson());
+    print(_analyze(seed, start, end, show).toJson());
     return;
   }
 
-  const isolatesPerProcess = 4;
   final st = _Stats();
-  if (workers <= isolatesPerProcess) {
-    st.add(await _analyzeInProcess(seed, start, end, show, workers));
+  if (workers <= 1) {
+    st.add(_analyze(seed, start, end, show));
   } else {
-    // Contiguous ranges in proportion to each process's isolates, merged in
-    // order so --show output stays ordered.
-    final processes = (workers + isolatesPerProcess - 1) ~/ isolatesPerProcess;
-    final per = [
-      for (int p = 0; p < processes; p++)
-        workers ~/ processes + (p < workers % processes ? 1 : 0)
+    // Contiguous ranges, merged in order so --show output stays ordered.
+    final bounds = [
+      for (int w = 0; w <= workers; w++) start + deals * w ~/ workers
     ];
-    final bounds = [start];
-    for (int p = 0, used = 0; p < processes; p++) {
-      used += per[p];
-      bounds.add(start + deals * used ~/ workers);
-    }
     final parts = await Future.wait([
-      for (int p = 0; p < processes; p++)
-        _analyzeInChild(seed, bounds[p], bounds[p + 1], show, per[p]),
+      for (int w = 0; w < workers; w++)
+        _analyzeInChild(seed, bounds[w], bounds[w + 1], show),
     ]);
     parts.forEach(st.add);
   }

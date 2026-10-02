@@ -349,7 +349,7 @@ dart run scripts/bidding_audit.dart --deals 5000 --chaos 0.15
 
 # Bidding accuracy against double-dummy truth (needs cpp/build_libdds.sh);
 # --workers splits the deals across child processes with identical results
-# (6000 deals take about 2 minutes with 12 workers, versus about 15 with
+# (6000 deals take about 3 minutes with 12 workers, versus about 15 with
 # one):
 DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart \
     --deals 6000 --workers 12
