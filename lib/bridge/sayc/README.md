@@ -388,11 +388,11 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 542 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 754 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 536 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 749 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 338, missed-game 134,
+Seed 1 findings by category: fallback-used 332, missed-game 134,
 silly-strain 49, missed-slam 19, thin-game 1, no-rule-matched 1.
 Fallback-used is monitoring, not failure. The missed-game lint excuses
 stops below game when an opponent-bid suit is unstopped, there is no
@@ -400,7 +400,7 @@ eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 71.8% of the time
+Double-dummy accuracy over 6000 deals: games bid make 71.7% of the time
 (precision), and 62.7% of double-dummy-makeable games get bid (recall).
 52 slams are bid, of which 45 make (86.5% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid

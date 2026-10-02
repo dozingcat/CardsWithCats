@@ -229,7 +229,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    knownFailure("responder acts over 1NT-(2C) with 10 HCP and both majors", () {
+    test("responder acts over 1NT-(2C) with 10 HCP and both majors", () {
       // No rules for interference over our 1NT: the fallback passes
       // without a club stopper, missing game with 27 combined.
       final call = engineCallAfter([
@@ -238,7 +238,7 @@ void main() {
         "KQ32 AJ32 32 432",
         "J9864 975 JT74 J",
       ], "1NT 2C");
-      expect(call, isNot("Pass"));
+      expect(call, "3C"); // cue bid: Stayman, game forcing
     });
 
     knownFailure("a nine-card solid suit does more than a simple overcall", () {

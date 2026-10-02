@@ -1833,6 +1833,47 @@ void main() {
           "4H");
     });
 
+    test("responding to 1NT after an overcall: systems off", () {
+      final h = ["1NT", "2C"];
+      // Cue bid = Stayman, game forcing, with a four-card major.
+      expect(openingBid("KQ32", "AJ32", "32", "432", history: h), "3C");
+      // Natural notrump with their suit stopped.
+      expect(openingBid("KQ32", "J532", "32", "K32", history: h), "2NT");
+      expect(openingBid("K32", "Q2", "A432", "KJ32", history: h), "3NT");
+      // Two-level suits are to play; game-going suits jump or force.
+      expect(openingBid("Q8762", "J2", "7432", "32", history: h), "2S");
+      expect(openingBid("AQJ432", "K2", "32", "432", history: h), "4S");
+      // Length counts toward game (self-play deals 433 and 3465, seed 1).
+      expect(openingBid("AKQ9643", "T873", "T7", "-", history: h), "4S");
+      expect(openingBid("AT9752", "T", "AT6", "T53",
+              history: ["1NT", "2H"]),
+          "4S");
+      expect(openingBid("AQ432", "K32", "32", "K32",
+              history: ["1NT", "2H"]),
+          "3S");
+      // Penalty double with their suit.
+      expect(openingBid("32", "J2", "A32", "AKJT92", history: h), "Double");
+    });
+
+    test("1NT opener and responder after the cue bid", () {
+      final cue = ["1NT", "2C", "3C", "pass"];
+      expect(openingBid("AK3", "Q32", "KJ4", "Q432", history: cue), "3NT");
+      expect(openingBid("AK32", "Q32", "KJ4", "Q43", history: cue), "3S");
+      expect(openingBid("AK3", "KQ32", "J4", "Q432", history: cue), "3H");
+      // Opener raises a forcing three-level major with three.
+      expect(openingBid("AK3", "Q32", "KJ4", "Q432",
+              history: ["1NT", "2C", "3S", "pass"]),
+          "4S");
+      // Responder places the contract after the answer.
+      const r = ["KQ32", "AJ32", "32", "432"];
+      expect(openingBid(r[0], r[1], r[2], r[3],
+              history: [...cue, "3H", "pass"]),
+          "4H");
+      expect(openingBid(r[0], r[1], r[2], r[3],
+              history: [...cue, "3NT", "pass"]),
+          "Pass");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");

@@ -1368,14 +1368,16 @@ bool _isSplinterResponse(ContractBid opening, ContractBid response) {
 }
 
 List<SaycRule>? openerRebidRules(BidAction opening, BidAction response,
-    {bool contested = false, bool released = false}) {
+    {bool contested = false, bool released = false, ContractBid? overcall}) {
   if (opening.bidType != BidType.contract ||
       response.bidType != BidType.contract) {
     return null;
   }
   final openBid = opening.contractBid!;
   if (openBid.trump == null && openBid.count == 1) {
-    if (contested) return _oneNtRebidAfterInterferenceRules(response);
+    if (contested) {
+      return _oneNtRebidAfterInterferenceRules(response, overcall);
+    }
     return oneNtRebidRules(response);
   }
   if (openBid.trump == null && openBid.count == 2) {
@@ -1427,12 +1429,201 @@ List<SaycRule>? openerRebidRules(BidAction opening, BidAction response,
   return null;
 }
 
-/// The 1NT opener's rebid after an overcall: responder's calls are natural
-/// (no Stayman or transfers once they've bid). Pass a two-level suit, which
-/// is to play, and accept the 2NT invitation with a maximum; anything else
-/// is left to the fallback.
-List<SaycRule>? _oneNtRebidAfterInterferenceRules(BidAction response) {
+/// Responder over 1NT (overcall). Stayman and transfers are off: a two-
+/// level suit is to play, a three-level suit forces, 2NT and 3NT are
+/// natural with their suit stopped, the cue bid of their suit is Stayman
+/// (game forcing, a four-card unbid major), and double is for penalties.
+List<SaycRule> oneNtInterferenceResponseRules(ContractBid overcall) {
+  final theirSuit = overcall.trump!;
+  final theirName = _suitNames[theirSuit]!;
+  final unbidMajors =
+      [Suit.hearts, Suit.spades].where((m) => m != theirSuit).toList();
+  final cueLevel = cheapestLevel(theirSuit, overcall);
+  final ntLevel = cheapestLevel(null, overcall);
+  Suit? fiveCardSuit(HandAnalysis h) => bestSuit(
+      h, Suit.values.where((s) => s != theirSuit && h.count(s) >= 5));
+  return [
+    SaycRule(
+      BidAction.double(),
+      BidMeaning(
+        description: "Penalty double: $theirName tricks, 8+ HCP",
+        hcp: const Range(low: 8),
+        suitLengths: {theirSuit: const Range(low: 4)},
+      ),
+      ignoreInfo: true,
+      require: (h) => h.hcp >= 8 && strongTrumpHolding(h, theirSuit),
+    ),
+    // A six-card major with game values (counting length) opposite 15-17.
+    for (final m in unbidMajors)
+      if (cheapestLevel(m, overcall) <= 4)
+        SaycRule(
+          BidAction.contract(4, m),
+          BidMeaning(
+            description:
+                "Game in ${_suitNames[m]}: 6+ cards, 10+ total points",
+            totalPoints: const Range(low: 10),
+            hcp: const Range(high: 15),
+            suitLengths: {m: const Range(low: 6)},
+          ),
+          ignoreInfo: true,
+          require: (h) =>
+              h.totalPoints >= 10 && h.hcp <= 15 && h.count(m) >= 6,
+        ),
+    // Game values with a five-card suit: forcing at the three level.
+    for (final s in Suit.values)
+      if (s != theirSuit && cheapestLevel(s, overcall) <= 3)
+        SaycRule(
+          BidAction.contract(3, s),
+          BidMeaning(
+            description: "Forcing: 5+ ${_suitNames[s]}, 10+ HCP",
+            hcp: const Range(low: 10),
+            suitLengths: {s: const Range(low: 5)},
+          ),
+          ignoreInfo: true,
+          require: (h) =>
+              h.hcp >= 10 &&
+              fiveCardSuit(h) == s &&
+              // Prefer 3NT with a minor and their suit stopped.
+              (_isMajor(s) || !h.hasStopper(theirSuit)),
+        ),
+    if (cueLevel <= 3 && unbidMajors.isNotEmpty)
+      SaycRule(
+        BidAction.contract(cueLevel, theirSuit),
+        BidMeaning(
+          description: "Cue bid: Stayman, game forcing, a four-card major",
+          hcp: const Range(low: 10),
+          artificial: true,
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.hcp >= 10 && unbidMajors.any((m) => h.count(m) >= 4),
+      ),
+    if (ntLevel <= 3)
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description: "Game in notrump: $theirName stopped, 10-15 HCP",
+            hcp: const Range(low: 10, high: 15)),
+        ignoreInfo: true,
+        require: (h) =>
+            h.hcp >= 10 && h.hcp <= 15 && h.hasStopper(theirSuit),
+      ),
+    if (ntLevel <= 2)
+      SaycRule(
+        BidAction.noTrump(2),
+        BidMeaning(
+            description: "Inviting 3NT: $theirName stopped, 8-9 HCP",
+            hcp: const Range(low: 8, high: 9)),
+        ignoreInfo: true,
+        require: (h) =>
+            h.hcp >= 8 && h.hcp <= 9 && h.hasStopper(theirSuit),
+      ),
+    // Weak with a five-card suit: compete at the two level, to play.
+    for (final s in Suit.values)
+      if (s != theirSuit && cheapestLevel(s, overcall) == 2)
+        SaycRule(
+          BidAction.contract(2, s),
+          BidMeaning(
+            description: "Natural: 5+ ${_suitNames[s]}, to play",
+            hcp: const Range(high: 9),
+            suitLengths: {s: const Range(low: 5)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.hcp <= 9 && fiveCardSuit(h) == s,
+        ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(description: "Nothing to say over their overcall"),
+    ),
+  ];
+}
+
+/// Responder after its cue bid over 1NT (overcall) and opener's answer:
+/// game in a major fit, otherwise 3NT; game bids are passed.
+List<SaycRule> oneNtInterferenceResponderRebidRules(
+    ContractBid overcall, ContractBid response, ContractBid rebid) {
+  final done = [
+    SaycRule(BidAction.pass(),
+        BidMeaning(description: "Partner chose the game"))
+  ];
+  if (response.trump != overcall.trump) return done;
+  final major = rebid.trump;
+  if (major != null && _isMajor(major) && rebid.count == 3) {
+    return [
+      SaycRule(
+        BidAction.contract(4, major),
+        BidMeaning(
+          description: "Game in the ${_suitNames[major]} fit",
+          suitLengths: {major: const Range(low: 4)},
+        ),
+        ignoreInfo: true,
+        require: (h) => h.count(major) >= 4,
+      ),
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(description: "No major fit: game in notrump"),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  return done;
+}
+
+/// The 1NT opener's rebid after an overcall (see
+/// [oneNtInterferenceResponseRules]): a cue bid of their suit is Stayman,
+/// answered with a four-card unbid major or 3NT; a three-level suit is
+/// forcing (raise a major with three, else 3NT); a two-level suit is to
+/// play; 2NT invites. Anything else is left to the fallback.
+List<SaycRule>? _oneNtRebidAfterInterferenceRules(
+    BidAction response, ContractBid? overcall) {
   final bid = response.contractBid!;
+  final theirSuit = overcall?.trump;
+  if (theirSuit != null && bid.trump == theirSuit) {
+    final majors = [Suit.hearts, Suit.spades].where((m) => m != theirSuit);
+    return [
+      for (final m in majors)
+        if (cheapestLevel(m, bid) <= 3)
+          SaycRule(
+            BidAction.contract(cheapestLevel(m, bid), m),
+            BidMeaning(
+              description: "Answering the cue bid: 4 ${_suitNames[m]}",
+              suitLengths: {m: const Range(low: 4)},
+            ),
+            ignoreInfo: true,
+            require: (h) =>
+                h.count(m) >= 4 &&
+                // With both, hearts first (the cheaper).
+                (m == Suit.hearts ||
+                    !majors.contains(Suit.hearts) ||
+                    h.count(Suit.hearts) < 4),
+          ),
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(description: "Answering the cue bid: no four-card major"),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  if (bid.trump != null && bid.count == 3 && theirSuit != null) {
+    final suit = bid.trump!;
+    return [
+      if (_isMajor(suit))
+        SaycRule(
+          BidAction.contract(4, suit),
+          BidMeaning(
+            description: "Raising partner's forcing ${_suitNames[suit]}",
+            suitLengths: {suit: const Range(low: 3)},
+          ),
+          ignoreInfo: true,
+          require: (h) => h.count(suit) >= 3,
+        ),
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(description: "Game in notrump over the forcing suit"),
+        ignoreInfo: true,
+      ),
+    ];
+  }
   if (bid.trump != null && bid.count == 2) {
     return [
       SaycRule(BidAction.pass(),
@@ -7970,6 +8161,9 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
         return interferenceResponseRules(
             opening.contractBid!, rho.contractBid!);
       }
+      if (opening == BidAction.noTrump(1) && isSuitBid(rho)) {
+        return oneNtInterferenceResponseRules(rho.contractBid!);
+      }
       return null;
     }
     if (n == first + 6 && calls[first + 5].bidType == BidType.pass) {
@@ -7978,6 +8172,14 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       final lho = calls[first + 3];
       final partnerRebid = calls[first + 4];
       final suitOpening = isOneLevelSuitOpening(opening);
+      if (opening == BidAction.noTrump(1) &&
+          isSuitBid(rho1) &&
+          lho.bidType == BidType.pass &&
+          partnerRebid.bidType == BidType.contract &&
+          myResponse.bidType == BidType.contract) {
+        return oneNtInterferenceResponderRebidRules(rho1.contractBid!,
+            myResponse.contractBid!, partnerRebid.contractBid!);
+      }
       if (partnerRebid.bidType == BidType.contract &&
           myResponse.bidType == BidType.contract) {
         if (rho1.bidType != BidType.pass &&
@@ -8190,7 +8392,9 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
     if (overcall.bidType == BidType.contract &&
         partnerCall.bidType == BidType.contract) {
       // Partner's free bid carries at least its uncontested meaning.
-      return openerRebidRules(opening, partnerCall, contested: true);
+      return openerRebidRules(opening, partnerCall,
+          contested: true,
+          overcall: isSuitBid(overcall) ? overcall.contractBid : null);
     }
     if (isSuitBid(overcall) &&
         partnerCall.bidType == BidType.pass &&
