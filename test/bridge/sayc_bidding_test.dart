@@ -2573,6 +2573,30 @@ void main() {
       expect(openingBid("AKQ32", "32", "AK32", "32",
               history: ["1S", "pass", "2S", "4H"]),
           "Double");
+      // Not after they've bid twice (a competitive raise, not a preempt)
+      // without some defense in their suit.
+      expect(openingBid("AKQ32", "32", "AK32", "32",
+              history: ["1S", "2H", "2S", "4H"]),
+          "Pass");
+      expect(openingBid("AKQ3", "K32", "AK32", "32",
+              history: ["1S", "2H", "2S", "4H"]),
+          "Double");
+    });
+
+    test("penalty pass of a takeout double counts trump length and spots",
+        () {
+      // KJT97 over the overcaller converts at the two level; four cards
+      // with three top-five honors convert at the four level.
+      expect(openingBid("Q2", "KJT97", "864", "K52",
+              history: ["1S", "2H", "pass", "pass", "X", "pass"]),
+          "Pass");
+      expect(openingBid("32", "KJT9", "J92", "Q532",
+              history: ["4H", "X", "pass"]),
+          "Pass");
+      // Without the spots it still pulls.
+      expect(openingBid("32", "K986", "J92", "Q532",
+              history: ["4H", "X", "pass"]),
+          isNot("Pass"));
     });
   });
 

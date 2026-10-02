@@ -279,7 +279,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    knownFailure("no penalty double of a competitive raise without trump tricks", () {
+    test("no penalty double of a competitive raise without trump tricks", () {
       // The fallback's "doubling their preempt on combined strength"
       // treats any 3-level contract as a preempt: here a singleton heart,
       // with an eight-card spade fit. This rule was behind 15 of the 150
@@ -290,7 +290,7 @@ void main() {
         "863 T5 K973 AT95",
         "QT94 Q63 J82 J76",
       ], "1S 2H 2S 3H");
-      expect(call, isNot("Double"));
+      expect(call, "Pass");
     });
 
     test("no five-level raise of an overcall with three trumps", () {
@@ -305,7 +305,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    knownFailure("responder converts opener's reopening double with a trump stack",
+    test("responder converts opener's reopening double with a trump stack",
         () {
       // KJT97 sitting over the overcaller's hearts: the penalty-pass rule
       // wants 5+ HCP in trumps, so this bids 3C instead.
@@ -318,7 +318,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    knownFailure("a double of a four-level preempt can be left in", () {
+    test("a double of a four-level preempt can be left in", () {
       // The doubler is void in hearts; KJT9 of trumps still pulls to 5C.
       final call = engineCallAfter([
         "4 AQ765432 86 96",
