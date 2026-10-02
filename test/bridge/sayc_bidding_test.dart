@@ -1924,6 +1924,19 @@ void main() {
           "Pass");
     });
 
+    test("minor-suit Blackwood safeguard and its exception", () {
+      // Self-play deal 916 (seed 1): with 33+ combined at most one ace is
+      // missing, so one ace is enough to ask with clubs as trumps.
+      expect(openingBid("KQJ", "QJ", "AQ84", "KQ82",
+              history: ["pass", "1S", "pass", "2C", "pass", "4C", "pass"]),
+          "4NT");
+      // A six-card suit missing the queen isn't self-sufficient opposite a
+      // void (self-play deal 880).
+      expect(openingBid("J5", "AKJT83", "KT", "754",
+              history: ["1D", "2S", "3H", "pass", "4D", "pass"]),
+          isNot("4H"));
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
