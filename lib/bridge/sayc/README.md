@@ -347,8 +347,11 @@ dart run scripts/bidding_audit.dart --deals 4000 --seed 42 [--category X]
 # legally, without exceptions, and with honest advertised meanings:
 dart run scripts/bidding_audit.dart --deals 5000 --chaos 0.15
 
-# Bidding accuracy against double-dummy truth (needs cpp/build_libdds.sh):
-DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart --deals 1200
+# Bidding accuracy against double-dummy truth (needs cpp/build_libdds.sh);
+# --workers splits the deals across isolates with identical results (6000
+# deals take about 4 minutes with 12 workers, versus about 15 with one):
+DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart \
+    --deals 6000 --workers 12
 
 # Five-of-a-minor games vs 3NT by the same side, double dummy, grouped by
 # the rule that chose 5m (the lints treat both games alike):
