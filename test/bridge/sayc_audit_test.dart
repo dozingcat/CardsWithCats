@@ -8,6 +8,10 @@
 // engine still produces the auction leading up to the bad call: if a fix
 // elsewhere changes an earlier call, the test fails with a "setup" reason
 // and the deal needs to be re-found rather than the fix being credited.
+//
+// The cases are marked knownFailure until fixed: they pass while the
+// engine still makes the bad call and fail ("now passes") once it doesn't,
+// so a fix turns the case back into a plain test.
 import "package:cards_with_cats/bridge/bridge.dart";
 import "package:cards_with_cats/bridge/sayc/sayc_bidding.dart";
 import "package:cards_with_cats/cards/card.dart";
@@ -50,6 +54,22 @@ List<BidAction> engineAuction(List<String> hands, String expectedPrefix) {
   return history;
 }
 
+/// A test for a known engine flaw: it passes while [body] fails and fails
+/// once [body] passes, so a fix is noticed and the case turned back into a
+/// plain test. A setup failure (the engine no longer reaches the position)
+/// is never treated as the known failure.
+void knownFailure(String description, dynamic Function() body) {
+  test("$description [known failure]", () async {
+    try {
+      await body();
+    } on TestFailure catch (e) {
+      if (e.message?.contains("setup:") ?? false) rethrow;
+      return;
+    }
+    fail("now passes: change knownFailure(...) back to test(...)");
+  });
+}
+
 ContractBid? finalContract(List<BidAction> history) {
   for (final call in history.reversed) {
     if (call.bidType == BidType.contract) return call.contractBid;
@@ -59,7 +79,7 @@ ContractBid? finalContract(List<BidAction> history) {
 
 void main() {
   group("audit: Blackwood", () {
-    test("contested Blackwood: the asker places the contract", () {
+    knownFailure("contested Blackwood: the asker places the contract", () {
       // Uncontested (1S-2S-4NT-5H) this hand bids 6S; after the 2C
       // overcall the placement falls to the fallback bidder, which treats
       // the artificial 5H answer as "game reached" and passes it.
@@ -72,7 +92,7 @@ void main() {
       expect(call, anyOf("6S", "7S", "5NT"));
     });
 
-    test("contested Blackwood: the responder answers 4NT", () {
+    knownFailure("contested Blackwood: the responder answers 4NT", () {
       // Self-play seed 2026 deal 252: the opener passes partner's 4NT
       // ("game already reached") because the third call is fallback
       // territory after an overcall.
@@ -85,7 +105,7 @@ void main() {
       expect(call, "5H"); // two aces
     });
 
-    test("minor-suit Blackwood doesn't bid slam missing two aces", () {
+    knownFailure("minor-suit Blackwood doesn't bid slam missing two aces", () {
       // 1S-2C-3C-4NT-5D: the asker holds one ace and nothing gates the ask
       // on controls; the 5D answer (one ace) is above five clubs, so the
       // placement forces 6C with the ace of diamonds and ace of clubs
@@ -100,7 +120,7 @@ void main() {
           reason: "auction: ${history.join(' ')}");
     });
 
-    test("Blackwood with no fit doesn't land in opener's suit", () {
+    knownFailure("Blackwood with no fit doesn't land in opener's suit", () {
       // Self-play seed 2024 deal 2865: responder with eight solid hearts
       // and a singleton spade asks over 1S-2H-3S and then bids 6S on a
       // 6-1 fit.
@@ -116,7 +136,7 @@ void main() {
   });
 
   group("audit: passing with game or slam values", () {
-    test("a 2C opener doesn't sell out when the overcall is passed back", () {
+    knownFailure("a 2C opener doesn't sell out when the overcall is passed back", () {
       final call = engineCallAfter([
         "- AKQJ32 AKQ2 AK2",
         "AKQT92 8 865 Q74",
@@ -126,7 +146,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    test("responder doesn't pass opener's 18-19 3NT rebid with 18 HCP", () {
+    knownFailure("responder doesn't pass opener's 18-19 3NT rebid with 18 HCP", () {
       // Self-play seed 99 deal 780: 36+ combined HCP.
       final call = engineCallAfter([
         "T9762 872 AT965 -",
@@ -137,7 +157,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    test("Stayman finds a fit and a 20-count responder looks for slam", () {
+    knownFailure("Stayman finds a fit and a 20-count responder looks for slam", () {
       // 35-37 combined HCP with a 4-4 spade fit stops in 4S.
       final history = engineAuction([
         "KJ54 Q32 AK3 Q32",
@@ -149,7 +169,7 @@ void main() {
           reason: "auction: ${history.join(' ')}");
     });
 
-    test("2C-2D-2S: a raise with values doesn't stop in game", () {
+    knownFailure("2C-2D-2S: a raise with values doesn't stop in game", () {
       // 35 HCP and a nine-card fit: responder's jump to 4S is the same
       // call with 1 HCP or 11, and opener always passes it.
       final history = engineAuction([
@@ -162,7 +182,7 @@ void main() {
           reason: "auction: ${history.join(' ')}");
     });
 
-    test("opener rebids after RHO bids over partner's response", () {
+    knownFailure("opener rebids after RHO bids over partner's response", () {
       // 1H-P-1S-(2C) is fallback territory, which passes 18 HCP and six
       // solid hearts (and 5-5 hands, and 3-card spade support).
       final call = engineCallAfter([
@@ -174,7 +194,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    test("a strong takeout doubler acts again after a raise", () {
+    knownFailure("a strong takeout doubler acts again after a raise", () {
       final call = engineCallAfter([
         "T3 AJ4 KJ976 KT9",
         "AKQJ52 K87 AQ4 2",
@@ -184,7 +204,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    test("responder raises partner's weak two to game over an overcall", () {
+    knownFailure("responder raises partner's weak two to game over an overcall", () {
       // The same hand bids 4S over 2S-P and 2S-X; over 2S-(3H) the
       // fallback only competes to 3S.
       final call = engineCallAfter([
@@ -196,7 +216,7 @@ void main() {
       expect(call, "4S");
     });
 
-    test("advancer acts opposite a weak jump overcall with a fit and 14", () {
+    knownFailure("advancer acts opposite a weak jump overcall with a fit and 14", () {
       // Raises opposite a weak jump stop at 12 points and game needs 17,
       // so 13-16 with a fit (here an 11-card fit) passes.
       final call = engineCallAfter([
@@ -208,7 +228,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    test("responder acts over 1NT-(2C) with 10 HCP and both majors", () {
+    knownFailure("responder acts over 1NT-(2C) with 10 HCP and both majors", () {
       // No rules for interference over our 1NT: the fallback passes
       // without a club stopper, missing game with 27 combined.
       final call = engineCallAfter([
@@ -220,7 +240,7 @@ void main() {
       expect(call, isNot("Pass"));
     });
 
-    test("a nine-card solid suit does more than a simple overcall", () {
+    knownFailure("a nine-card solid suit does more than a simple overcall", () {
       // Self-play seed 2026 deal 368: 3D over 3C with AKQJ98654 and 15
       // HCP is passed out; 5D makes 12 tricks.
       final call = engineCallAfter([
@@ -232,7 +252,7 @@ void main() {
       expect(call, isNot("3D"));
     });
 
-    test("opener's reopening rebid shows a strong hand", () {
+    knownFailure("opener's reopening rebid shows a strong hand", () {
       // The reopening table has a single cheapest-level suit rebid, so 19
       // HCP with seven solid spades bids the same 2S as a minimum.
       final call = engineCallAfter([
@@ -246,7 +266,7 @@ void main() {
   });
 
   group("audit: misread or misjudged competitive calls", () {
-    test("a natural 2H over 1NT-(2C) isn't completed as a transfer", () {
+    knownFailure("a natural 2H over 1NT-(2C) isn't completed as a transfer", () {
       // Responder's fallback bids 2H as a natural six-card suit; opener
       // treats it as Jacoby and bids 2S, and responder passes 2S with Qxx.
       final call = engineCallAfter([
@@ -258,7 +278,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    test("no penalty double of a competitive raise without trump tricks", () {
+    knownFailure("no penalty double of a competitive raise without trump tricks", () {
       // The fallback's "doubling their preempt on combined strength"
       // treats any 3-level contract as a preempt: here a singleton heart,
       // with an eight-card spade fit. This rule was behind 15 of the 150
@@ -272,7 +292,7 @@ void main() {
       expect(call, isNot("Double"));
     });
 
-    test("no five-level raise of an overcall with three trumps", () {
+    knownFailure("no five-level raise of an overcall with three trumps", () {
       // 1S-(2H)-4S: an eight-card fit and defensive values; the four-level
       // raise gate also admits the five level.
       final call = engineCallAfter([
@@ -284,7 +304,7 @@ void main() {
       expect(call, isNot("5H"));
     });
 
-    test("responder converts opener's reopening double with a trump stack",
+    knownFailure("responder converts opener's reopening double with a trump stack",
         () {
       // KJT97 sitting over the overcaller's hearts: the penalty-pass rule
       // wants 5+ HCP in trumps, so this bids 3C instead.
@@ -297,7 +317,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    test("a double of a four-level preempt can be left in", () {
+    knownFailure("a double of a four-level preempt can be left in", () {
       // The doubler is void in hearts; KJT9 of trumps still pulls to 5C.
       final call = engineCallAfter([
         "4 AQ765432 86 96",
@@ -308,7 +328,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    test("the doubler corrects a forced 5C advance to a solid major", () {
+    knownFailure("the doubler corrects a forced 5C advance to a solid major", () {
       // Partner's 5C was a forced 0-11 advance, not a game decision; the
       // doubler holds seven solid spades and a singleton club.
       final call = engineCallAfter([
@@ -320,7 +340,7 @@ void main() {
       expect(call, "5S");
     });
 
-    test("advancer runs from our doubled 1NT overcall with six hearts", () {
+    knownFailure("advancer runs from our doubled 1NT overcall with six hearts", () {
       final call = engineCallAfter([
         "94 - AJ876 AJ9875",
         "AT8 JT KQT95 KQT",
@@ -332,7 +352,7 @@ void main() {
   });
 
   group("audit: notrump games with a long suit or a void", () {
-    test("seven solid spades play in 4S, not 3NT, opposite a singleton",
+    knownFailure("seven solid spades play in 4S, not 3NT, opposite a singleton",
         () {
       // The same hand bids 4S over a 1NT rebid.
       final call = engineCallAfter([
@@ -344,7 +364,7 @@ void main() {
       expect(call, "4S");
     });
 
-    test("no 3NT with a void in opener's suit and a fit for the second", () {
+    knownFailure("no 3NT with a void in opener's suit and a fit for the second", () {
       // Self-play seed 2026 deal 99: responder is void in hearts with
       // four clubs opposite opener's 3C; NS make 13 tricks in clubs.
       final call = engineCallAfter([

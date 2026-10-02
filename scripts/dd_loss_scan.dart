@@ -5,11 +5,11 @@
 ///   DDS_LIB=native/libdds.dylib dart run scripts/dd_loss_scan.dart \
 ///       [--deals N] [--seed N] [--start N] [--top N]
 ///
-/// Scoring is non-vulnerable. Par is each side's best makeable contract
-/// (the higher-scoring side wins), ignoring sacrifices, so a large loss
-/// can also be a slam no system would reach; read the auctions rather
-/// than trusting the totals. Recurring rule descriptions among the worst
-/// deals are the useful signal.
+/// Scoring is non-vulnerable, against the double-dummy par in
+/// dd_scoring.dart (sacrifices included). A large loss can still be a slam
+/// no system would reach; read the auctions rather than trusting the
+/// totals. Recurring rule descriptions among the worst deals are the
+/// useful signal.
 library;
 
 // ignore_for_file: avoid_print
@@ -17,51 +17,11 @@ library;
 import 'dart:io';
 
 import 'package:cards_with_cats/bridge/bridge.dart';
+import 'package:cards_with_cats/bridge/dd_scoring.dart';
 import 'package:cards_with_cats/bridge/dds_ffi.dart';
 import 'package:cards_with_cats/bridge/sayc/sayc_bidding.dart';
 import 'package:cards_with_cats/bridge/sayc/selfplay.dart';
 import 'package:cards_with_cats/cards/card.dart';
-
-const _impTable = [
-  20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900, //
-  1100, 1300, 1500, 1750, 2000, 2250, 2500, 3000, 3500, 4000,
-];
-
-int imps(int diff) {
-  final a = diff.abs();
-  int i = 0;
-  while (i < _impTable.length && a >= _impTable[i]) {
-    i++;
-  }
-  return diff < 0 ? -i : i;
-}
-
-int _trickValue(Suit? trump) =>
-    trump == null || isMajorSuit(trump) ? 30 : 20;
-
-/// Non-vulnerable score for declarer; [doubled] is 0, 1 (X) or 2 (XX).
-int contractScore(int level, Suit? trump, int doubled, int tricks) {
-  final need = level + 6;
-  if (tricks < need) {
-    final down = need - tricks;
-    if (doubled == 0) return -50 * down;
-    int penalty = 0;
-    for (int i = 1; i <= down; i++) {
-      penalty += i == 1 ? 100 : (i <= 3 ? 200 : 300);
-    }
-    return -(doubled == 2 ? penalty * 2 : penalty);
-  }
-  final per = _trickValue(trump);
-  final base =
-      (per * level + (trump == null ? 10 : 0)) * (doubled == 0 ? 1 : 2 * doubled);
-  int score = base + (base >= 100 ? 300 : 50);
-  if (level == 6) score += 500;
-  if (level == 7) score += 1000;
-  score += 50 * doubled;
-  final overtricks = tricks - need;
-  score += doubled == 0 ? overtricks * per : overtricks * 100 * doubled;
-  return score;
-}
 
 String _strainName(Suit? s) =>
     s == null ? "NT" : s.name.substring(0, 1).toUpperCase();
@@ -104,56 +64,30 @@ void main(List<String> args) {
     ];
     int sideTricks(int side, Suit? s) =>
         [tricks[side][s]!, tricks[side + 2][s]!].reduce((a, b) => a > b ? a : b);
-    int bestScore(int side) {
-      int best = 0;
-      for (final s in strains) {
-        final t = sideTricks(side, s);
-        for (int level = 1; level <= t - 6; level++) {
-          final score = contractScore(level, s, 0, t);
-          if (score > best) best = score;
-        }
-      }
-      return best;
-    }
+    final bySide = [
+      for (int side = 0; side < 2; side++)
+        {for (final s in strains) s: sideTricks(side, s)}
+    ];
+    final nsBest = bestMakingScore(bySide[0]);
+    final ewBest = bestMakingScore(bySide[1]);
+    final par = parScoreNs(bySide); // North-South view
 
-    final nsBest = bestScore(0), ewBest = bestScore(1);
-    final par = nsBest >= ewBest ? nsBest : -ewBest; // North-South view
-
-    int? lastIndex;
-    for (int j = history.length - 1; j >= 0; j--) {
-      if (history[j].bidType == BidType.contract) {
-        lastIndex = j;
-        break;
-      }
-    }
     int actual = 0;
     String contract = "passed out";
-    if (lastIndex != null) {
-      final bid = history[lastIndex].contractBid!;
-      int doubled = 0;
-      for (final c in history.sublist(lastIndex + 1)) {
-        if (c.bidType == BidType.double) doubled = 1;
-        if (c.bidType == BidType.redouble) doubled = 2;
-      }
-      // Declarer: the first of the declaring side to name the strain.
-      final side = lastIndex % 2;
-      int declarer = lastIndex % 4;
-      for (int j = 0; j < history.length; j++) {
-        if (j % 2 == side &&
-            history[j].bidType == BidType.contract &&
-            history[j].contractBid!.trump == bid.trump) {
-          declarer = j % 4;
-          break;
-        }
-      }
-      final t = tricks[declarer][bid.trump]!;
-      final score = contractScore(bid.count, bid.trump, doubled, t);
-      actual = declarer % 2 == 0 ? score : -score;
+    final result = FinalContract.of(history);
+    if (result != null) {
+      final bid = result.bid;
+      final t = tricks[result.declarer][bid.trump]!;
+      final score = nonVulnerableScore(bid, t, doubled: result.doubled);
+      actual = result.side == 0 ? score : -score;
       contract = "${bid.count}${_strainName(bid.trump)}"
-          "${doubled == 1 ? 'X' : doubled == 2 ? 'XX' : ''} "
-          "by ${"NESW"[declarer]} makes $t";
+          "${switch (result.doubled) {
+            DoubledType.none => '',
+            DoubledType.doubled => 'X',
+            DoubledType.redoubled => 'XX',
+          }} by ${"NESW"[result.declarer]} makes $t";
     }
-    final loss = imps(actual - par);
+    final loss = impsForScoreDifference(actual - par);
 
     final calls = <String>[];
     for (int j = 0; j < history.length; j++) {
@@ -174,7 +108,7 @@ void main(List<String> args) {
       loss.abs(),
       "deal $index  loss ${loss.abs()} IMPs "
           "(${loss < 0 ? 'NS' : 'EW'} lost)  $contract  "
-          "[best NS $nsBest / EW $ewBest]  NS tricks $nsTricks\n"
+          "[par $par; best NS $nsBest / EW $ewBest]  NS tricks $nsTricks\n"
           "  $handText\n  ${history.join(' ')}\n"
           "    ${calls.join('\n    ')}"
     ));
