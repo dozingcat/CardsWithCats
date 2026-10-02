@@ -374,7 +374,8 @@ dart run scripts/complete_deal.dart "1S 2C 2S pass 4NT pass" \
 ```
 
 `test/bridge/sayc_audit_test.dart` holds the cases from an adversarial audit
-(2026-10), all on AI-only deals; all 24 are now fixed and plain tests. New
+(2026-10), all on AI-only deals, plus six follow-up siblings; all are now
+fixed and plain tests. New
 known failures can use its `knownFailure` wrapper: the suite passes while
 the engine still makes the bad call, and the case fails with "now passes"
 once a fix makes it pass, to be turned back into a plain `test`.
@@ -389,7 +390,7 @@ down as gaps get fixed; a jump up means a regression.
 | Run | Result |
 | --- | --- |
 | seed 1, 3000 deals (test set) | 477 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 666 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 667 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
 Seed 1 findings by category: fallback-used 279, missed-game 127,
@@ -400,9 +401,9 @@ eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 71.4% of the time
-(precision), and 63.2% of double-dummy-makeable games get bid (recall).
-52 slams are bid, of which 44 make (84.6% precision; the quantitative
+Double-dummy accuracy over 6000 deals: games bid make 71.6% of the time
+(precision), and 63.4% of double-dummy-makeable games get bid (recall).
+51 slams are bid, of which 44 make (86.3% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
 / 12 making). Recall is 5.4% of DD slam chances — most DD "slams" lack the
 combined strength any bidding system would need.
@@ -415,6 +416,6 @@ sacrifices — and reports the average IMPs lost per deal: currently 4.50,
 with 27.3% of deals within 10 points of par. The absolute number is
 harsh by design (par sees all four hands); compare it between versions.
 Doubled contracts that went down are split into good sacrifices (cheaper
-than the opponents' best makeable contract: 75, saving 19960 points)
-and bad ones (89, costing 20290). The split is from the declaring side's
+than the opponents' best makeable contract: 73, saving 19600 points)
+and bad ones (86, costing 19700). The split is from the declaring side's
 point of view, so our penalty doubles of their contracts count here too.

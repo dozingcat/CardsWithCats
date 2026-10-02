@@ -1937,6 +1937,20 @@ void main() {
           isNot("4H"));
     });
 
+    test("responder's self-sufficient major past 3NT; answering the 4NT invite",
+        () {
+      // Self-play deal 2948 (seed 42): after opener's 4D there is no 3NT
+      // to stand in for, and AKJ8532 still plays game in spades.
+      expect(openingBid("AKJ8532", "AQ", "KJ", "72",
+              history: ["1D", "3C", "3S", "pass", "4D", "pass"]),
+          "4S");
+      // Deal 1346: opener's long-minor 3NT answers responder's 4NT
+      // invitation by total points (19+ shown; accept with 21+).
+      final h = ["1C", "pass", "1H", "pass", "3NT", "pass", "4NT", "pass"];
+      expect(openingBid("A6", "64", "A42", "AKQ932", history: h), "Pass");
+      expect(openingBid("A6", "K4", "A42", "AKQ932", history: h), "6NT");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");

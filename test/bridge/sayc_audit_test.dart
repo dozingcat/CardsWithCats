@@ -382,7 +382,7 @@ void main() {
 
   // Follow-ups: sibling positions of fixed cases above that still fail.
   group("audit: siblings of fixed cases", () {
-    knownFailure("no five-level raise of a weak jump overcall on a flat 6",
+    test("no five-level raise of a weak jump overcall on a flat 6",
         () {
       // The five-level shape requirement applies to simple overcalls but
       // weak jump overcalls are exempt: 4-3-3-3 with three trumps raises.
@@ -395,7 +395,7 @@ void main() {
       expect(call, "Pass");
     });
 
-    knownFailure("seven solid spades play in 4S over opener's 2C rebid", () {
+    test("seven solid spades play in 4S over opener's 2C rebid", () {
       // Fixed after 2H and 2D rebids; after 2C it is still 3NT.
       final call = engineCallAfter([
         "- AKQ75 Q985 QT98",
@@ -406,7 +406,7 @@ void main() {
       expect(call, "4S");
     });
 
-    knownFailure("no 3NT with a void in an unbid suit and a club fit", () {
+    test("no 3NT with a void in an unbid suit and a club fit", () {
       // Self-play seed 2026 deal 3, the largest double-dummy loss in the
       // original audit (17 IMPs): the contested version of the void case
       // above. 6C and 7D make; 3NT makes six tricks.
@@ -416,24 +416,37 @@ void main() {
         "J754 - AKJ3 KQJ32",
         "K9 JT87654 64 84",
       ], "1D 1S 2C pass 3C pass");
-      expect(call, isNot("3NT"));
+      expect(call, "5C");
     });
 
-    knownFailure("responder doesn't pass 1D-1H-3NT with 18 HCP", () {
-      // The 1S-2C-3NT case is fixed; this sequence still passes. Opener's
-      // 3NT here is also suspect: "long diamonds, 19+, other suits
-      // stopped" with singletons A and J (the jack "stopping" partner's
-      // hearts).
+    test("responder doesn't pass 1D-1H-3NT with 18 HCP", () {
+      // The 1S-2C-3NT case was fixed first. The reviewer's original deal
+      // had opener rebid 3NT with A J AK6543 AT874, which no longer does
+      // (a 6-5 with two singletons isn't a notrump hand; see below), so
+      // this deal comes from complete_deal.dart with a genuine long-minor
+      // 3NT.
+      final call = engineCallAfter([
+        "AK K2 AKT543 A32",
+        "T97632 JT8 7 864",
+        "QJ AQ65 QJ2 KQJ5",
+        "854 9743 986 T97",
+      ], "1D pass 1H pass 3NT pass");
+      expect(call, "6NT");
+    });
+
+    test("a 6-5 with two singletons doesn't rebid 3NT", () {
+      // The reviewer's original opener: 3NT counted the singleton ace as a
+      // stopper. It now uses the game-forcing diamond rebid.
       final call = engineCallAfter([
         "A J AK6543 AT874",
         "8653 9743 98 932",
         "QJ AQ65 QJ2 KQJ5",
         "KT9742 KT82 T7 6",
-      ], "1D pass 1H pass 3NT pass");
-      expect(call, isNot("Pass"));
+      ], "1D pass 1H pass");
+      expect(call, "4D");
     });
 
-    knownFailure("2NT-Stayman fit with 37 combined HCP reaches slam", () {
+    test("2NT-Stayman fit with 37 combined HCP reaches slam", () {
       // The 1NT version now bids 6H; over 2NT responder stops in 4H.
       final history = engineAuction([
         "AKQ8 KJT4 JT AK2",
@@ -441,11 +454,11 @@ void main() {
         "5 AQ87 AKQ4 Q743",
         "J732 9652 875 65",
       ], "2NT pass 3C pass 3H pass");
-      expect(finalContract(history)!.count, greaterThanOrEqualTo(6),
+      expect(finalContract(history), ContractBid(6, Suit.hearts),
           reason: "auction: ${history.join(' ')}");
     });
 
-    knownFailure("a strong doubler acts again after opener rebids", () {
+    test("a strong doubler acts again after opener rebids", () {
       // Fixed for 1D-X-2D-P-P; when opener's side bids again after the
       // advance, the 19-count with six solid spades passes.
       final call = engineCallAfter([
@@ -454,7 +467,7 @@ void main() {
         "9873 954 83 J876",
         "T64 JT632 - QT543",
       ], "1D X pass 1H 2D");
-      expect(call, isNot("Pass"));
+      expect(call, "2S");
     });
   });
 }
