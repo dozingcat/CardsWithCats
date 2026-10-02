@@ -15,73 +15,13 @@ library;
 import 'dart:io';
 
 import 'package:cards_with_cats/bridge/bridge.dart';
+import 'package:cards_with_cats/bridge/dd_scoring.dart';
 import 'package:cards_with_cats/bridge/dds_ffi.dart';
 import 'package:cards_with_cats/bridge/sayc/selfplay.dart';
 import 'package:cards_with_cats/cards/card.dart';
 
 int gameLevel(Suit? trump) =>
     trump == null ? 3 : (isMajorSuit(trump) ? 4 : 5);
-
-final allBids = [
-  for (int level = 1; level <= 7; level++)
-    for (final trump in [...Suit.values, null]) ContractBid(level, trump)
-];
-
-/// Non-vulnerable duplicate score for the declaring side of [bid] taking
-/// [tricks] (self-play bids without vulnerability).
-int scoreFor(ContractBid bid, int tricks,
-        {DoubledType doubled = DoubledType.none}) =>
-    Contract(bid: bid, isVulnerable: false, declarer: 0, doubled: doubled)
-        .scoreForTricksTaken(tricks);
-
-/// Double-dummy par for N-S, from each side's best tricks per strain: the
-/// sides take turns outbidding (a making contract, or a doubled sacrifice
-/// when it costs less than defending) until neither improves. The side with
-/// the better makeable contract bids first.
-int parScoreNs(List<Map<Suit?, int>> maxTricks) {
-  int result(int side, ContractBid bid) {
-    final t = maxTricks[side][bid.trump]!;
-    return t >= bid.numTricksRequired
-        ? scoreFor(bid, t)
-        : scoreFor(bid, t, doubled: DoubledType.doubled);
-  }
-
-  int bestMaking(int side) => allBids
-      .where((b) => maxTricks[side][b.trump]! >= b.numTricksRequired)
-      .map((b) => scoreFor(b, maxTricks[side][b.trump]!))
-      .fold(0, (a, b) => a > b ? a : b);
-
-  ContractBid? current;
-  int owner = -1;
-  int side = bestMaking(0) >= bestMaking(1) ? 0 : 1;
-  int passes = 0;
-  while (passes < 2) {
-    final defend = current == null
-        ? 0
-        : (owner == side ? result(owner, current) : -result(owner, current));
-    ContractBid? best;
-    int bestScore = defend;
-    for (final b in allBids) {
-      if (current != null && !b.isHigherThan(current)) continue;
-      final r = result(side, b);
-      if (r > bestScore) {
-        best = b;
-        bestScore = r;
-      }
-    }
-    if (best != null && owner != side) {
-      current = best;
-      owner = side;
-      passes = 0;
-    } else {
-      passes++;
-    }
-    side = 1 - side;
-  }
-  if (current == null) return 0;
-  final score = result(owner, current);
-  return owner == 0 ? score : -score;
-}
 
 void main(List<String> args) {
   int deals = 400;
@@ -153,41 +93,21 @@ void main(List<String> args) {
         history.sublist(lastBidIndex + 1).any((c) =>
             c.bidType == BidType.double || c.bidType == BidType.redouble);
 
-    // Actual result: the declarer is whoever on the side first bid the
-    // final strain; doubled contracts count here too.
+    // Actual result, doubled contracts included.
     int actualNs = 0;
-    if (contract != null) {
-      int declarer = lastBidIndex! % 4;
-      for (int j = declSide!; j <= lastBidIndex; j += 2) {
-        if (history[j].bidType == BidType.contract &&
-            history[j].contractBid!.trump == contract.trump) {
-          declarer = j % 4;
-          break;
-        }
-      }
-      final after = history.sublist(lastBidIndex + 1);
-      final dbl = after.any((c) => c.bidType == BidType.redouble)
-          ? DoubledType.redoubled
-          : after.any((c) => c.bidType == BidType.double)
-              ? DoubledType.doubled
-              : DoubledType.none;
-      final tricks = tricksFor(declarer, contract.trump);
-      final score = scoreFor(contract, tricks, doubled: dbl);
-      actualNs = declSide == 0 ? score : -score;
-      if (dbl != DoubledType.none) {
+    final result = FinalContract.of(history);
+    if (result != null) {
+      final tricks = tricksFor(result.declarer, result.bid.trump);
+      final score =
+          nonVulnerableScore(result.bid, tricks, doubled: result.doubled);
+      actualNs = result.side == 0 ? score : -score;
+      if (result.doubled != DoubledType.none) {
         if (score >= 0) {
           doubledMade++;
         } else {
           // Compare the penalty with what the opponents could have scored
           // in their best makeable contract.
-          int oppBest = 0;
-          for (final b in allBids) {
-            final t = maxTricks[1 - declSide][b.trump]!;
-            if (t >= b.numTricksRequired) {
-              final s = scoreFor(b, t);
-              if (s > oppBest) oppBest = s;
-            }
-          }
+          final oppBest = bestMakingScore(maxTricks[1 - result.side]);
           if (-score < oppBest) {
             goodSacrifices++;
             goodSaved += oppBest + score;

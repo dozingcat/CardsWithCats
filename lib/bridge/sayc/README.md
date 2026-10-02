@@ -353,7 +353,27 @@ DDS_LIB=native/libdds.dylib dart run scripts/bidding_accuracy.dart --deals 1200
 # Five-of-a-minor games vs 3NT by the same side, double dummy, grouped by
 # the rule that chose 5m (the lints treat both games alike):
 DDS_LIB=native/libdds.dylib dart run scripts/minor_game_scan.dart --deals 20000
+
+# Worst self-play deals by IMP loss against double-dummy par (shared with
+# bidding_accuracy via lib/bridge/dd_scoring.dart), with each call's stated
+# meaning (recurring rules are the signal):
+DDS_LIB=native/libdds.dylib dart run scripts/dd_loss_scan.dart --deals 3000
+
+# Many positions per run, one "hand | history" (or "auto: four hands")
+# line each:
+dart run scripts/bidding_probe.dart < probes.txt
+
+# Prove a position is reachable in AI-only play: deal the unknown hands
+# ("_") until the engine itself bids every call of the prefix:
+dart run scripts/complete_deal.dart "1S 2C 2S pass 4NT pass" \
+    "AKQJ432 AKJ2 K2 -" _ _ _
 ```
+
+`test/bridge/sayc_audit_test.dart` holds known failures from an adversarial
+audit (2026-10), all on AI-only deals. Each is wrapped in `knownFailure`, so
+the suite passes while the engine still makes the bad call; once a fix
+makes the case pass it fails with "now passes", and the fix should turn it
+back into a plain `test`.
 
 ### Audit conventions and current results (2026-08-30)
 
