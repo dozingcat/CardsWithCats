@@ -1433,6 +1433,8 @@ List<SaycRule>? openerRebidRules(BidAction opening, BidAction response,
 /// level suit is to play, a three-level suit forces, 2NT and 3NT are
 /// natural with their suit stopped, the cue bid of their suit is Stayman
 /// (game forcing, a four-card unbid major), and double is for penalties.
+/// Over a preempt (three-level overcall or higher), a long minor forces at
+/// the four level and double is cooperative (values, no clear bid).
 List<SaycRule> oneNtInterferenceResponseRules(ContractBid overcall) {
   final theirSuit = overcall.trump!;
   final theirName = _suitNames[theirSuit]!;
@@ -1440,6 +1442,7 @@ List<SaycRule> oneNtInterferenceResponseRules(ContractBid overcall) {
       [Suit.hearts, Suit.spades].where((m) => m != theirSuit).toList();
   final cueLevel = cheapestLevel(theirSuit, overcall);
   final ntLevel = cheapestLevel(null, overcall);
+  final preempt = overcall.count >= 3;
   Suit? fiveCardSuit(HandAnalysis h) => bestSuit(
       h, Suit.values.where((s) => s != theirSuit && h.count(s) >= 5));
   return [
@@ -1518,6 +1521,35 @@ List<SaycRule> oneNtInterferenceResponseRules(ContractBid overcall) {
         require: (h) =>
             h.hcp >= 8 && h.hcp <= 9 && h.hasStopper(theirSuit),
       ),
+    // Over a preempt (three-level overcall or higher): a long minor with
+    // game values forces at the four level, and double shows values
+    // without a clear bid (cooperative, not strictly penalty), leaving
+    // opener to choose; a double with their suit stacked comes first.
+    if (preempt) ...[
+      for (final s in [Suit.clubs, Suit.diamonds])
+        if (s != theirSuit && cheapestLevel(s, overcall) == 4)
+          SaycRule(
+            BidAction.contract(4, s),
+            BidMeaning(
+              description: "Forcing: 6+ ${_suitNames[s]}, 10+ HCP",
+              hcp: const Range(low: 10),
+              suitLengths: {s: const Range(low: 6)},
+            ),
+            ignoreInfo: true,
+            require: (h) => h.hcp >= 10 && h.count(s) >= 6,
+          ),
+      SaycRule(
+        BidAction.double(),
+        BidMeaning(
+          description:
+              "Cooperative double of their preempt: 10+ HCP, no clear bid",
+          hcp: const Range(low: 10),
+          artificial: true,
+        ),
+        ignoreInfo: true,
+        require: (h) => h.hcp >= 10,
+      ),
+    ],
     // Weak with a five-card suit: compete at the two level, to play.
     for (final s in Suit.values)
       if (s != theirSuit && cheapestLevel(s, overcall) == 2)
@@ -1534,6 +1566,54 @@ List<SaycRule> oneNtInterferenceResponseRules(ContractBid overcall) {
     SaycRule(
       BidAction.pass(),
       BidMeaning(description: "Nothing to say over their overcall"),
+    ),
+  ];
+}
+
+/// The 1NT opener after partner's cooperative double of a preempt (10+,
+/// no clear bid): pass with their suit stacked, otherwise game in a four-
+/// card unbid major, 3NT with a stopper, or pass to defend.
+List<SaycRule> oneNtCooperativeDoubleRebidRules(ContractBid overcall) {
+  final theirSuit = overcall.trump!;
+  final majors = [Suit.hearts, Suit.spades].where(
+      (m) => m != theirSuit && cheapestLevel(m, overcall) <= 4);
+  return [
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(
+          description:
+              "Converting the double: ${_suitNames[theirSuit]} tricks"),
+      ignoreInfo: true,
+      require: (h) => strongTrumpHolding(h, theirSuit),
+    ),
+    for (final m in majors)
+      SaycRule(
+        BidAction.contract(4, m),
+        BidMeaning(
+          description: "Game in ${_suitNames[m]}: four-card suit",
+          suitLengths: {m: const Range(low: 4)},
+        ),
+        ignoreInfo: true,
+        require: (h) =>
+            h.count(m) >= 4 &&
+            // With both, hearts (partner more likely holds the unbid
+            // major it didn't show at the three level).
+            (m == Suit.hearts ||
+                !majors.contains(Suit.hearts) ||
+                h.count(Suit.hearts) < 4),
+      ),
+    if (cheapestLevel(null, overcall) <= 3)
+      SaycRule(
+        BidAction.noTrump(3),
+        BidMeaning(
+            description:
+                "Game in notrump: ${_suitNames[theirSuit]} stopped"),
+        ignoreInfo: true,
+        require: (h) => h.hasStopper(theirSuit),
+      ),
+    SaycRule(
+      BidAction.pass(),
+      BidMeaning(description: "Defending their preempt doubled"),
     ),
   ];
 }
@@ -1600,6 +1680,21 @@ List<SaycRule>? _oneNtRebidAfterInterferenceRules(
       SaycRule(
         BidAction.noTrump(3),
         BidMeaning(description: "Answering the cue bid: no four-card major"),
+        ignoreInfo: true,
+      ),
+    ];
+  }
+  if (bid.trump != null &&
+      !_isMajor(bid.trump!) &&
+      bid.count == 4 &&
+      theirSuit != null &&
+      overcall!.count >= 3) {
+    // Partner's four-level minor over the preempt forces to game.
+    return [
+      SaycRule(
+        BidAction.contract(5, bid.trump!),
+        BidMeaning(
+            description: "Raising partner's forcing ${_suitNames[bid.trump]}"),
         ignoreInfo: true,
       ),
     ];
@@ -8378,6 +8473,10 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       return openerRebidRules(opening, partnerCall);
     }
     if (isSuitBid(overcall) && partnerCall.bidType == BidType.double) {
+      if (opening == BidAction.noTrump(1) &&
+          overcall.contractBid!.count >= 3) {
+        return oneNtCooperativeDoubleRebidRules(overcall.contractBid!);
+      }
       if (isOneLevelSuitOpening(opening)) {
         return negativeDoubleRebidRules(
             opening.contractBid!, overcall.contractBid!);

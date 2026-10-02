@@ -1855,6 +1855,29 @@ void main() {
       expect(openingBid("32", "J2", "A32", "AKJT92", history: h), "Double");
     });
 
+    test("over a preempt of our 1NT: cooperative double, four-level minors",
+        () {
+      final h = ["1NT", "3H"];
+      // Game values with no stopper and no five-card spade suit double.
+      expect(openingBid("KQ32", "J5", "A32", "K432", history: h), "Double");
+      expect(openingBid("32", "J5", "AK5432", "K32", history: h), "4D");
+      expect(openingBid("KQ3", "A52", "K32", "J432", history: h), "3NT");
+      expect(openingBid("Q32", "52", "32", "KJ5432", history: h), "Pass");
+      // Opener chooses over the cooperative double.
+      final x = [...h, "X", "pass"];
+      expect(openingBid("AK32", "Q2", "KJ4", "Q432", history: x), "4S");
+      expect(openingBid("AK3", "K2", "Q432", "AJ32", history: x), "3NT");
+      expect(openingBid("AK3", "Q2", "KJ43", "Q432", history: x), "Pass");
+      // Opener raises the forcing four-level minor.
+      expect(openingBid("AK32", "Q32", "J4", "AQ32",
+              history: [...h, "4D", "pass"]),
+          "5D");
+      // Over a two-level overcall the double is still penalty.
+      expect(openingBid("AK3", "Q2", "KJ43", "Q432",
+              history: ["1NT", "2H", "X", "pass"]),
+          "Pass");
+    });
+
     test("1NT opener and responder after the cue bid", () {
       final cue = ["1NT", "2C", "3C", "pass"];
       expect(openingBid("AK3", "Q32", "KJ4", "Q432", history: cue), "3NT");
