@@ -1833,6 +1833,97 @@ void main() {
           "4H");
     });
 
+    test("responding to 1NT after an overcall: systems off", () {
+      final h = ["1NT", "2C"];
+      // Cue bid = Stayman, game forcing, with a four-card major.
+      expect(openingBid("KQ32", "AJ32", "32", "432", history: h), "3C");
+      // Natural notrump with their suit stopped.
+      expect(openingBid("KQ32", "J532", "32", "K32", history: h), "2NT");
+      expect(openingBid("K32", "Q2", "A432", "KJ32", history: h), "3NT");
+      // Two-level suits are to play; game-going suits jump or force.
+      expect(openingBid("Q8762", "J2", "7432", "32", history: h), "2S");
+      expect(openingBid("AQJ432", "K2", "32", "432", history: h), "4S");
+      // Length counts toward game (self-play deals 433 and 3465, seed 1).
+      expect(openingBid("AKQ9643", "T873", "T7", "-", history: h), "4S");
+      expect(openingBid("AT9752", "T", "AT6", "T53",
+              history: ["1NT", "2H"]),
+          "4S");
+      expect(openingBid("AQ432", "K32", "32", "K32",
+              history: ["1NT", "2H"]),
+          "3S");
+      // Penalty double with their suit.
+      expect(openingBid("32", "J2", "A32", "AKJT92", history: h), "Double");
+    });
+
+    test("over a preempt of our 1NT: cooperative double, four-level minors",
+        () {
+      final h = ["1NT", "3H"];
+      // Game values with no stopper and no five-card spade suit double.
+      expect(openingBid("KQ32", "J5", "A32", "K432", history: h), "Double");
+      expect(openingBid("32", "J5", "AK5432", "K32", history: h), "4D");
+      expect(openingBid("KQ3", "A52", "K32", "J432", history: h), "3NT");
+      expect(openingBid("Q32", "52", "32", "KJ5432", history: h), "Pass");
+      // Opener chooses over the cooperative double.
+      final x = [...h, "X", "pass"];
+      expect(openingBid("AK32", "Q2", "KJ4", "Q432", history: x), "4S");
+      expect(openingBid("AK3", "K2", "Q432", "AJ32", history: x), "3NT");
+      expect(openingBid("AK3", "Q2", "KJ43", "Q432", history: x), "Pass");
+      // Opener raises the forcing four-level minor.
+      expect(openingBid("AK32", "Q32", "J4", "AQ32",
+              history: [...h, "4D", "pass"]),
+          "5D");
+      // Over a two-level overcall the double is still penalty.
+      expect(openingBid("AK3", "Q2", "KJ43", "Q432",
+              history: ["1NT", "2H", "X", "pass"]),
+          "Pass");
+    });
+
+    test("preempting over their 1NT", () {
+      // Seven cards, or a good six, with 5-9 HCP in the direct seat.
+      expect(openingBid("32", "KQJ8765", "32", "32", history: ["1NT"]), "3H");
+      expect(openingBid("32", "AQ8765", "432", "32", history: ["1NT"]), "3H");
+      expect(openingBid("2", "32", "AK8765", "Q432", history: ["1NT"]), "3D");
+      // A poor six or too few points pass; never in the balancing seat.
+      expect(openingBid("32", "Q98765", "432", "K2", history: ["1NT"]),
+          "Pass");
+      expect(openingBid("32", "KQJ8765", "32", "32",
+              history: ["1NT", "pass", "pass"]),
+          "Pass");
+      // The advancer raises a major to game on a doubleton with 15+.
+      expect(openingBid("AKQ2", "32", "AKJ2", "432",
+              history: ["1NT", "3H", "pass"]),
+          "4H");
+      // Self-play deal 4936 (seed 1): no redouble when the preempt is
+      // doubled (that answers only a negative double).
+      expect(openingBid("8", "32", "QJT8732", "A98",
+              history: ["1NT", "3S", "X"]),
+          "Pass");
+      // Self-play deal 1519: over the cooperative double, 3NT with their
+      // suit stopped before a four-card major the double didn't promise.
+      expect(openingBid("A972", "A9", "AQ85", "J43",
+              history: ["1NT", "3H", "X", "pass"]),
+          "3NT");
+    });
+
+    test("1NT opener and responder after the cue bid", () {
+      final cue = ["1NT", "2C", "3C", "pass"];
+      expect(openingBid("AK3", "Q32", "KJ4", "Q432", history: cue), "3NT");
+      expect(openingBid("AK32", "Q32", "KJ4", "Q43", history: cue), "3S");
+      expect(openingBid("AK3", "KQ32", "J4", "Q432", history: cue), "3H");
+      // Opener raises a forcing three-level major with three.
+      expect(openingBid("AK3", "Q32", "KJ4", "Q432",
+              history: ["1NT", "2C", "3S", "pass"]),
+          "4S");
+      // Responder places the contract after the answer.
+      const r = ["KQ32", "AJ32", "32", "432"];
+      expect(openingBid(r[0], r[1], r[2], r[3],
+              history: [...cue, "3H", "pass"]),
+          "4H");
+      expect(openingBid(r[0], r[1], r[2], r[3],
+              history: [...cue, "3NT", "pass"]),
+          "Pass");
+    });
+
     test("raises keep their meanings", () {
       expect(openingBid("432", "K32", "KQ32", "432", history: ["1H", "1S"]),
           "2H");
