@@ -376,10 +376,20 @@ eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy (1200 deals): games bid make 73.3% of the time
-(precision), and 62.6% of double-dummy-makeable games get bid (recall).
-Slams are rare enough to need a bigger sample: over 6000 deals, 54 slams
-are bid of which 44 make double dummy (81.5% precision; the quantitative
+Double-dummy accuracy over 6000 deals: games bid make 72.2% of the time
+(precision), and 62.5% of double-dummy-makeable games get bid (recall).
+54 slams are bid, of which 44 make (81.5% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
 / 12 making). Recall is 5.6% of DD slam chances — most DD "slams" lack the
 combined strength any bidding system would need.
+
+Precision and recall leave doubled contracts out, so they can't see
+sacrifices. The script also scores every deal (non-vulnerable, doubled
+contracts included) against double-dummy par — the result of both sides
+bidding optimally from the double-dummy trick table, including
+sacrifices — and reports the average IMPs lost per deal: currently 4.52,
+with 27.2% of deals within 10 points of par. The absolute number is
+harsh by design (par sees all four hands); compare it between versions.
+Doubled contracts that went down are split into good sacrifices (cheaper
+than the opponents' best makeable contract: 127, saving 36130 points)
+and bad ones (95, costing 23060).
