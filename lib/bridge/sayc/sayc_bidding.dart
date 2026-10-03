@@ -8455,37 +8455,115 @@ List<SaycRule>? _contestedBlackwoodRules(List<BidAction> calls) {
   return null;
 }
 
-List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
-  final n = calls.length;
-  if (n >= 4 &&
-      calls.sublist(n - 3).every((c) => c.bidType == BidType.pass)) {
-    throw StateError("The auction is already over");
-  }
-  int? first;
-  for (int i = 0; i < n; i++) {
-    if (calls[i].bidType != BidType.pass) {
-      first = i;
-      break;
-    }
-  }
-  if (first == null) return openingRules();
+extension _CallKind on BidAction {
+  bool get isPass => bidType == BidType.pass;
+  bool get isDouble => bidType == BidType.double;
+  bool get isRedouble => bidType == BidType.redouble;
+  bool get isBid => bidType == BidType.contract;
 
-  // Our Jacoby transfer over partner's 1NT (opening or overcall) was
-  // doubled and partner passed: complete it ourselves rather than leave
-  // the side playing the transfer suit (usually theirs) doubled.
-  bool firstActionOf(int index) => [
-        for (int i = index % 4; i < index; i += 4) calls[i]
-      ].every((c) => c.bidType == BidType.pass);
+  /// A bid in a suit (not notrump).
+  bool get isSuitBid => isBid && contractBid!.trump != null;
+  bool get isOneLevelSuitBid => isSuitBid && contractBid!.count == 1;
+
+  /// The contract bid of an [isBid] call.
+  ContractBid get bid => contractBid!;
+}
+
+/// The auction as seen by the player about to call. Positions are named
+/// from the opening: [overcall] is the next seat's call (the opener's LHO),
+/// [response] the opener's partner's, [advance] the overcaller's partner's,
+/// then each player's later calls in turn. [back] counts back from the
+/// caller: back(1) is the call just made (RHO's), back(2) partner's.
+class _Auction {
+  final List<BidAction> calls;
+  final int n;
+
+  /// Index of the opening bid (the first call that isn't a pass).
+  final int first;
+
+  /// Non-pass calls by the caller, partner, and the opponents, in order.
+  final List<BidAction> my, partner, opp;
+
+  _Auction(this.calls, this.first)
+      : n = calls.length,
+        my = _actionsOf(calls, 0),
+        partner = _actionsOf(calls, 2),
+        opp = [
+          for (int i = 0; i < calls.length; i++)
+            if ((calls.length - i) % 2 == 1 && !calls[i].isPass) calls[i]
+        ];
+
+  /// Non-pass calls by the seat [seatsBack] before the caller (0 is the
+  /// caller, 2 partner).
+  static List<BidAction> _actionsOf(List<BidAction> calls, int seatsBack) => [
+        for (int i = 0; i < calls.length; i++)
+          if ((calls.length - i) % 4 == seatsBack && !calls[i].isPass) calls[i]
+      ];
+
+  BidAction get opening => calls[first];
+  bool get theyOpened => (n - first) % 2 == 1;
+  bool get partnerOpened => (n - first) % 4 == 2;
+
+  /// Calls made since (and including) the opening.
+  int get sinceOpening => n - first;
+
+  /// The call [k] seats after the opening (0 is the opening itself).
+  BidAction at(int k) => calls[first + k];
+  BidAction get overcall => at(1);
+  BidAction get response => at(2);
+  BidAction get advance => at(3);
+  BidAction get openerRebid => at(4);
+  BidAction get overcallerRebid => at(5);
+  BidAction get responderRebid => at(6);
+  BidAction get advancerRebid => at(7);
+  BidAction get openerThirdCall => at(8);
+  BidAction get responderThirdCall => at(10);
+  BidAction get openerFourthCall => at(12);
+
+  /// The call made [k] calls ago (1 is RHO's last call, 2 partner's).
+  BidAction back(int k) => calls[n - k];
+
+  /// The latest contract bid before index [end] (default: the whole
+  /// auction so far).
+  ContractBid? lastBid([int? end]) {
+    for (int i = (end ?? n) - 1; i >= 0; i--) {
+      if (calls[i].isBid) return calls[i].bid;
+    }
+    return null;
+  }
+
+  /// Index of the first non-pass call by the seat [seatsBack] before the
+  /// caller (0 the caller, 2 partner), or -1.
+  int firstActionIndex(int seatsBack) {
+    for (int i = 0; i < n; i++) {
+      if ((n - i) % 4 == seatsBack && !calls[i].isPass) return i;
+    }
+    return -1;
+  }
+
+  /// Whether the call at [i] came after two passes (the balancing seat).
+  bool afterTwoPasses(int i) =>
+      i >= 2 && calls[i - 1].isPass && calls[i - 2].isPass;
+}
+
+/// Our Jacoby transfer over partner's 1NT (opening or overcall) was doubled
+/// and partner passed: complete it ourselves rather than leave the side
+/// playing the transfer suit (usually theirs) doubled.
+List<SaycRule>? _doubledTransferRescueRules(List<BidAction> calls) {
+  final n = calls.length;
+  bool firstActionOf(int index) =>
+      [for (int i = index % 4; i < index; i += 4) calls[i]]
+          .every((c) => c.isPass);
   if (n >= 6 &&
       calls[n - 6] == BidAction.noTrump(1) &&
       firstActionOf(n - 6) &&
       firstActionOf(n - 4) &&
-      calls[n - 5].bidType == BidType.pass &&
+      calls[n - 5].isPass &&
       (calls[n - 4] == BidAction.contract(2, Suit.diamonds) ||
           calls[n - 4] == BidAction.contract(2, Suit.hearts)) &&
-      calls[n - 3].bidType == BidType.double &&
-      calls[n - 2].bidType == BidType.pass &&
-      calls[n - 1].bidType == BidType.pass) {
+      calls[n - 3].isDouble &&
+      calls[n - 2].isPass &&
+      calls[n - 1].isPass) {
     final target = calls[n - 4] == BidAction.contract(2, Suit.diamonds)
         ? Suit.hearts
         : Suit.spades;
@@ -8501,571 +8579,467 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
       ),
     ];
   }
+  return null;
+}
 
-  // Positions relative to the caller: (n - i) % 4 is 0 for the caller's own
-  // calls, 2 for partner's, and odd for the opponents'.
-  final openerOffset = (n - first) % 4;
-  final opening = calls[first];
-  final oppActions = [
-    for (int i = 0; i < n; i++)
-      if ((n - i) % 2 == 1 && calls[i].bidType != BidType.pass) calls[i]
-  ];
-  final partnerActions = [
-    for (int i = 0; i < n; i++)
-      if ((n - i) % 4 == 2 && calls[i].bidType != BidType.pass) calls[i]
-  ];
-  final myActions = [
-    for (int i = 0; i < n; i++)
-      if ((n - i) % 4 == 0 && calls[i].bidType != BidType.pass) calls[i]
-  ];
+List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
+  final n = calls.length;
+  if (n >= 4 && calls.sublist(n - 3).every((c) => c.isPass)) {
+    throw StateError("The auction is already over");
+  }
+  final first = calls.indexWhere((c) => !c.isPass);
+  if (first < 0) return openingRules();
 
-  if (oppActions.isNotEmpty) {
+  final rescue = _doubledTransferRescueRules(calls);
+  if (rescue != null) return rescue;
+
+  final a = _Auction(calls, first);
+  if (a.opp.isNotEmpty) {
     final blackwood = _contestedBlackwoodRules(calls);
     if (blackwood != null) return blackwood;
   }
+  if (a.theyOpened) return _defenderRules(a);
+  if (a.partnerOpened) return _responderSideRules(a);
+  return _openerSideRules(a);
+}
 
-  bool isSuitBid(BidAction a) =>
-      a.bidType == BidType.contract && a.contractBid!.trump != null;
-  bool isOneLevelSuitOpening(BidAction a) =>
-      isSuitBid(a) && a.contractBid!.count == 1;
+/// An opponent opened: overcalls, doubles, and their continuations.
+List<SaycRule>? _defenderRules(_Auction a) {
+  if (!a.opening.isBid) return null;
+  final openBid = a.opening.bid;
+  final my = a.my, partner = a.partner, opp = a.opp;
 
-  if (openerOffset % 2 == 1) {
-    // An opponent opened.
-    if (opening.bidType != BidType.contract) return null;
-    final openBid = opening.contractBid!;
-    if (partnerActions.isEmpty && myActions.isEmpty) {
-      if (oppActions.length == 1) {
-        // If the call before us was a pass (their opening was followed by
-        // two passes), we're in the balancing seat.
-        return directActionRules(openBid,
-            balancing: calls[n - 1].bidType == BidType.pass);
-      }
-      if (oppActions.length == 2 &&
-          isSuitBid(oppActions[0]) &&
-          oppActions[1].bidType == BidType.contract) {
-        return sandwichActionRules(
-            oppActions[0].contractBid!, oppActions[1].contractBid!);
-      }
-      return null;
+  if (partner.isEmpty && my.isEmpty) {
+    if (opp.length == 1) {
+      // If the call before us was a pass (their opening was followed by
+      // two passes), we're in the balancing seat.
+      return directActionRules(openBid, balancing: a.back(1).isPass);
     }
-    if (partnerActions.length == 1 &&
-        myActions.isEmpty &&
-        oppActions.length == 2 &&
-        partnerActions[0] == BidAction.noTrump(1) &&
-        calls[n - 1].bidType == BidType.double &&
-        calls[n - 2] == partnerActions[0]) {
-      // Partner's 1NT overcall was doubled for penalties.
-      return oneNtOvercallDoubledRules(openBid);
+    if (opp.length == 2 && opp[0].isSuitBid && opp[1].isBid) {
+      return sandwichActionRules(opp[0].bid, opp[1].bid);
     }
-    if (partnerActions.length == 1 &&
-        myActions.isEmpty &&
-        oppActions.length == 2 &&
-        isSuitBid(partnerActions[0]) &&
-        calls[n - 1].bidType == BidType.double &&
-        calls[n - 2] == partnerActions[0]) {
-      // RHO doubled partner's overcall (negative double): systems on, and
-      // redouble becomes available.
-      return advanceOvercallRules(
-          openBid, partnerActions[0].contractBid!,
-          partnerActions[0].contractBid!,
-          rhoDoubled: true);
-    }
-    if (partnerActions.length == 1 &&
-        myActions.isEmpty &&
-        oppActions.length <= 2 &&
-        (calls[n - 1].bidType == BidType.pass ||
-            calls[n - 1].bidType == BidType.contract ||
-            calls[n - 1].bidType == BidType.redouble)) {
-      final action = partnerActions[0];
-      ContractBid? last;
-      for (int i = n - 1; i >= 0; i--) {
-        if (calls[i].bidType == BidType.contract) {
-          last = calls[i].contractBid;
-          break;
-        }
+    return null;
+  }
+  if (partner.length == 1 &&
+      my.isEmpty &&
+      opp.length == 2 &&
+      partner[0] == BidAction.noTrump(1) &&
+      a.back(1).isDouble &&
+      a.back(2) == partner[0]) {
+    // Partner's 1NT overcall was doubled for penalties.
+    return oneNtOvercallDoubledRules(openBid);
+  }
+  if (partner.length == 1 &&
+      my.isEmpty &&
+      opp.length == 2 &&
+      partner[0].isSuitBid &&
+      a.back(1).isDouble &&
+      a.back(2) == partner[0]) {
+    // RHO doubled partner's overcall (negative double): systems on, and
+    // redouble becomes available.
+    return advanceOvercallRules(
+        openBid, partner[0].bid, partner[0].bid,
+        rhoDoubled: true);
+  }
+  if (partner.length == 1 &&
+      my.isEmpty &&
+      opp.length <= 2 &&
+      (a.back(1).isPass || a.back(1).isBid || a.back(1).isRedouble)) {
+    final action = partner[0];
+    final last = a.lastBid();
+    if (last == null) return null;
+    if (action.isDouble) {
+      if (openBid.trump == null && openBid.count == 1) {
+        // Partner's double of their 1NT opening is penalty, not takeout.
+        return oneNtDoubleAdvanceRules(last == openBid ? null : last);
       }
-      if (last == null) return null;
-      if (action.bidType == BidType.double) {
-        if (openBid.trump == null && openBid.count == 1) {
-          // Partner's double of their 1NT opening is penalty, not takeout.
-          return oneNtDoubleAdvanceRules(last == openBid ? null : last);
-        }
-        return advanceDoubleRules(
-            openBid, last, calls[n - 1].bidType == BidType.pass,
-            redoubled: calls[n - 1].bidType == BidType.redouble);
+      return advanceDoubleRules(openBid, last, a.back(1).isPass,
+          redoubled: a.back(1).isRedouble);
+    }
+    if (action.isBid) {
+      // Partner acted in the balancing seat if their call followed two
+      // passes.
+      return advanceOvercallRules(openBid, action.bid, last,
+          balancingNt: a.afterTwoPasses(a.firstActionIndex(2)));
+    }
+  }
+  if (my.length == 1 &&
+      partner.length == 2 &&
+      opp.skip(1).every((c) => c.isDouble) &&
+      partner[0].isSuitBid &&
+      openBid.trump != null &&
+      my[0].isBid &&
+      my[0].bid.trump == openBid.trump &&
+      partner[1].isBid &&
+      a.back(1).isPass) {
+    // Partner answered my cue-bid raise of the overcall (a double of the
+    // cue by their side changes nothing).
+    return advanceAfterCueSignoffRules(
+        openBid, partner[0].bid, partner[1].bid);
+  }
+  if (my.length == 1 &&
+      partner.length == 1 &&
+      opp.length <= 3 &&
+      my[0].isSuitBid &&
+      openBid.trump != null &&
+      partner[0].isBid &&
+      partner[0].bid.trump == openBid.trump) {
+    // Partner cue-bid the opponents' suit over my overcall.
+    final cue = partner[0].bid;
+    final last = a.lastBid();
+    if (last != null) {
+      return overcallCueRebidRules(openBid, my[0].bid, last, last == cue);
+    }
+  }
+  if (my.length == 1 &&
+      partner.length == 2 &&
+      partner[0] == BidAction.noTrump(1) &&
+      my[0].isBid &&
+      opp.length == 1 &&
+      a.n >= 7 &&
+      a.back(1).isPass &&
+      a.back(2).isBid &&
+      a.back(3).isPass &&
+      a.back(4) == my[0] &&
+      a.back(6) == BidAction.noTrump(1)) {
+    // I responded to partner's 1NT overcall with systems on and partner
+    // answered, the opponents staying silent since their opening bid:
+    // continue as after a 1NT opening, with strength thresholds raised
+    // opposite the lighter balancing 1NT (11-16).
+    final balancing = a.afterTwoPasses(a.n - 6);
+    return _responderRebidAfter1ntRules(my[0], a.back(2),
+        hcpShift: balancing ? 3 : 0);
+  }
+  if (my.length == 1 &&
+      my[0] == BidAction.noTrump(1) &&
+      partner.length == 1 &&
+      partner[0].isBid &&
+      opp.length <= 2 &&
+      (a.back(1).isPass || a.back(1).isDouble)) {
+    // Partner responded to my 1NT overcall (direct or balancing) with
+    // systems on; answer as a 1NT opener would (Stayman, transfer
+    // completions, Gerber). Only when the opponents haven't bid over
+    // the response; a double of it (typically lead-directing) takes no
+    // room, so the answers stand, as after a 1NT opening. If the 1NT
+    // itself was doubled, partner's bid was a natural escape.
+    if (a.back(3).isDouble) {
+      return [
+        SaycRule(BidAction.pass(),
+            BidMeaning(description: "Partner's escape from 1NT doubled"))
+      ];
+    }
+    final last = a.lastBid();
+    if (last != null && last == partner[0].bid) {
+      // A direct 1NT overcall shows 15-18; a balancing one (after two
+      // passes) only 11-16. The continuation rules match on that range.
+      final balancing = a.afterTwoPasses(a.firstActionIndex(0));
+      return oneNtRebidRules(partner[0],
+          ntRange: balancing
+              ? const Range(low: 11, high: 16)
+              : const Range(low: 15, high: 18));
+    }
+  }
+  if (my.length == 1 &&
+      my[0].isDouble &&
+      partner.length == 1 &&
+      partner[0].isSuitBid &&
+      openBid.trump != null &&
+      opp.length == 2 &&
+      opp[1].isSuitBid &&
+      a.back(1) == opp[1] &&
+      a.back(2) == partner[0]) {
+    // Partner advanced my takeout double and the opponents bid again.
+    return strongDoublerAfterRaiseRules(openBid, opp[1].bid,
+        advance: partner[0].bid);
+  }
+  if (my.length == 1 &&
+      my[0].isDouble &&
+      partner.isEmpty &&
+      openBid.trump != null &&
+      opp.length == 2 &&
+      opp[1].isSuitBid &&
+      opp[1].bid.trump == openBid.trump &&
+      a.back(1).isPass) {
+    // They raised over my takeout double and partner passed.
+    return strongDoublerAfterRaiseRules(openBid, opp[1].bid);
+  }
+  if (my.length == 1 &&
+      partner.length == 1 &&
+      partner[0].isSuitBid &&
+      openBid.trump != null &&
+      opp.length <= 2 &&
+      a.back(1).isPass) {
+    // Partner advanced my takeout double or overcall in a suit that is
+    // neither ours nor the opponents'; choose our rebid. The advance must
+    // be the last bid, with nothing by the opponents after it.
+    final advance = partner[0].bid;
+    final partnerIndex = a.firstActionIndex(2);
+    final noneAfter =
+        a.calls.sublist(partnerIndex + 1).every((c) => c.isPass);
+    final over = a.lastBid(partnerIndex);
+    if (noneAfter && over != null && advance.trump != openBid.trump) {
+      if (my[0].isDouble) {
+        return doublerRebidRules(openBid, over, advance);
       }
-      if (action.bidType == BidType.contract) {
-        // Partner acted in the balancing seat if their call followed two
-        // passes.
-        int partnerCallIndex = -1;
-        for (int i = 0; i < n; i++) {
-          if ((n - i) % 4 == 2 && calls[i].bidType != BidType.pass) {
-            partnerCallIndex = i;
-            break;
-          }
-        }
-        final balancing = partnerCallIndex >= 2 &&
-            calls[partnerCallIndex - 1].bidType == BidType.pass &&
-            calls[partnerCallIndex - 2].bidType == BidType.pass;
-        return advanceOvercallRules(openBid, action.contractBid!, last,
-            balancingNt: balancing);
+      if (my[0].isSuitBid && advance.trump != my[0].bid.trump) {
+        return overcallerNewSuitRebidRules(openBid, my[0].bid, advance);
       }
     }
-    if (myActions.length == 1 &&
-        partnerActions.length == 2 &&
-        oppActions.skip(1).every((a) => a.bidType == BidType.double) &&
-        isSuitBid(partnerActions[0]) &&
-        openBid.trump != null &&
-        myActions[0].bidType == BidType.contract &&
-        myActions[0].contractBid!.trump == openBid.trump &&
-        partnerActions[1].bidType == BidType.contract &&
-        calls[n - 1].bidType == BidType.pass) {
-      // Partner answered my cue-bid raise of the overcall (a double of the
-      // cue by their side changes nothing).
-      return advanceAfterCueSignoffRules(openBid,
-          partnerActions[0].contractBid!, partnerActions[1].contractBid!);
+  }
+  if (my.length == 1 &&
+      my[0].isDouble &&
+      partner.isEmpty &&
+      opp.length == 2 &&
+      opp[1].isRedouble &&
+      openBid.trump != null &&
+      a.back(1).isPass &&
+      a.back(2).isPass) {
+    // My takeout double was redoubled, and partner's pass asked me to
+    // pick a suit; passing would end the auction in their redoubled
+    // contract.
+    return doublerRedoubleRescueRules(openBid);
+  }
+  return null;
+}
+
+/// Partner opened: responses and responder's later calls.
+List<SaycRule>? _responderSideRules(_Auction a) {
+  final opening = a.opening;
+  if (a.opp.isEmpty) {
+    if (a.sinceOpening == 2) return responseRules(opening);
+    if (a.sinceOpening == 6) {
+      return responderRebidRules(opening, a.response, a.openerRebid);
     }
-    if (myActions.length == 1 &&
-        partnerActions.length == 1 &&
-        oppActions.length <= 3 &&
-        isSuitBid(myActions[0]) &&
-        openBid.trump != null &&
-        partnerActions[0].bidType == BidType.contract &&
-        partnerActions[0].contractBid!.trump == openBid.trump) {
-      // Partner cue-bid the opponents' suit over my overcall.
-      final cue = partnerActions[0].contractBid!;
-      ContractBid? last;
-      for (int i = n - 1; i >= 0; i--) {
-        if (calls[i].bidType == BidType.contract) {
-          last = calls[i].contractBid;
-          break;
-        }
-      }
-      if (last != null) {
-        return overcallCueRebidRules(
-            openBid, myActions[0].contractBid!, last, last == cue);
-      }
+    if (a.sinceOpening == 10 && a.responderRebid == BidAction.noTrump(4)) {
+      // Placing the contract after partner answered our Blackwood 4NT.
+      return blackwoodPlacementRules(
+          opening, a.response, a.openerRebid, a.openerThirdCall);
     }
-    if (myActions.length == 1 &&
-        partnerActions.length == 2 &&
-        partnerActions[0] == BidAction.noTrump(1) &&
-        myActions[0].bidType == BidType.contract &&
-        oppActions.length == 1 &&
-        n >= 7 &&
-        calls[n - 1].bidType == BidType.pass &&
-        calls[n - 2].bidType == BidType.contract &&
-        calls[n - 3].bidType == BidType.pass &&
-        calls[n - 4] == myActions[0] &&
-        calls[n - 6] == BidAction.noTrump(1)) {
-      // I responded to partner's 1NT overcall with systems on and partner
-      // answered, the opponents staying silent since their opening bid:
-      // continue as after a 1NT opening, with strength thresholds raised
-      // opposite the lighter balancing 1NT (11-16).
-      final ntIndex = n - 6;
-      final balancing = ntIndex >= 2 &&
-          calls[ntIndex - 1].bidType == BidType.pass &&
-          calls[ntIndex - 2].bidType == BidType.pass;
-      return _responderRebidAfter1ntRules(myActions[0], calls[n - 2],
-          hcpShift: balancing ? 3 : 0);
+    if (a.sinceOpening == 10 && a.openerThirdCall == BidAction.noTrump(4)) {
+      // Opener asked Blackwood at its third call.
+      return blackwoodAnswerRules();
     }
-    if (myActions.length == 1 &&
-        myActions[0] == BidAction.noTrump(1) &&
-        partnerActions.length == 1 &&
-        partnerActions[0].bidType == BidType.contract &&
-        oppActions.length <= 2 &&
-        (calls[n - 1].bidType == BidType.pass ||
-            calls[n - 1].bidType == BidType.double)) {
-      // Partner responded to my 1NT overcall (direct or balancing) with
-      // systems on; answer as a 1NT opener would (Stayman, transfer
-      // completions, Gerber). Only when the opponents haven't bid over
-      // the response; a double of it (typically lead-directing) takes no
-      // room, so the answers stand, as after a 1NT opening. If the 1NT
-      // itself was doubled, partner's bid was a natural escape.
-      if (calls[n - 3].bidType == BidType.double) {
+    return null;
+  }
+  if (a.sinceOpening == 2) {
+    final rho = a.overcall;
+    if (rho.isDouble) return rhoDoubleRules(opening);
+    if (rho.isBid && opening.isOneLevelSuitBid) {
+      return interferenceResponseRules(opening.bid, rho.bid);
+    }
+    if (opening == BidAction.noTrump(1) && rho.isSuitBid) {
+      return oneNtInterferenceResponseRules(rho.bid);
+    }
+    if (opening.isSuitBid &&
+        opening.bid.count == 2 &&
+        opening.bid.trump != Suit.clubs &&
+        rho.isSuitBid) {
+      return weakTwoInterferenceRules(opening.bid, rho.bid);
+    }
+    return null;
+  }
+  if (a.sinceOpening == 6 && a.overcallerRebid.isPass) {
+    final overcall = a.overcall;
+    final myResponse = a.response;
+    final advance = a.advance;
+    final partnerRebid = a.openerRebid;
+    final suitOpening = opening.isOneLevelSuitBid;
+    if (opening == BidAction.noTrump(1) &&
+        overcall.isSuitBid &&
+        advance.isPass &&
+        partnerRebid.isBid &&
+        myResponse.isBid) {
+      return oneNtInterferenceResponderRebidRules(
+          overcall.bid, myResponse.bid, partnerRebid.bid);
+    }
+    if (partnerRebid.isBid && myResponse.isBid) {
+      if (!overcall.isPass && myResponse == BidAction.noTrump(2)) {
+        // In competition our 2NT was natural (11-12), not Jacoby.
         return [
-          SaycRule(BidAction.pass(),
-              BidMeaning(description: "Partner's escape from 1NT doubled"))
+          SaycRule(
+              BidAction.pass(),
+              BidMeaning(
+                  description:
+                      "Respecting partner's decision over our natural 2NT"))
         ];
       }
-      ContractBid? last;
-      for (int i = n - 1; i >= 0; i--) {
-        if (calls[i].bidType == BidType.contract) {
-          last = calls[i].contractBid;
-          break;
-        }
+      if (suitOpening &&
+          overcall.isSuitBid &&
+          myResponse.bid.trump == overcall.bid.trump) {
+        // Our cue bid of their suit was a game-forcing raise.
+        return cueBidRaiseResponderRules(opening.bid, partnerRebid.bid);
       }
-      if (last != null && last == partnerActions[0].contractBid) {
-        // A direct 1NT overcall shows 15-18; a balancing one (after two
-        // passes) only 11-16. The continuation rules match on that range.
-        int myNtIndex = -1;
-        for (int i = 0; i < n; i++) {
-          if ((n - i) % 4 == 0 && calls[i] == BidAction.noTrump(1)) {
-            myNtIndex = i;
-            break;
-          }
-        }
-        final balancing = myNtIndex >= 2 &&
-            calls[myNtIndex - 1].bidType == BidType.pass &&
-            calls[myNtIndex - 2].bidType == BidType.pass;
-        return oneNtRebidRules(partnerActions[0],
-            ntRange: balancing
-                ? const Range(low: 11, high: 16)
-                : const Range(low: 15, high: 18));
-      }
+      // Both calls were natural bids: the uncontested continuation logic
+      // applies (levels adapt via the actual calls).
+      return responderRebidRules(opening, myResponse, partnerRebid,
+          contested: true);
     }
-    if (myActions.length == 1 &&
-        myActions[0].bidType == BidType.double &&
-        partnerActions.length == 1 &&
-        isSuitBid(partnerActions[0]) &&
-        openBid.trump != null &&
-        oppActions.length == 2 &&
-        isSuitBid(oppActions[1]) &&
-        calls[n - 1] == oppActions[1] &&
-        calls[n - 2] == partnerActions[0]) {
-      // Partner advanced my takeout double and the opponents bid again.
-      return strongDoublerAfterRaiseRules(
-          openBid, oppActions[1].contractBid!,
-          advance: partnerActions[0].contractBid);
+    if (opening == BidAction.contract(2, Suit.clubs) &&
+        overcall.isSuitBid &&
+        myResponse.isPass &&
+        advance.isPass &&
+        partnerRebid.isSuitBid) {
+      // 2C (overcall) pass pass, opener's suit: still game forcing.
+      return twoClubsSuitAfterOvercallRules(overcall.bid, partnerRebid.bid);
     }
-    if (myActions.length == 1 &&
-        myActions[0].bidType == BidType.double &&
-        partnerActions.isEmpty &&
-        openBid.trump != null &&
-        oppActions.length == 2 &&
-        isSuitBid(oppActions[1]) &&
-        oppActions[1].contractBid!.trump == openBid.trump &&
-        calls[n - 1].bidType == BidType.pass) {
-      // They raised over my takeout double and partner passed.
-      return strongDoublerAfterRaiseRules(
-          openBid, oppActions[1].contractBid!);
+    if (partnerRebid.isBid &&
+        myResponse.isDouble &&
+        suitOpening &&
+        overcall.isSuitBid) {
+      return negativeDoubleResponseRebidRules(
+          opening.bid, overcall.bid, partnerRebid.bid,
+          over: advance.isBid ? advance.bid : null);
     }
-    if (myActions.length == 1 &&
-        partnerActions.length == 1 &&
-        isSuitBid(partnerActions[0]) &&
-        openBid.trump != null &&
-        oppActions.length <= 2 &&
-        calls[n - 1].bidType == BidType.pass) {
-      // Partner advanced my takeout double or overcall in a suit that is
-      // neither ours nor the opponents'; choose our rebid.
-      final advance = partnerActions[0].contractBid!;
-      int partnerIndex = -1;
-      for (int i = 0; i < n; i++) {
-        if ((n - i) % 4 == 2 && calls[i].bidType != BidType.pass) {
-          partnerIndex = i;
-          break;
-        }
-      }
-      // The advance must be the last bid, with nothing by the opponents
-      // after it.
-      final noneAfter = calls
-          .sublist(partnerIndex + 1)
-          .every((c) => c.bidType == BidType.pass);
-      ContractBid? over;
-      for (int i = partnerIndex - 1; i >= 0; i--) {
-        if (calls[i].bidType == BidType.contract) {
-          over = calls[i].contractBid;
-          break;
-        }
-      }
-      if (noneAfter && over != null && advance.trump != openBid.trump) {
-        if (myActions[0].bidType == BidType.double) {
-          return doublerRebidRules(openBid, over, advance);
-        }
-        if (isSuitBid(myActions[0]) &&
-            advance.trump != myActions[0].contractBid!.trump) {
-          return overcallerNewSuitRebidRules(
-              openBid, myActions[0].contractBid!, advance);
-        }
-      }
+    if (partnerRebid.isPass && advance.isBid && suitOpening) {
+      return competitiveRebidRules(
+          opening.bid, overcall, myResponse, advance.bid);
     }
-    if (myActions.length == 1 &&
-        myActions[0].bidType == BidType.double &&
-        partnerActions.length == 1 &&
-        isSuitBid(partnerActions[0]) &&
-        openBid.trump != null &&
-        oppActions.length == 2 &&
-        isSuitBid(oppActions[1]) &&
-        calls[n - 1] == oppActions[1] &&
-        calls[n - 2] == partnerActions[0]) {
-      // Partner advanced my takeout double and the opponents bid again.
-      return strongDoublerAfterRaiseRules(
-          openBid, oppActions[1].contractBid!,
-          advance: partnerActions[0].contractBid);
+    if (partnerRebid.isDouble &&
+        myResponse.isPass &&
+        suitOpening &&
+        overcall.isSuitBid &&
+        advance.isPass) {
+      return reopeningDoubleAdvanceRules(opening.bid, overcall.bid);
     }
-    if (myActions.length == 1 &&
-        myActions[0].bidType == BidType.double &&
-        partnerActions.isEmpty &&
-        oppActions.length == 2 &&
-        oppActions[1].bidType == BidType.redouble &&
-        openBid.trump != null &&
-        calls[n - 1].bidType == BidType.pass &&
-        calls[n - 2].bidType == BidType.pass) {
-      // My takeout double was redoubled, and partner's pass asked me to
-      // pick a suit; passing would end the auction in their redoubled
-      // contract.
-      return doublerRedoubleRescueRules(openBid);
-    }
-    return null;
   }
+  return null;
+}
 
-  if (openerOffset == 2) {
-    // Partner opened.
-    if (oppActions.isEmpty) {
-      if (n == first + 2) return responseRules(opening);
-      if (n == first + 6) {
-        return responderRebidRules(
-            opening, calls[first + 2], calls[first + 4]);
-      }
-      if (n == first + 10 && calls[first + 6] == BidAction.noTrump(4)) {
-        // Placing the contract after partner answered our Blackwood 4NT.
-        return blackwoodPlacementRules(
-            opening, calls[first + 2], calls[first + 4], calls[first + 8]);
-      }
-      if (n == first + 10 && calls[first + 8] == BidAction.noTrump(4)) {
-        // Opener asked Blackwood at its third call.
-        return blackwoodAnswerRules();
-      }
-      return null;
-    }
-    if (n == first + 2) {
-      final rho = calls[first + 1];
-      if (rho.bidType == BidType.double) return rhoDoubleRules(opening);
-      if (rho.bidType == BidType.contract &&
-          isOneLevelSuitOpening(opening)) {
-        return interferenceResponseRules(
-            opening.contractBid!, rho.contractBid!);
-      }
-      if (opening == BidAction.noTrump(1) && isSuitBid(rho)) {
-        return oneNtInterferenceResponseRules(rho.contractBid!);
-      }
-      if (isSuitBid(opening) &&
-          opening.contractBid!.count == 2 &&
-          opening.contractBid!.trump != Suit.clubs &&
-          isSuitBid(rho)) {
-        return weakTwoInterferenceRules(
-            opening.contractBid!, rho.contractBid!);
-      }
-      return null;
-    }
-    if (n == first + 6 && calls[first + 5].bidType == BidType.pass) {
-      final rho1 = calls[first + 1];
-      final myResponse = calls[first + 2];
-      final lho = calls[first + 3];
-      final partnerRebid = calls[first + 4];
-      final suitOpening = isOneLevelSuitOpening(opening);
-      if (opening == BidAction.noTrump(1) &&
-          isSuitBid(rho1) &&
-          lho.bidType == BidType.pass &&
-          partnerRebid.bidType == BidType.contract &&
-          myResponse.bidType == BidType.contract) {
-        return oneNtInterferenceResponderRebidRules(rho1.contractBid!,
-            myResponse.contractBid!, partnerRebid.contractBid!);
-      }
-      if (partnerRebid.bidType == BidType.contract &&
-          myResponse.bidType == BidType.contract) {
-        if (rho1.bidType != BidType.pass &&
-            myResponse == BidAction.noTrump(2)) {
-          // In competition our 2NT was natural (11-12), not Jacoby.
-          return [
-            SaycRule(
-                BidAction.pass(),
-                BidMeaning(
-                    description:
-                        "Respecting partner's decision over our natural 2NT"))
-          ];
-        }
-        if (suitOpening &&
-            isSuitBid(rho1) &&
-            myResponse.contractBid!.trump == rho1.contractBid!.trump) {
-          // Our cue bid of their suit was a game-forcing raise.
-          return cueBidRaiseResponderRules(
-              opening.contractBid!, partnerRebid.contractBid!);
-        }
-        // Both calls were natural bids: the uncontested continuation logic
-        // applies (levels adapt via the actual calls).
-        return responderRebidRules(opening, myResponse, partnerRebid,
-            contested: true);
-      }
-      if (opening == BidAction.contract(2, Suit.clubs) &&
-          isSuitBid(rho1) &&
-          myResponse.bidType == BidType.pass &&
-          lho.bidType == BidType.pass &&
-          isSuitBid(partnerRebid)) {
-        // 2C (overcall) pass pass, opener's suit: still game forcing.
-        return twoClubsSuitAfterOvercallRules(
-            rho1.contractBid!, partnerRebid.contractBid!);
-      }
-      if (partnerRebid.bidType == BidType.contract &&
-          myResponse.bidType == BidType.double &&
-          suitOpening &&
-          isSuitBid(rho1)) {
-        return negativeDoubleResponseRebidRules(opening.contractBid!,
-            rho1.contractBid!, partnerRebid.contractBid!,
-            over: lho.bidType == BidType.contract ? lho.contractBid : null);
-      }
-      if (partnerRebid.bidType == BidType.pass &&
-          lho.bidType == BidType.contract &&
-          suitOpening) {
-        return competitiveRebidRules(
-            opening.contractBid!, rho1, myResponse, lho.contractBid!);
-      }
-      if (partnerRebid.bidType == BidType.double &&
-          myResponse.bidType == BidType.pass &&
-          suitOpening &&
-          isSuitBid(rho1) &&
-          lho.bidType == BidType.pass) {
-        return reopeningDoubleAdvanceRules(
-            opening.contractBid!, rho1.contractBid!);
-      }
-    }
-    return null;
-  }
-
-  // We opened.
-  if (n == first + 8 &&
-      isSuitBid(opening) &&
-      calls[first + 2].bidType == BidType.contract &&
-      isSuitBid(calls[first + 3]) &&
-      calls[first + 4].bidType == BidType.pass &&
-      calls[first + 5].bidType == BidType.pass &&
-      calls[first + 6].bidType == BidType.double &&
-      calls[first + 7].bidType == BidType.pass) {
+/// We opened: rebids and later calls by the opener.
+List<SaycRule>? _openerSideRules(_Auction a) {
+  final opening = a.opening;
+  if (a.sinceOpening == 8 &&
+      opening.isSuitBid &&
+      a.response.isBid &&
+      a.advance.isSuitBid &&
+      a.openerRebid.isPass &&
+      a.overcallerRebid.isPass &&
+      a.responderRebid.isDouble &&
+      a.advancerRebid.isPass) {
     // Partner responded, they overcalled, we and RHO passed, and partner
     // doubled: choose between penalties and the cheapest fit.
-    return actionDoubleAdvanceRules(opening.contractBid!,
-        calls[first + 2].contractBid!, calls[first + 3].contractBid!);
+    return actionDoubleAdvanceRules(
+        opening.bid, a.response.bid, a.advance.bid);
   }
-  if (n == first + 8 &&
-      isOneLevelSuitOpening(opening) &&
-      isSuitBid(calls[first + 1]) &&
-      calls[first + 2].bidType == BidType.double &&
-      calls[first + 3].bidType == BidType.pass &&
-      isSuitBid(calls[first + 4]) &&
-      _isMajor(calls[first + 4].contractBid!.trump!) &&
-      calls[first + 5].bidType == BidType.pass &&
-      isSuitBid(calls[first + 6]) &&
-      _isMajor(calls[first + 6].contractBid!.trump!) &&
-      calls[first + 6].contractBid!.trump !=
-          calls[first + 4].contractBid!.trump &&
-      calls[first + 7].bidType == BidType.pass) {
+  if (a.sinceOpening == 8 &&
+      opening.isOneLevelSuitBid &&
+      a.overcall.isSuitBid &&
+      a.response.isDouble &&
+      a.advance.isPass &&
+      a.openerRebid.isSuitBid &&
+      _isMajor(a.openerRebid.bid.trump!) &&
+      a.overcallerRebid.isPass &&
+      a.responderRebid.isSuitBid &&
+      _isMajor(a.responderRebid.bid.trump!) &&
+      a.responderRebid.bid.trump != a.openerRebid.bid.trump &&
+      a.advancerRebid.isPass) {
     // Partner's strong negative double showed the other major.
-    return negativeDoubleMajorShownRules(opening.contractBid!,
-        calls[first + 1].contractBid!, calls[first + 6].contractBid!.trump!);
+    return negativeDoubleMajorShownRules(
+        opening.bid, a.overcall.bid, a.responderRebid.bid.trump!);
   }
-  if (n == first + 8 &&
-      isOneLevelSuitOpening(opening) &&
-      isSuitBid(calls[first + 1]) &&
-      calls[first + 2].bidType == BidType.pass &&
-      calls[first + 3].bidType == BidType.pass &&
-      calls[first + 4].bidType == BidType.double &&
-      calls[first + 5].bidType == BidType.pass &&
-      calls[first + 6].bidType == BidType.contract &&
-      calls[first + 7].bidType == BidType.pass) {
+  if (a.sinceOpening == 8 &&
+      opening.isOneLevelSuitBid &&
+      a.overcall.isSuitBid &&
+      a.response.isPass &&
+      a.advance.isPass &&
+      a.openerRebid.isDouble &&
+      a.overcallerRebid.isPass &&
+      a.responderRebid.isBid &&
+      a.advancerRebid.isPass) {
     // We reopened with a double and partner advanced.
-    final rules = reopeningDoubleContinuationRules(opening.contractBid!,
-        calls[first + 1].contractBid!, calls[first + 6].contractBid!);
+    final rules = reopeningDoubleContinuationRules(
+        opening.bid, a.overcall.bid, a.responderRebid.bid);
     if (rules != null) return rules;
   }
-  if (oppActions.isEmpty) {
-    if (n == first + 4) {
-      return openerRebidRules(opening, calls[first + 2]);
+  if (a.opp.isEmpty) {
+    if (a.sinceOpening == 4) {
+      return openerRebidRules(opening, a.response);
     }
-    if (n == first + 8) {
+    if (a.sinceOpening == 8) {
       return openerThirdCallRules(
-          opening, calls[first + 2], calls[first + 4], calls[first + 6]);
+          opening, a.response, a.openerRebid, a.responderRebid);
     }
-    if (n == first + 12 &&
-        calls[first + 8] == BidAction.noTrump(4) &&
-        calls[first + 6].bidType == BidType.contract) {
+    if (a.sinceOpening == 12 &&
+        a.openerThirdCall == BidAction.noTrump(4) &&
+        a.responderRebid.isBid) {
       // Placing the contract after partner answered the Blackwood 4NT we
       // asked at our third call; the trump suit is what partner raised.
-      return blackwoodPlacementRules(opening, calls[first + 2],
-          calls[first + 4], calls[first + 10],
-          trumpOverride: calls[first + 6].contractBid!.trump);
+      return blackwoodPlacementRules(
+          opening, a.response, a.openerRebid, a.responderThirdCall,
+          trumpOverride: a.responderRebid.bid.trump);
     }
     return null;
   }
-  if (n == first + 4 &&
-      isOneLevelSuitOpening(opening) &&
-      calls[first + 1].bidType == BidType.pass &&
-      calls[first + 2].bidType == BidType.contract &&
-      isSuitBid(calls[first + 3])) {
+  if (a.sinceOpening == 4 &&
+      opening.isOneLevelSuitBid &&
+      a.overcall.isPass &&
+      a.response.isBid &&
+      a.advance.isSuitBid) {
     // RHO bid over partner's response: rebid as usual where the call is
     // still available (contested), otherwise the fallback decides. The
     // tables measure levels from partner's response, so when RHO's bid
     // takes away a cheap rebid a minimum hand could land on a stronger
     // rung: hold every rule to its stated meaning here.
-    final rules = openerRebidRules(opening, calls[first + 2],
+    final rules = openerRebidRules(opening, a.response,
         contested: true, released: true);
     return rules == null ? null : _heldToMeaning(rules);
   }
-  if (n == first + 4 &&
-      calls[first + 1].bidType == BidType.pass &&
-      calls[first + 2].bidType == BidType.contract &&
-      calls[first + 3].bidType == BidType.double) {
+  if (a.sinceOpening == 4 &&
+      a.overcall.isPass &&
+      a.response.isBid &&
+      a.advance.isDouble) {
     // RHO doubled partner's natural response. The double takes away no
     // bidding space and partner's new suit is still forcing, so rebid
     // exactly as if there were no interference (systems on).
-    return openerRebidRules(opening, calls[first + 2]);
+    return openerRebidRules(opening, a.response);
   }
-  if (n == first + 4 &&
-      isOneLevelSuitOpening(opening) &&
-      isSuitBid(calls[first + 1]) &&
-      calls[first + 2].bidType == BidType.contract &&
-      calls[first + 2].contractBid!.trump == calls[first + 1].contractBid!.trump &&
-      calls[first + 3].bidType != BidType.double) {
+  if (a.sinceOpening == 4 &&
+      opening.isOneLevelSuitBid &&
+      a.overcall.isSuitBid &&
+      a.response.isBid &&
+      a.response.bid.trump == a.overcall.bid.trump &&
+      !a.advance.isDouble) {
     // Partner cue-bid their suit: a game-forcing raise of our suit. RHO may
     // have raised over it.
-    final rho = calls[first + 3];
-    final rules = cueBidRaiseRebidRules(
-        opening.contractBid!,
-        calls[first + 1].contractBid!,
-        rho.bidType == BidType.contract
-            ? rho.contractBid!
-            : calls[first + 2].contractBid!);
+    final rules = cueBidRaiseRebidRules(opening.bid, a.overcall.bid,
+        a.advance.isBid ? a.advance.bid : a.response.bid);
     if (rules != null) return rules;
   }
-  if (n == first + 4 &&
-      isOneLevelSuitOpening(opening) &&
-      !_isMajor(opening.contractBid!.trump!) &&
-      isSuitBid(calls[first + 1]) &&
-      cheapestLevel(calls[first + 1].contractBid!.trump!,
-              calls[first + 1].contractBid!) > 3 &&
-      calls[first + 2] == BidAction.contract(4, opening.contractBid!.trump!) &&
-      calls[first + 3].bidType == BidType.pass) {
+  if (a.sinceOpening == 4 &&
+      opening.isOneLevelSuitBid &&
+      !_isMajor(opening.bid.trump!) &&
+      a.overcall.isSuitBid &&
+      cheapestLevel(a.overcall.bid.trump!, a.overcall.bid) > 3 &&
+      a.response == BidAction.contract(4, opening.bid.trump!) &&
+      a.advance.isPass) {
     // Their jump overcall took away the cue; partner's 4m is the
     // game-forcing raise with no stopper.
-    return jumpOvercallRaiseRebidRules(
-        opening.contractBid!, calls[first + 1].contractBid!);
+    return jumpOvercallRaiseRebidRules(opening.bid, a.overcall.bid);
   }
-  if (n == first + 4 &&
-      isOneLevelSuitOpening(opening) &&
-      isSuitBid(calls[first + 1]) &&
-      calls[first + 2].bidType == BidType.double &&
-      calls[first + 3].bidType == BidType.redouble) {
+  if (a.sinceOpening == 4 &&
+      opening.isOneLevelSuitBid &&
+      a.overcall.isSuitBid &&
+      a.response.isDouble &&
+      a.advance.isRedouble) {
     // The advancer redoubled partner's negative double: answer the double
     // as usual rather than leaving their contract redoubled.
-    return negativeDoubleRebidRules(
-        opening.contractBid!, calls[first + 1].contractBid!);
+    return negativeDoubleRebidRules(opening.bid, a.overcall.bid);
   }
-  if (n == first + 4 && calls[first + 3].bidType == BidType.pass) {
-    final overcall = calls[first + 1];
-    final partnerCall = calls[first + 2];
-    if (overcall.bidType == BidType.double &&
-        partnerCall.bidType == BidType.contract) {
+  if (a.sinceOpening == 4 && a.advance.isPass) {
+    final overcall = a.overcall;
+    final partnerCall = a.response;
+    if (overcall.isDouble && partnerCall.isBid) {
       // Partner responded naturally over the takeout double (systems on),
       // so rebid as if there were no interference; a new-suit response is
       // still forcing and must not be passed.
       return openerRebidRules(opening, partnerCall);
     }
-    if (isSuitBid(overcall) && partnerCall.bidType == BidType.double) {
-      if (opening == BidAction.noTrump(1) &&
-          overcall.contractBid!.count >= 3) {
-        return oneNtCooperativeDoubleRebidRules(overcall.contractBid!);
+    if (overcall.isSuitBid && partnerCall.isDouble) {
+      if (opening == BidAction.noTrump(1) && overcall.bid.count >= 3) {
+        return oneNtCooperativeDoubleRebidRules(overcall.bid);
       }
-      if (isOneLevelSuitOpening(opening)) {
-        return negativeDoubleRebidRules(
-            opening.contractBid!, overcall.contractBid!);
+      if (opening.isOneLevelSuitBid) {
+        return negativeDoubleRebidRules(opening.bid, overcall.bid);
       }
       // Partner doubled after our preempt or notrump opening: our hand is
       // already fully described.
@@ -9074,22 +9048,21 @@ List<SaycRule>? saycRulesForAuction(List<BidAction> calls) {
             BidMeaning(description: "Nothing to add; partner's double stands"))
       ];
     }
-    if (overcall.bidType == BidType.contract &&
-        partnerCall.bidType == BidType.contract) {
+    if (overcall.isBid && partnerCall.isBid) {
       // Partner's free bid carries at least its uncontested meaning.
       return openerRebidRules(opening, partnerCall,
           contested: true,
-          overcall: isSuitBid(overcall) ? overcall.contractBid : null);
+          overcall: overcall.isSuitBid ? overcall.bid : null);
     }
-    if (isSuitBid(overcall) &&
-        partnerCall.bidType == BidType.pass &&
-        isOneLevelSuitOpening(opening)) {
-      return reopeningRules(opening.contractBid!, overcall.contractBid!);
+    if (overcall.isSuitBid &&
+        partnerCall.isPass &&
+        opening.isOneLevelSuitBid) {
+      return reopeningRules(opening.bid, overcall.bid);
     }
-    if (isSuitBid(overcall) &&
-        partnerCall.bidType == BidType.pass &&
+    if (overcall.isSuitBid &&
+        partnerCall.isPass &&
         opening == BidAction.contract(2, Suit.clubs)) {
-      return twoClubsAfterOvercallPassedRules(overcall.contractBid!);
+      return twoClubsAfterOvercallPassedRules(overcall.bid);
     }
   }
   return null; // fallback bidder handles anything else

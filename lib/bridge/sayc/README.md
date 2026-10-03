@@ -363,6 +363,11 @@ DDS_LIB=native/libdds.dylib dart run scripts/minor_game_scan.dart --deals 20000
 # meaning (recurring rules are the signal):
 DDS_LIB=native/libdds.dylib dart run scripts/dd_loss_scan.dart --deals 3000
 
+# Behavior fingerprint for refactors: every self-play position's call and
+# stated meaning, one per line. Record before a change that should not alter
+# bidding and diff after (add --chaos P to cover off-system auctions):
+dart run scripts/auction_dump.dart --deals 4000 --seed 1 > before.txt
+
 # Many positions per run, one "hand | history" (or "auto: four hands")
 # line each:
 dart run scripts/bidding_probe.dart < probes.txt
