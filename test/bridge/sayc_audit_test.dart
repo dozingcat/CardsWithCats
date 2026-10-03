@@ -434,16 +434,20 @@ void main() {
       expect(call, "6NT");
     });
 
-    test("a 6-5 with two singletons doesn't rebid 3NT", () {
+    test("a 6-5 with two singletons jump-shifts, and the deal reaches 6NT",
+        () {
       // The reviewer's original opener: 3NT counted the singleton ace as a
-      // stopper. It now uses the game-forcing diamond rebid.
-      final call = engineCallAfter([
+      // stopper. The game-forcing 4D (a first attempt) hid the clubs and
+      // left responder no slam route; the jump shift shows both suits and
+      // responder's balanced 18 bids the slam.
+      final history = engineAuction([
         "A J AK6543 AT874",
         "8653 9743 98 932",
         "QJ AQ65 QJ2 KQJ5",
         "KT9742 KT82 T7 6",
-      ], "1D pass 1H pass");
-      expect(call, "4D");
+      ], "1D pass 1H pass 3C pass");
+      expect(finalContract(history), ContractBid.noTrump(6),
+          reason: "auction: ${history.join(' ')}");
     });
 
     test("2NT-Stayman fit with 37 combined HCP reaches slam", () {

@@ -1666,9 +1666,11 @@ void main() {
             "4H",
             reason: rebid);
       }
+      // Opposite the 18+ jump shift a 16-count has slam values: still in
+      // the major fit.
       expect(openingBid("Q632", "A32", "K2", "AK54",
               history: [...one, "3D", "pass"]),
-          "4H");
+          "6H");
       // With only a doubleton, 3NT stays.
       expect(openingBid("Q632", "A3", "K32", "AK54",
               history: [...one, "2C", "pass"]),
@@ -1949,6 +1951,21 @@ void main() {
       final h = ["1C", "pass", "1H", "pass", "3NT", "pass", "4NT", "pass"];
       expect(openingBid("A6", "64", "A42", "AKQ932", history: h), "Pass");
       expect(openingBid("A6", "K4", "A42", "AKQ932", history: h), "6NT");
+    });
+
+    test("opener's strong minor rebids leave room for slam", () {
+      final h = ["1D", "pass", "1H", "pass"];
+      // Four clubs: the jump shift, not the game-forcing 4D.
+      expect(openingBid("AK", "J", "AK6543", "A874", history: h), "3C");
+      expect(openingBid("AK", "J", "AKQ6543", "A87", history: h), "4D");
+      // Over 4D, a Blackwood ask with support and slam values.
+      final four = [...h, "4D", "pass"];
+      expect(openingBid("KJ", "AQ65", "Q32", "K652", history: four), "4NT");
+      expect(openingBid("QJ", "Q865", "Q32", "J652", history: four), "5D");
+      // Over the jump shift, 6NT with a balanced 15+.
+      final js = [...h, "3C", "pass"];
+      expect(openingBid("QJ", "AQ65", "QJ2", "KQJ5", history: js), "6NT");
+      expect(openingBid("QJ", "Q865", "Q32", "J652", history: js), "3NT");
     });
 
     test("raises keep their meanings", () {
