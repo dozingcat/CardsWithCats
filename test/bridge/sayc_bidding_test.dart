@@ -1666,9 +1666,11 @@ void main() {
             "4H",
             reason: rebid);
       }
+      // Opposite the 18+ jump shift a 16-count has slam values: still in
+      // the major fit.
       expect(openingBid("Q632", "A32", "K2", "AK54",
               history: [...one, "3D", "pass"]),
-          "4H");
+          "6H");
       // With only a doubleton, 3NT stays.
       expect(openingBid("Q632", "A3", "K32", "AK54",
               history: [...one, "2C", "pass"]),
@@ -1935,6 +1937,59 @@ void main() {
       expect(openingBid("J5", "AKJT83", "KT", "754",
               history: ["1D", "2S", "3H", "pass", "4D", "pass"]),
           isNot("4H"));
+    });
+
+    test("responder's self-sufficient major past 3NT; answering the 4NT invite",
+        () {
+      // Self-play deal 2948 (seed 42): after opener's 4D there is no 3NT
+      // to stand in for, and AKJ8532 still plays game in spades.
+      expect(openingBid("AKJ8532", "AQ", "KJ", "72",
+              history: ["1D", "3C", "3S", "pass", "4D", "pass"]),
+          "4S");
+      // Deal 1346: opener's long-minor 3NT answers responder's 4NT
+      // invitation by total points (19+ shown; accept with 21+).
+      final h = ["1C", "pass", "1H", "pass", "3NT", "pass", "4NT", "pass"];
+      expect(openingBid("A6", "64", "A42", "AKQ932", history: h), "Pass");
+      expect(openingBid("A6", "K4", "A42", "AKQ932", history: h), "6NT");
+    });
+
+    test("opener's strong minor rebids leave room for slam", () {
+      final h = ["1D", "pass", "1H", "pass"];
+      // Four clubs: the jump shift, not the game-forcing 4D.
+      expect(openingBid("AK", "J", "AK6543", "A874", history: h), "3C");
+      // Spades biddable at the one level: a jump shift to 2S, from the
+      // 4m rebid and from the non-forcing 1S alike (18+).
+      expect(openingBid("AQ43", "K2", "A", "AKQ543", history: ["1C", "pass", "1H", "pass"]),
+          "2S");
+      expect(openingBid("AKQ5", "2", "AQJ654", "A2",
+              history: ["1D", "pass", "1H", "pass"]),
+          "2S");
+      expect(openingBid("AQ43", "2", "K2", "AKQ543",
+              history: ["1C", "pass", "1D", "pass"]),
+          "2S");
+      // Balanced 18-19 still rebids 2NT; a minimum still bids 1S.
+      expect(openingBid("AQ43", "K2", "KJ2", "AQ32",
+              history: ["1C", "pass", "1D", "pass"]),
+          "2NT");
+      expect(openingBid("KQ43", "K2", "J2", "AQ532",
+              history: ["1C", "pass", "1D", "pass"]),
+          "1S");
+      // A higher four-card suit: the reverse.
+      expect(openingBid("K2", "AQ43", "AQJ654", "A",
+              history: ["1D", "pass", "1S", "pass"]),
+          "2H");
+      expect(openingBid("A2", "K", "KQ43", "AKQ543",
+              history: ["1C", "pass", "1S", "pass"]),
+          "2D");
+      expect(openingBid("AK", "J", "AKQ6543", "A87", history: h), "4D");
+      // Over 4D, a Blackwood ask with support and slam values.
+      final four = [...h, "4D", "pass"];
+      expect(openingBid("KJ", "AQ65", "Q32", "K652", history: four), "4NT");
+      expect(openingBid("QJ", "Q865", "Q32", "J652", history: four), "5D");
+      // Over the jump shift, 6NT with a balanced 15+.
+      final js = [...h, "3C", "pass"];
+      expect(openingBid("QJ", "AQ65", "QJ2", "KQJ5", history: js), "6NT");
+      expect(openingBid("QJ", "Q865", "Q32", "J652", history: js), "3NT");
     });
 
     test("raises keep their meanings", () {
