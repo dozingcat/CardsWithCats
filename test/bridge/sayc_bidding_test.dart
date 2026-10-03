@@ -1957,6 +1957,23 @@ void main() {
       final h = ["1D", "pass", "1H", "pass"];
       // Four clubs: the jump shift, not the game-forcing 4D.
       expect(openingBid("AK", "J", "AK6543", "A874", history: h), "3C");
+      // Spades biddable at the one level: a jump shift to 2S, from the
+      // 4m rebid and from the non-forcing 1S alike (18+).
+      expect(openingBid("AQ43", "K2", "A", "AKQ543", history: ["1C", "pass", "1H", "pass"]),
+          "2S");
+      expect(openingBid("AKQ5", "2", "AQJ654", "A2",
+              history: ["1D", "pass", "1H", "pass"]),
+          "2S");
+      expect(openingBid("AQ43", "2", "K2", "AKQ543",
+              history: ["1C", "pass", "1D", "pass"]),
+          "2S");
+      // Balanced 18-19 still rebids 2NT; a minimum still bids 1S.
+      expect(openingBid("AQ43", "K2", "KJ2", "AQ32",
+              history: ["1C", "pass", "1D", "pass"]),
+          "2NT");
+      expect(openingBid("KQ43", "K2", "J2", "AQ532",
+              history: ["1C", "pass", "1D", "pass"]),
+          "1S");
       // A higher four-card suit: the reverse.
       expect(openingBid("K2", "AQ43", "AQJ654", "A",
               history: ["1D", "pass", "1S", "pass"]),

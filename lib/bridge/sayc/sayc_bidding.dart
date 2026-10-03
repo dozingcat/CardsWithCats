@@ -2606,16 +2606,18 @@ List<SaycRule> _rebidAfterNewSuitRules(
   } else {
     if (response.count == 1) {
       // Over a minor-suit response, show a 4-card major before raising.
+      // With 18+ it isn't forcing enough: balanced hands rebid 2NT and the
+      // rest jump-shift (below).
       for (final major in [Suit.hearts, Suit.spades]) {
         rules.add(SaycRule(
           BidAction.contract(1, major),
           BidMeaning(
             description: "Second suit: 4+ ${_suitNames[major]}",
-            totalPoints: const Range(low: 13),
+            totalPoints: const Range(low: 13, high: 17),
             suitLengths: {major: const Range(low: 4)},
           ),
           ignoreInfo: true,
-          require: (h) => h.count(major) >= 4,
+          require: (h) => h.count(major) >= 4 && h.totalPoints <= 17,
         ));
       }
     }
@@ -2723,8 +2725,9 @@ List<SaycRule> _rebidAfterNewSuitRules(
         ),
         ignoreInfo: true,
         // A one-suiter: with four cards in another suit, the jump shift (a
-        // lower suit) or the reverse (a higher one, at the two level) below
-        // shows both suits and keeps 3NT available.
+        // lower suit, or a higher one biddable at the one level) or the
+        // reverse (a higher one at the two level) below shows both suits
+        // and keeps 3NT available.
         require: (h) =>
             h.count(mySuit) >= 6 &&
             h.totalPoints >= 19 &&
@@ -2734,7 +2737,7 @@ List<SaycRule> _rebidAfterNewSuitRules(
                 h.count(x) >= 4 &&
                 (_strainOrder(x) < _strainOrder(mySuit)
                     ? cheapestLevel(x, response) + 1 <= 3
-                    : cheapestLevel(x, response) == 2)),
+                    : cheapestLevel(x, response) <= 2)),
       ),
     ],
     SaycRule(
@@ -2748,11 +2751,14 @@ List<SaycRule> _rebidAfterNewSuitRules(
       require: (h) => h.count(mySuit) >= 6 && h.totalPoints <= 18,
     ),
   ]);
-  // Jump shifts: 18+, lower-ranking suits only.
+  // Jump shifts: 18+, lower-ranking suits, or a higher one biddable at the
+  // one level (jumping to the two level; a higher suit at the two level
+  // would be a reverse instead).
   for (final s in Suit.values) {
     if (s == mySuit ||
         s == partnerSuit ||
-        _strainOrder(s) > _strainOrder(mySuit)) {
+        (_strainOrder(s) > _strainOrder(mySuit) &&
+            cheapestLevel(s, response) != 1)) {
       continue;
     }
     final jumpLevel = cheapestLevel(s, response) + 1;
