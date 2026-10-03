@@ -390,7 +390,7 @@ down as gaps get fixed; a jump up means a regression.
 | Run | Result |
 | --- | --- |
 | seed 1, 3000 deals (test set) | 478 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 665 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 668 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
 Seed 1 findings by category: fallback-used 280, missed-game 127,
@@ -403,7 +403,7 @@ slam machinery.
 
 Double-dummy accuracy over 6000 deals: games bid make 71.7% of the time
 (precision), and 63.4% of double-dummy-makeable games get bid (recall).
-55 slams are bid, of which 47 make (85.5% precision; the quantitative
+54 slams are bid, of which 47 make (87.0% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
 / 12 making). Recall is 5.7% of DD slam chances — most DD "slams" lack the
 combined strength any bidding system would need.
@@ -412,8 +412,8 @@ Precision and recall leave doubled contracts out, so they can't see
 sacrifices. The script also scores every deal (non-vulnerable, doubled
 contracts included) against double-dummy par — the result of both sides
 bidding optimally from the double-dummy trick table, including
-sacrifices — and reports the average IMPs lost per deal: currently 4.50,
-with 27.3% of deals within 10 points of par. The absolute number is
+sacrifices — and reports the average IMPs lost per deal: currently 4.49,
+with 27.4% of deals within 10 points of par. The absolute number is
 harsh by design (par sees all four hands); compare it between versions.
 Doubled contracts that went down are split into good sacrifices (cheaper
 than the opponents' best makeable contract: 73, saving 19600 points)

@@ -1957,6 +1957,13 @@ void main() {
       final h = ["1D", "pass", "1H", "pass"];
       // Four clubs: the jump shift, not the game-forcing 4D.
       expect(openingBid("AK", "J", "AK6543", "A874", history: h), "3C");
+      // A higher four-card suit: the reverse.
+      expect(openingBid("K2", "AQ43", "AQJ654", "A",
+              history: ["1D", "pass", "1S", "pass"]),
+          "2H");
+      expect(openingBid("A2", "K", "KQ43", "AKQ543",
+              history: ["1C", "pass", "1S", "pass"]),
+          "2D");
       expect(openingBid("AK", "J", "AKQ6543", "A87", history: h), "4D");
       // Over 4D, a Blackwood ask with support and slam values.
       final four = [...h, "4D", "pass"];

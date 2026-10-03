@@ -2722,17 +2722,19 @@ List<SaycRule> _rebidAfterNewSuitRules(
           suitLengths: {mySuit: const Range(low: 6)},
         ),
         ignoreInfo: true,
-        // A one-suiter: with four cards in a lower suit, the jump shift
-        // below shows both suits and keeps 3NT available.
+        // A one-suiter: with four cards in another suit, the jump shift (a
+        // lower suit) or the reverse (a higher one, at the two level) below
+        // shows both suits and keeps 3NT available.
         require: (h) =>
             h.count(mySuit) >= 6 &&
             h.totalPoints >= 19 &&
             !Suit.values.any((x) =>
                 x != mySuit &&
                 x != partnerSuit &&
-                _strainOrder(x) < _strainOrder(mySuit) &&
-                cheapestLevel(x, response) + 1 <= 3 &&
-                h.count(x) >= 4),
+                h.count(x) >= 4 &&
+                (_strainOrder(x) < _strainOrder(mySuit)
+                    ? cheapestLevel(x, response) + 1 <= 3
+                    : cheapestLevel(x, response) == 2)),
       ),
     ],
     SaycRule(
