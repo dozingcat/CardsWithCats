@@ -2790,7 +2790,7 @@ void main() {
       expect(spade, contains("<=21 HCP"));
       final weakTwo = describeSaycCall([], BidAction.fromString("2S"))!.summary();
       expect(weakTwo, contains("6 spades"));
-      expect(weakTwo, contains("6-10 HCP"));
+      expect(weakTwo, contains("5-10 HCP"));
     });
 
     test("vulnerability parameter is accepted", () {
@@ -3286,7 +3286,7 @@ void main() {
 
     test("describe weak two", () {
       final meaning = describeSaycCall([], BidAction.fromString("2H"));
-      expect(meaning!.hcp, const Range(low: 6, high: 10));
+      expect(meaning!.hcp, const Range(low: 5, high: 10));
       expect(meaning.suitLengths[Suit.hearts], const Range(low: 6, high: 6));
     });
 

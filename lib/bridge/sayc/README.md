@@ -115,9 +115,8 @@ consulted.
   only with exactly 4=4=3=2).
 - 1NT = 15-17 balanced (may contain a 5-card major); 2NT = 20-21 balanced.
 - 2C = strong and artificial, 22+ HCP.
-- Weak twos (2D/2H/2S) = 6-card suit, 6-10 HCP; 3-level = 7-card suit
-  (6-10), 4-level = 8+ (5-10); preempts take priority over shape-based
-  light openings.
+- Weak twos (2D/2H/2S) = 6-card suit, 5-10 HCP; 3-level = 7-card suit,
+  4-level = 8+; preempts take priority over shape-based light openings.
 - One-level suit openings need 13+ total points (HCP + length points) or
   the Rule of 20 with 11+ HCP (HCP plus the two longest suits' lengths:
   adds 12-HCP balanced hands and 11-HCP 5-4s), in every seat. Opener's
@@ -255,12 +254,10 @@ consulted.
   cards with 6+ HCP in their suit, 12+ points). Balancing seat is treated
   like direct seat, except that a reopening 1NT over a one-level suit
   opening is lighter: 11-16 balanced with a stopper (17+ balanced doubles
-  first). Balancing suit overcalls and takeout doubles are one point
-  lighter (the textbook "borrow a king" lost against par: the advances
-  don't discount for it), and weak jump overcalls aren't used there.
-  Two-level overcalls need 11+ HCP (10 with a seven-card suit, or six
-  headed by two top honors). Over a three-level preempt, a four-level
-  overcall shows a good six-card suit and 16+.
+  first). Balancing suit overcalls and takeout doubles "borrow a king"
+  (3 points lighter), and weak jump overcalls aren't used there. Over a
+  three-level preempt, a four-level overcall shows a good six-card suit
+  and 16+.
 - Two-suited overcalls (direct seat over a one-level suit opening, 8-16
   HCP, 5-5 or better): Michaels cue bid = both majors over a minor, the
   other major and a minor over a major; unusual 2NT = the two lowest
@@ -275,8 +272,8 @@ consulted.
   calls go to the fallback, which bids from the stated meanings.
 - Opener with partner silent: after 1x P P (2y) or 1x (2y) P (3y), opener
   competes as in the pass-out seat (game or a jump with a big one-suiter,
-  a six-card rebid, 18-19 notrump), but a takeout double there needs 18+
-  and the opponents must still be at the two level.
+  a six-card rebid, 18-19 notrump), up to the three level, but a takeout
+  double there needs 18+.
 - Advancing a forced takeout double includes the penalty pass: with 4+
   trumps (5+ HCP among them) and 8+ HCP, the double is converted rather
   than advanced. Advances never jump past game; a takeout double is
@@ -398,12 +395,17 @@ DDS_LIB=native/libdds.dylib dart run scripts/dd_loss_scan.dart --deals 3000
 # engine against par from the cache in seconds. dd_eval splits the IMPs
 # lost into categories (from the losing side's view) and, with --save /
 # --compare, lists the deals whose auction changed between two versions
-# with the net IMPs:
+# with the net IMPs. The comparison reports two nets: against par, and
+# side-aware (each changed deal scored for the side whose call changed
+# first, by its own score). Judge competitive decisions (overcalls,
+# preempts, balancing) by the side-aware net: par charges an opponent's
+# resulting misjudgment to the call that caused it. --decisions breaks the
+# side-aware net down by that first call's rule:
 DDS_LIB=native/libdds.dylib dart run scripts/dd_tables.dart --seed 2026 \
     --deals 20000 --workers 9 --out dev.tables
 dart run scripts/dd_eval.dart --tables dev.tables --save before.txt
 dart run scripts/dd_eval.dart --tables dev.tables --compare before.txt \
-    [--top N] [--show CATEGORY] [--hcp]
+    [--decisions] [--top N] [--show CATEGORY] [--hcp]
 
 # Behavior fingerprint for refactors: every self-play position's call and
 # stated meaning, one per line. Record before a change that should not alter
@@ -436,12 +438,12 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 507 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 613 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 509 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 642 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 298, missed-game 130,
-silly-strain 51, missed-slam 15, thin-game 11, slam-light 1,
+Seed 1 findings by category: fallback-used 302, missed-game 125,
+silly-strain 51, missed-slam 15, thin-game 14, slam-light 1,
 no-rule-matched 1. Fallback-used is monitoring, not failure (calls after
 Michaels and the unusual 2NT go there by design); the lints are
 heuristics, and the double-dummy par score below is the better guide:
@@ -451,22 +453,27 @@ eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 70.8% of the time
-(precision), and 66.0% of double-dummy-makeable games get bid (recall).
-78 slams are bid, of which 68 make (87.2% precision; the quantitative
+Double-dummy accuracy over 6000 deals: games bid make 70.1% of the time
+(precision), and 65.8% of double-dummy-makeable games get bid (recall).
+73 slams are bid, of which 63 make (86.3% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
-/ 12 making). Recall is 8.5% of DD slam chances — most DD "slams" lack the
+/ 12 making). Recall is 7.9% of DD slam chances — most DD "slams" lack the
 combined strength any bidding system would need.
 
 Precision and recall leave doubled contracts out, so they can't see
 sacrifices. The script also scores every deal (non-vulnerable, doubled
 contracts included) against double-dummy par — the result of both sides
 bidding optimally from the double-dummy trick table, including
-sacrifices — and reports the average IMPs lost per deal: currently 4.42
-(4.49 before the October 2026 tuning), with 28.6% of deals within 10
-points of par. The absolute number is
+sacrifices — and reports the average IMPs lost per deal: currently 4.43
+(4.49 before the October 2026 tuning), with 28.5% of deals within 10
+points of par. Because the engine sits in all four seats, par charges
+the whole deviation to the engine: a preempt or overcall that leads the
+opponents astray counts as a loss even though it won for the side that
+made it. Competitive thresholds are therefore tuned with dd_eval's
+side-aware comparison instead; they cost about 0.015 IMPs/deal of this
+score, by design. The absolute number is
 harsh by design (par sees all four hands); compare it between versions.
 Doubled contracts that went down are split into good sacrifices (cheaper
-than the opponents' best makeable contract: 68, saving 15900 points)
-and bad ones (100, costing 22780). The split is from the declaring side's
+than the opponents' best makeable contract: 73, saving 17580 points)
+and bad ones (104, costing 24450). The split is from the declaring side's
 point of view, so our penalty doubles of their contracts count here too.

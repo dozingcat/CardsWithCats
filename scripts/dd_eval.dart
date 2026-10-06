@@ -5,11 +5,16 @@
 /// against an earlier run deal by deal.
 ///
 ///   dart run scripts/dd_eval.dart --tables FILE [--deals N]
-///       [--save FILE] [--compare FILE] [--show CATEGORY] [--top N] [--hcp]
+///       [--save FILE] [--compare FILE [--decisions]] [--show CATEGORY]
+///       [--top N] [--hcp]
 ///
 /// --save writes each deal's auction and IMP loss; --compare reads such a
 /// file and reports the deals whose auction changed, with the net IMPs
 /// gained or lost and the largest swings (with hands and stated meanings).
+/// It also reports a side-aware net: each changed deal scored for the side
+/// that made the first differing call, by how much its own score changed
+/// (the par view charges an opponent's resulting mistake to the change).
+/// --decisions breaks the side-aware net down by that first call's rule.
 /// --show prints the worst --top deals of one category (a prefix of the
 /// category name is enough). --hcp breaks each category's IMPs down by the
 /// losing side's combined HCP.
@@ -56,6 +61,15 @@ class _Result {
 }
 
 String _strainName(Suit? s) => s == null ? "NT" : s.asciiChar;
+
+/// North-South's score for [history] on [deal] (0 when passed out).
+int _scoreNs(_Deal deal, List<BidAction> history) {
+  final result = FinalContract.of(history);
+  if (result == null) return 0;
+  final t = deal.byDeclarer[result.declarer][result.bid.trump]!;
+  final score = nonVulnerableScore(result.bid, t, doubled: result.doubled);
+  return result.side == 0 ? score : -score;
+}
 
 _Result _evaluate(_Deal deal) {
   final history = runDeal(deal.hands).history;
@@ -146,7 +160,7 @@ String _describe(_Result r) {
 
 void main(List<String> args) {
   String? tablesPath, savePath, comparePath, show;
-  bool hcpBreakdown = false;
+  bool hcpBreakdown = false, decisions = false;
   int? limit;
   int top = 20;
   for (int i = 0; i < args.length; i++) {
@@ -163,6 +177,8 @@ void main(List<String> args) {
         show = args[++i];
       case "--hcp":
         hcpBreakdown = true;
+      case "--decisions":
+        decisions = true;
       case "--top":
         top = int.parse(args[++i]);
     }
@@ -246,10 +262,38 @@ void main(List<String> args) {
       base[int.parse(parts[0])] = (int.parse(parts[1]), parts.skip(2).join(" "));
     }
     final changed = <(_Result, int)>[];
+    // Side-aware view: the side that made the first call that differs
+    // gains or loses the change in its own score. (The par view charges
+    // any deviation from par to the change, so a call that leads the
+    // opponents astray counts against it.)
+    var sideNet = 0;
+    final byDecision = <String, (int, int)>{};
     for (final r in results) {
       final b = base[r.deal.index];
       if (b == null || b.$2 == r.history.join(" ")) continue;
       changed.add((r, b.$1 - r.loss));
+      final before = b.$2.split(" ").map(BidAction.fromString).toList();
+      var i = 0;
+      while (i < before.length &&
+          i < r.history.length &&
+          before[i] == r.history[i]) {
+        i++;
+      }
+      final sign = i % 2 == 0 ? 1 : -1; // seat i's side, North-South = 0
+      final delta = sign * (_scoreNs(r.deal, r.history) - _scoreNs(r.deal, before));
+      final imps = delta >= 0
+          ? impsForScoreDifference(delta)
+          : -impsForScoreDifference(-delta);
+      sideNet += imps;
+      if (i < r.history.length) {
+        final call = r.history[i];
+        final why = selectSaycBid(r.deal.hands[i % 4], r.history.sublist(0, i))
+            .meaning
+            .description;
+        final key = "$call: $why";
+        final old = byDecision[key] ?? (0, 0);
+        byDecision[key] = (old.$1 + imps, old.$2 + 1);
+      }
     }
     final net = changed.fold(0, (a, c) => a + c.$2);
     final better = changed.where((c) => c.$2 > 0).length;
@@ -257,6 +301,17 @@ void main(List<String> args) {
     print("\ncompared with $comparePath: ${changed.length} auctions changed, "
         "$better better, $worse worse, net ${net >= 0 ? '+' : ''}$net IMPs "
         "(${(net / results.length).toStringAsFixed(3)}/deal)");
+    print("side-aware: net ${sideNet >= 0 ? '+' : ''}$sideNet IMPs for the "
+        "side making the first changed call "
+        "(${(sideNet / results.length).toStringAsFixed(3)}/deal)");
+    if (decisions) {
+      final keys = byDecision.keys.toList()
+        ..sort((a, b) => byDecision[a]!.$1.compareTo(byDecision[b]!.$1));
+      for (final k in keys) {
+        final v = byDecision[k]!;
+        print("  ${v.$1 >= 0 ? '+' : ''}${v.$1} IMPs over ${v.$2} deals  $k");
+      }
+    }
     changed.sort((a, b) => a.$2.compareTo(b.$2));
     void list(String title, Iterable<(_Result, int)> cs) {
       if (cs.isEmpty) return;

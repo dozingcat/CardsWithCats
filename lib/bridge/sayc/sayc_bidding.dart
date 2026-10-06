@@ -353,9 +353,9 @@ List<SaycRule> openingRules() {
       ),
     ),
   ];
-  // Preempts take priority over shape-based light openings. Weak twos and
-  // three-level preempts need 6+ HCP: over 20000 deals 6 beat the
-  // textbook 5 against par (4 and 7 did worse).
+  // Preempts (5-10 HCP) take priority over shape-based light openings.
+  // (Scored against par, 6+ looked better; scored for the preempting side,
+  // which is what the decision should optimize, 5 beats 6 and 4 beats 5.)
   const preemptOrder = [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs];
   for (final suit in preemptOrder) {
     rules.add(SaycRule(
@@ -372,7 +372,7 @@ List<SaycRule> openingRules() {
       BidAction.contract(3, suit),
       BidMeaning(
         description: "Preempt: 7-card ${_suitNames[suit]} suit, weak hand",
-        hcp: const Range(low: 6, high: 10),
+        hcp: const Range(low: 5, high: 10),
         suitLengths: {suit: const Range(low: 7, high: 7)},
       ),
     ));
@@ -382,8 +382,8 @@ List<SaycRule> openingRules() {
     rules.add(SaycRule(
       BidAction.contract(2, suit),
       BidMeaning(
-        description: "Weak two: 6-card ${_suitNames[suit]} suit, 6-10 HCP",
-        hcp: const Range(low: 6, high: 10),
+        description: "Weak two: 6-card ${_suitNames[suit]} suit, 5-10 HCP",
+        hcp: const Range(low: 5, high: 10),
         suitLengths: {suit: const Range(low: 6, high: 6)},
       ),
     ));
@@ -5322,10 +5322,10 @@ Suit? _overcallSuitChoice(HandAnalysis hand, Set<Suit> excluded) {
 
 /// Direct (or balancing) action after an opponent's opening bid.
 /// How much lighter suit overcalls and takeout doubles are in the
-/// balancing seat. The textbook "borrow a king" (3) lost against par over
-/// 20000 self-play deals (the engine's advances don't discount for it);
-/// one point gained slightly, over one-level openings and weak twos alike.
-const _balancingShift = 1;
+/// balancing seat: the textbook "borrow a king". Scored for the balancing
+/// side over 20000 self-play deals, 3 beat 0-2 (par scoring, which charges
+/// the opponents' resulting misjudgments to the balancer, preferred 1).
+const _balancingShift = 3;
 
 List<SaycRule> directActionRules(ContractBid opening,
     {bool balancing = false}) {
@@ -5475,26 +5475,15 @@ List<SaycRule> directActionRules(ContractBid opening,
           require: isBest,
         ));
       } else if (level == 2) {
-        // 11+ HCP rather than the textbook 10 (over 20000 deals a flat 10
-        // or 12 scored worse against par), but 10 still overcalls with a
-        // seven-card suit or a six-card suit headed by two top honors.
         rules.add(SaycRule(
           BidAction.contract(2, suit),
           BidMeaning(
-            description: "Two-level overcall: 5+ ${_suitNames[suit]}, "
-                "${11 - shift}-16 HCP (${10 - shift} with a long suit)",
+            description:
+                "Two-level overcall: 5+ ${_suitNames[suit]}, ${10 - shift}-16 HCP",
             hcp: Range(low: 10 - shift, high: 16),
             suitLengths: {suit: const Range(low: 5)},
           ),
-          ignoreInfo: true,
-          require: (h) =>
-              h.hcp <= 16 &&
-              (h.hcp >= 11 - shift ||
-                  (h.hcp >= 10 - shift &&
-                      (h.count(suit) >= 7 ||
-                          (h.count(suit) == 6 &&
-                              h.topHonorCount(suit) >= 2)))) &&
-              isBest(h),
+          require: isBest,
         ));
       }
     } else if (level <= 3) {
@@ -7823,9 +7812,9 @@ List<SaycRule> reopeningRules(ContractBid opening, ContractBid overcall,
       BidAction.contract(level, s),
       BidMeaning(
         description: "Second suit: 4+ ${_suitNames[s]}",
-        totalPoints: isReverse
-            ? const Range(low: 17, high: 21)
-            : const Range(low: 12),
+        // Uncapped: a reopening reverse is the strongest action available.
+        totalPoints:
+            isReverse ? const Range(low: 17) : const Range(low: 12),
         suitLengths: {s: const Range(low: 4)},
       ),
       ignoreInfo: true,
@@ -9611,7 +9600,7 @@ List<SaycRule>? _openerSideRules(_Auction a) {
       opening.isOneLevelSuitBid &&
       a.response.isPass &&
       a.advance.isSuitBid &&
-      a.advance.bid.count <= 2 &&
+      a.advance.bid.count <= 3 &&
       a.advance.bid.trump != opening.bid.trump &&
       (a.overcall.isPass ||
           (a.overcall.isSuitBid &&
