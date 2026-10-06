@@ -409,12 +409,13 @@ void main() {
     test("no 3NT with a void in an unbid suit and a club fit", () {
       // Self-play seed 2026 deal 3, the largest double-dummy loss in the
       // original audit (17 IMPs): the contested version of the void case
-      // above. 6C and 7D make; 3NT makes six tricks.
+      // above. 6C and 7D make; 3NT makes six tricks. (East's fifth heart
+      // has moved to West: 5-5 in the majors now bids Michaels.)
       final call = engineCallAfter([
         "AT K QT9872 AT96",
-        "Q8632 AQ932 5 75",
+        "Q8632 AQ93 54 75",
         "J754 - AKJ3 KQJ32",
-        "K9 JT87654 64 84",
+        "K9 JT876542 6 84",
       ], "1D 1S 2C pass 3C pass");
       expect(call, "5C");
     });

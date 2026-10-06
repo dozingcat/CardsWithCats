@@ -670,7 +670,7 @@ void main() {
       final result = selectSaycBid(parseHand(exampleHandString),
           ["1D", "pass", "1S", "pass"].map(BidAction.fromString).toList());
       expect(result.action.toString(), "2S");
-      expect(result.meaning.totalPoints, const Range(low: 13, high: 15));
+      expect(result.meaning.totalPoints, const Range(low: 12, high: 15));
       expect(result.meaning.suitLengths[Suit.spades], const Range(low: 4));
     });
 
@@ -811,17 +811,23 @@ void main() {
     });
 
     test("after a single raise", () {
+      // A major invites with 15-17 and bids game with 18+ (a point lighter
+      // than the textbook ranges; see the rule).
       expect(
           openingBid("AKJ32", "K32", "Q32", "32",
               history: ["1S", "pass", "2S", "pass"]),
           "Pass"); // 14
       expect(
+          openingBid("AKJ32", "AQ2", "Q32", "32",
+              history: ["1S", "pass", "2S", "pass"]),
+          "3S"); // 17
+      expect(
           openingBid("AKJ32", "AK2", "Q32", "32",
               history: ["1S", "pass", "2S", "pass"]),
-          "3S"); // 18
+          "4S"); // 18
     });
 
-    test("accepts a limit raise with 14", () {
+    test("accepts a major limit raise even with a minimum", () {
       expect(
           openingBid("AKJ32", "K32", "Q32", "32",
               history: ["1S", "pass", "3S", "pass"]),
@@ -829,7 +835,7 @@ void main() {
       expect(
           openingBid("AKJ32", "Q32", "Q32", "32",
               history: ["1S", "pass", "3S", "pass"]),
-          "Pass"); // 13
+          "4S"); // 13
     });
 
     test("Jacoby 2NT rebids", () {
@@ -1162,6 +1168,8 @@ void main() {
     });
 
     test("invitation decisions after a raise", () {
+      // The single raise accepts responder's invitation even with a
+      // minimum (the known fit and 24+ combined make game a favorite).
       final h = ["1D", "pass", "1S", "pass", "2S", "pass", "3S", "pass"];
       expect(openingBid("AQ32", "K32", "A5432", "2", history: h), "4S"); // 14
       expect(
@@ -1169,7 +1177,7 @@ void main() {
                   h.map(BidAction.fromString).toList())
               .action
               .toString(),
-          "Pass"); // 13
+          "4S"); // 13
     });
 
     test("minor invite accepted with 3NT", () {
@@ -2777,12 +2785,12 @@ void main() {
       expect(nt, contains("balanced"));
       final spade = describeSaycCall([], BidAction.fromString("1S"))!.summary();
       expect(spade, contains("5+ spades"));
-      // 13+ total points with the ceiling expressed in HCP (the 2C boundary).
-      expect(spade, contains("13+ total points"));
+      // 12+ total points (Rule of 20 openings) with the ceiling expressed in HCP (the 2C boundary).
+      expect(spade, contains("12+ total points"));
       expect(spade, contains("<=21 HCP"));
       final weakTwo = describeSaycCall([], BidAction.fromString("2S"))!.summary();
       expect(weakTwo, contains("6 spades"));
-      expect(weakTwo, contains("5-10 HCP"));
+      expect(weakTwo, contains("6-10 HCP"));
     });
 
     test("vulnerability parameter is accepted", () {
@@ -3215,7 +3223,7 @@ void main() {
       final meaning = describeSaycCall(
           ["1D", "pass", "1S", "pass"].map(BidAction.fromString).toList(),
           BidAction.fromString("2S"))!;
-      expect(meaning.totalPoints, const Range(low: 13, high: 15));
+      expect(meaning.totalPoints, const Range(low: 12, high: 15));
       expect(meaning.suitLengths[Suit.spades], const Range(low: 4));
     });
 
@@ -3241,7 +3249,7 @@ void main() {
       final ex = explainSaycAuction(["1S", "pass", "2S", "pass", "3S", "pass"]
           .map(BidAction.fromString)
           .toList());
-      expect(ex.players[0]!.totalPoints, const Range(low: 16, high: 18));
+      expect(ex.players[0]!.totalPoints, const Range(low: 15, high: 17));
       expect(ex.players[0]!.suitLengths[Suit.spades], const Range(low: 5));
       expect(ex.players[2]!.totalPoints, const Range(low: 6, high: 10));
     });
@@ -3278,7 +3286,7 @@ void main() {
 
     test("describe weak two", () {
       final meaning = describeSaycCall([], BidAction.fromString("2H"));
-      expect(meaning!.hcp, const Range(low: 5, high: 10));
+      expect(meaning!.hcp, const Range(low: 6, high: 10));
       expect(meaning.suitLengths[Suit.hearts], const Range(low: 6, high: 6));
     });
 
@@ -3297,7 +3305,7 @@ void main() {
       expect(ex.calls[0].meaning!.totalPoints, const Range(high: 12));
       expect(ex.calls[1].meaning!.suitLengths[Suit.spades],
           const Range(low: 5));
-      expect(ex.players[1]!.totalPoints, const Range(low: 13));
+      expect(ex.players[1]!.totalPoints, const Range(low: 12));
       expect(ex.players[1]!.hcp, const Range(high: 21));
     });
   });

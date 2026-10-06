@@ -115,9 +115,13 @@ consulted.
   only with exactly 4=4=3=2).
 - 1NT = 15-17 balanced (may contain a 5-card major); 2NT = 20-21 balanced.
 - 2C = strong and artificial, 22+ HCP.
-- Weak twos (2D/2H/2S) = 6-card suit, 5-10 HCP; 3-level = 7-card suit,
-  4-level = 8+; preempts take priority over shape-based light openings.
-- One-level suit openings need 13+ total points (HCP + length points).
+- Weak twos (2D/2H/2S) = 6-card suit, 6-10 HCP; 3-level = 7-card suit
+  (6-10), 4-level = 8+ (5-10); preempts take priority over shape-based
+  light openings.
+- One-level suit openings need 13+ total points (HCP + length points) or
+  the Rule of 20 with 11+ HCP (HCP plus the two longest suits' lengths:
+  adds 12-HCP balanced hands and 11-HCP 5-4s), in every seat. Opener's
+  minimum ranges advertise 12+ accordingly.
 
 ### Responses
 - To one of a major: single raise 6-10 with 3+ trumps (raises take priority
@@ -163,8 +167,10 @@ consulted.
   requiring 17+ and jump shifts showing 18+; otherwise rebid the suit.
   A 3NT response to a minor (16+ balanced) is raised to 6NT with 17+
   (33+ combined is certain).
-- After raises: pass minimums, invite with 16-18, bid game with 19+ (accept
-  a limit raise with 14+).
+- After raises: over a major's single raise pass 13-14, invite with 15-17,
+  bid game with 18+ (a minor keeps 16-18 / 19+); a major limit raise is
+  accepted even with a minimum (a minor's needs 14+). Responder accepts
+  the 15-17 game try with 8-10.
 - After Jacoby 2NT: 4M minimum, 3M with extras.
 - After 1NT openings: Stayman answers (2D/2H/2S, hearts first with both),
   transfer completions, invitation accepted with 16+; the post-transfer 2NT
@@ -249,8 +255,28 @@ consulted.
   cards with 6+ HCP in their suit, 12+ points). Balancing seat is treated
   like direct seat, except that a reopening 1NT over a one-level suit
   opening is lighter: 11-16 balanced with a stopper (17+ balanced doubles
-  first). Suit overcalls and doubles are not yet lightened in the
-  balancing seat.
+  first). Balancing suit overcalls and takeout doubles are one point
+  lighter (the textbook "borrow a king" lost against par: the advances
+  don't discount for it), and weak jump overcalls aren't used there.
+  Two-level overcalls need 11+ HCP (10 with a seven-card suit, or six
+  headed by two top honors). Over a three-level preempt, a four-level
+  overcall shows a good six-card suit and 16+.
+- Two-suited overcalls (direct seat over a one-level suit opening, 8-16
+  HCP, 5-5 or better): Michaels cue bid = both majors over a minor, the
+  other major and a minor over a major; unusual 2NT = the two lowest
+  unbid suits. The advancer prefers the better suit (jumping to invite
+  with 8-10, game with a fit and 11+), bids 3NT with their suit stopped
+  and 13+, or asks for the Michaels bidder's minor with 2NT (then raises
+  to five or bids 3NT with values); a free advance after RHO's bid
+  follows the law of total tricks. Against them, responder raises, bids
+  3NT with both suits stopped, or doubles with 10+; after the double the
+  opener doubles their choice with three trumps or passes (forcing), and
+  the doubler then doubles unless 3NT or a major game is better. Later
+  calls go to the fallback, which bids from the stated meanings.
+- Opener with partner silent: after 1x P P (2y) or 1x (2y) P (3y), opener
+  competes as in the pass-out seat (game or a jump with a big one-suiter,
+  a six-card rebid, 18-19 notrump), but a takeout double there needs 18+
+  and the opponents must still be at the two level.
 - Advancing a forced takeout double includes the penalty pass: with 4+
   trumps (5+ HCP among them) and 8+ HCP, the double is converted rather
   than advanced. Advances never jump past game; a takeout double is
@@ -307,6 +333,11 @@ consulted.
   (opener's jump-shift rebids exist; splinter responses to majors exist).
 - Splinters apply only in uncontested auctions (the same double jump in
   competition is a natural free bid).
+- Responder with 19+ HCP opposite a one-level opening and a natural rebid
+  bids 6NT (or six of a known major fit) where it would bid 3NT; after a
+  1NT rebid 19-20 invites with a quantitative 4NT. Opener with a
+  self-sufficient major and slam values asks Blackwood over a two-over-one
+  rather than jumping to game.
 - Jacoby 2NT rebids don't show shortness; slam machinery is limited to
   Blackwood/Gerber ace-asks and quantitative 4NT (no king-asks, cue bids,
   or grand slams), and the fallback bidder never initiates a slam.
@@ -314,9 +345,8 @@ consulted.
 - Responder's game bids in notrump don't check for stoppers (except in
   competition, where a stopper in the enemy suit is required); no
   new-minor-forcing/checkback after opener's 1NT rebid.
-- No cue-bid raises, Jordan 2NT, Michaels/unusual 2NT, or conventional
-  defenses to 1NT (natural 6-card overcalls and responder's penalty double
-  only).
+- No cue-bid raises, Jordan 2NT, or conventional defenses to 1NT (natural
+  6-card overcalls and responder's penalty double only).
 - The card-play AI does not yet use bidding inferences; feeding
   `explainSaycAuction`'s per-seat constraints into the Monte Carlo card
   distributions is a natural next step.
@@ -324,7 +354,7 @@ consulted.
 ## Tools
 
 ```sh
-flutter test test/bridge/                         # 312 tests, includes a
+flutter test test/bridge/                         # 400 tests, includes a
                                                   # 500-deal chaos fuzz test
 
 # Choose or interpret bids from the command line:
@@ -363,6 +393,18 @@ DDS_LIB=native/libdds.dylib dart run scripts/minor_game_scan.dart --deals 20000
 # meaning (recurring rules are the signal):
 DDS_LIB=native/libdds.dylib dart run scripts/dd_loss_scan.dart --deals 3000
 
+# Fast par scoring for tuning: solve deals double dummy once into a cache
+# file (about 10 minutes for 20000 deals with 9 workers), then score the
+# engine against par from the cache in seconds. dd_eval splits the IMPs
+# lost into categories (from the losing side's view) and, with --save /
+# --compare, lists the deals whose auction changed between two versions
+# with the net IMPs:
+DDS_LIB=native/libdds.dylib dart run scripts/dd_tables.dart --seed 2026 \
+    --deals 20000 --workers 9 --out dev.tables
+dart run scripts/dd_eval.dart --tables dev.tables --save before.txt
+dart run scripts/dd_eval.dart --tables dev.tables --compare before.txt \
+    [--top N] [--show CATEGORY] [--hcp]
+
 # Behavior fingerprint for refactors: every self-play position's call and
 # stated meaning, one per line. Record before a change that should not alter
 # bidding and diff after (add --chaos P to cover off-system auctions):
@@ -385,7 +427,7 @@ known failures can use its `knownFailure` wrapper: the suite passes while
 the engine still makes the bad call, and the case fails with "now passes"
 once a fix makes it pass, to be turned back into a plain `test`.
 
-### Audit conventions and current results (2026-08-30)
+### Audit conventions and current results (2026-10-06)
 
 Seed 1 over 3000 deals is the held-out **test set**: fixes are mined from
 other seeds (42 at 4000 deals is the current dev seed) so that seed 1 stays
@@ -394,33 +436,37 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 473 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 661 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 507 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 613 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 278, missed-game 124,
-silly-strain 50, missed-slam 18, thin-game 2, no-rule-matched 1.
-Fallback-used is monitoring, not failure. The missed-game lint excuses
+Seed 1 findings by category: fallback-used 298, missed-game 130,
+silly-strain 51, missed-slam 15, thin-game 11, slam-light 1,
+no-rule-matched 1. Fallback-used is monitoring, not failure (calls after
+Michaels and the unusual 2NT go there by design); the lints are
+heuristics, and the double-dummy par score below is the better guide:
+the October 2026 tuning traded a few more thin games for a better score. The missed-game lint excuses
 stops below game when an opponent-bid suit is unstopped, there is no
 eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 71.7% of the time
-(precision), and 63.5% of double-dummy-makeable games get bid (recall).
-56 slams are bid, of which 49 make (87.5% precision; the quantitative
+Double-dummy accuracy over 6000 deals: games bid make 70.8% of the time
+(precision), and 66.0% of double-dummy-makeable games get bid (recall).
+78 slams are bid, of which 68 make (87.2% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
-/ 12 making). Recall is 6.0% of DD slam chances — most DD "slams" lack the
+/ 12 making). Recall is 8.5% of DD slam chances — most DD "slams" lack the
 combined strength any bidding system would need.
 
 Precision and recall leave doubled contracts out, so they can't see
 sacrifices. The script also scores every deal (non-vulnerable, doubled
 contracts included) against double-dummy par — the result of both sides
 bidding optimally from the double-dummy trick table, including
-sacrifices — and reports the average IMPs lost per deal: currently 4.49,
-with 27.4% of deals within 10 points of par. The absolute number is
+sacrifices — and reports the average IMPs lost per deal: currently 4.42
+(4.49 before the October 2026 tuning), with 28.6% of deals within 10
+points of par. The absolute number is
 harsh by design (par sees all four hands); compare it between versions.
 Doubled contracts that went down are split into good sacrifices (cheaper
-than the opponents' best makeable contract: 73, saving 19600 points)
-and bad ones (87, costing 19860). The split is from the declaring side's
+than the opponents' best makeable contract: 68, saving 15900 points)
+and bad ones (100, costing 22780). The split is from the declaring side's
 point of view, so our penalty doubles of their contracts count here too.
