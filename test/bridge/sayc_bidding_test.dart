@@ -827,7 +827,7 @@ void main() {
           "4S"); // 18
     });
 
-    test("accepts a major limit raise even with a minimum", () {
+    test("accepts a major limit raise with 13", () {
       expect(
           openingBid("AKJ32", "K32", "Q32", "32",
               history: ["1S", "pass", "3S", "pass"]),
@@ -836,6 +836,11 @@ void main() {
           openingBid("AKJ32", "Q32", "Q32", "32",
               history: ["1S", "pass", "3S", "pass"]),
           "4S"); // 13
+      // A Rule of 20 opening with 12 total points declines.
+      expect(
+          openingBid("K432", "A5432", "A5", "32",
+              history: ["1H", "pass", "3H", "pass"]),
+          "Pass");
     });
 
     test("Jacoby 2NT rebids", () {

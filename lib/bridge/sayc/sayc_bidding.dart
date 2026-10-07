@@ -2410,12 +2410,13 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         BidAction.pass(),
         BidMeaning(
             description: "Minimum opening, declining the invitation",
-            totalPoints: const Range(low: 12, high: 13)),
+            totalPoints: Range(low: 12, high: _isMajor(mySuit) ? 12 : 13)),
         ignoreInfo: true,
-        // A major limit raise is accepted even with a minimum: the eight-
-        // card fit and 24+ combined make game a favorite (measured over
-        // 20000 deals, non-vulnerable par).
-        require: (h) => h.totalPoints <= 13 && !_isMajor(mySuit),
+        // A major limit raise is accepted with 13+ (24+ combined with an
+        // eight-card fit); only a 12-point Rule of 20 opener declines.
+        // Over 20000 deals accepting with 12 or 13 scored alike, and the
+        // textbook 14 scored worse.
+        require: (h) => h.totalPoints <= (_isMajor(mySuit) ? 12 : 13),
       ),
       blackwoodAskRule(mySuit, 11),
       if (!_isMajor(mySuit)) ...[
@@ -2441,7 +2442,7 @@ List<SaycRule> _rebidAfterRaiseRules(ContractBid opening, ContractBid response) 
         BidAction.contract(gameLevel, mySuit),
         BidMeaning(
             description: "Accepting the game invitation",
-            totalPoints: Range(low: _isMajor(mySuit) ? 12 : 14)),
+            totalPoints: Range(low: _isMajor(mySuit) ? 13 : 14)),
         ignoreInfo: true,
       ),
     ];

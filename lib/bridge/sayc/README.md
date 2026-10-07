@@ -168,7 +168,7 @@ consulted.
   (33+ combined is certain).
 - After raises: over a major's single raise pass 13-14, invite with 15-17,
   bid game with 18+ (a minor keeps 16-18 / 19+); a major limit raise is
-  accepted even with a minimum (a minor's needs 14+). Responder accepts
+  accepted with 13+ (a minor's needs 14+). Responder accepts
   the 15-17 game try with 8-10.
 - After Jacoby 2NT: 4M minimum, 3M with extras.
 - After 1NT openings: Stayman answers (2D/2H/2S, hearts first with both),
