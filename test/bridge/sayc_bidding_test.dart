@@ -2346,7 +2346,7 @@ void main() {
               history: ["1C", "2NT", "pass", "4D", "pass"]),
           "Pass");
       expect(
-          openingBid("K98", "T4", "KJ94", "Q432",
+          openingBid("K98", "T4", "KJ94", "K432",
               history: ["1C", "2NT", "pass"]),
           "4D"); // 10 HCP, four trumps
     });
