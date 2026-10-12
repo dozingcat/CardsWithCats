@@ -2346,9 +2346,9 @@ void main() {
               history: ["1C", "2NT", "pass", "4D", "pass"]),
           "Pass");
       expect(
-          openingBid("K98", "T4", "KJ94", "K432",
+          openingBid("K98", "T4", "KJ94", "Q432",
               history: ["1C", "2NT", "pass"]),
-          "4D"); // 10 HCP, four trumps
+          "4D"); // 9 HCP + a doubleton: 10 dummy points, four trumps
     });
 
     test("opener after partner's negative double", () {
