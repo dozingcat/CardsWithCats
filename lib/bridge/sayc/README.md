@@ -261,8 +261,12 @@ consulted.
 - Two-suited overcalls (direct seat over a one-level suit opening, 8-16
   HCP, 5-5 or better): Michaels cue bid = both majors over a minor, the
   other major and a minor over a major; unusual 2NT = the two lowest
-  unbid suits. The advancer prefers the better suit (jumping to invite
-  with 8-10, game with a fit and 11+), bids 3NT with their suit stopped
+  unbid suits. The advancer prefers the better suit, counting dummy
+  points (HCP plus shortness; length in its own suits is worthless
+  there): a jump invites with 8-10 in a major or 10-12 in a minor (the
+  overcaller accepts with 12+ or 14+ HCP), game with a fit and 11+ in a
+  major or 13+ in a minor (two less with four trumps); it bids 3NT with
+  their suit stopped
   and 13+, or asks for the Michaels bidder's minor with 2NT (then raises
   to five or bids 3NT with values); a free advance after RHO's bid
   follows the law of total tricks. Against them, responder raises, bids
@@ -401,10 +405,13 @@ DDS_LIB=native/libdds.dylib dart run scripts/dd_loss_scan.dart --deals 3000
 # preempts, balancing) by the side-aware net: par charges an opponent's
 # resulting misjudgment to the call that caused it. --decisions breaks the
 # side-aware net down by that first call's rule:
+# (build/ is gitignored, so build/dd_cache survives between sessions.)
 DDS_LIB=native/libdds.dylib dart run scripts/dd_tables.dart --seed 2026 \
-    --deals 20000 --workers 9 --out dev.tables
-dart run scripts/dd_eval.dart --tables dev.tables --save before.txt
-dart run scripts/dd_eval.dart --tables dev.tables --compare before.txt \
+    --deals 20000 --workers 9 --out build/dd_cache/seed2026.txt
+dart run scripts/dd_eval.dart --tables build/dd_cache/seed2026.txt \
+    --save before.txt
+dart run scripts/dd_eval.dart --tables build/dd_cache/seed2026.txt \
+    --compare before.txt \
     [--decisions] [--top N] [--show CATEGORY] [--hcp]
 
 # Behavior fingerprint for refactors: every self-play position's call and
@@ -439,7 +446,7 @@ down as gaps get fixed; a jump up means a regression.
 | Run | Result |
 | --- | --- |
 | seed 1, 3000 deals (test set) | 510 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 643 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 642 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
 Seed 1 findings by category: fallback-used 302, missed-game 125,

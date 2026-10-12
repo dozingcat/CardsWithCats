@@ -2333,6 +2333,24 @@ void main() {
   });
 
   group("competitive continuations", () {
+    test("unusual 2NT invitations count dummy points, not side length", () {
+      // Manual play: 7 HCP with six spades jumped to 4D (its spade length
+      // counted), and the 12-HCP overcaller accepted; 5D went down three.
+      expect(
+          openingBid("A98643", "T4", "K94", "32",
+              history: ["1C", "2NT", "pass"]),
+          "3D");
+      // Five of a minor needs 14+ to accept.
+      expect(
+          openingBid("K", "Q9762", "AQ532", "J6",
+              history: ["1C", "2NT", "pass", "4D", "pass"]),
+          "Pass");
+      expect(
+          openingBid("K98", "T4", "KJ94", "Q432",
+              history: ["1C", "2NT", "pass"]),
+          "4D"); // 10 HCP, four trumps
+    });
+
     test("opener after partner's negative double", () {
       final h = ["1D", "1S", "X", "pass"];
       expect(openingBid("432", "KQ32", "AKJ32", "2", history: h), "2H");
