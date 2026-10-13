@@ -261,12 +261,10 @@ consulted.
 - Two-suited overcalls (direct seat over a one-level suit opening, 8-16
   HCP, 5-5 or better): Michaels cue bid = both majors over a minor, the
   other major and a minor over a major; unusual 2NT = the two lowest
-  unbid suits. The advancer prefers the better suit, counting dummy
-  points (HCP plus shortness; length in its own suits is worthless
-  there): a jump invites with 8-10 in a major or 10-12 in a minor (the
-  overcaller accepts with 12+ or 14+ HCP), game with a fit and 11+ in a
-  major or 13+ in a minor (two less with four trumps); it bids 3NT with
-  their suit stopped
+  unbid suits. The advancer prefers the better suit: a jump invites with
+  8-10 points in a major or 10-12 in a minor (the overcaller accepts with
+  12+ or 14+ HCP), game with a fit and 11+ in a major or 13+ in a minor
+  (two less with four trumps); it bids 3NT with their suit stopped
   and 13+, or asks for the Michaels bidder's minor with 2NT (then raises
   to five or bids 3NT with values); a free advance after RHO's bid
   follows the law of total tricks. Against them, responder raises, bids
@@ -445,12 +443,12 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 510 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 642 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 508 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 645 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 302, missed-game 125,
-silly-strain 51, missed-slam 15, thin-game 14, slam-light 1,
+Seed 1 findings by category: fallback-used 303, missed-game 126,
+silly-strain 51, missed-slam 15, thin-game 11, slam-light 1,
 no-rule-matched 1. Fallback-used is monitoring, not failure (calls after
 Michaels and the unusual 2NT go there by design); the lints are
 heuristics, and the double-dummy par score below is the better guide:
@@ -460,8 +458,8 @@ eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 70.1% of the time
-(precision), and 65.8% of double-dummy-makeable games get bid (recall).
+Double-dummy accuracy over 6000 deals: games bid make 70.2% of the time
+(precision), and 65.6% of double-dummy-makeable games get bid (recall).
 73 slams are bid, of which 63 make (86.3% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
 / 12 making). Recall is 7.9% of DD slam chances — most DD "slams" lack the

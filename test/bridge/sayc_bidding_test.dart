@@ -2333,9 +2333,9 @@ void main() {
   });
 
   group("competitive continuations", () {
-    test("unusual 2NT invitations count dummy points, not side length", () {
-      // Manual play: 7 HCP with six spades jumped to 4D (its spade length
-      // counted), and the 12-HCP overcaller accepted; 5D went down three.
+    test("unusual 2NT minor invitations need 10+ points", () {
+      // Manual play: 7 HCP with six spades (9 points) jumped to 4D, and the
+      // 12-HCP overcaller accepted; 5D went down three.
       expect(
           openingBid("A98643", "T4", "K94", "32",
               history: ["1C", "2NT", "pass"]),
@@ -2346,9 +2346,9 @@ void main() {
               history: ["1C", "2NT", "pass", "4D", "pass"]),
           "Pass");
       expect(
-          openingBid("K98", "T4", "KJ94", "Q432",
+          openingBid("K98", "T4", "KJ94", "K432",
               history: ["1C", "2NT", "pass"]),
-          "4D"); // 9 HCP + a doubleton: 10 dummy points, four trumps
+          "4D"); // 10 HCP, four trumps
     });
 
     test("opener after partner's negative double", () {

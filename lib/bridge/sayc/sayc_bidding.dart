@@ -66,25 +66,6 @@ class HandAnalysis {
   bool stopsAllBut(Set<Suit> excluded) =>
       Suit.values.where((s) => !excluded.contains(s)).every(hasStopper);
 
-  /// Dummy points for raising partner's [trump]: HCP plus side-suit
-  /// shortness (void/singleton/doubleton 3/2/1 with three trumps, 5/3/1
-  /// with four or more). Unlike [totalPoints] it gives nothing for length
-  /// in a side suit, which is worthless in partner's contract.
-  int dummyPoints(Suit trump) {
-    final four = count(trump) >= 4;
-    var points = hcp;
-    for (final s in Suit.values) {
-      if (s == trump) continue;
-      points += switch (count(s)) {
-        0 => four ? 5 : 3,
-        1 => four ? 3 : 2,
-        2 => 1,
-        _ => 0,
-      };
-    }
-    return points;
-  }
-
   /// Trump length and shape to raise to the level of the fit on few points:
   /// five trumps, or four with a singleton or void.
   bool hasRaiseShape(Suit trump) =>
@@ -5677,24 +5658,23 @@ List<SaycRule> _twoSuitedAdvanceRules(
     final level = cheapestLevel(suit, over);
     final game = _gameLevel(suit);
     if (level > game) continue;
-    // Opposite a 5-5 two-suiter a fit plays well, counted in dummy points
-    // (length in our own side suits is worthless there): game in a major
-    // with 11+ and three trumps (9+ with four), in a minor with 13+ (11+);
-    // a jump invitation when it lands below game, 8-10 for a major and
-    // 10-12 for a minor (eleven tricks, and the jump is already at the
-    // four level).
+    // Opposite a 5-5 two-suiter a fit plays well: game in a major with 11+
+    // and three trumps (9+ with four), in a minor with 13+ (11+); a jump
+    // invitation when it lands below game, 8-10 for a major and 10-12 for a
+    // minor (eleven tricks, and the jump is already at the four level).
     rules.add(SaycRule(
       BidAction.contract(game, suit),
       BidMeaning(
         description: "Game in $name opposite the two-suiter",
+        totalPoints: Range(low: _isMajor(suit) ? 9 : 11),
         suitLengths: {suit: const Range(low: 3)},
       ),
       ignoreInfo: true,
       require: (h) =>
           _twoSuitedChoice(h, shown.suits) == suit &&
-          ((h.count(suit) >= 3 && h.dummyPoints(suit) >= (_isMajor(suit) ? 11 : 13)) ||
+          ((h.count(suit) >= 3 && h.totalPoints >= (_isMajor(suit) ? 11 : 13)) ||
               (h.count(suit) >= 4 &&
-                  h.dummyPoints(suit) >= (_isMajor(suit) ? 9 : 11))),
+                  h.totalPoints >= (_isMajor(suit) ? 9 : 11))),
     ));
     if (level + 1 < game) {
       rules.add(SaycRule(
@@ -5702,14 +5682,17 @@ List<SaycRule> _twoSuitedAdvanceRules(
         BidMeaning(
           description: "Invitational jump in $name: 3+ cards, "
               "${_isMajor(suit) ? '8-10' : '10-12'} points",
+          totalPoints: _isMajor(suit)
+              ? const Range(low: 8, high: 10)
+              : const Range(low: 10, high: 12),
           suitLengths: {suit: const Range(low: 3)},
         ),
         ignoreInfo: true,
         require: (h) =>
             _twoSuitedChoice(h, shown.suits) == suit &&
             h.count(suit) >= 3 &&
-            h.dummyPoints(suit) >= (_isMajor(suit) ? 8 : 10) &&
-            h.dummyPoints(suit) <= (_isMajor(suit) ? 10 : 12),
+            h.totalPoints >= (_isMajor(suit) ? 8 : 10) &&
+            h.totalPoints <= (_isMajor(suit) ? 10 : 12),
       ));
     }
   }
