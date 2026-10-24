@@ -8675,11 +8675,12 @@ BidMeaning? partnerShown(List<BidAction> calls) {
 /// A reasonable generic call for auction positions outside the rule tables.
 ///
 /// Combines the hand with partner's accumulated constraints: bid game with
-/// 25+ combined points (preferring a known 8-card fit, else 3NT with
-/// stoppers in the opponents' suits), compete to the level of the combined
-/// trump count (law of total tricks), double for penalty with a strong
-/// trump stack over their 2-level+ contract or when they preempt into 23+
-/// combined points, and otherwise pass. It never initiates slams.
+/// 25+ combined points (preferring a known 8-card fit, then a six-card
+/// major of our own, else 3NT with stoppers in the opponents' suits),
+/// compete to the level of the combined trump count (law of total tricks),
+/// double for penalty with a strong trump stack over their 2-level+
+/// contract or when they preempt into 23+ combined points, and otherwise
+/// pass. It never initiates slams.
 SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
   final analysis = HandAnalysis(hand);
   final partner = partnerShown(calls);
@@ -8707,14 +8708,19 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
   final lastBid = calls[lastIndex].bid;
   final ours = (n - lastIndex) % 2 == 0;
 
-  final enemySuits = <Suit>{
-    for (int i = 0; i < n; i++)
-      if ((n - i) % 2 == 1 &&
-          calls[i].isBid &&
-          calls[i].bid.trump != null)
-        calls[i].bid.trump!,
-  };
-
+  // The opponents' suits, leaving out cue bids of a suit our side bid
+  // first (Michaels, a cue-bid raise).
+  final ourSuits = <Suit>{};
+  final enemySuits = <Suit>{};
+  for (int i = 0; i < n; i++) {
+    final suit = calls[i].bidOrNull?.trump;
+    if (suit == null) continue;
+    if ((n - i) % 2 == 0) {
+      ourSuits.add(suit);
+    } else if (!ourSuits.contains(suit)) {
+      enemySuits.add(suit);
+    }
+  }
 
   Suit? findBestFit() {
     final candidates = Suit.values
@@ -8734,6 +8740,22 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
       }
     }
     return best;
+  }
+
+  // A long major of our own (six or more cards) is the trump suit even
+  // with no support promised: play game there rather than in 3NT
+  // (partner may hold a void, but the suit's tricks need no entries and
+  // ruffs protect the weak side).
+  SaycBid? longMajorGame() {
+    for (final major in [Suit.spades, Suit.hearts]) {
+      if (analysis.count(major) >= 6 &&
+          !enemySuits.contains(major) &&
+          cheapestLevel(major, lastBid) <= 4) {
+        return result(BidAction.contract(4, major),
+            "Fallback: game in our long ${_suitNames[major]} suit");
+      }
+    }
+    return null;
   }
 
   if (ours) {
@@ -8778,18 +8800,8 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
         final g = minorGame(fit);
         if (g != null) return g;
       }
-      // A long major of our own (six or more cards) is the trump suit even
-      // with no support promised: play game there rather than in 3NT
-      // (partner may hold a void, but the suit's tricks need no entries
-      // and ruffs protect the weak side).
-      for (final major in [Suit.spades, Suit.hearts]) {
-        if (analysis.count(major) >= 6 &&
-            !enemySuits.contains(major) &&
-            cheapestLevel(major, lastBid) <= 4) {
-          return result(BidAction.contract(4, major),
-              "Fallback: game in our long ${_suitNames[major]} suit");
-        }
-      }
+      final longMajor = longMajorGame();
+      if (longMajor != null) return longMajor;
       if (cheapestLevel(null, lastBid) <= 3) {
         return result(BidAction.noTrump(3),
             "Fallback: bidding 3NT (25+ combined points)");
@@ -8820,6 +8832,8 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
         return result(BidAction.contract(4, fit),
             "Fallback: bidding game in our major fit");
       }
+      final longMajor = longMajorGame();
+      if (longMajor != null) return longMajor;
       if (enemySuits.every(analysis.hasStopper) &&
           cheapestLevel(null, lastBid) <= 3) {
         return result(BidAction.noTrump(3),
@@ -8832,6 +8846,10 @@ SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
       return result(BidAction.contract(level, fit),
           "Fallback: competing to the level of our combined trumps");
     }
+  }
+  if (combined >= 25) {
+    final longMajor = longMajorGame();
+    if (longMajor != null) return longMajor;
   }
   if (combined >= 25 &&
       enemySuits.isNotEmpty &&

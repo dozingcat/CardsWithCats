@@ -35,7 +35,8 @@ The same tables drive both directions:
 Positions outside the rule tables (`saycRulesForAuction` returns null) go to
 the fallback bidder: it accumulates everything partner has shown via the
 interpretation layer, then bids game with 25+ combined points (preferring a
-known 8-card fit, else 3NT with stoppers in the opponents' suits), competes
+known 8-card fit, then a six-card major of its own, else 3NT with stoppers
+in the opponents' suits), competes
 to the level of the combined trump count (law of total tricks), doubles for
 penalty with a strong trump stack over their 2-level+ contract or when they
 preempt into 23+ combined points, and otherwise passes. It never initiates
@@ -443,12 +444,12 @@ down as gaps get fixed; a jump up means a regression.
 
 | Run | Result |
 | --- | --- |
-| seed 1, 3000 deals (test set) | 508 findings, 0 hard failures |
-| seed 42, 4000 deals (dev) | 645 findings, 0 hard failures |
+| seed 1, 3000 deals (test set) | 516 findings, 0 hard failures |
+| seed 42, 4000 deals (dev) | 651 findings, 0 hard failures |
 | chaos 0.15, 5000 deals | 0 hard failures |
 
-Seed 1 findings by category: fallback-used 303, missed-game 126,
-silly-strain 51, missed-slam 15, thin-game 11, slam-light 1,
+Seed 1 findings by category: fallback-used 312, missed-game 125,
+silly-strain 52, missed-slam 15, thin-game 10, slam-light 1,
 no-rule-matched 1. Fallback-used is monitoring, not failure (calls after
 Michaels and the unusual 2NT go there by design); the lints are
 heuristics, and the double-dummy par score below is the better guide:
@@ -458,8 +459,8 @@ eight-card major fit, and the side holds under 28 points (no game is
 attractive there); missed-slam mostly reflects the deliberately minimal
 slam machinery.
 
-Double-dummy accuracy over 6000 deals: games bid make 70.2% of the time
-(precision), and 65.6% of double-dummy-makeable games get bid (recall).
+Double-dummy accuracy over 6000 deals: games bid make 70.3% of the time
+(precision), and 65.9% of double-dummy-makeable games get bid (recall).
 73 slams are bid, of which 63 make (86.3% precision; the quantitative
 raises and fit-auction Blackwood entries together lifted this from 15 bid
 / 12 making). Recall is 7.9% of DD slam chances — most DD "slams" lack the

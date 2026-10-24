@@ -1704,6 +1704,16 @@ void main() {
       expect(openingBid("AQ9763", "KQ2", "72", "A3", history: h), "4S");
     });
 
+    test("fallback plays game in a long major when they hold the contract",
+        () {
+      // Manual-play hands: after their 2S cue-bid raise and 3D, the
+      // fallback bid 3NT with a diamond stopper and passed without one.
+      // Their cue bid of our suit doesn't make spades their suit.
+      final h = ["1S", "2D", "2H", "2S", "X", "3D", "pass", "pass"];
+      expect(openingBid("AKJ6543", "T8", "A62", "9", history: h), "4S");
+      expect(openingBid("AKJ6543", "T8", "762", "A", history: h), "4S");
+    });
+
     test("opener prefers 3NT to five of a minor opposite a raise", () {
       // Manual-play hand: a balanced 14-count bid 5D opposite the 11-13
       // limit raise.
