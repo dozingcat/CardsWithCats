@@ -670,7 +670,7 @@ void main() {
       final result = selectSaycBid(parseHand(exampleHandString),
           ["1D", "pass", "1S", "pass"].map(BidAction.fromString).toList());
       expect(result.action.toString(), "2S");
-      expect(result.meaning.totalPoints, const Range(low: 13, high: 15));
+      expect(result.meaning.totalPoints, const Range(low: 12, high: 15));
       expect(result.meaning.suitLengths[Suit.spades], const Range(low: 4));
     });
 
@@ -811,17 +811,23 @@ void main() {
     });
 
     test("after a single raise", () {
+      // A major invites with 15-17 and bids game with 18+ (a point lighter
+      // than the textbook ranges; see the rule).
       expect(
           openingBid("AKJ32", "K32", "Q32", "32",
               history: ["1S", "pass", "2S", "pass"]),
           "Pass"); // 14
       expect(
+          openingBid("AKJ32", "AQ2", "Q32", "32",
+              history: ["1S", "pass", "2S", "pass"]),
+          "3S"); // 17
+      expect(
           openingBid("AKJ32", "AK2", "Q32", "32",
               history: ["1S", "pass", "2S", "pass"]),
-          "3S"); // 18
+          "4S"); // 18
     });
 
-    test("accepts a limit raise with 14", () {
+    test("accepts a major limit raise with 13", () {
       expect(
           openingBid("AKJ32", "K32", "Q32", "32",
               history: ["1S", "pass", "3S", "pass"]),
@@ -829,7 +835,12 @@ void main() {
       expect(
           openingBid("AKJ32", "Q32", "Q32", "32",
               history: ["1S", "pass", "3S", "pass"]),
-          "Pass"); // 13
+          "4S"); // 13
+      // A Rule of 20 opening with 12 total points declines.
+      expect(
+          openingBid("K432", "A5432", "A5", "32",
+              history: ["1H", "pass", "3H", "pass"]),
+          "Pass");
     });
 
     test("Jacoby 2NT rebids", () {
@@ -1162,6 +1173,8 @@ void main() {
     });
 
     test("invitation decisions after a raise", () {
+      // The single raise accepts responder's invitation even with a
+      // minimum (the known fit and 24+ combined make game a favorite).
       final h = ["1D", "pass", "1S", "pass", "2S", "pass", "3S", "pass"];
       expect(openingBid("AQ32", "K32", "A5432", "2", history: h), "4S"); // 14
       expect(
@@ -1169,7 +1182,7 @@ void main() {
                   h.map(BidAction.fromString).toList())
               .action
               .toString(),
-          "Pass"); // 13
+          "4S"); // 13
     });
 
     test("minor invite accepted with 3NT", () {
@@ -1689,6 +1702,16 @@ void main() {
       // Six cards too, including the flattest 6-3-2-2 shape.
       expect(openingBid("AQ9763", "KQ2", "7", "A32", history: h), "4S");
       expect(openingBid("AQ9763", "KQ2", "72", "A3", history: h), "4S");
+    });
+
+    test("fallback plays game in a long major when they hold the contract",
+        () {
+      // Manual-play hands: after their 2S cue-bid raise and 3D, the
+      // fallback bid 3NT with a diamond stopper and passed without one.
+      // Their cue bid of our suit doesn't make spades their suit.
+      final h = ["1S", "2D", "2H", "2S", "X", "3D", "pass", "pass"];
+      expect(openingBid("AKJ6543", "T8", "A62", "9", history: h), "4S");
+      expect(openingBid("AKJ6543", "T8", "762", "A", history: h), "4S");
     });
 
     test("opener prefers 3NT to five of a minor opposite a raise", () {
@@ -2320,6 +2343,24 @@ void main() {
   });
 
   group("competitive continuations", () {
+    test("unusual 2NT minor invitations need 10+ points", () {
+      // Manual play: 7 HCP with six spades (9 points) jumped to 4D, and the
+      // 12-HCP overcaller accepted; 5D went down three.
+      expect(
+          openingBid("A98643", "T4", "K94", "32",
+              history: ["1C", "2NT", "pass"]),
+          "3D");
+      // Five of a minor needs 14+ to accept.
+      expect(
+          openingBid("K", "Q9762", "AQ532", "J6",
+              history: ["1C", "2NT", "pass", "4D", "pass"]),
+          "Pass");
+      expect(
+          openingBid("K98", "T4", "KJ94", "K432",
+              history: ["1C", "2NT", "pass"]),
+          "4D"); // 10 HCP, four trumps
+    });
+
     test("opener after partner's negative double", () {
       final h = ["1D", "1S", "X", "pass"];
       expect(openingBid("432", "KQ32", "AKJ32", "2", history: h), "2H");
@@ -2777,8 +2818,8 @@ void main() {
       expect(nt, contains("balanced"));
       final spade = describeSaycCall([], BidAction.fromString("1S"))!.summary();
       expect(spade, contains("5+ spades"));
-      // 13+ total points with the ceiling expressed in HCP (the 2C boundary).
-      expect(spade, contains("13+ total points"));
+      // 12+ total points (Rule of 20 openings) with the ceiling expressed in HCP (the 2C boundary).
+      expect(spade, contains("12+ total points"));
       expect(spade, contains("<=21 HCP"));
       final weakTwo = describeSaycCall([], BidAction.fromString("2S"))!.summary();
       expect(weakTwo, contains("6 spades"));
@@ -3215,7 +3256,7 @@ void main() {
       final meaning = describeSaycCall(
           ["1D", "pass", "1S", "pass"].map(BidAction.fromString).toList(),
           BidAction.fromString("2S"))!;
-      expect(meaning.totalPoints, const Range(low: 13, high: 15));
+      expect(meaning.totalPoints, const Range(low: 12, high: 15));
       expect(meaning.suitLengths[Suit.spades], const Range(low: 4));
     });
 
@@ -3241,7 +3282,7 @@ void main() {
       final ex = explainSaycAuction(["1S", "pass", "2S", "pass", "3S", "pass"]
           .map(BidAction.fromString)
           .toList());
-      expect(ex.players[0]!.totalPoints, const Range(low: 16, high: 18));
+      expect(ex.players[0]!.totalPoints, const Range(low: 15, high: 17));
       expect(ex.players[0]!.suitLengths[Suit.spades], const Range(low: 5));
       expect(ex.players[2]!.totalPoints, const Range(low: 6, high: 10));
     });
@@ -3297,7 +3338,7 @@ void main() {
       expect(ex.calls[0].meaning!.totalPoints, const Range(high: 12));
       expect(ex.calls[1].meaning!.suitLengths[Suit.spades],
           const Range(low: 5));
-      expect(ex.players[1]!.totalPoints, const Range(low: 13));
+      expect(ex.players[1]!.totalPoints, const Range(low: 12));
       expect(ex.players[1]!.hcp, const Range(high: 21));
     });
   });
