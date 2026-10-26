@@ -1,21 +1,21 @@
 import 'card.dart';
 import 'trick.dart';
 
-abstract class BaseTrickRound {
+abstract class BaseSuitedCardTrickRound {
   int get numberOfPlayers;
   TrickInProgress get currentTrick;
   List<Trick> get previousTricks;
-  List<PlayingCard> cardsForPlayer(int playerIndex);
-  void playCard(PlayingCard card);
+  List<SuitedCard> cardsForPlayer(int playerIndex);
+  void playCard(SuitedCard card);
   bool isOver();
   int currentPlayerIndex();
-  List<PlayingCard> legalPlaysForCurrentPlayer();
+  List<SuitedCard> legalPlaysForCurrentPlayer();
 }
 
 
 // Returns true if the leading player is guaranteed to win all remaining tricks,
 // and there are at least `minRequiredTricks` remaining.
-bool shouldLeaderClaimRemainingTricks(BaseTrickRound round, {Suit? trump, int minRequiredTricks = 2}) {
+bool shouldLeaderClaimRemainingTricks(BaseSuitedCardTrickRound round, {Suit? trump, int minRequiredTricks = 2}) {
   if (round.isOver()) {
     return false;
   }
@@ -26,7 +26,7 @@ bool shouldLeaderClaimRemainingTricks(BaseTrickRound round, {Suit? trump, int mi
   if (round.cardsForPlayer(leader).length < minRequiredTricks) {
     return false;
   }
-  List<PlayingCard> remainingCards = [];
+  List<SuitedCard> remainingCards = [];
   for (int i = 0; i < round.numberOfPlayers; i++) {
     if (i != leader) {
       remainingCards.addAll(round.cardsForPlayer(i));
@@ -42,7 +42,7 @@ bool shouldLeaderClaimRemainingTricks(BaseTrickRound round, {Suit? trump, int mi
 // Repeatedly calls `round.playCard` with legal plays until the round is over,
 // with the precondition that the leading player is guaranteed to take all of
 // the tricks.
-void claimRemainingTricks(BaseTrickRound round) {
+void claimRemainingTricks(BaseSuitedCardTrickRound round) {
   assert(shouldLeaderClaimRemainingTricks(round));
   assert(round.currentTrick.cards.isEmpty);
   int claimer = round.currentTrick.leader;

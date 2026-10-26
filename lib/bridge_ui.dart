@@ -25,7 +25,7 @@ void printd(String msg) {
   if (debugOutput) print(msg);
 }
 
-PlayingCard computeCard(final CardToPlayRequest req) {
+SuitedCard computeCard(final CardToPlayRequest req) {
   try {
     // Monte Carlo with bid-aware deal sampling and exact double-dummy
     // endgame evaluation; see lib/bridge/PLAY_AI.md.
@@ -44,7 +44,7 @@ PlayingCard computeCard(final CardToPlayRequest req) {
 }
 
 class DdResultRequest {
-  final List<List<PlayingCard>> hands;
+  final List<List<SuitedCard>> hands;
   final Suit? trump;
   final int leader;
   final int declarer;
@@ -98,13 +98,6 @@ class BridgeMatchDisplay extends StatefulWidget {
   @override
   BridgeMatchState createState() => BridgeMatchState();
 }
-
-final baseSuitDisplayOrder = [
-  Suit.spades,
-  Suit.hearts,
-  Suit.clubs,
-  Suit.diamonds
-];
 
 class BridgeMatchState extends State<BridgeMatchDisplay> {
   final rng = Random();
@@ -321,7 +314,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     }
   }
 
-  void _playCard(final PlayingCard card) {
+  void _playCard(final SuitedCard card) {
     _clearMoods();
     if (round.status == BridgeRoundStatus.playing) {
       setState(() {
@@ -517,22 +510,16 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     }
   }
 
-  List<Suit> _suitDisplayOrder() {
-    final trump = round.trumpSuit();
-    if (trump == null) {
-      return [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
-    }
+  HandOrdering _handDisplayOrder() {
     // Trump suit first.
-    switch (trump) {
-      case Suit.spades:
-        return [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
-      case Suit.hearts:
-        return [Suit.hearts, Suit.spades, Suit.diamonds, Suit.clubs];
-      case Suit.diamonds:
-        return [Suit.diamonds, Suit.spades, Suit.hearts, Suit.clubs];
-      case Suit.clubs:
-        return [Suit.clubs, Suit.hearts, Suit.spades, Suit.diamonds];
-    }
+    final List<Suit> suitOrder = switch (round.trumpSuit()) {
+      null => [.spades, .hearts, .clubs, .diamonds],
+      .spades => [.spades, .hearts, .clubs, .diamonds],
+      .hearts => [.hearts, .spades, .diamonds, .clubs],
+      .diamonds => [.diamonds, .spades, .hearts, .clubs],
+      .clubs => [.clubs, .hearts, .spades, .diamonds],
+    };
+    return handOrderingDescendingInSuitOrder(suitOrder);
   }
 
   void _trickCardAnimationFinished() {
@@ -596,7 +583,8 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return (widget.dialogVisible || _shouldShowClaimTricksDialog());
   }
 
-  void handleHandCardClicked(final PlayingCard card) {
+  void handleHandCardClicked(final PlayingCard pc) {
+    final card = pc as SuitedCard;
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (_shouldIgnoreCardClick()) {
@@ -618,7 +606,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
         round.currentPlayerIndex() == playerIndex;
     bool isBidding = round.status == BridgeRoundStatus.bidding;
     final cards = round.players[playerIndex].hand;
-    List<PlayingCard> highlightedCards = [];
+    List<SuitedCard> highlightedCards = [];
     if (isBidding) {
       highlightedCards = cards;
     } else if (isPlayingNextCard) {
@@ -663,7 +651,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
 
     bool isPlayingNextCard = round.currentPlayerIndex() == dummyPlayer;
     final cards = round.players[dummyPlayer].hand;
-    List<PlayingCard> highlightedCards = [];
+    List<SuitedCard> highlightedCards = [];
     if (isPlayingNextCard) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     }
@@ -726,7 +714,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: params,
-      suitOrder: _suitDisplayOrder(),
+      handOrdering: _handDisplayOrder(),
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
     );
   }
@@ -743,7 +731,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: params,
-      suitOrder: _suitDisplayOrder(),
+      handOrdering: _handDisplayOrder(),
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
     );
 
@@ -762,7 +750,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: allHands,
-      suitOrder: _suitDisplayOrder(),
+      handOrdering: _handDisplayOrder(),
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
     );
   }
@@ -811,7 +799,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
       animationMode: animationMode,
       numPlayers: 4,
-      suitOrder: _suitDisplayOrder(),
+      handOrdering: _handDisplayOrder(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
       transparentIfOverPlayerCards: maybeTransparent,
@@ -1534,8 +1522,8 @@ class RoundDetailsDialog extends StatefulWidget {
 }
 
 class BadDoubleDummyPlay {
-  final PlayingCard actualCard;
-  final List<PlayingCard> bestCards;
+  final SuitedCard actualCard;
+  final List<SuitedCard> bestCards;
   final int tricksCost;
 
   BadDoubleDummyPlay(this.actualCard, this.bestCards, this.tricksCost);

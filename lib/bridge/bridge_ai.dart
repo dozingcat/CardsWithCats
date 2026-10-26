@@ -13,11 +13,11 @@ import "heuristic_play.dart";
 import "sayc/sayc_bidding.dart" show BidMeaning, HandAnalysis, explainSaycAuction;
 
 class CardToPlayRequest {
-  final List<PlayingCard> hand;
+  final List<SuitedCard> hand;
   // dummyHand is set for all players except the dummy.
   // declarerHand is set only for the dummy.
-  final List<PlayingCard>? dummyHand;
-  final List<PlayingCard>? declarerHand;
+  final List<SuitedCard>? dummyHand;
+  final List<SuitedCard>? declarerHand;
   final List<Trick> previousTricks;
   final TrickInProgress currentTrick;
   final List<PlayerBid> bidHistory;
@@ -41,7 +41,7 @@ class CardToPlayRequest {
 
   Suit? trump() => contract.bid.trump;
 
-  List<PlayingCard> legalPlays() {
+  List<SuitedCard> legalPlays() {
     return bridge.legalPlays(hand, currentTrick);
   }
 
@@ -85,9 +85,9 @@ class CardToPlayRequest {
   }
 }
 
-typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
+typedef ChooseCardFn = SuitedCard Function(CardToPlayRequest req, Random rng);
 
-List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
+List<SuitedCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // Cards that are interchangeable for trick-taking (e.g. the queen and
   // jack of a suit when holding both) need only one representative; play
   // the cheapest. This shrinks the branching factor and stops equity noise
@@ -105,13 +105,13 @@ List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   ];
 }
 
-PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   return legalPlays[rng.nextInt(legalPlays.length)];
 }
 
-PlayingCard _lowDiscard(final CardToPlayRequest req, Random rng) {
+SuitedCard _lowDiscard(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   Suit? trump = req.trump();
   if (trump == null) {
@@ -125,8 +125,8 @@ PlayingCard _lowDiscard(final CardToPlayRequest req, Random rng) {
   }
 }
 
-PlayingCard _lowestWinnerOrLowest(
-    final CardToPlayRequest req, PlayingCard highCard, Random rng) {
+SuitedCard _lowestWinnerOrLowest(
+    final CardToPlayRequest req, SuitedCard highCard, Random rng) {
   final legalPlays = req.legalPlays();
   // Play a higher card of the same suit if possible.
   final sameSuitWinners = legalPlays
@@ -155,7 +155,7 @@ bool _canPlayHigherInTrick(final CardToPlayRequest req) {
   }
   final trump = req.contract.bid.trump;
   final legalPlays = req.legalPlays();
-  final highCard = tc[trickWinnerIndex(tc, trump: trump)];
+  final highCard = tc[defaultTrickWinnerIndex(tc, trump: trump)];
   if (legalPlays.any(
       (c) => c.suit == highCard.suit && c.rank.isHigherThan(highCard.rank))) {
     return true;
@@ -168,10 +168,10 @@ bool _canPlayHigherInTrick(final CardToPlayRequest req) {
   return false;
 }
 
-PlayingCard _maximizeTricksCard4(final CardToPlayRequest req, Random rng) {
+SuitedCard _maximizeTricksCard4(final CardToPlayRequest req, Random rng) {
   final tc = req.currentTrick.cards;
   final trump = req.contract.bid.trump;
-  int leader = trickWinnerIndex(tc, trump: trump);
+  int leader = defaultTrickWinnerIndex(tc, trump: trump);
   if (leader == 1) {
     // Partner is winning.
     return _lowDiscard(req, rng);
@@ -180,7 +180,7 @@ PlayingCard _maximizeTricksCard4(final CardToPlayRequest req, Random rng) {
   }
 }
 
-PlayingCard chooseCardToMaximizeTricks(
+SuitedCard chooseCardToMaximizeTricks(
     final CardToPlayRequest req, Random rng) {
   switch (req.currentTrick.cards.length) {
     case 3:
@@ -207,11 +207,11 @@ CardDistributionRequest makeCardDistributionRequest(
         cardsToAssign: standardDeckCards(), constraints: constraints);
   }
 
-  final seenCards = <PlayingCard>{};
+  final seenCards = <SuitedCard>{};
   final voidedSuits = List.generate(numPlayers, (i) => <Suit>{});
 
   // Record when a player is out of a suit.
-  void processTrick(List<PlayingCard> cards, int leader) {
+  void processTrick(List<SuitedCard> cards, int leader) {
     final trickSuit = cards[0].suit;
     seenCards.add(cards[0]);
     for (int i = 1; i < cards.length; i++) {
@@ -253,7 +253,7 @@ CardDistributionRequest makeCardDistributionRequest(
     constraints[req.contract.declarer].fixedCards = req.declarerHand!;
   }
 
-  final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
+  final Set<SuitedCard> cardsToAssign = Set.from(standardDeckCards());
   cardsToAssign.removeAll(seenCards);
   return CardDistributionRequest(
       cardsToAssign: cardsToAssign.toList(), constraints: constraints);
@@ -262,14 +262,14 @@ CardDistributionRequest makeCardDistributionRequest(
 BridgeRound? possibleRound(
     CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng,
     {BiddingDealFilter? filter}) {
-  List<List<PlayingCard>>? dist;
+  List<List<SuitedCard>>? dist;
   if (filter == null) {
     dist = possibleCardDistribution(distReq, rng);
   } else {
     // Rejection-sample against the constraints the auction placed on the
     // hidden hands; if nothing qualifies, fall back to the sample that
     // satisfied the most seats.
-    List<List<PlayingCard>>? best;
+    List<List<SuitedCard>>? best;
     int bestSatisfied = -1;
     for (int attempt = 0; attempt < 100; attempt++) {
       final candidate = possibleCardDistribution(distReq, rng);
@@ -309,7 +309,7 @@ class BiddingDealFilter {
   // are already known to the player (self, visible dummy/declarer) or that
   // showed nothing.
   final List<BidMeaning?> _meaningForSeat;
-  final List<List<PlayingCard>> _playedBySeat;
+  final List<List<SuitedCard>> _playedBySeat;
 
   BiddingDealFilter._(this._meaningForSeat, this._playedBySeat);
 
@@ -348,8 +348,8 @@ class BiddingDealFilter {
     }
     if (meanings.every((m) => m == null)) return null;
 
-    final played = List.generate(numPlayers, (_) => <PlayingCard>[]);
-    void record(List<PlayingCard> cards, int leader) {
+    final played = List.generate(numPlayers, (_) => <SuitedCard>[]);
+    void record(List<SuitedCard> cards, int leader) {
       for (int i = 0; i < cards.length; i++) {
         played[(leader + i) % numPlayers].add(cards[i]);
       }
@@ -362,7 +362,7 @@ class BiddingDealFilter {
     return BiddingDealFilter._(meanings, played);
   }
 
-  int numSatisfiedSeats(List<List<PlayingCard>> dist) {
+  int numSatisfiedSeats(List<List<SuitedCard>> dist) {
     int satisfied = 0;
     for (int seat = 0; seat < numPlayers; seat++) {
       final meaning = _meaningForSeat[seat];
@@ -619,7 +619,7 @@ MonteCarloResult chooseCardMonteCarloDD(
     // Matches the artifact pattern: a lead of a K or Q with no effective
     // touching honor, no higher card, and a lower card available in the
     // suit.
-    bool isArtifactLead(PlayingCard c) {
+    bool isArtifactLead(SuitedCard c) {
       if (c.rank != Rank.king && c.rank != Rank.queen) return false;
       final suitCards = sortedCardsInSuit(cardReq.hand, c.suit);
       if (suitCards.any((x) => x.rank.index > c.rank.index)) return false;
@@ -628,7 +628,7 @@ MonteCarloResult chooseCardMonteCarloDD(
       // (e.g. continuing a now-master king after the ace and queen have
       // been played). Higher cards seen in play or in a visible hand of
       // our own side don't threaten it.
-      final seen = <PlayingCard>{};
+      final seen = <SuitedCard>{};
       for (final t in cardReq.previousTricks) {
         seen.addAll(t.cards);
       }
@@ -637,7 +637,7 @@ MonteCarloResult chooseCardMonteCarloDD(
       bool isMaster = true;
       for (var r = c.rank; r != Rank.ace && isMaster;) {
         r = r.nextHigherRank();
-        final higher = PlayingCard(r, c.suit);
+        final higher = SuitedCard(r, c.suit);
         if (!seen.contains(higher) &&
             !(partnerVisible?.contains(higher) ?? false)) {
           isMaster = false;
@@ -704,9 +704,9 @@ MonteCarloResult chooseCardMonteCarloDD(
 // number of tricks, so the first entry will be the card that produces the best
 // result (or one of multiple cards that produces the best result).
 // Returns null if the native DDS solver is not available.
-LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
+LinkedHashMap<SuitedCard, int>? doubleDummyResultForAllCards({
   required TrickInProgress currentTrick,
-  required List<List<PlayingCard>> hands,
+  required List<List<SuitedCard>> hands,
   required Suit? trump,
 }) {
   final dds = DdsBackend.instance;
@@ -724,12 +724,12 @@ LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
 
   // For consistency, sort deterministically first by the number of tricks taken,
   // then by rank (highest first), then by S/H/D/C suit order.
-  int sortVal(PlayingCard c) {
+  int sortVal(SuitedCard c) {
     return tricksForCard[c]! * 1000 + c.rank.index * 10 + c.suit.index;
   }
 
   sortedCards.sort((a, b) => sortVal(b) - sortVal(a));
-  final result = LinkedHashMap<PlayingCard, int>();
+  final result = LinkedHashMap<SuitedCard, int>();
   for (final c in sortedCards) {
     result[c] = tricksForCard[c]!;
   }
@@ -741,7 +741,7 @@ LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
 // the trick in progress: the cards each player still holds, and that trick.
 // The finished tricks being round.previousTricks[0] through
 // [completedTricks] - 1, the trick in progress is at index [completedTricks].
-({List<List<PlayingCard>> hands, TrickInProgress currentTrick})
+({List<List<SuitedCard>> hands, TrickInProgress currentTrick})
     roundStateAtPointInPlay({
   required BridgeRound round,
   required int completedTricks,
@@ -761,7 +761,7 @@ LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
   }
   // Assign cards from the current and subsequent tricks, then remove any cards
   // played in the current trick.
-  final hands = List.generate(numPlayers, (_) => <PlayingCard>[]);
+  final hands = List.generate(numPlayers, (_) => <SuitedCard>[]);
   for (int ti = completedTricks; ti < round.previousTricks.length; ti++) {
     final trick = round.previousTricks[ti];
     for (int ci = 0; ci < trick.cards.length; ci++) {
@@ -782,7 +782,7 @@ LinkedHashMap<PlayingCard, int>? doubleDummyResultForAllCards({
 // Returns the double-dummy evaluation of every legal play available to the
 // player who was on play at the given point in a completed round; see
 // [doubleDummyResultForAllCards] for the meaning of the values.
-LinkedHashMap<PlayingCard, int>? doubleDummyResultForPreviousPointInRound({
+LinkedHashMap<SuitedCard, int>? doubleDummyResultForPreviousPointInRound({
   required BridgeRound round,
   required int completedTricks,
   required int cardsInCurrentTrick,

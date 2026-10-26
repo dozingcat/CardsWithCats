@@ -3,7 +3,7 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:cards_with_cats/hearts/hearts.dart";
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   test("Leads", () {

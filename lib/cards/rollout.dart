@@ -6,18 +6,18 @@ import 'package:cards_with_cats/cards/trick.dart';
 class CardDistributionConstraint {
   int numCards;
   List<Suit> voidedSuits;
-  List<PlayingCard> fixedCards;
+  List<SuitedCard> fixedCards;
 
   CardDistributionConstraint({
     required this.numCards,
     List<Suit>? voidedSuits,
-    List<PlayingCard>? fixedCards,
+    List<SuitedCard>? fixedCards,
   })  : voidedSuits = voidedSuits ?? [],
         fixedCards = fixedCards ?? [];
 }
 
 class CardDistributionRequest {
-  final List<PlayingCard> cardsToAssign;
+  final List<SuitedCard> cardsToAssign;
   final List<CardDistributionConstraint> constraints;
 
   CardDistributionRequest({required this.cardsToAssign, required this.constraints});
@@ -35,8 +35,8 @@ enum MonteCarloResultType { rollout_not_needed, rollout_failed, rollout_success 
 
 class MonteCarloResult {
   MonteCarloResultType resultType;
-  PlayingCard bestCard;
-  Map<PlayingCard, double> cardEquities;
+  SuitedCard bestCard;
+  Map<SuitedCard, double> cardEquities;
   int numRounds;
   int numRollouts;
   int numRolloutCardsPlayed;
@@ -64,14 +64,14 @@ class MonteCarloResult {
     }
   }
 
-  static MonteCarloResult rolloutNotNeeded({required PlayingCard bestCard}) => MonteCarloResult(
+  static MonteCarloResult rolloutNotNeeded({required SuitedCard bestCard}) => MonteCarloResult(
         resultType: MonteCarloResultType.rollout_not_needed,
         bestCard: bestCard,
       );
 
   static MonteCarloResult rolloutFailed({
-    required PlayingCard bestCard,
-    required Map<PlayingCard, double> cardEquities,
+    required SuitedCard bestCard,
+    required Map<SuitedCard, double> cardEquities,
     required int numRounds,
     required int numRollouts,
     required int numRolloutCardsPlayed,
@@ -88,13 +88,13 @@ class MonteCarloResult {
       );
 
   static MonteCarloResult rolloutSuccess({
-    required Map<PlayingCard, double> cardEquities,
+    required Map<SuitedCard, double> cardEquities,
     required int numRounds,
     required int numRollouts,
     required int numRolloutCardsPlayed,
     required int elapsedMillis,
   }) {
-    PlayingCard? bestCard;
+    SuitedCard? bestCard;
     double bestEquity = 0.0;
     for (final e in cardEquities.entries) {
       if (bestCard == null || e.value > bestEquity) {
@@ -114,10 +114,10 @@ class MonteCarloResult {
   }
 }
 
-List<List<PlayingCard>>? _possibleCardDistribution(CardDistributionRequest req, Random rng) {
+List<List<SuitedCard>>? _possibleCardDistribution(CardDistributionRequest req, Random rng) {
   final numPlayers = req.constraints.length;
-  List<List<PlayingCard>> result = List.generate(numPlayers, (index) => []);
-  List<List<PlayingCard>> legalCards = List.generate(numPlayers, (index) => []);
+  List<List<SuitedCard>> result = List.generate(numPlayers, (index) => []);
+  List<List<SuitedCard>> legalCards = List.generate(numPlayers, (index) => []);
   for (int i = 0; i < numPlayers; i++) {
     final cs = req.constraints[i];
     // Add cards in suits that the player isn't known to be out of.
@@ -192,7 +192,7 @@ List<List<PlayingCard>>? _possibleCardDistribution(CardDistributionRequest req, 
   return result;
 }
 
-List<List<PlayingCard>>? possibleCardDistribution(CardDistributionRequest req, Random rng) {
+List<List<SuitedCard>>? possibleCardDistribution(CardDistributionRequest req, Random rng) {
   for (int i = 0; i < 1000; i++) {
     final result = _possibleCardDistribution(req, rng);
     if (result != null) {
@@ -212,13 +212,13 @@ List<List<PlayingCard>>? possibleCardDistribution(CardDistributionRequest req, R
 //
 // Each list in the returned value will contain one or more cards of a single
 // suit, sorted descending by rank.
-List<List<PlayingCard>> groupsOfEffectivelyIdenticalCards(
-    List<PlayingCard> cards, Iterable<Trick> previousTricks) {
+List<List<SuitedCard>> groupsOfEffectivelyIdenticalCards(
+    List<SuitedCard> cards, Iterable<Trick> previousTricks) {
   if (cards.isEmpty) return [];
   if (cards.length == 1) return [cards.toList()];
-  List<List<PlayingCard>> groups = [];
+  List<List<SuitedCard>> groups = [];
   final remainingCards = Set.of(cards);
-  final seenCards = <PlayingCard>{};
+  final seenCards = <SuitedCard>{};
   for (final t in previousTricks) {
     seenCards.addAll(t.cards);
   }
@@ -230,7 +230,7 @@ List<List<PlayingCard>> groupsOfEffectivelyIdenticalCards(
     var rank = start.rank;
     while (rank.isLowerThan(Rank.ace)) {
       rank = rank.nextHigherRank();
-      final c = PlayingCard(rank, start.suit);
+      final c = SuitedCard(rank, start.suit);
       if (remainingCards.contains(c)) {
         // `c` is adjacent to and thus identical to a card in `currentGroup`.
         remainingCards.remove(c);
@@ -243,7 +243,7 @@ List<List<PlayingCard>> groupsOfEffectivelyIdenticalCards(
     rank = start.rank;
     while (rank.isHigherThan(Rank.two)) {
       rank = rank.nextLowerRank();
-      final c = PlayingCard(rank, start.suit);
+      final c = SuitedCard(rank, start.suit);
       if (remainingCards.contains(c)) {
         remainingCards.remove(c);
         currentGroup.add(c);

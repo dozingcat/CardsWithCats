@@ -164,7 +164,7 @@ class DdsBackend {
 
   /// DDS has room for only three cards in the trick in progress; a complete
   /// trick has to be resolved by the caller before solving.
-  static void _checkTrickCards(List<PlayingCard> trickCards) {
+  static void _checkTrickCards(List<SuitedCard> trickCards) {
     if (trickCards.length > 3) {
       throw ArgumentError(
           "Trick in progress can have at most 3 cards, got ${trickCards.length}");
@@ -173,8 +173,8 @@ class DdsBackend {
 
   /// Fills [deal] with this position, returning the total
   /// number of cards still in play (hands plus the trick in progress).
-  int _fillDeal(_DdsDeal deal, List<List<PlayingCard>> hands, Suit? trump,
-      int leader, List<PlayingCard> trickCards) {
+  int _fillDeal(_DdsDeal deal, List<List<SuitedCard>> hands, Suit? trump,
+      int leader, List<SuitedCard> trickCards) {
     deal.trump = trump == null ? 4 : _ddsSuit(trump);
     deal.first = leader;
     for (int i = 0; i < 3; i++) {
@@ -201,8 +201,8 @@ class DdsBackend {
   /// North-South tricks from this position with optimal play, including
   /// the trick in progress — the same contract as [DDSolver.solve].
   /// Returns null on a DDS error.
-  int? solve(List<List<PlayingCard>> hands, Suit? trump, int leader,
-      List<PlayingCard> trickCards) {
+  int? solve(List<List<SuitedCard>> hands, Suit? trump, int leader,
+      List<SuitedCard> trickCards) {
     _checkTrickCards(trickCards);
     final deal = calloc<_DdsDeal>();
     final fut = calloc<_DdsFutureTricks>();
@@ -248,8 +248,8 @@ class DdsBackend {
   /// is the one completing the trick.
   ///
   /// Returns null on a DDS error or when all solver slots are busy.
-  Map<PlayingCard, int>? solveAllCards(List<List<PlayingCard>> hands,
-      Suit? trump, int leader, List<PlayingCard> trickCards) {
+  Map<SuitedCard, int>? solveAllCards(List<List<SuitedCard>> hands,
+      Suit? trump, int leader, List<SuitedCard> trickCards) {
     _checkTrickCards(trickCards);
     final dealPtr = calloc<_DdsDeal>();
     final futPtr = calloc<_DdsFutureTricks>();
@@ -276,21 +276,21 @@ class DdsBackend {
       if (fut.cards <= 0) {
         return null;
       }
-      final result = <PlayingCard, int>{};
+      final result = <SuitedCard, int>{};
       for (int i = 0; i < fut.cards; i++) {
         final score = fut.score[i];
         if (score < 0) {
           return null; // DDS declined to score this card.
         }
         final suit = Suit.values[3 - fut.suit[i]];
-        result[PlayingCard(Rank.values[fut.rank[i] - 2], suit)] = score;
+        result[SuitedCard(Rank.values[fut.rank[i] - 2], suit)] = score;
         // DDS returns one entry per equivalence class; `equals` is a bit map
         // of the lower ranks in the same suit that play identically, with
         // bit 2 for the two through bit 14 for the ace.
         final equalRanks = fut.equals[i];
         for (int r = 2; r <= 14; r++) {
           if (equalRanks & (1 << r) != 0) {
-            result[PlayingCard(Rank.values[r - 2], suit)] = score;
+            result[SuitedCard(Rank.values[r - 2], suit)] = score;
           }
         }
       }

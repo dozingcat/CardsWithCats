@@ -7,7 +7,7 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/spades/spades.dart";
 import "package:cards_with_cats/spades/spades_ai.dart";
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   group("Bidding", () {

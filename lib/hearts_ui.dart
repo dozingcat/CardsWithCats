@@ -22,7 +22,7 @@ void printd(String msg) {
   if (debugOutput) print(msg);
 }
 
-PlayingCard computeCard(final CardToPlayRequest req) {
+SuitedCard computeCard(final CardToPlayRequest req) {
   final mcParams = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50, maxTimeMillis: 2500);
   final result = chooseCardMonteCarlo(req, mcParams, chooseCardAvoidingPoints, Random());
   printd("Computed play: ${result.toString()}");
@@ -69,13 +69,14 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   bool isClaimingRemainingTricks = false;
   var aiMode = AiMode.humanPlayer0;
   late HeartsMatch match;
-  List<PlayingCard> selectedCardsToPass = [];
+  List<SuitedCard> selectedCardsToPass = [];
   Map<int, Mood> playerMoods = {};
   bool showScoreOverlay = false;
   late StreamSubscription matchUpdateSubscription;
 
   HeartsRound get round => match.currentRound;
-  final suitDisplayOrder = [Suit.hearts, Suit.spades, Suit.diamonds, Suit.clubs];
+  final handDisplayOrder = handOrderingDescendingInSuitOrder(
+      [.hearts, .spades, .diamonds, .clubs]);
 
   @override
   void initState() {
@@ -141,7 +142,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
-  void _playCard(final PlayingCard card) {
+  void _playCard(final SuitedCard card) {
     // print(round.toJson());
     if (round.status == HeartsRoundStatus.playing) {
       setState(() {
@@ -294,7 +295,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return (widget.dialogVisible || _shouldShowClaimTricksDialog());
   }
 
-  void handleHandCardClicked(final PlayingCard card) {
+  void handleHandCardClicked(final PlayingCard pc) {
+    final card = pc as SuitedCard;
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (_shouldIgnoreCardClick()) {
@@ -316,11 +318,11 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
   }
 
-  Map<PlayingCard, Color> cardBackgrounds() {
-    Map<PlayingCard, Color> backgrounds = {};
+  Map<SuitedCard, Color> cardBackgrounds() {
+    Map<SuitedCard, Color> backgrounds = {};
     if (widget.tintPointCards) {
       for (final r in Rank.values) {
-        backgrounds[PlayingCard(r, Suit.hearts)] = Colors.red.shade200;
+        backgrounds[SuitedCard(r, Suit.hearts)] = Colors.red.shade200;
       }
       backgrounds[queenOfSpades] = Colors.redAccent.shade200;
       if (round.rules.jdMinus10) {
@@ -371,9 +373,9 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     }
     List<PlayerHandParams> handParams = [];
     // Always show human player's hand.
-    List<PlayingCard> humanCards = round.players[0].hand;
+    List<SuitedCard> humanCards = round.players[0].hand;
     bool isHumanTurn = round.status == HeartsRoundStatus.playing && round.currentPlayerIndex() == 0;
-    List<PlayingCard> highlightedCards = [];
+    List<SuitedCard> highlightedCards = [];
     if (isHumanTurn) {
       highlightedCards = round.legalPlaysForCurrentPlayer();
     } else if (round.status == HeartsRoundStatus.passing) {
@@ -414,7 +416,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return MultiplePlayerHandCards(
         layout: layout,
         playerHands: handParams,
-        suitOrder: suitDisplayOrder,
+        handOrdering: handDisplayOrder,
         cardBackgroundColors: cardBackgrounds(),
     );
   }
@@ -427,7 +429,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
-      suitOrder: suitDisplayOrder,
+      handOrdering: handDisplayOrder,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
       cardBackgroundColors: cardBackgrounds(),
@@ -545,7 +547,7 @@ Widget _paddingAll(final double paddingPx, final Widget child) {
 class PassCardsDialog extends StatelessWidget {
   final Layout layout;
   final HeartsRound round;
-  final List<PlayingCard> selectedCards;
+  final List<SuitedCard> selectedCards;
   final Function() onConfirm;
 
   const PassCardsDialog(

@@ -15,7 +15,7 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:flutter_test/flutter_test.dart";
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 final ddsAvailable = DdsBackend.instance != null;
 const ddsSkipReason =
@@ -39,7 +39,7 @@ BridgeRound playedOutRound(Random rng, {Suit? trump = Suit.spades}) {
 /// A random position with [cardsPerHand] cards each and [cardsInTrick] cards
 /// already played to the trick in progress, in the layout the solvers expect:
 /// players who have already played hold one card fewer.
-({List<List<PlayingCard>> hands, TrickInProgress trick}) randomPosition(
+({List<List<SuitedCard>> hands, TrickInProgress trick}) randomPosition(
     Random rng, int cardsPerHand, int cardsInTrick) {
   final deck = List.of(standardDeckCards())..shuffle(rng);
   final hands = List.generate(
@@ -59,8 +59,8 @@ BridgeRound playedOutRound(Random rng, {Suit? trump = Suit.spades}) {
 /// pure-Dart solver. Deliberately independent of the single-call DDS path:
 /// it removes the card, resolves the trick if the card completes it, and
 /// solves the resulting position.
-int referenceTricksForSideOnPlay(List<List<PlayingCard>> hands, Suit? trump,
-    TrickInProgress trick, PlayingCard card) {
+int referenceTricksForSideOnPlay(List<List<SuitedCard>> hands, Suit? trump,
+    TrickInProgress trick, SuitedCard card) {
   final mover = (trick.leader + trick.cards.length) % 4;
   final totalTricks = hands[mover].length;
   final handsAfter = [...hands];
@@ -94,7 +94,7 @@ void main() {
           leadersSeen.add(trick.leader);
           // Every card from this trick onwards is either still in a hand or
           // already played to the trick in progress, and appears exactly once.
-          final unplayed = <PlayingCard>{};
+          final unplayed = <SuitedCard>{};
           for (int later = ti; later < round.previousTricks.length; later++) {
             unplayed.addAll(round.previousTricks[later].cards);
           }

@@ -35,7 +35,7 @@ List<BidAction> parseHistory(String s) {
 
 /// Whether the engine, holding [hand] in [seat], makes every call that
 /// [history] gives that seat.
-bool seatMatches(List<PlayingCard> hand, int seat, List<BidAction> history) {
+bool seatMatches(List<SuitedCard> hand, int seat, List<BidAction> history) {
   for (int i = seat; i < history.length; i += 4) {
     if (selectSaycBid(hand, history.sublist(0, i)).action != history[i]) {
       return false;
@@ -64,7 +64,7 @@ void main(List<String> args) {
     exit(64);
   }
   final history = parseHistory(positional[0]);
-  final fixed = <int, List<PlayingCard>>{
+  final fixed = <int, List<SuitedCard>>{
     for (int s = 0; s < 4; s++)
       if (positional[s + 1] != "?" && positional[s + 1] != "_") s: parseHand(positional[s + 1]),
   };
@@ -94,7 +94,7 @@ void main(List<String> args) {
   final rng = Random(seed);
   for (int t = 0; t < tries; t++) {
     final deck = [...remaining]..shuffle(rng);
-    final hands = Map<int, List<PlayingCard>>.from(fixed);
+    final hands = Map<int, List<SuitedCard>>.from(fixed);
     bool ok = true;
     for (int k = 0; k < open.length; k++) {
       final h = deck.sublist(k * 13, (k + 1) * 13);

@@ -2,7 +2,7 @@ import 'dart:math';
 
 import '../cards/card.dart';
 
-int pointsForCard(PlayingCard card) {
+int pointsForCard(SuitedCard card) {
   switch (card.rank) {
     case Rank.ace:
       return 4;
@@ -17,11 +17,11 @@ int pointsForCard(PlayingCard card) {
   }
 }
 
-int highCardPoints(final List<PlayingCard> hand) {
+int highCardPoints(final List<SuitedCard> hand) {
   return hand.map(pointsForCard).reduce((a, b) => a + b);
 }
 
-int lengthPoints(final List<PlayingCard> hand) {
+int lengthPoints(final List<SuitedCard> hand) {
   int points = 0;
   points += max(0, hand.where((c) => c.suit == Suit.spades).length - 4);
   points += max(0, hand.where((c) => c.suit == Suit.hearts).length - 4);

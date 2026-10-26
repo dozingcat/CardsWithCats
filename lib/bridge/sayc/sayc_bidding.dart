@@ -31,14 +31,14 @@ import '../utils.dart';
 
 /// Precomputed bidding-relevant properties of a 13-card hand.
 class HandAnalysis {
-  final List<PlayingCard> cards;
+  final List<SuitedCard> cards;
   final Map<Suit, int> counts;
   final int hcp;
   final int totalPoints;
 
   HandAnalysis._(this.cards, this.counts, this.hcp, this.totalPoints);
 
-  factory HandAnalysis(List<PlayingCard> cards) {
+  factory HandAnalysis(List<SuitedCard> cards) {
     if (cards.length != 13) {
       throw ArgumentError("A hand must have 13 cards, got ${cards.length}");
     }
@@ -108,26 +108,26 @@ class HandAnalysis {
 ///  - 13 cards: "AS QS 3S 2S KH 6H AD 4D 3D 2D 4C 3C 2C"
 ///  - four suit groups (spades hearts diamonds clubs, '-' for a void):
 ///    "A2 AKJT Q32 9876"
-List<PlayingCard> parseHand(String s) {
+List<SuitedCard> parseHand(String s) {
   final tokens = s.trim().split(RegExp(r"[,\s]+"));
   final groupPattern = RegExp(r"^[AKQJT98765432]+$");
   if (tokens.length == 4 &&
       tokens.every((t) => t == "-" || groupPattern.hasMatch(t.toUpperCase()))) {
     final suits = [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs];
-    final cards = <PlayingCard>[];
+    final cards = <SuitedCard>[];
     for (int i = 0; i < 4; i++) {
       if (tokens[i] == "-") continue;
       for (final ch in tokens[i].toUpperCase().split("")) {
-        cards.add(PlayingCard(Rank.fromChar(ch), suits[i]));
+        cards.add(SuitedCard(Rank.fromChar(ch), suits[i]));
       }
     }
     return cards;
   }
-  return tokens.map(PlayingCard.cardFromString).toList();
+  return tokens.map(SuitedCard.cardFromString).toList();
 }
 
 /// Format a hand as four suit groups: "A2 AKJT Q32 9876" ('-' for voids).
-String handGroupString(List<PlayingCard> hand) {
+String handGroupString(List<SuitedCard> hand) {
   return [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs].map((suit) {
     final ranks = sortedRanksInSuit(hand, suit);
     return ranks.isEmpty ? "-" : ranks.map((r) => r.asciiChar).join();
@@ -8681,7 +8681,7 @@ BidMeaning? partnerShown(List<BidAction> calls) {
 /// double for penalty with a strong trump stack over their 2-level+
 /// contract or when they preempt into 23+ combined points, and otherwise
 /// pass. It never initiates slams.
-SaycBid fallbackBid(List<PlayingCard> hand, List<BidAction> calls) {
+SaycBid fallbackBid(List<SuitedCard> hand, List<BidAction> calls) {
   final analysis = HandAnalysis(hand);
   final partner = partnerShown(calls);
 
@@ -9673,7 +9673,7 @@ SaycBid _legalized(SaycBid bid, List<BidAction> history) =>
         ? bid
         : SaycBid(BidAction.pass(), BidMeaning(description: "Nothing legal to bid"));
 
-SaycBid selectSaycBid(List<PlayingCard> hand, List<BidAction> history,
+SaycBid selectSaycBid(List<SuitedCard> hand, List<BidAction> history,
     {Vulnerability vulnerability = Vulnerability.neither}) {
   final rules = saycRulesForAuction(history);
   if (rules == null) return _legalized(fallbackBid(hand, history), history);

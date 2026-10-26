@@ -15,7 +15,7 @@ import 'package:cards_with_cats/bridge/sayc/sayc_bidding.dart';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/rollout.dart';
 
-String suitHolding(List<PlayingCard> hand, Suit s) {
+String suitHolding(List<SuitedCard> hand, Suit s) {
   final cards = sortedCardsInSuit(hand, s);
   return cards.isEmpty ? "-" : cards.map((c) => c.rank.asciiChar).join();
 }

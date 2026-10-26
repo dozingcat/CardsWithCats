@@ -24,7 +24,7 @@ import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/rollout.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 final bids = [
   PlayerBid(2, BidAction.fromString("2C")),

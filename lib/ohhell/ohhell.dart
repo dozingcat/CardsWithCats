@@ -121,7 +121,7 @@ class OhHellRuleSet {
   }
 }
 
-List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick,
+List<SuitedCard> legalPlays(List<SuitedCard> hand, TrickInProgress currentTrick,
     List<Trick> prevTricks, OhHellRuleSet rules) {
   if (currentTrick.cards.isEmpty) {
     return hand;
@@ -133,10 +133,10 @@ List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTric
 }
 
 class OhHellPlayer {
-  List<PlayingCard> hand;
+  List<SuitedCard> hand;
   int? bid;
 
-  OhHellPlayer(List<PlayingCard> _hand, {this.bid}) : hand = List.from(_hand);
+  OhHellPlayer(List<SuitedCard> _hand, {this.bid}) : hand = List.from(_hand);
 
   OhHellPlayer.from(OhHellPlayer src)
       : hand = List.from(src.hand),
@@ -153,7 +153,7 @@ class OhHellPlayer {
   }
 
   static OhHellPlayer fromJson(Map<String, dynamic> json) {
-    return OhHellPlayer(PlayingCard.cardsFromString(json["hand"] as String),
+    return OhHellPlayer(SuitedCard.cardsFromString(json["hand"] as String),
         bid: json["bid"] as int?);
   }
 }
@@ -192,19 +192,19 @@ enum OhHellRoundStatus {
   playing,
 }
 
-class OhHellRound extends BaseTrickRound {
+class OhHellRound extends BaseSuitedCardTrickRound {
   OhHellRoundStatus status = OhHellRoundStatus.bidding;
   late OhHellRuleSet rules;
   late List<OhHellPlayer> players;
   late int numCardsPerPlayer;
-  late PlayingCard trumpCard;
+  late SuitedCard trumpCard;
   late List<int> initialScores;
   late int dealer;
   @override late TrickInProgress currentTrick;
   @override List<Trick> previousTricks = [];
 
   @override int get numberOfPlayers => rules.numPlayers;
-  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
+  @override List<SuitedCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
 
   static OhHellRound deal({
       required OhHellRuleSet rules,
@@ -212,7 +212,7 @@ class OhHellRound extends BaseTrickRound {
       required int dealer,
       required int numCardsPerPlayer,
       required Random rng}) {
-    List<PlayingCard> cards = List.from(standardDeckCards(), growable: true);
+    List<SuitedCard> cards = List.from(standardDeckCards(), growable: true);
     cards.shuffle(rng);
     List<OhHellPlayer> players = [];
     for (int i = 0; i < rules.numPlayers; i++) {
@@ -312,7 +312,7 @@ class OhHellRound extends BaseTrickRound {
     return (tricksRemaining >= 0) ? tricksRemaining : null;
   }
 
-  @override List<PlayingCard> legalPlaysForCurrentPlayer() {
+  @override List<SuitedCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }
 
@@ -323,7 +323,7 @@ class OhHellRound extends BaseTrickRound {
     }
   }
 
-  void playCard(PlayingCard card) {
+  void playCard(SuitedCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);
@@ -357,7 +357,7 @@ class OhHellRound extends BaseTrickRound {
       ..initialScores = List<int>.from(json["initialScores"])
       ..dealer = json["dealer"] as int
       ..numCardsPerPlayer = json["numCardsPerPlayer"] as int
-      ..trumpCard = PlayingCard.cardFromString(json["trumpCard"] as String)
+      ..trumpCard = SuitedCard.cardFromString(json["trumpCard"] as String)
       ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
       ..previousTricks = [
         ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))

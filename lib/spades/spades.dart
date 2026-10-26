@@ -14,7 +14,7 @@ enum SpadeLeading {
 class SpadesRuleSet {
   int numPlayers;
   int numTeams;
-  List<PlayingCard> removedCards;
+  List<SuitedCard> removedCards;
   int pointLimit;
   bool penalizeBags;
   SpadeLeading spadeLeading;
@@ -54,7 +54,7 @@ class SpadesRuleSet {
     return SpadesRuleSet(
       numPlayers: json["numPlayers"] as int,
       numTeams: json["numTeams"] as int,
-      removedCards: PlayingCard.cardsFromString(json["removedCards"] as String),
+      removedCards: SuitedCard.cardsFromString(json["removedCards"] as String),
       pointLimit: json["pointLimit"] as int,
       spadeLeading: SpadeLeading.values.byName(json["spadeLeading"]),
       penalizeBags: json["penalizeBags"] as bool,
@@ -76,7 +76,7 @@ bool _canLeadSpade(List<Trick> prevTricks, SpadesRuleSet rules) {
   }
 }
 
-List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTrick,
+List<SuitedCard> legalPlays(List<SuitedCard> hand, TrickInProgress currentTrick,
     List<Trick> prevTricks, SpadesRuleSet rules) {
   if (currentTrick.cards.isEmpty) {
     if (!_canLeadSpade(prevTricks, rules)) {
@@ -94,10 +94,10 @@ List<PlayingCard> legalPlays(List<PlayingCard> hand, TrickInProgress currentTric
 }
 
 class SpadesPlayer {
-  List<PlayingCard> hand;
+  List<SuitedCard> hand;
   int? bid;
 
-  SpadesPlayer(List<PlayingCard> _hand, {this.bid}) : hand = List.from(_hand);
+  SpadesPlayer(List<SuitedCard> _hand, {this.bid}) : hand = List.from(_hand);
 
   SpadesPlayer.from(SpadesPlayer src)
       : hand = List.from(src.hand),
@@ -114,7 +114,7 @@ class SpadesPlayer {
   }
 
   static SpadesPlayer fromJson(Map<String, dynamic> json) {
-    return SpadesPlayer(PlayingCard.cardsFromString(json["hand"] as String),
+    return SpadesPlayer(SuitedCard.cardsFromString(json["hand"] as String),
         bid: json["bid"] as int?);
   }
 }
@@ -195,7 +195,7 @@ enum SpadesRoundStatus {
   playing,
 }
 
-class SpadesRound extends BaseTrickRound {
+class SpadesRound extends BaseSuitedCardTrickRound {
   SpadesRoundStatus status = SpadesRoundStatus.bidding;
   late SpadesRuleSet rules;
   late List<SpadesPlayer> players;
@@ -205,10 +205,10 @@ class SpadesRound extends BaseTrickRound {
   @override List<Trick> previousTricks = [];
 
   @override int get numberOfPlayers => rules.numPlayers;
-  @override List<PlayingCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
+  @override List<SuitedCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
 
   static SpadesRound deal(SpadesRuleSet rules, List<int> scores, int dealer, Random rng) {
-    List<PlayingCard> cards = List.from(standardDeckCards(), growable: true);
+    List<SuitedCard> cards = List.from(standardDeckCards(), growable: true);
     cards.removeWhere((c) => rules.removedCards.contains(c));
     cards.shuffle(rng);
     List<SpadesPlayer> players = [];
@@ -283,7 +283,7 @@ class SpadesRound extends BaseTrickRound {
     return bids;
   }
 
-  @override List<PlayingCard> legalPlaysForCurrentPlayer() {
+  @override List<SuitedCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick, previousTricks, rules);
   }
 
@@ -294,7 +294,7 @@ class SpadesRound extends BaseTrickRound {
     }
   }
 
-  @override void playCard(PlayingCard card) {
+  @override void playCard(SuitedCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);

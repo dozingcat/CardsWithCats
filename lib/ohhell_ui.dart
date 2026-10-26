@@ -22,7 +22,7 @@ void printd(String msg) {
   if (debugOutput) print(msg);
 }
 
-PlayingCard computeCard(final CardToPlayRequest req) {
+SuitedCard computeCard(final CardToPlayRequest req) {
   final mcParams = MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
   final result = chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
   printd("Computed play: ${result.toString()}");
@@ -203,7 +203,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
   }
 
-  void _playCard(final PlayingCard card) {
+  void _playCard(final SuitedCard card) {
     _clearMoods();
     if (round.status == OhHellRoundStatus.playing) {
       setState(() {
@@ -322,7 +322,8 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     return (widget.dialogVisible || _shouldShowClaimTricksDialog());
   }
 
-  void handleHandCardClicked(final PlayingCard card) {
+  void handleHandCardClicked(final PlayingCard pc) {
+    final card = pc as SuitedCard;
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (_shouldIgnoreCardClick()) {
@@ -336,18 +337,15 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
   }
 
-  List<Suit> _suitDisplayOrder() {
+  HandOrdering _handDisplayOrdering() {
     // Trump suit first.
-    switch (round.trumpSuit) {
-      case Suit.spades:
-        return [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
-      case Suit.hearts:
-        return [Suit.hearts, Suit.spades, Suit.diamonds, Suit.clubs];
-      case Suit.diamonds:
-        return [Suit.diamonds, Suit.spades, Suit.hearts, Suit.clubs];
-      case Suit.clubs:
-        return [Suit.clubs, Suit.hearts, Suit.spades, Suit.diamonds];
-    }
+    final List<Suit> suitOrder = switch (round.trumpSuit) {
+      .spades => const [.spades, .hearts, .clubs, .diamonds],
+      .hearts => const [.hearts, .spades, .diamonds, .clubs],
+      .diamonds => const [.diamonds, .spades, .hearts, .clubs],
+      .clubs => const [.clubs, .hearts, .spades, .diamonds],
+    };
+    return handOrderingDescendingInSuitOrder(suitOrder);
   }
 
   Widget _playerCards(final Layout layout) {
@@ -357,10 +355,10 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     }
     List<PlayerHandParams> handParams = [];
     // Always show human player's hand.
-    List<PlayingCard> humanCards = round.players[0].hand;
+    List<SuitedCard> humanCards = round.players[0].hand;
     bool isHumanTurn = round.status == OhHellRoundStatus.playing && round.currentPlayerIndex() == 0;
     bool isBidding = round.status == OhHellRoundStatus.bidding;
-    List<PlayingCard> highlightedCards = [];
+    List<SuitedCard> highlightedCards = [];
     if (isBidding) {
       highlightedCards = humanCards;
     }
@@ -402,7 +400,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: handParams,
-      suitOrder: _suitDisplayOrder(),
+      handOrdering: _handDisplayOrdering(),
       trumpSuit: widget.tintTrumpCards ? round.trumpSuit : null,
     );
   }
@@ -416,7 +414,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
-      suitOrder: _suitDisplayOrder(),
+      handOrdering: _handDisplayOrdering(),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );

@@ -24,10 +24,10 @@ int ddsSuit(Suit s) => 3 - s.index; // DDS: 0=S 1=H 2=D 3=C
 int ddsRank(Rank r) => r.index + 2; // DDS: 2..14
 
 class Position {
-  final List<List<PlayingCard>> hands; // remaining, after trick cards
+  final List<List<SuitedCard>> hands; // remaining, after trick cards
   final Suit? trump;
   final int leader;
-  final List<PlayingCard> trickCards;
+  final List<SuitedCard> trickCards;
 
   Position(this.hands, this.trump, this.leader, this.trickCards);
 
@@ -74,13 +74,13 @@ Position randomPosition(Random rng, int minDepth, int maxDepth) {
   final trumpChoice = rng.nextInt(5);
   final trump = trumpChoice == 4 ? null : Suit.values[trumpChoice];
   final leader = rng.nextInt(4);
-  final trickCards = <PlayingCard>[];
+  final trickCards = <SuitedCard>[];
   if (rng.nextDouble() < 0.4) {
     final numTrickCards = 1 + rng.nextInt(3);
     for (int i = 0; i < numTrickCards; i++) {
       final seat = (leader + i) % 4;
       final hand = hands[seat];
-      List<PlayingCard> legal = hand;
+      List<SuitedCard> legal = hand;
       if (trickCards.isNotEmpty) {
         final ledSuit = trickCards[0].suit;
         final following = hand.where((c) => c.suit == ledSuit).toList();

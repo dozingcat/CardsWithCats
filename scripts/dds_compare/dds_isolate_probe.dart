@@ -6,7 +6,7 @@ import 'dart:isolate';
 import 'package:cards_with_cats/bridge/dds_ffi.dart';
 import 'package:cards_with_cats/cards/card.dart';
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 int? solveOnce() {
   final hands = [c("AS KS QS JS"), c("8H 7H 6H 5H"), c("8D 7D 6D 5D"), c("8C 7C 6C 5C")];

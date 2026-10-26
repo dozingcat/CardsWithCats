@@ -6,8 +6,8 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/rollout.dart";
 
 void main() {
-  const c = PlayingCard.cardFromString;
-  const cs = PlayingCard.cardsFromString;
+  const c = SuitedCard.cardFromString;
+  const cs = SuitedCard.cardsFromString;
 
   test("Distribution with no constraints", () {
     final rng = Random(23);
@@ -16,7 +16,7 @@ void main() {
         CardDistributionRequest(cardsToAssign: standardDeckCards(), constraints: cs), rng)!;
 
     expect(dist.length, 4);
-    Set<PlayingCard> allCards = {};
+    Set<SuitedCard> allCards = {};
     for (int i = 0; i < 4; i++) {
       expect(dist[i].length, 13);
       allCards.addAll(dist[i]);
@@ -36,7 +36,7 @@ void main() {
     expect(dist.length, 4);
     expect(dist[0].where((c) => c.suit == Suit.spades).isEmpty, true);
     expect(dist[2].where((c) => c.suit == Suit.clubs).length, 3);
-    Set<PlayingCard> allCards = {};
+    Set<SuitedCard> allCards = {};
     for (int i = 0; i < 4; i++) {
       expect(dist[i].length, 3);
       allCards.addAll(dist[i]);
@@ -57,7 +57,7 @@ void main() {
     expect(dist[3].contains(c("3D")), true);
     expect(dist[3].contains(c("4D")), true);
     expect(dist[3].contains(c("AD")), false);
-    Set<PlayingCard> allCards = {};
+    Set<SuitedCard> allCards = {};
     for (int i = 0; i < 4; i++) {
       expect(dist[i].length, 3);
       allCards.addAll(dist[i]);

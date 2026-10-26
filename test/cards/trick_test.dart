@@ -2,12 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
-const cs = PlayingCard.cardsFromString;
+const cs = SuitedCard.cardsFromString;
 
 void main() {
   test('All same suit', () {
     final trickCards = cs("2C QC KC TC");
-    expect(trickWinnerIndex(trickCards), 2);
+    expect(defaultTrickWinnerIndex(trickCards), 2);
 
     final tip = TrickInProgress(3);
     tip.cards.addAll(trickCards);
@@ -17,7 +17,7 @@ void main() {
 
   test('High card not following suit', () {
     final trickCards = cs("2C QH KD TC");
-    expect(trickWinnerIndex(trickCards), 3);
+    expect(defaultTrickWinnerIndex(trickCards), 3);
 
     final tip = TrickInProgress(3);
     tip.cards.addAll(trickCards);
@@ -27,12 +27,21 @@ void main() {
 
   test('Trump winner', () {
     final trickCards = cs("4C 2H KC TC");
-    expect(trickWinnerIndex(trickCards, trump: Suit.hearts), 1);
+    expect(defaultTrickWinnerIndex(trickCards, trump: Suit.hearts), 1);
 
     final tip = TrickInProgress(2);
     tip.cards.addAll(trickCards);
     final trick = tip.finish(trump: Suit.hearts);
     expect(trick.winner, 3);
+  });
+
+  test('Multiple trumps', () {
+    final trickCards = cs("AC 3S 4S 2S");
+
+    final tip = TrickInProgress(0);
+    tip.cards.addAll(trickCards);
+    final trick = tip.finish(trump: Suit.spades);
+    expect(trick.winner, 2);
   });
 
   test('Claiming remaining tricks', () {

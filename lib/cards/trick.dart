@@ -1,40 +1,33 @@
-import './card.dart' show PlayingCard, Suit, Rank;
+import './card.dart' show SuitedCard, Suit, Rank, PlayingCard;
 
-int trickWinnerIndex(final List<PlayingCard> cards, {Suit? trump}) {
-  Suit leadSuit = cards[0].suit;
-  Rank topRank = cards[0].rank;
-  Suit? effectiveTrump = (leadSuit == trump) ? null : trump;
-  bool hasTrump = false;
+// Default implementation that uses standard rank ordering and no jokers.
+// Games (e.g. Rook, 500) can provide a different function and pass it to
+// TrickInProgress.finish.
+int defaultTrickWinnerIndex(final List<PlayingCard> cards, {Suit? trump}) {
+  final c0 = cards[0] as SuitedCard;
   int topIndex = 0;
+  SuitedCard topCard = c0;
   for (int i = 1; i < cards.length; i++) {
-    Suit cs = cards[i].suit;
-    Rank cr = cards[i].rank;
-    if (hasTrump) {
-      if (cs == effectiveTrump && cr.isHigherThan(topRank)) {
-        topIndex = i;
-        topRank = cr;
-      }
-    } else {
-      if (cs == effectiveTrump) {
-        hasTrump = true;
-        topIndex = i;
-        topRank = cr;
-      } else if (cs == leadSuit && cr.isHigherThan(topRank)) {
-        topIndex = i;
-        topRank = cr;
-      }
+    final ci = cards[i] as SuitedCard;
+    bool higherThanTop = (ci.suit == topCard.suit && ci.rank.isHigherThan(topCard.rank));
+    bool firstTrump = (topCard.suit != trump && ci.suit == trump);
+    if (higherThanTop || firstTrump) {
+      topIndex = i;
+      topCard = ci;
     }
   }
   return topIndex;
 }
 
-PlayingCard highestCardInTrick(List<PlayingCard> cards, {Suit? trump}) {
-  return cards[trickWinnerIndex(cards, trump: trump)];
+typedef TrickWinnerFn = int Function(List<SuitedCard> cards, {Suit? trump});
+
+SuitedCard highestCardInTrick(List<SuitedCard> cards, {Suit? trump}) {
+  return cards[defaultTrickWinnerIndex(cards, trump: trump)];
 }
 
 class Trick {
   final int leader;
-  final List<PlayingCard> cards;
+  final List<SuitedCard> cards;
   final int winner;
 
   Trick(this.leader, this.cards, this.winner);
@@ -52,16 +45,16 @@ class Trick {
   }
 
   static Trick fromJson(final Map<String, dynamic> json) {
-    return Trick(json["leader"] as int, PlayingCard.cardsFromString(json["cards"] as String),
+    return Trick(json["leader"] as int, SuitedCard.cardsFromString(json["cards"] as String),
         json["winner"] as int);
   }
 }
 
 class TrickInProgress {
   final int leader;
-  final List<PlayingCard> cards;
+  final List<SuitedCard> cards;
 
-  TrickInProgress(this.leader, [List<PlayingCard>? _cards]) : cards = _cards ?? [];
+  TrickInProgress(this.leader, [List<SuitedCard>? _cards]) : cards = _cards ?? [];
 
   TrickInProgress copy() => TrickInProgress(leader, List.of(cards));
 
@@ -74,11 +67,11 @@ class TrickInProgress {
 
   static TrickInProgress fromJson(final Map<String, dynamic> json) {
     return TrickInProgress(
-        json["leader"] as int, PlayingCard.cardsFromString(json["cards"] as String));
+        json["leader"] as int, SuitedCard.cardsFromString(json["cards"] as String));
   }
 
-  Trick finish({Suit? trump}) {
-    int winnerRelIndex = trickWinnerIndex(cards, trump: trump);
+  Trick finish({Suit? trump, TrickWinnerFn winnerFn = defaultTrickWinnerIndex}) {
+    int winnerRelIndex = winnerFn(cards, trump: trump);
     int winner = (leader + winnerRelIndex) % cards.length;
     return Trick(leader, cards, winner);
   }
@@ -87,8 +80,8 @@ class TrickInProgress {
 // Returns true if the current player is guaranteed to win all remaining tricks.
 // It's assumed that there is no trick in progress.
 bool willLeadingPlayerWinAllRemainingTricks({
-  required List<PlayingCard> leadingPlayerCards,
-  required List<PlayingCard> remainingCards,
+  required List<SuitedCard> leadingPlayerCards,
+  required List<SuitedCard> remainingCards,
   Suit? trump,
 }) {
   // If trump, either leading player must have only trumps
@@ -110,7 +103,7 @@ bool willLeadingPlayerWinAllRemainingTricks({
   return true;
 }
 
-PlayingCard? lastCardPlayedByPlayer({
+SuitedCard? lastCardPlayedByPlayer({
   required int playerIndex,
   required int numberOfPlayers,
   required TrickInProgress currentTrick,

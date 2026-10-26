@@ -15,7 +15,7 @@ void printd(String msg) {
 class CardsToPassRequest {
   final HeartsRuleSet rules;
   final List<int> scoresBeforeRound;
-  final List<PlayingCard> hand;
+  final List<SuitedCard> hand;
   final int direction;
   final int numCards;
 
@@ -31,12 +31,12 @@ class CardsToPassRequest {
 class CardToPlayRequest {
   final HeartsRuleSet rules;
   final List<int> scoresBeforeRound;
-  final List<PlayingCard> hand;
+  final List<SuitedCard> hand;
   final List<Trick> previousTricks;
   final TrickInProgress currentTrick;
   final int passDirection;
-  final List<PlayingCard> passedCards;
-  final List<PlayingCard> receivedCards;
+  final List<SuitedCard> passedCards;
+  final List<SuitedCard> receivedCards;
 
   CardToPlayRequest({
     required this.rules,
@@ -64,7 +64,7 @@ class CardToPlayRequest {
     return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
   }
 
-  List<PlayingCard> legalPlays() {
+  List<SuitedCard> legalPlays() {
     return hearts.legalPlays(hand, currentTrick, previousTricks, rules);
   }
 }
@@ -92,7 +92,7 @@ double matchEquityForScores(List<int> scores, int maxScore, int playerIndex) {
   return (maxScore - scores[playerIndex]) / totalDist;
 }
 
-int dangerForCard(PlayingCard card, List<Rank> suitRanks, CardsToPassRequest req) {
+int dangerForCard(SuitedCard card, List<Rank> suitRanks, CardsToPassRequest req) {
   int cardVal = card.rank.numericValue;
   int lowestValInSuit = suitRanks.last.numericValue;
   switch (card.suit) {
@@ -138,13 +138,13 @@ int dangerForCard(PlayingCard card, List<Rank> suitRanks, CardsToPassRequest req
   }
 }
 
-List<PlayingCard> chooseCardsToPass(CardsToPassRequest req) {
+List<SuitedCard> chooseCardsToPass(CardsToPassRequest req) {
   Map<Suit, List<Rank>> ranksBySuit = {};
   for (Suit suit in Suit.values) {
     ranksBySuit[suit] = sortedRanksInSuit(req.hand, suit);
   }
-  Map<PlayingCard, int> cardDanger = {};
-  for (PlayingCard c in req.hand) {
+  Map<SuitedCard, int> cardDanger = {};
+  for (SuitedCard c in req.hand) {
     cardDanger[c] = dangerForCard(c, ranksBySuit[c.suit]!, req);
   }
   final sortedHand = List.of(req.hand);
@@ -152,13 +152,13 @@ List<PlayingCard> chooseCardsToPass(CardsToPassRequest req) {
   return sortedHand.sublist(0, req.numCards);
 }
 
-PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   return legalPlays[rng.nextInt(legalPlays.length)];
 }
 
-PlayingCard chooseCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
@@ -229,11 +229,11 @@ PlayingCard chooseCardAvoidingPoints(final CardToPlayRequest req, Random rng) {
   }
 }
 
-PlayingCard _firstInSuitNotQS(final Iterable<PlayingCard> cards, Suit suit) {
+SuitedCard _firstInSuitNotQS(final Iterable<SuitedCard> cards, Suit suit) {
   return cards.firstWhere((c) => c.suit == suit && c != queenOfSpades);
 }
 
-typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
+typedef ChooseCardFn = SuitedCard Function(CardToPlayRequest req, Random rng);
 
 ChooseCardFn makeMixedRandomOrAvoidPoints(double randomProb) {
   return (CardToPlayRequest req, Random rng) {
@@ -249,7 +249,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
 
   var heartsBroken = false;
 
-  void processTrick(List<PlayingCard> cards, int leader) {
+  void processTrick(List<SuitedCard> cards, int leader) {
     final trickSuit = cards[0].suit;
     if (!heartsBroken && trickSuit == Suit.hearts) {
       // Led hearts when they weren't broken, so must have had no other choice.
@@ -296,7 +296,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
     constraints[passedTo].fixedCards.addAll(req.passedCards);
   }
 
-  final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
+  final Set<SuitedCard> cardsToAssign = Set.from(standardDeckCards());
   cardsToAssign.removeAll(seenCards);
   cardsToAssign.removeAll(req.rules.removedCards);
   return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
@@ -322,7 +322,7 @@ HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..passDirection = 0;
 }
 
-List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
+List<SuitedCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // For testing with and without this feature.
   // It seems to slightly improve the AI with rounds=20, rollouts=50;
   // with players 1 and 3 using this path and 0 and 2 not, "victory points"
@@ -334,7 +334,7 @@ List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // Always handle the queen of spades individually; if you have both the king
   // and queen they're equivalent in terms of winning tricks, but obviously not
   // in terms of scoring. Jack of diamonds if enabled as well.
-  List<PlayingCard> result = [];
+  List<SuitedCard> result = [];
   final cardsToGroup = List.of(legalPlays);
   if (cardsToGroup.contains(queenOfSpades)) {
     result.add(queenOfSpades);
