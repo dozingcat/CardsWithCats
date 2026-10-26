@@ -121,8 +121,8 @@ class OhHellRuleSet {
   }
 }
 
-List<SuitedCard> legalPlays(List<SuitedCard> hand, TrickInProgress currentTrick,
-    List<Trick> prevTricks, OhHellRuleSet rules) {
+List<SuitedCard> legalPlays(List<SuitedCard> hand, TrickInProgress<SuitedCard> currentTrick,
+    List<Trick<SuitedCard>> prevTricks, OhHellRuleSet rules) {
   if (currentTrick.cards.isEmpty) {
     return hand;
   }
@@ -166,7 +166,7 @@ class OhHellRoundScoreResult {
 }
 
 List<OhHellRoundScoreResult> pointsForTricks(
-    List<Trick> tricks, List<int> bids, List<int> previousPoints, OhHellRuleSet rules) {
+    List<Trick<SuitedCard>> tricks, List<int> bids, List<int> previousPoints, OhHellRuleSet rules) {
   final trickWinners = [...tricks.map((t) => t.winner)];
   List<int> winnerCounts = List.filled(rules.numPlayers, 0);
   for (int tw in trickWinners) {
@@ -200,8 +200,8 @@ class OhHellRound extends BaseSuitedCardTrickRound {
   late SuitedCard trumpCard;
   late List<int> initialScores;
   late int dealer;
-  @override late TrickInProgress currentTrick;
-  @override List<Trick> previousTricks = [];
+  @override late TrickInProgress<SuitedCard> currentTrick;
+  @override List<Trick<SuitedCard>> previousTricks = [];
 
   @override int get numberOfPlayers => rules.numPlayers;
   @override List<SuitedCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
@@ -358,9 +358,9 @@ class OhHellRound extends BaseSuitedCardTrickRound {
       ..dealer = json["dealer"] as int
       ..numCardsPerPlayer = json["numCardsPerPlayer"] as int
       ..trumpCard = SuitedCard.cardFromString(json["trumpCard"] as String)
-      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>, SuitedCard.cardsFromString)
       ..previousTricks = [
-        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))
+        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>, SuitedCard.cardsFromString))
       ];
   }
 }

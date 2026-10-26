@@ -635,8 +635,8 @@ List<PlayingCard> sortedCardsWithOrdering(
 
 class TrickCards extends StatelessWidget {
   final Layout layout;
-  final TrickInProgress currentTrick;
-  final List<Trick> previousTricks;
+  final TrickInProgress<SuitedCard> currentTrick;
+  final List<Trick<SuitedCard>> previousTricks;
   final AnimationMode animationMode;
   final int numPlayers;
   final void Function() onTrickCardAnimationFinished;
@@ -801,7 +801,7 @@ class TrickCards extends StatelessWidget {
     return cardWidgets;
   }
 
-  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick trick) {
+  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick<SuitedCard> trick) {
     // Negative animation value means not moving. It might be better to have
     // a separate state for "waiting to move trick", but that would make state
     // transition logic more complex.

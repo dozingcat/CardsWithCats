@@ -34,7 +34,7 @@ CardToPlayRequest reqFor({
   required String contract, // e.g. "3NT", "4H"
   required int declarer,
   String? dummyHand,
-  List<Trick> previousTricks = const [],
+  List<Trick<SuitedCard>> previousTricks = const [],
   int? trickLeader,
   List<String> trickCards = const [],
 }) {
@@ -43,7 +43,7 @@ CardToPlayRequest reqFor({
     for (int i = 1; i <= 3; i++)
       PlayerBid((declarer + i) % 4, BidAction.pass()),
   ];
-  final trick = TrickInProgress(trickLeader ?? (declarer + 1) % 4);
+  final trick = TrickInProgress<SuitedCard>(trickLeader ?? (declarer + 1) % 4);
   trick.cards.addAll(trickCards.map(card));
   return CardToPlayRequest(
     hand: parseHand(hand),

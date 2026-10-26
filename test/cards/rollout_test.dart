@@ -11,7 +11,7 @@ void main() {
 
   test("Distribution with no constraints", () {
     final rng = Random(23);
-    final cs = List.generate(4, (i) => CardDistributionConstraint(numCards: 13));
+    final cs = List.generate(4, (i) => CardDistributionConstraint<SuitedCard>(numCards: 13));
     final dist = possibleCardDistribution(
         CardDistributionRequest(cardsToAssign: standardDeckCards(), constraints: cs), rng)!;
 
@@ -27,7 +27,7 @@ void main() {
   test("Distribution with voided suits", () {
     final rng = Random(23);
     final cards = cs("2C 2D 2H 2S 3C 3D 3H 3S 4C 4D 4H 4S");
-    final constraints = List.generate(4, (i) => CardDistributionConstraint(numCards: 3));
+    final constraints = List.generate(4, (i) => CardDistributionConstraint<SuitedCard>(numCards: 3));
     constraints[0].voidedSuits.add(Suit.spades);
     constraints[2].voidedSuits.addAll([Suit.spades, Suit.hearts, Suit.diamonds]);
     final dist = possibleCardDistribution(
@@ -47,7 +47,7 @@ void main() {
   test("Distribution with fixed cards", () {
     final rng = Random(23);
     final cards = cs("2C 2D 2H 2S 3C 3D 3H 3S 4C 4D 4H 4S");
-    final constraints = List.generate(4, (i) => CardDistributionConstraint(numCards: 3));
+    final constraints = List.generate(4, (i) => CardDistributionConstraint<SuitedCard>(numCards: 3));
     constraints[1].fixedCards.add(c("2H"));
     constraints[3].fixedCards.addAll(cs("3D 4D AD"));
     final dist = possibleCardDistribution(
@@ -68,7 +68,7 @@ void main() {
   test("Distribution combination", () {
     final rng = Random(23);
     final cards = cs("AS KS QS JS TS 9S AH KH QH");
-    final constraints = List.generate(3, (i) => CardDistributionConstraint(numCards: 3));
+    final constraints = List.generate(3, (i) => CardDistributionConstraint<SuitedCard>(numCards: 3));
     constraints[1].voidedSuits.add(Suit.hearts);
     constraints[2].voidedSuits.add(Suit.hearts);
     final dist = possibleCardDistribution(

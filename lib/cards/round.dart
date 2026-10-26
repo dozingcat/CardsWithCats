@@ -3,8 +3,8 @@ import 'trick.dart';
 
 abstract class BaseSuitedCardTrickRound {
   int get numberOfPlayers;
-  TrickInProgress get currentTrick;
-  List<Trick> get previousTricks;
+  TrickInProgress<SuitedCard> get currentTrick;
+  List<Trick<SuitedCard>> get previousTricks;
   List<SuitedCard> cardsForPlayer(int playerIndex);
   void playCard(SuitedCard card);
   bool isOver();

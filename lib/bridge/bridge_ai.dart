@@ -18,8 +18,8 @@ class CardToPlayRequest {
   // declarerHand is set only for the dummy.
   final List<SuitedCard>? dummyHand;
   final List<SuitedCard>? declarerHand;
-  final List<Trick> previousTricks;
-  final TrickInProgress currentTrick;
+  final List<Trick<SuitedCard>> previousTricks;
+  final TrickInProgress<SuitedCard> currentTrick;
   final List<PlayerBid> bidHistory;
   final Vulnerability vulnerability;
   final Contract contract;
@@ -194,13 +194,13 @@ SuitedCard chooseCardToMaximizeTricks(
   }
 }
 
-CardDistributionRequest makeCardDistributionRequest(
+CardDistributionRequest<SuitedCard> makeCardDistributionRequest(
     final CardToPlayRequest req) {
   // If this is the first lead, the dummy isn't revealed.
   if (req.previousTricks.isEmpty && req.currentTrick.cards.isEmpty) {
     final constraints = List.generate(
         numPlayers,
-        (pnum) => CardDistributionConstraint(
+        (pnum) => CardDistributionConstraint<SuitedCard>(
             numCards: req.hand.length,
             fixedCards: pnum == req.currentPlayerIndex() ? req.hand : []));
     return CardDistributionRequest(
@@ -240,7 +240,7 @@ CardDistributionRequest makeCardDistributionRequest(
   int currentPlayerIndex = req.currentPlayerIndex();
   final constraints = List.generate(
       numPlayers,
-      (pnum) => CardDistributionConstraint(
+      (pnum) => CardDistributionConstraint<SuitedCard>(
             numCards: cardCounts[pnum],
             voidedSuits: voidedSuits[pnum].toList(),
             fixedCards: pnum == currentPlayerIndex ? req.hand : [],
@@ -260,7 +260,7 @@ CardDistributionRequest makeCardDistributionRequest(
 }
 
 BridgeRound? possibleRound(
-    CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng,
+    CardToPlayRequest cardReq, CardDistributionRequest<SuitedCard> distReq, Random rng,
     {BiddingDealFilter? filter}) {
   List<List<SuitedCard>>? dist;
   if (filter == null) {
@@ -374,7 +374,7 @@ class BiddingDealFilter {
   }
 }
 
-MonteCarloResult chooseCardMonteCarlo(CardToPlayRequest cardReq,
+MonteCarloResult<SuitedCard> chooseCardMonteCarlo(CardToPlayRequest cardReq,
     MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn, bool useBiddingInference = false}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;
@@ -453,7 +453,7 @@ void doRollout(BridgeRound round, ChooseCardFn chooseFn, Random rng) {
 /// remain, then solving the rest double-dummy. This rewards plays whose
 /// payoff needs *correct* continuation (finesses, establishment, endplays),
 /// which policy rollouts systematically miss.
-MonteCarloResult chooseCardMonteCarloDD(
+MonteCarloResult<SuitedCard> chooseCardMonteCarloDD(
   CardToPlayRequest cardReq,
   Random rng, {
   int maxRounds = 20,
@@ -705,7 +705,7 @@ MonteCarloResult chooseCardMonteCarloDD(
 // result (or one of multiple cards that produces the best result).
 // Returns null if the native DDS solver is not available.
 LinkedHashMap<SuitedCard, int>? doubleDummyResultForAllCards({
-  required TrickInProgress currentTrick,
+  required TrickInProgress<SuitedCard> currentTrick,
   required List<List<SuitedCard>> hands,
   required Suit? trump,
 }) {
@@ -741,7 +741,7 @@ LinkedHashMap<SuitedCard, int>? doubleDummyResultForAllCards({
 // the trick in progress: the cards each player still holds, and that trick.
 // The finished tricks being round.previousTricks[0] through
 // [completedTricks] - 1, the trick in progress is at index [completedTricks].
-({List<List<SuitedCard>> hands, TrickInProgress currentTrick})
+({List<List<SuitedCard>> hands, TrickInProgress<SuitedCard> currentTrick})
     roundStateAtPointInPlay({
   required BridgeRound round,
   required int completedTricks,

@@ -406,7 +406,7 @@ void playHumanTurn(HeartsRound round, HeartsRuleSet rules) {
   print('You played: ${cardToPlay.symbolString()}');
 }
 
-void printTrick(TrickInProgress trick, int numPlayers) {
+void printTrick(TrickInProgress<SuitedCard> trick, int numPlayers) {
   for (int i = 0; i < trick.cards.length; i++) {
     final playerIndex = (trick.leader + i) % numPlayers;
     print('  ${playerName(playerIndex)}: ${trick.cards[i].symbolString()}');

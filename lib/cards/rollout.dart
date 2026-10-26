@@ -3,24 +3,38 @@ import 'dart:math';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
-class CardDistributionConstraint {
+class CardDistributionConstraint<C extends PlayingCard> {
   int numCards;
   List<Suit> voidedSuits;
-  List<SuitedCard> fixedCards;
+  List<C> fixedCards;
 
   CardDistributionConstraint({
     required this.numCards,
     List<Suit>? voidedSuits,
-    List<SuitedCard>? fixedCards,
+    List<C>? fixedCards,
   })  : voidedSuits = voidedSuits ?? [],
         fixedCards = fixedCards ?? [];
 }
 
-class CardDistributionRequest {
-  final List<SuitedCard> cardsToAssign;
-  final List<CardDistributionConstraint> constraints;
+Suit? defaultSuitForCard(PlayingCard card) => switch (card) {
+  SuitedCard(:final suit) => suit,
+  JokerCard() => null,
+};
 
-  CardDistributionRequest({required this.cardsToAssign, required this.constraints});
+class CardDistributionRequest<C extends PlayingCard> {
+  final List<C> cardsToAssign;
+  final List<CardDistributionConstraint<C>> constraints;
+  // The suit used to match against `voidedSuits` in constraints. Games where
+  // jokers or other cards act as a different suit can override this; for
+  // example in Rook the joker is part of the trump suit. Cards for which this
+  // returns null can be assigned to any player.
+  final Suit? Function(C card) suitForCard;
+
+  CardDistributionRequest({
+    required this.cardsToAssign,
+    required this.constraints,
+    this.suitForCard = defaultSuitForCard,
+  });
 }
 
 class MonteCarloParams {
@@ -33,10 +47,10 @@ class MonteCarloParams {
 
 enum MonteCarloResultType { rollout_not_needed, rollout_failed, rollout_success }
 
-class MonteCarloResult {
+class MonteCarloResult<C extends PlayingCard> {
   MonteCarloResultType resultType;
-  SuitedCard bestCard;
-  Map<SuitedCard, double> cardEquities;
+  C bestCard;
+  Map<C, double> cardEquities;
   int numRounds;
   int numRollouts;
   int numRolloutCardsPlayed;
@@ -64,14 +78,14 @@ class MonteCarloResult {
     }
   }
 
-  static MonteCarloResult rolloutNotNeeded({required SuitedCard bestCard}) => MonteCarloResult(
+  static MonteCarloResult<C> rolloutNotNeeded<C extends PlayingCard>({required C bestCard}) => MonteCarloResult(
         resultType: MonteCarloResultType.rollout_not_needed,
         bestCard: bestCard,
       );
 
-  static MonteCarloResult rolloutFailed({
-    required SuitedCard bestCard,
-    required Map<SuitedCard, double> cardEquities,
+  static MonteCarloResult<C> rolloutFailed<C extends PlayingCard>({
+    required C bestCard,
+    required Map<C, double> cardEquities,
     required int numRounds,
     required int numRollouts,
     required int numRolloutCardsPlayed,
@@ -87,14 +101,14 @@ class MonteCarloResult {
         elapsedMillis: elapsedMillis,
       );
 
-  static MonteCarloResult rolloutSuccess({
-    required Map<SuitedCard, double> cardEquities,
+  static MonteCarloResult<C> rolloutSuccess<C extends PlayingCard>({
+    required Map<C, double> cardEquities,
     required int numRounds,
     required int numRollouts,
     required int numRolloutCardsPlayed,
     required int elapsedMillis,
   }) {
-    SuitedCard? bestCard;
+    C? bestCard;
     double bestEquity = 0.0;
     for (final e in cardEquities.entries) {
       if (bestCard == null || e.value > bestEquity) {
@@ -114,15 +128,15 @@ class MonteCarloResult {
   }
 }
 
-List<List<SuitedCard>>? _possibleCardDistribution(CardDistributionRequest req, Random rng) {
+List<List<C>>? _possibleCardDistribution<C extends PlayingCard>(CardDistributionRequest<C> req, Random rng) {
   final numPlayers = req.constraints.length;
-  List<List<SuitedCard>> result = List.generate(numPlayers, (index) => []);
-  List<List<SuitedCard>> legalCards = List.generate(numPlayers, (index) => []);
+  List<List<C>> result = List.generate(numPlayers, (index) => []);
+  List<List<C>> legalCards = List.generate(numPlayers, (index) => []);
   for (int i = 0; i < numPlayers; i++) {
     final cs = req.constraints[i];
     // Add cards in suits that the player isn't known to be out of.
     for (final c in req.cardsToAssign) {
-      if (!cs.voidedSuits.contains(c.suit)) {
+      if (!cs.voidedSuits.contains(req.suitForCard(c))) {
         legalCards[i].add(c);
       }
     }
@@ -192,7 +206,7 @@ List<List<SuitedCard>>? _possibleCardDistribution(CardDistributionRequest req, R
   return result;
 }
 
-List<List<SuitedCard>>? possibleCardDistribution(CardDistributionRequest req, Random rng) {
+List<List<C>>? possibleCardDistribution<C extends PlayingCard>(CardDistributionRequest<C> req, Random rng) {
   for (int i = 0; i < 1000; i++) {
     final result = _possibleCardDistribution(req, rng);
     if (result != null) {
@@ -213,12 +227,12 @@ List<List<SuitedCard>>? possibleCardDistribution(CardDistributionRequest req, Ra
 // Each list in the returned value will contain one or more cards of a single
 // suit, sorted descending by rank.
 List<List<SuitedCard>> groupsOfEffectivelyIdenticalCards(
-    List<SuitedCard> cards, Iterable<Trick> previousTricks) {
+    List<SuitedCard> cards, Iterable<Trick<PlayingCard>> previousTricks) {
   if (cards.isEmpty) return [];
   if (cards.length == 1) return [cards.toList()];
   List<List<SuitedCard>> groups = [];
   final remainingCards = Set.of(cards);
-  final seenCards = <SuitedCard>{};
+  final seenCards = <PlayingCard>{};
   for (final t in previousTricks) {
     seenCards.addAll(t.cards);
   }

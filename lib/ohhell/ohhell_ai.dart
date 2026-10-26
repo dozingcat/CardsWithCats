@@ -28,8 +28,8 @@ class CardToPlayRequest {
   final OhHellRuleSet rules;
   final List<int> scoresBeforeRound;
   final List<SuitedCard> hand;
-  final List<Trick> previousTricks;
-  final TrickInProgress currentTrick;
+  final List<Trick<SuitedCard>> previousTricks;
+  final TrickInProgress<SuitedCard> currentTrick;
   final List<int> bids;
   final SuitedCard trumpCard;
   final bool dealerHasTrumpCard;
@@ -114,7 +114,7 @@ OhHellRound _possibleRoundForBiddingRollout(final BidRequest req, Random rng) {
   int bidderIndex = req.otherBids.length;
   final constraints = List.generate(
       req.rules.numPlayers,
-          (pnum) => CardDistributionConstraint(
+          (pnum) => CardDistributionConstraint<SuitedCard>(
         numCards: req.hand.length,
         voidedSuits: [],
         fixedCards: pnum == bidderIndex ? req.hand : [],
@@ -133,7 +133,7 @@ OhHellRound _possibleRoundForBiddingRollout(final BidRequest req, Random rng) {
     throw Exception("Bad hand");
   }
   // Player 0 leads the first trick because the dealer is N-1.
-  final firstTrick = TrickInProgress(0, []);
+  final firstTrick = TrickInProgress<SuitedCard>(0, []);
   return OhHellRound()
       ..rules = req.rules
       ..status = OhHellRoundStatus.playing
@@ -214,7 +214,7 @@ SuitedCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   return legalPlays[rng.nextInt(legalPlays.length)];
 }
 
-CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
+CardDistributionRequest<SuitedCard> makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
   final seenCards = <SuitedCard>{};
   final voidedSuits = List.generate(numPlayers, (i) => <Suit>{});
@@ -249,7 +249,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   int currentPlayerIndex = req.currentPlayerIndex();
   final constraints = List.generate(
       numPlayers,
-      (pnum) => CardDistributionConstraint(
+      (pnum) => CardDistributionConstraint<SuitedCard>(
         numCards: cardCounts[pnum],
         voidedSuits: voidedSuits[pnum].toList(),
         fixedCards: pnum == currentPlayerIndex ? req.hand : [],
@@ -263,7 +263,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
 }
 
-OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng) {
+OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest<SuitedCard> distReq, Random rng) {
   final dist = possibleCardDistribution(distReq, rng);
   if (dist == null) {
     return null;
@@ -282,7 +282,7 @@ OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ;
 }
 
-MonteCarloResult chooseCardMonteCarlo(
+MonteCarloResult<SuitedCard> chooseCardMonteCarlo(
     CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;

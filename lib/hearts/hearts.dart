@@ -90,7 +90,7 @@ int pointsForCards(List<SuitedCard> cards, HeartsRuleSet ruleSet) {
 }
 
 // Accounts for shooting the moon if set in the rules.
-List<int> pointsForTricks(List<Trick> tricks, HeartsRuleSet ruleSet) {
+List<int> pointsForTricks(List<Trick<SuitedCard>> tricks, HeartsRuleSet ruleSet) {
   List<int> points = List.filled(ruleSet.numPlayers, 0);
   for (final t in tricks) {
     points[t.winner] += pointsForCards(t.cards, ruleSet);
@@ -108,7 +108,7 @@ List<int> pointsForTricks(List<Trick> tricks, HeartsRuleSet ruleSet) {
   return points;
 }
 
-int? moonShooter(List<Trick> tricks) {
+int? moonShooter(List<Trick<SuitedCard>> tricks) {
   // Find the player who took the queen and see if they took all the hearts.
   int? qsOwner;
   int? heartsOwner;
@@ -129,7 +129,7 @@ int? moonShooter(List<Trick> tricks) {
   return (qsOwner == heartsOwner && numHearts == 13) ? qsOwner : null;
 }
 
-bool _areHeartsBroken(TrickInProgress currentTrick, List<Trick> prevTricks, HeartsRuleSet rules) {
+bool _areHeartsBroken(TrickInProgress<SuitedCard> currentTrick, List<Trick<SuitedCard>> prevTricks, HeartsRuleSet rules) {
   bool qb = rules.queenBreaksHearts;
   for (final t in prevTricks) {
     for (final c in t.cards) {
@@ -146,8 +146,8 @@ bool _areHeartsBroken(TrickInProgress currentTrick, List<Trick> prevTricks, Hear
   return false;
 }
 
-List<SuitedCard> legalPlays(List<SuitedCard> hand, TrickInProgress currentTrick,
-    List<Trick> prevTricks, HeartsRuleSet rules) {
+List<SuitedCard> legalPlays(List<SuitedCard> hand, TrickInProgress<SuitedCard> currentTrick,
+    List<Trick<SuitedCard>> prevTricks, HeartsRuleSet rules) {
   if (prevTricks.isEmpty) {
     // First trick.
     if (currentTrick.cards.isEmpty) {
@@ -232,8 +232,8 @@ class HeartsRound extends BaseSuitedCardTrickRound {
   late List<HeartsPlayer> players;
   late List<int> initialScores;
   late int passDirection;
-  @override late TrickInProgress currentTrick;
-  @override List<Trick> previousTricks = [];
+  @override late TrickInProgress<SuitedCard> currentTrick;
+  @override List<Trick<SuitedCard>> previousTricks = [];
 
   @override int get numberOfPlayers => rules.numPlayers;
   @override List<SuitedCard> cardsForPlayer(int playerIndex) => players[playerIndex].hand;
@@ -291,9 +291,9 @@ class HeartsRound extends BaseSuitedCardTrickRound {
       ..players = [...json["players"].map((p) => HeartsPlayer.fromJson(p as Map<String, dynamic>))]
       ..initialScores = List<int>.from(json["initialScores"])
       ..passDirection = json["passDirection"] as int
-      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+      ..currentTrick = TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>, SuitedCard.cardsFromString)
       ..previousTricks = [
-        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>))
+        ...json["previousTricks"].map((t) => Trick.fromJson(t as Map<String, dynamic>, SuitedCard.cardsFromString))
       ];
   }
 

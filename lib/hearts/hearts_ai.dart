@@ -32,8 +32,8 @@ class CardToPlayRequest {
   final HeartsRuleSet rules;
   final List<int> scoresBeforeRound;
   final List<SuitedCard> hand;
-  final List<Trick> previousTricks;
-  final TrickInProgress currentTrick;
+  final List<Trick<SuitedCard>> previousTricks;
+  final TrickInProgress<SuitedCard> currentTrick;
   final int passDirection;
   final List<SuitedCard> passedCards;
   final List<SuitedCard> receivedCards;
@@ -242,7 +242,7 @@ ChooseCardFn makeMixedRandomOrAvoidPoints(double randomProb) {
   };
 }
 
-CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
+CardDistributionRequest<SuitedCard> makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
   final seenCards = Set.from(req.hand);
   final voidedSuits = List.generate(numPlayers, (_n) => <Suit>{});
@@ -286,7 +286,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
 
   final constraints = List.generate(
       numPlayers,
-      (pnum) => CardDistributionConstraint(
+      (pnum) => CardDistributionConstraint<SuitedCard>(
             numCards: cardCounts[pnum],
             voidedSuits: voidedSuits[pnum].toList(),
             fixedCards: [],
@@ -302,7 +302,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
 }
 
-HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng) {
+HeartsRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest<SuitedCard> distReq, Random rng) {
   final dist = possibleCardDistribution(distReq, rng);
   if (dist == null) {
     return null;
@@ -353,7 +353,7 @@ List<SuitedCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   return result;
 }
 
-MonteCarloResult chooseCardMonteCarlo(
+MonteCarloResult<SuitedCard> chooseCardMonteCarlo(
     CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;

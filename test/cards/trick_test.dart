@@ -9,7 +9,7 @@ void main() {
     final trickCards = cs("2C QC KC TC");
     expect(defaultTrickWinnerIndex(trickCards), 2);
 
-    final tip = TrickInProgress(3);
+    final tip = TrickInProgress<SuitedCard>(3);
     tip.cards.addAll(trickCards);
     final trick = tip.finish();
     expect(trick.winner, 1);
@@ -19,7 +19,7 @@ void main() {
     final trickCards = cs("2C QH KD TC");
     expect(defaultTrickWinnerIndex(trickCards), 3);
 
-    final tip = TrickInProgress(3);
+    final tip = TrickInProgress<SuitedCard>(3);
     tip.cards.addAll(trickCards);
     final trick = tip.finish();
     expect(trick.winner, 2);
@@ -29,7 +29,7 @@ void main() {
     final trickCards = cs("4C 2H KC TC");
     expect(defaultTrickWinnerIndex(trickCards, trump: Suit.hearts), 1);
 
-    final tip = TrickInProgress(2);
+    final tip = TrickInProgress<SuitedCard>(2);
     tip.cards.addAll(trickCards);
     final trick = tip.finish(trump: Suit.hearts);
     expect(trick.winner, 3);
@@ -38,7 +38,7 @@ void main() {
   test('Multiple trumps', () {
     final trickCards = cs("AC 3S 4S 2S");
 
-    final tip = TrickInProgress(0);
+    final tip = TrickInProgress<SuitedCard>(0);
     tip.cards.addAll(trickCards);
     final trick = tip.finish(trump: Suit.spades);
     expect(trick.winner, 2);

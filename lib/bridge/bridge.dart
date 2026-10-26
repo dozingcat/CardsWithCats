@@ -344,7 +344,7 @@ class BridgePlayer {
 }
 
 List<SuitedCard> legalPlays(
-    List<SuitedCard> hand, TrickInProgress currentTrick) {
+    List<SuitedCard> hand, TrickInProgress<SuitedCard> currentTrick) {
   if (currentTrick.cards.isEmpty) {
     return hand;
   }
@@ -362,9 +362,9 @@ class BridgeRound extends BaseSuitedCardTrickRound {
   late int dealer;
   List<PlayerBid> bidHistory = [];
   @override
-  late TrickInProgress currentTrick;
+  late TrickInProgress<SuitedCard> currentTrick;
   @override
-  List<Trick> previousTricks = [];
+  List<Trick<SuitedCard>> previousTricks = [];
   Contract? contract;
   Vulnerability vulnerability = Vulnerability.neither;
   // Include "current" match points?
@@ -441,10 +441,10 @@ class BridgeRound extends BaseSuitedCardTrickRound {
             .map((b) => PlayerBid.fromJson(b as Map<String, dynamic>))
       ]
       ..currentTrick =
-          TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+          TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>, SuitedCard.cardsFromString)
       ..previousTricks = [
         ...json["previousTricks"]
-            .map((t) => Trick.fromJson(t as Map<String, dynamic>))
+            .map((t) => Trick.fromJson(t as Map<String, dynamic>, SuitedCard.cardsFromString))
       ]
       ..contract = (json["contract"] != null)
           ? Contract.fromJson(json["contract"])
