@@ -327,7 +327,7 @@ void main() {
     });
   });
 
-  group("Placeholder AI", () {
+  group("AI", () {
     test("Discards are valid with either discard rule", () {
       for (final allowPoints in [true, false]) {
         final rules = RookRuleSet(allowDiscardingPointCards: allowPoints);
@@ -359,6 +359,85 @@ void main() {
       }
       final choice = chooseDiscardsAndTrump(round, Random(1));
       expect(round.isValidDiscardForDeclarer(choice.discards), true);
+    });
+
+    test("Known voids, including the joker counting as trump", () {
+      final round = playingRound([
+        "5H 6H JOKER1",
+        "TH 7S 8S",
+        "9D 9S AS",
+        "AH KS 6C",
+      ], trump: Suit.spades);
+      // Hearts led: P1 follows, P2 shows out (void in hearts), P3 follows.
+      round.playCard(c("5H")[0]);
+      round.playCard(c("TH")[0]);
+      round.playCard(c("9D")[0]);
+      round.playCard(c("AH")[0]);
+      // P3 leads spades: P0 must play the joker, which doesn't show a void.
+      round.playCard(c("KS")[0]);
+      round.playCard(c("JOKER1")[0]);
+      final voids = knownVoids(round);
+      expect(voids[0], isEmpty);
+      expect(voids[1], isEmpty);
+      expect(voids[2], {Suit.hearts});
+      expect(voids[3], isEmpty);
+    });
+
+    test("Sampled rounds are consistent with what the player knows", () {
+      final rng = Random(3);
+      for (int seed = 0; seed < 20; seed++) {
+        final round = RookRound.deal(rules: RookRuleSet(), scores: [0, 0], dealer: 3, rng: Random(seed));
+        round.addBid(PlayerBid(0, 70));
+        for (int p in [1, 2, 3]) {
+          round.addBid(PlayerBid.pass(p));
+        }
+        final choice = chooseDiscardsAndTrump(round, rng);
+        round.discardAndChooseTrump(choice.discards, choice.trump);
+        for (int i = 0; i < 14; i++) {
+          round.playCard(chooseCardHeuristic(round, rng));
+        }
+        final player = round.currentPlayerIndex();
+        final voids = knownVoids(round);
+        for (int n = 0; n < 10; n++) {
+          final hypo = possibleRoundForPlayer(round, player, rng)!;
+          expect(hypo.players[player].hand, round.players[player].hand);
+          final allCards = [...hypo.players.expand((p) => p.hand), ...hypo.finalNest, ...playedCards(hypo)];
+          expect(allCards.toSet(), rookDeckCards().toSet());
+          expect(allCards.length, 41);
+          for (int p = 0; p < numPlayers; p++) {
+            expect(hypo.players[p].hand.length, round.players[p].hand.length);
+            for (final c in hypo.players[p].hand) {
+              expect(voids[p].contains(effectiveSuit(c, round.contract!.trump)), false);
+            }
+          }
+          if (player == 0) {
+            expect(hypo.finalNest, round.finalNest);
+          }
+        }
+      }
+    });
+
+    test("Heuristic and Monte Carlo players make legal plays", () {
+      final rng = Random(8);
+      final mcParams = RookMonteCarloParams(numDeals: 5);
+      for (int seed = 0; seed < 20; seed++) {
+        final round = RookRound.deal(rules: RookRuleSet(), scores: [0, 0], dealer: seed % 4, rng: Random(seed));
+        while (round.status == RookRoundStatus.bidding && !round.isPassedOut()) {
+          final p = round.currentBidder();
+          final bid = chooseBid(round, p, rng, RookBidParams(numDeals: 20));
+          expect(round.canCurrentBidderMakeBid(bid), true);
+          round.addBid(PlayerBid(p, bid));
+        }
+        if (round.isPassedOut()) continue;
+        final choice = chooseDiscardsAndTrump(round, rng);
+        round.discardAndChooseTrump(choice.discards, choice.trump);
+        while (!round.isOver()) {
+          final useMonteCarlo = round.currentPlayerIndex() % 2 == 0;
+          final card = useMonteCarlo ? chooseCardMonteCarlo(round, mcParams, rng) : chooseCardHeuristic(round, rng);
+          expect(round.legalPlaysForCurrentPlayer(), contains(card));
+          round.playCard(card);
+        }
+      }
     });
   });
 }
