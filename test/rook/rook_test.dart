@@ -4,6 +4,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:cards_with_cats/rook/rook.dart";
+import "package:cards_with_cats/rook/rook_ai.dart";
 
 const c = PlayingCard.cardsFromString;
 
@@ -323,6 +324,41 @@ void main() {
         ...copy.previousRounds[0].finalNest,
       ];
       expect(allCards.contains(joker), true);
+    });
+  });
+
+  group("Placeholder AI", () {
+    test("Discards are valid with either discard rule", () {
+      for (final allowPoints in [true, false]) {
+        final rules = RookRuleSet(allowDiscardingPointCards: allowPoints);
+        for (int seed = 0; seed < 50; seed++) {
+          final rng = Random(seed);
+          final round = RookRound.deal(rules: rules, scores: [0, 0], dealer: 3, rng: rng);
+          round.addBid(PlayerBid(0, 70));
+          for (int p in [1, 2, 3]) {
+            round.addBid(PlayerBid.pass(p));
+          }
+          final choice = chooseDiscardsAndTrump(round, rng);
+          expect(round.isValidDiscardForDeclarer(choice.discards), true);
+          round.discardAndChooseTrump(choice.discards, choice.trump);
+          while (!round.isOver()) {
+            round.playCard(chooseCardRandom(round, rng));
+          }
+        }
+      }
+    });
+
+    test("Point cards are discarded when there aren't enough other cards", () {
+      final rules = RookRuleSet(allowDiscardingPointCards: false);
+      final round = RookRound.deal(rules: rules, scores: [0, 0], dealer: 3, rng: Random(1));
+      round.players[0].hand = c("5S 5H 5D 5C TS TH TD TC 6S");
+      round.initialNest = c("AS AH AD 7S 8S");
+      round.addBid(PlayerBid(0, 70));
+      for (int p in [1, 2, 3]) {
+        round.addBid(PlayerBid.pass(p));
+      }
+      final choice = chooseDiscardsAndTrump(round, Random(1));
+      expect(round.isValidDiscardForDeclarer(choice.discards), true);
     });
   });
 }

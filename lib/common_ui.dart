@@ -111,6 +111,17 @@ Rect centeredSubrectWithAspectRatio(Rect parentRect, double aspectRatio) {
 
 const defaultTrumpBackgroundColor = Color.fromARGB(255, 255, 215, 0);
 
+// Jokers are trumps whenever there's a trump suit (e.g. the Rook card in Rook).
+bool isTrumpCard(PlayingCard card, Suit? trumpSuit) {
+  return switch (card) {
+    SuitedCard(:final suit) => suit == trumpSuit,
+    JokerCard() => trumpSuit != null,
+  };
+}
+
+// Not all card image sets have joker images, so fall back to this one.
+const fallbackJokerImage = AssetImage("assets/cards/original/JOKER1.webp");
+
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
@@ -162,6 +173,12 @@ class PositionedCard extends StatelessWidget {
       image: cardImageSet.imageProvider(card.toString()),
       color: tint,
       colorBlendMode: BlendMode.modulate,
+      errorBuilder: (card is JokerCard) ? (context, error, stackTrace) => Image(
+        image: fallbackJokerImage,
+        fit: BoxFit.fill,
+        color: tint,
+        colorBlendMode: BlendMode.modulate,
+      ) : null,
     ));
 
     // The card images don't have an edge border so we draw it manually.
@@ -341,8 +358,10 @@ class SpeechBubble extends StatelessWidget {
                 width: imageWidth,
                 height: imageHeight * 0.73,
                 top: (playerIndex == 2) ? 0.27 * imageHeight : 0,
-                child: Center(child:
-                  Text(message, style: TextStyle(fontSize: fontSize, height: 1)))
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: imageWidth * 0.12),
+                  child: Center(child: FittedBox(fit: BoxFit.scaleDown, child:
+                    Text(message, style: TextStyle(fontSize: fontSize, height: 1)))))
             ),
           ],
         ));
@@ -635,8 +654,8 @@ List<PlayingCard> sortedCardsWithOrdering(
 
 class TrickCards extends StatelessWidget {
   final Layout layout;
-  final TrickInProgress<SuitedCard> currentTrick;
-  final List<Trick<SuitedCard>> previousTricks;
+  final TrickInProgress<PlayingCard> currentTrick;
+  final List<Trick<PlayingCard>> previousTricks;
   final AnimationMode animationMode;
   final int numPlayers;
   final void Function() onTrickCardAnimationFinished;
@@ -699,7 +718,7 @@ class TrickCards extends StatelessWidget {
         cardImageSet: layout.cardImageSet,
         rect: cardRect,
         card: card,
-        isTrump: card is SuitedCard && card.suit == trumpSuit,
+        isTrump: isTrumpCard(card, trumpSuit),
         backgroundColor: cardBackgroundColors?[card],
         onCardClicked: onCardClicked,
         opacity: opacity,
@@ -791,7 +810,7 @@ class TrickCards extends StatelessWidget {
               cardImageSet: layout.cardImageSet,
               rect: animRect,
               card: cards.last,
-              isTrump: lastCard is SuitedCard && lastCard.suit == trumpSuit,
+              isTrump: isTrumpCard(lastCard, trumpSuit),
               backgroundColor: cardBackgroundColors?[lastCard],
               rotation: rotation,
               onCardClicked: onCardClicked,
@@ -801,7 +820,7 @@ class TrickCards extends StatelessWidget {
     return cardWidgets;
   }
 
-  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick<SuitedCard> trick) {
+  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick<PlayingCard> trick) {
     // Negative animation value means not moving. It might be better to have
     // a separate state for "waiting to move trick", but that would make state
     // transition logic more complex.
@@ -824,12 +843,91 @@ class TrickCards extends StatelessWidget {
                     cardImageSet: layout.cardImageSet,
                     rect: animRect,
                     card: trick.cards[i],
-                    isTrump: trick.cards[i].suit == trumpSuit,
+                    isTrump: isTrumpCard(trick.cards[i], trumpSuit),
                     backgroundColor: cardBackgroundColors?[trick.cards[i]],
                 ));
           }
           return Stack(children: cardWidgets);
         });
+  }
+}
+
+class BidTableEntry {
+  final int player;
+  final String label;
+
+  const BidTableEntry(this.player, this.label);
+}
+
+/// An auction as a table with one column per player (in player index order),
+/// and bids in order from left to right and top to bottom. Players don't have
+/// to bid in strict rotation (e.g. in Rook, players who have passed are
+/// skipped); a new row starts whenever the next bidder is at or to the left of
+/// the previous one.
+class BidTable extends StatelessWidget {
+  // Exactly four header cells, in player index order.
+  final List<Widget> headerCells;
+  final List<BidTableEntry> entries;
+  // The player who bid first (or will bid first if there are no entries yet),
+  // which determines the empty cells at the start of the first row.
+  final int firstBidder;
+  // If not null, shows "?" in this player's column after the last entry.
+  final int? nextBidder;
+  // If not null, the entry at this index is highlighted.
+  final int? selectedIndex;
+  final void Function(int entryIndex)? onEntryTapped;
+
+  const BidTable({
+    super.key,
+    required this.headerCells,
+    required this.entries,
+    required this.firstBidder,
+    this.nextBidder,
+    this.selectedIndex,
+    this.onEntryTapped,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const numColumns = 4;
+    final List<List<Widget?>> rows = [];
+    int previousColumn = firstBidder - 1;
+    void addCell(int column, Widget cell) {
+      if (rows.isEmpty || column <= previousColumn) {
+        rows.add(List.filled(numColumns, null));
+      }
+      rows.last[column] = cell;
+      previousColumn = column;
+    }
+
+    for (int i = 0; i < entries.length; i++) {
+      final isSelected = (i == selectedIndex);
+      addCell(entries[i].player, GestureDetector(
+        onTap: (onEntryTapped != null) ? () => onEntryTapped!(i) : null,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            color: isSelected ? Colors.white : Colors.transparent,
+          ),
+          child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(entries[i].label, textAlign: TextAlign.center)),
+        ),
+      ));
+    }
+    if (nextBidder != null) {
+      addCell(nextBidder!, const Text("?", textAlign: TextAlign.center));
+    }
+
+    return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      children: [
+        TableRow(children: headerCells),
+        for (final row in rows)
+          TableRow(children: [for (final cell in row) cell ?? const SizedBox()]),
+      ],
+    );
   }
 }
 
@@ -854,6 +952,7 @@ class GameTypeDropdown extends StatelessWidget {
         DropdownMenuItem(value: GameType.spades, child: Text('Spades', style: textStyle)),
         DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
         DropdownMenuItem(value: GameType.bridge, child: Text('Bridge', style: textStyle)),
+        DropdownMenuItem(value: GameType.rook, child: Text('Rook', style: textStyle)),
       ],
       onChanged: onChanged,
     );
@@ -971,7 +1070,7 @@ class PlayerHandCards extends StatelessWidget {
                 cardImageSet: layout.cardImageSet,
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
-                isTrump: card is SuitedCard && card.suit == trumpSuit,
+                isTrump: isTrumpCard(card, trumpSuit),
                 dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
                 onCardClicked: onCardClicked,
                 rotation: rotation,
@@ -989,7 +1088,7 @@ class PlayerHandCards extends StatelessWidget {
         cardImageSet: layout.cardImageSet,
         rect: entry.value,
         card: card,
-        isTrump: card is SuitedCard && card.suit == trumpSuit,
+        isTrump: isTrumpCard(card, trumpSuit),
         dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
         onCardClicked: onCardClicked,
         rotation: rotation,
