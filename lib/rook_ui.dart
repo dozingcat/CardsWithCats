@@ -791,7 +791,8 @@ class RookEndOfRoundDialog extends StatelessWidget {
     final contract = round.contract!;
     final pointsTaken = round.teamPointsTaken();
     final roundScores = round.contractScoresForTeams();
-    final madeBid = pointsTaken[contract.declarer % numTeams] >= contract.bid;
+    final declarerPointsTaken = pointsTaken[contract.declarer % numTeams];
+    final madeBid = declarerPointsTaken >= contract.bid;
     const headerFontSize = 14.0;
     const pointsFontSize = headerFontSize * 1.2;
     const cellPad = 4.0;
@@ -835,7 +836,9 @@ class RookEndOfRoundDialog extends StatelessWidget {
               Padding(padding: const EdgeInsets.all(10), child: Row(mainAxisSize: MainAxisSize.min, children: [
                 ..._playerLabel(contract.declarer, catImageIndices, height: catImageHeight),
                 Text(" bid ${contract.bid} and "
-                    "${madeBid ? "made it." : "failed."}"),
+                    "${madeBid ? "succeeded with " : "failed with "}"
+                    "$declarerPointsTaken"
+                ),
               ])),
               paddingAll(
                   10,
@@ -849,7 +852,6 @@ class RookEndOfRoundDialog extends StatelessWidget {
                         paddingAll(cellPad, opponentTeamHeaderCell()),
                       ]),
                       pointsRow("Previous score", round.initialScores),
-                      pointsRow("Points taken", pointsTaken),
                       pointsRow("Round score", roundScores),
                       pointsRow("Total score", match.scores),
                     ],
