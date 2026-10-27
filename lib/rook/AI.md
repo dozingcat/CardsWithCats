@@ -117,6 +117,11 @@ noted):
 | -80 vs -60, mc30 play | +8.6 ± 4.6 |
 | partner bid bonus 20 / 40 | +1.3 ± 2.9 / -13.0 ± 3.6 (same as a lower threshold) |
 | outbid partner with a 15 / 5 point margin | -3.6 ± 2.3 / -16.5 ± 2.7 |
+| outbid partner to stay in only while an opponent can still bid (code removed), margin 5 / 10 / 15 / 20 / 30 | -7.2 / -8.5 / -5.7 / -1.6 / -1.6 (± 1.4 to 1.8) |
+
+Staying in the auction behind partner (in case an opponent outbids partner
+and partner drops out) wins more auctions, but the extra contracts are made
+less often than the ones it takes away from the opponents, so it was removed.
 
 The default is -70: -60 is clearly better than -40, and with Monte Carlo
 play slightly more aggressive looked better. In AI-vs-AI auctions this
