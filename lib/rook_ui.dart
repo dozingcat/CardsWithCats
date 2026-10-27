@@ -82,8 +82,6 @@ HandOrdering rookHandOrdering(Suit? trump) {
   return HandOrdering(compareFn, suitOrder);
 }
 
-String _teamName(int team) => team == 0 ? "Your team" : "Your opponents";
-
 class RookMatchState extends State<RookMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
@@ -700,40 +698,37 @@ class RookDiscardDialog extends StatelessWidget {
         backgroundColor: dialogBackgroundColor,
         child: FittedBox(fit: .scaleDown, child: Column(
           mainAxisSize: MainAxisSize.min,
+          spacing: halfPadding,
           children: [
-            SizedBox(height: halfPadding),
+
             paddingAll(halfPadding, Text(
                 "You won the bid at ${round.winningBid().bid}.\n"
                 "Choose $numNestCards cards to discard, and the trump suit.",
                 style: textStyle, textAlign: TextAlign.center)),
             if (!round.rules.allowDiscardingPointCards)
               const Text("Point cards can't be discarded.", style: TextStyle(fontSize: 12)),
-            paddingAll(halfPadding, Row(
-              spacing: 12,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SegmentedButton<Suit>(
-                  segments: const [
-                    ButtonSegment(value: Suit.clubs, label: Text("♣")),
-                    ButtonSegment(value: Suit.diamonds, label: Text("♦")),
-                    ButtonSegment(value: Suit.hearts, label: Text("♥")),
-                    ButtonSegment(value: Suit.spades, label: Text("♠")),
-                  ],
-                  showSelectedIcon: false,
-                  emptySelectionAllowed: true,
-                  selected: {?selectedTrump},
-                  onSelectionChanged: (Set<Suit> suits) {
-                    if (suits.isNotEmpty) {
-                      onTrumpSelected(suits.first);
-                    }
-                  },
-                ),
-                ElevatedButton(
-                  onPressed: _isButtonEnabled() ? onConfirm : null,
-                  child: Text(_buttonLabel()),
-                ),
+
+            SegmentedButton<Suit>(
+              segments: const [
+                ButtonSegment(value: Suit.clubs, label: Text("♣")),
+                ButtonSegment(value: Suit.diamonds, label: Text("♦")),
+                ButtonSegment(value: Suit.hearts, label: Text("♥")),
+                ButtonSegment(value: Suit.spades, label: Text("♠")),
               ],
-            )),
+              showSelectedIcon: false,
+              emptySelectionAllowed: true,
+              selected: {?selectedTrump},
+              onSelectionChanged: (Set<Suit> suits) {
+                if (suits.isNotEmpty) {
+                  onTrumpSelected(suits.first);
+                }
+              },
+            ),
+
+            ElevatedButton(
+              onPressed: _isButtonEnabled() ? onConfirm : null,
+              child: Text(_buttonLabel()),
+            ),
             SizedBox(height: halfPadding),
           ],
         )),
@@ -837,10 +832,10 @@ class RookEndOfRoundDialog extends StatelessWidget {
             child: FittedBox(fit: .scaleDown, child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (match.isMatchOver())
                 paddingAll(10, Text(matchOverMessage(), style: const TextStyle(fontSize: 26))),
-              Padding(padding: const EdgeInsets.only(top: 10), child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Padding(padding: const EdgeInsets.all(10), child: Row(mainAxisSize: MainAxisSize.min, children: [
                 ..._playerLabel(contract.declarer, catImageIndices, height: catImageHeight),
-                Text(" bid ${contract.bid} with ${contract.trump.symbolChar} trump. "
-                    "${_teamName(contract.declarer % numTeams)} ${madeBid ? "made it!" : "went set."}"),
+                Text(" bid ${contract.bid} and "
+                    "${madeBid ? "made it." : "failed."}"),
               ])),
               paddingAll(
                   10,
