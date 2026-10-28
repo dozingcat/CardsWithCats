@@ -23,6 +23,8 @@ import 'ohhell/ohhell.dart';
 import 'ohhell_ui.dart';
 import 'rook/rook.dart';
 import 'rook_ui.dart';
+import 'five_hundred/five_hundred.dart';
+import 'five_hundred_ui.dart';
 import 'spades/spades.dart';
 
 import 'common_ui.dart';
@@ -309,6 +311,7 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("ohHellMatch");
     preferences.remove("bridgeMatch");
     preferences.remove("rookMatch");
+    preferences.remove("fiveHundredMatch");
 
     preferences.remove("matchType");
     matchType = null;
@@ -355,6 +358,15 @@ class _MyHomePageState extends State<MyHomePage> {
     if (match != null) {
       preferences.setString("matchType", "rook");
       preferences.setString("rookMatch", jsonEncode(match.toJson()));
+    } else {
+      _clearMatch();
+    }
+  }
+
+  void _saveFiveHundredMatch(final FiveHundredMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "fiveHundred");
+      preferences.setString("fiveHundredMatch", jsonEncode(match.toJson()));
     } else {
       _clearMatch();
     }
@@ -410,6 +422,16 @@ class _MyHomePageState extends State<MyHomePage> {
     return _createRookMatch();
   }
 
+  FiveHundredMatch _initialFiveHundredMatch() {
+    if (preferences.getString("matchType") == "fiveHundred") {
+      String? json = preferences.getString("fiveHundredMatch");
+      if (json != null) {
+        return FiveHundredMatch.fromJson(jsonDecode(json), rng);
+      }
+    }
+    return _createFiveHundredMatch();
+  }
+
   HeartsMatch _createHeartsMatch() {
     catIndices = randomizedCatImageIndices(rng);
     return HeartsMatch(heartsRulesFromPrefs, rng);
@@ -435,6 +457,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return RookMatch(rookRulesFromPrefs, Random());
   }
 
+  FiveHundredMatch _createFiveHundredMatch() {
+    catIndices = randomizedCatImageIndices(rng);
+    return FiveHundredMatch(FiveHundredRuleSet(), Random());
+  }
+
   void _continueGame() {
     setState(() {
       dialogMode = DialogMode.none;
@@ -448,6 +475,7 @@ class _MyHomePageState extends State<MyHomePage> {
       GameType.ohHell => preferences.getString("ohHellMatch") != null,
       GameType.bridge => preferences.getString("bridgeMatch") != null,
       GameType.rook => preferences.getString("rookMatch") != null,
+      GameType.fiveHundred => preferences.getString("fiveHundredMatch") != null,
       null => false,
     };
   }
@@ -504,6 +532,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.rook;
+    });
+  }
+
+  void startNewFiveHundredMatch() {
+    preferences.remove("fiveHundredMatch");
+    final newMatch = _createFiveHundredMatch();
+    _saveFiveHundredMatch(newMatch);
+    matchUpdateNotifier.sink.add(newMatch);
+    setState(() {
+      dialogMode = DialogMode.none;
+      matchType = GameType.fiveHundred;
     });
   }
 
@@ -573,6 +612,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void handleNewFiveHundredMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewFiveHundredMatch);
+    } else {
+      startNewFiveHundredMatch();
+    }
+  }
+
   void handleNewMatchClicked() {
     setState(() {dialogMode = DialogMode.startMatch;});
   }
@@ -593,6 +640,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case GameType.rook:
         handleNewRookMatchClicked();
+        break;
+      case GameType.fiveHundred:
+        handleNewFiveHundredMatchClicked();
         break;
     }
   }
@@ -1093,6 +1143,20 @@ class _MyHomePageState extends State<MyHomePage> {
               initialMatchFn: _initialRookMatch,
               createMatchFn: _createRookMatch,
               saveMatchFn: _saveRookMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              tintTrumpCards: useTintedTrumpCards,
+              soundPlayer: soundPlayer,
+              statsStore: statsStore,
+              cardImageSet: cardImageSet,
+            ),
+          if (matchType == GameType.fiveHundred)
+            FiveHundredMatchDisplay(
+              initialMatchFn: _initialFiveHundredMatch,
+              createMatchFn: _createFiveHundredMatch,
+              saveMatchFn: _saveFiveHundredMatch,
               mainMenuFn: _showMainMenu,
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,

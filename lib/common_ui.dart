@@ -953,6 +953,7 @@ class GameTypeDropdown extends StatelessWidget {
         DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
         DropdownMenuItem(value: GameType.bridge, child: Text('Bridge', style: textStyle)),
         DropdownMenuItem(value: GameType.rook, child: Text('Rook', style: textStyle)),
+        DropdownMenuItem(value: GameType.fiveHundred, child: Text('500', style: textStyle)),
       ],
       onChanged: onChanged,
     );
