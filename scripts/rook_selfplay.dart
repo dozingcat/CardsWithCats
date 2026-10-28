@@ -69,6 +69,7 @@ Strategy strategyForName(String name) {
     minExpectedDifferential: double.parse(opts["minDiff"] ?? "-70"),
     partnerBidBonus: double.parse(opts["partnerBonus"] ?? "0"),
     outbidPartnerMargin: opts.containsKey("outbidMargin") ? int.parse(opts["outbidMargin"]!) : null,
+    respectRookLimit: opts["rookLimit"] != "0",
   );
   final bidName = opts["bid"] ?? "sim";
   final int? Function(RookRound, int, Random) bid = switch (bidName) {

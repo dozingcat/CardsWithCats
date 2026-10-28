@@ -417,6 +417,40 @@ void main() {
       }
     });
 
+    test("Bids respect the Rook's 20 points", () {
+      RookRound auction(String hand, List<int?> bids) {
+        final round = RookRound.deal(rules: RookRuleSet(), scores: [0, 0], dealer: 3, rng: Random(1));
+        // Give player 2 the hand, swapping cards with the other hands and nest.
+        final wanted = c(hand).toSet();
+        final p2 = round.players[2].hand;
+        for (final other in [...round.players.map((p) => p.hand), round.initialNest]) {
+          if (identical(other, p2)) continue;
+          for (int i = 0; i < other.length; i++) {
+            if (!wanted.contains(other[i])) continue;
+            final j = p2.indexWhere((x) => !wanted.contains(x));
+            final t = p2[j];
+            p2[j] = other[i];
+            other[i] = t;
+          }
+        }
+        for (int i = 0; i < bids.length; i++) {
+          round.addBid(PlayerBid(i, bids[i]));
+        }
+        return round;
+      }
+      int? bid(RookRound round, bool respectRookLimit) =>
+          chooseBid(round, 2, Random(5), RookBidParams(numDeals: 50, respectRookLimit: respectRookLimit));
+
+      // With the Rook, an opponent's 105 can't be made: pass rather than outbid it.
+      final withRook = auction("9S AH KS AD JS JOKER1 AS TS TD", [70, 105]);
+      expect(bid(withRook, false), 110);
+      expect(bid(withRook, true), null);
+      // Without the Rook, don't bid over 100.
+      final withoutRook = auction("AS KS QS JS TS 9S AH AD AC", [70, 100]);
+      expect(bid(withoutRook, false), 105);
+      expect(bid(withoutRook, true), null);
+    });
+
     test("Heuristic and Monte Carlo players make legal plays", () {
       final rng = Random(8);
       final mcParams = RookMonteCarloParams(numDeals: 5);

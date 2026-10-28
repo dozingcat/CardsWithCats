@@ -495,12 +495,18 @@ class RookBidParams {
   // If not null, outbid partner when our maximum bid is at least this much
   // more than partner's bid.
   int? outbidPartnerMargin;
+  // The Rook always wins its trick, so whoever holds it scores its points: a
+  // bid above the other points can only be made by the Rook holder's team.
+  // With the Rook, pass when the opponents have bid more than that (they're
+  // certain to be set). Without it, don't bid more than that.
+  bool respectRookLimit;
 
   RookBidParams({
     this.numDeals = 200,
     this.minExpectedDifferential = -70,
     this.partnerBidBonus = 0,
     this.outbidPartnerMargin,
+    this.respectRookLimit = true,
   });
 }
 
@@ -534,11 +540,28 @@ int? maxBidForHand(RookRound round, int player, Random rng, [RookBidParams? para
 // Returns the bid amount, or null to pass.
 int? chooseBid(RookRound round, int playerIndex, Random rng, [RookBidParams? bidParams]) {
   final params = bidParams ?? defaultBidParams;
-  final maxBid = maxBidForHand(round, playerIndex, rng, params);
+  final rules = round.rules;
+  final high = highBid(round.bidHistory);
+  final hasRook = round.players[playerIndex].hand.contains(joker);
+  final withoutRookLimit = pointsForCards(rookDeckCards(), rules) - rules.pointsForJoker;
+  if (params.respectRookLimit &&
+      hasRook &&
+      high != null &&
+      high.player % numTeams != playerIndex % numTeams &&
+      high.bid! > withoutRookLimit) {
+    return null;
+  }
+  final nextBid = (high == null) ? rules.minimumBid : high.bid! + rules.bidIncrement;
+  if (params.respectRookLimit && !hasRook && nextBid > withoutRookLimit) {
+    return null;
+  }
+  var maxBid = maxBidForHand(round, playerIndex, rng, params);
   if (maxBid == null) {
     return null;
   }
-  final high = highBid(round.bidHistory);
+  if (params.respectRookLimit && !hasRook) {
+    maxBid = min(maxBid, withoutRookLimit);
+  }
   // Don't outbid partner, unless our hand is much stronger.
   if (high != null && high.player % numTeams == playerIndex % numTeams) {
     final margin = params.outbidPartnerMargin;
@@ -546,6 +569,5 @@ int? chooseBid(RookRound round, int playerIndex, Random rng, [RookBidParams? bid
       return null;
     }
   }
-  final nextBid = (high == null) ? round.rules.minimumBid : high.bid! + round.rules.bidIncrement;
   return (nextBid <= maxBid) ? nextBid : null;
 }

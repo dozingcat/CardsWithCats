@@ -15,6 +15,7 @@ seatings, with a standard error. Strategies are comma separated options:
 
 - `bid`: `never`, `min` (bid 70 if nobody has bid, otherwise pass), `sim`
   (simulation based, below), with `minDiff`, `bidDeals`, `partnerBonus`,
+  `rookLimit=0` (turn off the Rook limit),
   `outbidMargin`.
 - `play`: `random`, `heuristic`, `mcN` (Monte Carlo with N sampled deals).
 - Heuristic play options `hjoker`, `hpull`, `hsmear`, `hsafe`, `hmasters`,
@@ -52,6 +53,10 @@ take minutes. Keep `--workers` at 10 or fewer.
   distribution of points taken, then find the highest bid whose expected
   score differential is at least `minExpectedDifferential` (-70). Bid the
   next increment if it's within that limit; never outbid partner.
+- **The Rook limit** (`respectRookLimit`): the Rook always wins its trick,
+  so a bid over 100 can only be made by the team holding it. The Rook
+  holder passes when an opponent has bid over 100 (they're certain to be
+  set), and a player without the Rook never bids over 100.
 
 Because making the bid scores the points taken, not the bid, a higher bid
 never helps by itself: it only wins the auction (nest and trump choice) at
@@ -126,6 +131,30 @@ less often than the ones it takes away from the opponents, so it was removed.
 The default is -70: -60 is clearly better than -40, and with Monte Carlo
 play slightly more aggressive looked better. In AI-vs-AI auctions this
 pushes winning bids to about 95-100 with 60-75% made.
+
+**The Rook limit** (4000 deals, heuristic play unless noted). The
+simulation alone has every Rook holder willing to bid 110-120 (taking the
+nest and choosing trump is worth that much against the -70 threshold), so
+Rook holders kept outbidding opponents' hopeless bids over 100: before the
+fix, about half of AI contracts were over 100 and fewer than half of those
+were made.
+
+| A vs B | Result |
+|---|---|
+| Rook holder passes over a bid over 100, vs neither | +29.0 ± 1.7 |
+| no bid over 100 without the Rook, vs neither | -0.7 ± 1.5 |
+| both, vs the passing rule only | +31.1 ± 1.7 |
+| both, vs neither | +31.1 ± 1.7 |
+| both, vs neither, mc30 play (400 deals) | +45.4 ± 6.2 |
+| both, vs neither, no point discards | +7.3 ± 1.5 |
+| passing rule + jump to 100 with the Rook, vs neither | +45.0 ± 1.9 |
+| passing rule + jump to 100, vs the passing rule only | +13.4 ± 1.6 |
+| both + jump to 100, vs both | +1.0 ± 1.2 (code removed) |
+| minDiff -60 / -80 with both, vs -70 | -6.3 ± 1.2 / +1.6 ± 1.1 |
+
+The cap without the Rook only pays once Rook holders stop rescuing
+opponents' hopeless bids. Jumping to 100 with the Rook gains only against
+opponents who bid over 100 without it, which the capped AI doesn't do.
 
 ## Ideas not yet tried
 
