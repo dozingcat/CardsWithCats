@@ -286,15 +286,34 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
         playerMoods[i] = (i % numTeams == winner) ? Mood.veryHappy : Mood.mad;
       }
     } else if (round.isOver()) {
-      // Declaring team is happy if they made the bid, mad if not.
+      // Declaring team is happy if they made the bid, mad if not. Defenders
+      // are happy if the last trick set the contract.
       final declarerTeam = round.contract!.declarer % numTeams;
       final madeBid = round.didDeclarerMakeContract();
+      final setByLastTrick = _wasContractSetByLastTrick();
       for (int i = 1; i < numPlayers; i++) {
         if (i % numTeams == declarerTeam) {
           playerMoods[i] = madeBid ? Mood.happy : Mood.mad;
+        } else if (setByLastTrick) {
+          playerMoods[i] = Mood.happy;
         }
       }
+    } else if (_wasContractSetByLastTrick()) {
+      final declarerTeam = round.contract!.declarer % numTeams;
+      for (int i = 1; i < numPlayers; i++) {
+        playerMoods[i] = (i % numTeams == declarerTeam) ? Mood.mad : Mood.happy;
+      }
     }
+  }
+
+  // Whether the most recent trick was the one that gave the defenders enough
+  // tricks to set the contract.
+  bool _wasContractSetByLastTrick() {
+    final contract = round.contract!;
+    final defenderTeam = 1 - contract.declarer % numTeams;
+    final setThreshold = numTricksPerRound - contract.bid.tricks + 1;
+    return round.previousTricks.last.winner % numTeams == defenderTeam &&
+        round.tricksTakenByTeam()[defenderTeam] == setThreshold;
   }
 
   void _playSoundsForMoods() {

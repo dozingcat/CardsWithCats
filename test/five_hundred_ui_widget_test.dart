@@ -212,4 +212,52 @@ void main() {
     // Let the AI players bid, so no timers are pending when the test ends.
     await pumpFor(tester, 4000);
   });
+
+  testWidgets("Defenders are happy on the trick that sets the contract", (tester) async {
+    final rng = Random(7);
+    final getMatch = await pumpFiveHundredMatch(tester, rng, FiveHundredAiFunctions(
+      chooseBid: (args) => null,
+      chooseDiscards: (round) => chooseDiscards(round, rng),
+      chooseCard: (round) => chooseCardRandom(round, rng),
+      runInIsolate: false,
+    ));
+    await tester.pump();
+    // Bid 10 tricks, so the first trick the defenders take sets the contract.
+    for (int i = 0; i < 4; i++) {
+      await tester.tap(find.text("+"));
+      await tester.pump();
+    }
+    await tester.tap(find.text("Bid 10♠ (440)"));
+    await pumpFor(tester, 3500);
+    final round = getMatch().currentRound;
+    for (final c in round.declarerAvailableCards().take(3)) {
+      await tapHandCard(tester, c);
+    }
+    await tester.tap(find.text("Start round"));
+    await tester.pump();
+
+    bool sawSet = false;
+    for (int steps = 0; steps < 2000 && !round.isOver() && !sawSet; steps++) {
+      if (round.currentPlayerIndex() == 0 && round.currentTrick.cards.length < 4) {
+        await tapHandCard(tester, round.legalPlaysForCurrentPlayer().first);
+      }
+      await tester.pump(const Duration(milliseconds: 50));
+      if (round.tricksTakenByTeam()[1] == 1) {
+        sawSet = true;
+        // Moods are shown after the last card of the trick is animated.
+        await pumpFor(tester, 300);
+        Finder mood(int player, Mood m) =>
+            find.byWidgetPredicate((w) => w is MoodBubble && w.playerIndex == player && w.mood == m);
+        expect(mood(1, Mood.happy), findsOneWidget);
+        expect(mood(3, Mood.happy), findsOneWidget);
+        expect(mood(2, Mood.mad), findsOneWidget);
+      }
+    }
+    expect(sawSet, true);
+    await playOutRound(tester, round);
+    await pumpFor(tester, 2500);
+    await tester.tap(find.text("Continue"));
+    await tester.pump();
+    await pumpFor(tester, 3500);
+  });
 }
