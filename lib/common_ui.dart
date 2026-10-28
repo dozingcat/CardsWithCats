@@ -111,6 +111,17 @@ Rect centeredSubrectWithAspectRatio(Rect parentRect, double aspectRatio) {
 
 const defaultTrumpBackgroundColor = Color.fromARGB(255, 255, 215, 0);
 
+// Whether a card is a trump, for highlighting. Games where trumps aren't
+// just the cards of one suit (e.g. the Rook card in Rook) provide their own.
+typedef IsTrumpFn = bool Function(PlayingCard card);
+
+// For games where the trumps are exactly the cards of the trump suit.
+IsTrumpFn? trumpSuitPredicate(Suit? trumpSuit) =>
+    trumpSuit == null ? null : (card) => card is SuitedCard && card.suit == trumpSuit;
+
+// Not all card image sets have joker images, so fall back to this one.
+const fallbackJokerImage = AssetImage("assets/cards/original/JOKER1.webp");
+
 class PositionedCard extends StatelessWidget {
   final Rect rect;
   final PlayingCard card;
@@ -162,6 +173,12 @@ class PositionedCard extends StatelessWidget {
       image: cardImageSet.imageProvider(card.toString()),
       color: tint,
       colorBlendMode: BlendMode.modulate,
+      errorBuilder: (card is JokerCard) ? (context, error, stackTrace) => Image(
+        image: fallbackJokerImage,
+        fit: BoxFit.fill,
+        color: tint,
+        colorBlendMode: BlendMode.modulate,
+      ) : null,
     ));
 
     // The card images don't have an edge border so we draw it manually.
@@ -341,8 +358,10 @@ class SpeechBubble extends StatelessWidget {
                 width: imageWidth,
                 height: imageHeight * 0.73,
                 top: (playerIndex == 2) ? 0.27 * imageHeight : 0,
-                child: Center(child:
-                  Text(message, style: TextStyle(fontSize: fontSize, height: 1)))
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: imageWidth * 0.12),
+                  child: Center(child: FittedBox(fit: BoxFit.scaleDown, child:
+                    Text(message, style: TextStyle(fontSize: fontSize, height: 1)))))
             ),
           ],
         ));
@@ -600,17 +619,50 @@ class DisplayedHand {
   });
 }
 
+// HandOrdering describes how to sort cards for display. There's always a
+// function to determine the relative order of two cards, and there may be a
+// suit order used for UI like the dummy layout that puts suits in columns.
+typedef HandOrderingCompareFn = int Function(PlayingCard a, PlayingCard b);
+
+class HandOrdering {
+  final HandOrderingCompareFn compareFn;
+  final List<Suit>? suitOrder;
+
+  const HandOrdering(this.compareFn, this.suitOrder);
+}
+
+HandOrdering handOrderingDescendingInSuitOrder(final List<Suit> suitOrder) {
+  int compareFn(PlayingCard a, PlayingCard b) {
+    final sa = a as SuitedCard;
+    final sb = b as SuitedCard;
+    int suitA = suitOrder.indexOf(sa.suit);
+    int suitB = suitOrder.indexOf(sb.suit);
+    if (suitA != suitB) {
+      return (suitA < suitB) ? -1 : 1;
+    }
+    return sa.rank.isHigherThan(sb.rank) ? -1 : 1;
+  }
+  return HandOrdering(compareFn, suitOrder);
+}
+
+List<PlayingCard> sortedCardsWithOrdering(
+    final List<PlayingCard> cards, final HandOrdering ordering) {
+  final sorted = List.of(cards);
+  sorted.sort(ordering.compareFn);
+  return sorted;
+}
+
 class TrickCards extends StatelessWidget {
   final Layout layout;
-  final TrickInProgress currentTrick;
-  final List<Trick> previousTricks;
+  final TrickInProgress<PlayingCard> currentTrick;
+  final List<Trick<PlayingCard>> previousTricks;
   final AnimationMode animationMode;
   final int numPlayers;
   final void Function() onTrickCardAnimationFinished;
   final void Function() onTrickToWinnerAnimationFinished;
   final List<DisplayedHand> displayedHands;
-  final List<Suit> suitOrder;
-  final Suit? trumpSuit;
+  final HandOrdering handOrdering;
+  final IsTrumpFn? isTrump;
   final Map<PlayingCard, Color>? cardBackgroundColors;
   final bool transparentIfOverPlayerCards;
   final Function(PlayingCard)? onCardClicked;
@@ -625,8 +677,8 @@ class TrickCards extends StatelessWidget {
     required this.onTrickCardAnimationFinished,
     required this.onTrickToWinnerAnimationFinished,
     required this.displayedHands,
-    required this.suitOrder,
-    this.trumpSuit,
+    required this.handOrdering,
+    this.isTrump,
     this.cardBackgroundColors,
     this.transparentIfOverPlayerCards = false,
     this.onCardClicked,
@@ -666,7 +718,7 @@ class TrickCards extends StatelessWidget {
         cardImageSet: layout.cardImageSet,
         rect: cardRect,
         card: card,
-        isTrump: card.suit == trumpSuit,
+        isTrump: isTrump?.call(card) ?? false,
         backgroundColor: cardBackgroundColors?[card],
         onCardClicked: onCardClicked,
         opacity: opacity,
@@ -685,10 +737,10 @@ class TrickCards extends StatelessWidget {
 
     if (transparentIfOverPlayerCards) {
       scale = computeScaleForNonintersectingPlayerHands(
-          layout: layout, playerHands: displayedHands, suitOrder: suitOrder);
+          layout: layout, playerHands: displayedHands, handOrdering: handOrdering);
       for (final h in displayedHands) {
         var rects = playerHandCardRects(
-            layout, h.cards, suitOrder,
+            layout, h.cards, handOrdering,
             playerIndex: h.playerIndex,
             displayStyle: h.displayStyle,
             scaleMultiplier: scale,
@@ -732,7 +784,7 @@ class TrickCards extends StatelessWidget {
       // might need to be scaled down to avoid intersections.
       final previousHandCards = [...dh.cards, cards.last];
       startRect =
-          playerHandCardRects(layout, previousHandCards, suitOrder!, playerIndex: animPlayer, displayStyle: dh.displayStyle, leaveAvatarSpace: dh.leaveAvatarSpace)[cards.last]!;
+          playerHandCardRects(layout, previousHandCards, handOrdering!, playerIndex: animPlayer, displayStyle: dh.displayStyle, leaveAvatarSpace: dh.leaveAvatarSpace)[cards.last]!;
       startsFromVisibleHand = true;
       playerDisplayIndex = dh.playerIndex;
     }
@@ -753,12 +805,13 @@ class TrickCards extends StatelessWidget {
             final scale = 0.25 + (0.75 * frac);
             animRect = Rect.fromCenter(center: animRect.center, width: startRect.width * scale, height: startRect.height * scale);
           }
+          final lastCard = cards.last;
           return PositionedCard(
               cardImageSet: layout.cardImageSet,
               rect: animRect,
               card: cards.last,
-              isTrump: cards.last.suit == trumpSuit,
-              backgroundColor: cardBackgroundColors?[cards.last],
+              isTrump: isTrump?.call(lastCard) ?? false,
+              backgroundColor: cardBackgroundColors?[lastCard],
               rotation: rotation,
               onCardClicked: onCardClicked,
           );
@@ -767,7 +820,7 @@ class TrickCards extends StatelessWidget {
     return cardWidgets;
   }
 
-  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick trick) {
+  Widget _trickCardsAnimatingToWinner(final Layout layout, final Trick<PlayingCard> trick) {
     // Negative animation value means not moving. It might be better to have
     // a separate state for "waiting to move trick", but that would make state
     // transition logic more complex.
@@ -790,12 +843,91 @@ class TrickCards extends StatelessWidget {
                     cardImageSet: layout.cardImageSet,
                     rect: animRect,
                     card: trick.cards[i],
-                    isTrump: trick.cards[i].suit == trumpSuit,
+                    isTrump: isTrump?.call(trick.cards[i]) ?? false,
                     backgroundColor: cardBackgroundColors?[trick.cards[i]],
                 ));
           }
           return Stack(children: cardWidgets);
         });
+  }
+}
+
+class BidTableEntry {
+  final int player;
+  final String label;
+
+  const BidTableEntry(this.player, this.label);
+}
+
+/// An auction as a table with one column per player (in player index order),
+/// and bids in order from left to right and top to bottom. Players don't have
+/// to bid in strict rotation (e.g. in Rook, players who have passed are
+/// skipped); a new row starts whenever the next bidder is at or to the left of
+/// the previous one.
+class BidTable extends StatelessWidget {
+  // Exactly four header cells, in player index order.
+  final List<Widget> headerCells;
+  final List<BidTableEntry> entries;
+  // The player who bid first (or will bid first if there are no entries yet),
+  // which determines the empty cells at the start of the first row.
+  final int firstBidder;
+  // If not null, shows "?" in this player's column after the last entry.
+  final int? nextBidder;
+  // If not null, the entry at this index is highlighted.
+  final int? selectedIndex;
+  final void Function(int entryIndex)? onEntryTapped;
+
+  const BidTable({
+    super.key,
+    required this.headerCells,
+    required this.entries,
+    required this.firstBidder,
+    this.nextBidder,
+    this.selectedIndex,
+    this.onEntryTapped,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const numColumns = 4;
+    final List<List<Widget?>> rows = [];
+    int previousColumn = firstBidder - 1;
+    void addCell(int column, Widget cell) {
+      if (rows.isEmpty || column <= previousColumn) {
+        rows.add(List.filled(numColumns, null));
+      }
+      rows.last[column] = cell;
+      previousColumn = column;
+    }
+
+    for (int i = 0; i < entries.length; i++) {
+      final isSelected = (i == selectedIndex);
+      addCell(entries[i].player, GestureDetector(
+        onTap: (onEntryTapped != null) ? () => onEntryTapped!(i) : null,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            color: isSelected ? Colors.white : Colors.transparent,
+          ),
+          child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(entries[i].label, textAlign: TextAlign.center)),
+        ),
+      ));
+    }
+    if (nextBidder != null) {
+      addCell(nextBidder!, const Text("?", textAlign: TextAlign.center));
+    }
+
+    return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      children: [
+        TableRow(children: headerCells),
+        for (final row in rows)
+          TableRow(children: [for (final cell in row) cell ?? const SizedBox()]),
+      ],
+    );
   }
 }
 
@@ -820,6 +952,7 @@ class GameTypeDropdown extends StatelessWidget {
         DropdownMenuItem(value: GameType.spades, child: Text('Spades', style: textStyle)),
         DropdownMenuItem(value: GameType.ohHell, child: Text('Oh Hell', style: textStyle)),
         DropdownMenuItem(value: GameType.bridge, child: Text('Bridge', style: textStyle)),
+        DropdownMenuItem(value: GameType.rook, child: Text('Rook', style: textStyle)),
       ],
       onChanged: onChanged,
     );
@@ -888,12 +1021,12 @@ double cardRotationForPlayerIndex(int playerIndex) {
 
 class PlayerHandCards extends StatelessWidget {
   final Layout layout;
-  final List<Suit> suitDisplayOrder;
+  final HandOrdering handOrdering;
   final List<PlayingCard> cards;
   final Iterable<PlayingCard> highlightedCards;
   final void Function(PlayingCard)? onCardClicked;
   final List<PlayingCard>? animateFromCards;
-  final Suit? trumpSuit;
+  final IsTrumpFn? isTrump;
   final Map<PlayingCard, Color>? cardBackgroundColors;
   final int playerIndex;
   final HandDisplayStyle displayStyle;
@@ -903,11 +1036,11 @@ class PlayerHandCards extends StatelessWidget {
   const PlayerHandCards({
     super.key,
     required this.layout,
-    required this.suitDisplayOrder,
+    required this.handOrdering,
     required this.cards,
     required this.highlightedCards,
     this.animateFromCards,
-    this.trumpSuit,
+    this.isTrump,
     this.cardBackgroundColors,
     this.onCardClicked,
     this.playerIndex = 0,
@@ -918,12 +1051,12 @@ class PlayerHandCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rects = playerHandCardRects(layout, cards, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
+    final rects = playerHandCardRects(layout, cards, handOrdering, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
 
     double rotation = cardRotationForPlayerIndex(playerIndex);
 
     if (animateFromCards != null) {
-      final previousRects = playerHandCardRects(layout, animateFromCards!, suitDisplayOrder, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
+      final previousRects = playerHandCardRects(layout, animateFromCards!, handOrdering, playerIndex: playerIndex, displayStyle: displayStyle, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
       return TweenAnimationBuilder(
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 200),
@@ -937,7 +1070,7 @@ class PlayerHandCards extends StatelessWidget {
                 cardImageSet: layout.cardImageSet,
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
-                isTrump: card.suit == trumpSuit,
+                isTrump: isTrump?.call(card) ?? false,
                 dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
                 onCardClicked: onCardClicked,
                 rotation: rotation,
@@ -955,7 +1088,7 @@ class PlayerHandCards extends StatelessWidget {
         cardImageSet: layout.cardImageSet,
         rect: entry.value,
         card: card,
-        isTrump: card.suit == trumpSuit,
+        isTrump: isTrump?.call(card) ?? false,
         dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
         onCardClicked: onCardClicked,
         rotation: rotation,
@@ -1002,16 +1135,16 @@ class PlayerHandParams {
 class MultiplePlayerHandCards extends StatelessWidget {
   final Layout layout;
   final List<PlayerHandParams> playerHands;
-  final List<Suit> suitOrder;
-  final Suit? trumpSuit;
+  final HandOrdering handOrdering;
+  final IsTrumpFn? isTrump;
   final Map<PlayingCard, Color>? cardBackgroundColors;
 
   const MultiplePlayerHandCards({
     super.key,
     required this.layout,
     required this.playerHands,
-    required this.suitOrder,
-    this.trumpSuit,
+    required this.handOrdering,
+    this.isTrump,
     this.cardBackgroundColors,
   });
 
@@ -1020,7 +1153,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
     final scaleMultiplier = computeScaleForNonintersectingPlayerHands(
       layout: layout,
       playerHands: playerHands.map((h) => h.toDisplayedHand()).toList(),
-      suitOrder: suitOrder,
+      handOrdering: handOrdering,
     );
 
     return Stack(children: [
@@ -1030,9 +1163,9 @@ class MultiplePlayerHandCards extends StatelessWidget {
         playerIndex: ph.playerIndex,
         cards: ph.cards,
         highlightedCards: ph.highlightedCards,
-        suitDisplayOrder: suitOrder,
+        handOrdering: handOrdering,
         animateFromCards: ph.animateFromCards,
-        trumpSuit: trumpSuit,
+        isTrump: isTrump,
         cardBackgroundColors: cardBackgroundColors,
         onCardClicked: ph.onCardClicked,
         displayStyle: ph.displayStyle,
@@ -1060,7 +1193,7 @@ bool anyRectsIntersect(List<Rect> rects1, List<Rect> rects2) {
 double computeScaleForNonintersectingPlayerHands({
   required Layout layout,
   required List<DisplayedHand> playerHands,
-  required List<Suit> suitOrder,
+  required HandOrdering handOrdering,
 }) {
 
   bool hasCardIntersectionAtScaleMultiplier(double scaleMultiplier) {
@@ -1074,7 +1207,7 @@ double computeScaleForNonintersectingPlayerHands({
     const bufferScale = 1.03;
     for (final ph in playerHands) {
       final rects = playerHandCardRects(
-        layout, ph.cards, suitOrder,
+        layout, ph.cards, handOrdering,
         playerIndex: ph.playerIndex,
         displayStyle: ph.displayStyle,
         scaleMultiplier: scaleMultiplier,
@@ -1132,7 +1265,7 @@ double computeScaleForNonintersectingPlayerHands({
 LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
     Layout layout,
     List<PlayingCard> cards,
-    List<Suit> suitOrder,
+    HandOrdering handOrdering,
     {required int playerIndex, double scaleMultiplier = 1, bool leaveAvatarSpace = true}
 ) {
   if (!(playerIndex == 0 || playerIndex == 2)) {
@@ -1154,10 +1287,7 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
 
   double widthOfNCards(int n) => cardWidth + (n - 1) * pxBetweenCards;
 
-  List<PlayingCard> sortedCards = [];
-  for (Suit suit in suitOrder) {
-    sortedCards.addAll(sortedCardsInSuit(cards, suit));
-  }
+  List<PlayingCard> sortedCards = sortedCardsWithOrdering(cards, handOrdering);
   final oneRowWidth = widthOfNCards(sortedCards.length);
   if (oneRowWidth < maxAllowedTotalWidth) {
     final scaledRowWidth = oneRowWidth * scaleMultiplier;
@@ -1215,16 +1345,13 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForTopOrBottom(
 LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
     Layout layout,
     List<PlayingCard> cards,
-    List<Suit> suitOrder,
+    HandOrdering handOrdering,
     {required int playerIndex, double scaleMultiplier = 1.0, bool leaveAvatarSpace = true}
     ) {
   if (!(playerIndex == 1 || playerIndex == 3)) {
     throw Exception("invalid playerIndex: $playerIndex");
   }
-  List<PlayingCard> sortedCards = [];
-  for (Suit suit in suitOrder) {
-    sortedCards.addAll(sortedCardsInSuit(cards, suit));
-  }
+  List<PlayingCard> sortedCards = sortedCardsWithOrdering(cards, handOrdering);
 
   final rects = LinkedHashMap<PlayingCard, Rect>();
   final ds = layout.displaySize;
@@ -1278,7 +1405,7 @@ LinkedHashMap<PlayingCard, Rect> _playerHandCardRectsForLeftOrRight(
 LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
   required Layout layout,
   required List<PlayingCard> cards,
-  required List<Suit> suitOrder,
+  required HandOrdering handOrdering,
   required int playerIndex,
   double scaleMultiplier = 1,
 }) {
@@ -1297,8 +1424,8 @@ LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
 
   List<List<PlayingCard>> cardsBySuit = [];
   int numCardsInLongestSuit = 0;
-  for (final suit in suitOrder) {
-    cardsBySuit.add(sortedCardsInSuit(cards, suit));
+  for (final suit in handOrdering.suitOrder!) {
+    cardsBySuit.add(sortedCardsInSuit(cards.cast<SuitedCard>(), suit));
     if (cardsBySuit.last.length > numCardsInLongestSuit) {
       numCardsInLongestSuit = cardsBySuit.last.length;
     }
@@ -1388,25 +1515,25 @@ LinkedHashMap<PlayingCard, Rect> _dummyCardRects({
 LinkedHashMap<PlayingCard, Rect> _normalCardRects(
     Layout layout,
     List<PlayingCard> cards,
-    List<Suit> suitOrder,
+    HandOrdering handOrdering,
     {int playerIndex = 0, double scaleMultiplier = 1, bool leaveAvatarSpace = true}
 ) {
   if (playerIndex == 0 || playerIndex == 2) {
-    return _playerHandCardRectsForTopOrBottom(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
+    return _playerHandCardRectsForTopOrBottom(layout, cards, handOrdering, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
   }
   else {
-    return _playerHandCardRectsForLeftOrRight(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
+    return _playerHandCardRectsForLeftOrRight(layout, cards, handOrdering, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace);
   }
 }
 
 LinkedHashMap<PlayingCard, Rect> playerHandCardRects(
     Layout layout,
     List<PlayingCard> cards,
-    List<Suit> suitOrder,
+    HandOrdering handOrdering,
     {int playerIndex = 0, HandDisplayStyle displayStyle = HandDisplayStyle.normal, scaleMultiplier = 1.0, bool leaveAvatarSpace = true}) {
   return switch (displayStyle) {
-    HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, suitOrder: suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
-    HandDisplayStyle.normal => _normalCardRects(layout, cards, suitOrder, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace),
+    HandDisplayStyle.dummy => _dummyCardRects(layout: layout, cards: cards, handOrdering: handOrdering, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier),
+    HandDisplayStyle.normal => _normalCardRects(layout, cards, handOrdering, playerIndex: playerIndex, scaleMultiplier: scaleMultiplier, leaveAvatarSpace: leaveAvatarSpace),
   };
 }
 

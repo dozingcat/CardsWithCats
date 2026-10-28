@@ -3,7 +3,7 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:cards_with_cats/spades/spades.dart";
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   group("Scoring", () {
@@ -144,8 +144,8 @@ void main() {
       round.players[1].bid = 4;
       round.players[3].bid = 0;
       // Make player 1 take the 8th trick so that player 3 makes nil.
-      round.previousTricks[7] = Trick.fromJson({"leader": 0, "cards": "2C JC 4C 6C", "winner": 1});
-      round.previousTricks[8] = Trick.fromJson({"leader": 1, "cards": "4H 8H TH QH", "winner": 0});
+      round.previousTricks[7] = Trick.fromJson({"leader": 0, "cards": "2C JC 4C 6C", "winner": 1}, SuitedCard.cardsFromString);
+      round.previousTricks[8] = Trick.fromJson({"leader": 1, "cards": "4H 8H TH QH", "winner": 0}, SuitedCard.cardsFromString);
 
       round.initialScores = [100, 200];
       final scores = round.pointsTaken();

@@ -44,7 +44,7 @@ class DDSolver {
   /// the same trump suit is sound; never share across different deals or
   /// trump suits.
   static DDSolver fromHands(
-      List<List<PlayingCard>> hands, Suit? trumpSuit, int leader,
+      List<List<SuitedCard>> hands, Suit? trumpSuit, int leader,
       {Map<int, int>? sharedTable}) {
     final holdings = List.filled(16, 0);
     for (int p = 0; p < _numPlayers; p++) {
@@ -58,7 +58,7 @@ class DDSolver {
 
   /// Adds a card already played to the current (partial) trick, in play
   /// order starting with the leader.
-  void addTrickCard(PlayingCard c) {
+  void addTrickCard(SuitedCard c) {
     trickSuits[trickCount] = c.suit.index;
     trickRanks[trickCount] = c.rank.index;
     trickCount++;
@@ -520,7 +520,7 @@ class DDReferenceSolver {
   DDReferenceSolver._(this.holdings, this.trump, this.leader);
 
   static DDReferenceSolver fromHands(
-      List<List<PlayingCard>> hands, Suit? trumpSuit, int leader) {
+      List<List<SuitedCard>> hands, Suit? trumpSuit, int leader) {
     final holdings = List.filled(16, 0);
     for (int p = 0; p < _numPlayers; p++) {
       for (final c in hands[p]) {

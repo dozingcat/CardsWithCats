@@ -89,7 +89,7 @@ PlayStrategy makeStrategy(String spec) {
             options.containsKey("ms") ? int.parse(options["ms"]!) : null,
       );
       final useBid = options.containsKey("bid");
-      PlayingCard choose(CardToPlayRequest req, Random rng) {
+      SuitedCard choose(CardToPlayRequest req, Random rng) {
         return chooseCardMonteCarlo(req, mcParams, rolloutFn, rng,
                 useBiddingInference: useBid)
             .bestCard;
@@ -104,7 +104,7 @@ PlayStrategy makeStrategy(String spec) {
       final dmargin = double.parse(options["dmargin"] ?? "18");
       final fullSolve = !options.containsKey("nofull");
       final useDds = !options.containsKey("nodds");
-      PlayingCard choose(CardToPlayRequest req, Random rng) {
+      SuitedCard choose(CardToPlayRequest req, Random rng) {
         return chooseCardMonteCarloDD(req, rng,
                 maxRounds: maxRounds,
                 ddTricksLimit: ddLimit,

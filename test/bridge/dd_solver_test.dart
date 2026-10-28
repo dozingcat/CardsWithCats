@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/bridge/dd_solver.dart';
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   test("cashes established winners", () {

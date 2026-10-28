@@ -22,7 +22,7 @@ void printd(String msg) {
   if (debugOutput) print(msg);
 }
 
-PlayingCard computeCard(final CardToPlayRequest req) {
+SuitedCard computeCard(final CardToPlayRequest req) {
   final mcParams = MonteCarloParams(maxRounds: 30, rolloutsPerRound: 30, maxTimeMillis: 2500);
   final result = chooseCardMonteCarlo(req, mcParams, chooseCardRandom, Random());
   printd("Computed play: ${result.toString()}");
@@ -74,7 +74,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   late StreamSubscription matchUpdateSubscription;
 
   SpadesRound get round => match.currentRound;
-  final suitDisplayOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
+  final handDisplayOrdering = handOrderingDescendingInSuitOrder(
+      [.spades, .hearts, .clubs, .diamonds]);
 
   @override
   void initState() {
@@ -200,7 +201,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
   }
 
-  void _playCard(final PlayingCard card) {
+  void _playCard(final SuitedCard card) {
     _clearMoods();
     if (round.status == SpadesRoundStatus.playing) {
       setState(() {
@@ -332,7 +333,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return (widget.dialogVisible || _shouldShowClaimTricksDialog());
   }
 
-  void handleHandCardClicked(final PlayingCard card) {
+  void handleHandCardClicked(final PlayingCard pc) {
+    final card = pc as SuitedCard;
     printd(
         "Clicked ${card.toString()}, status: ${round.status}, index: ${round.currentPlayerIndex()}");
     if (_shouldIgnoreCardClick()) {
@@ -353,10 +355,10 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     }
     List<PlayerHandParams> handParams = [];
     // Always show human player's hand.
-    List<PlayingCard> humanCards = round.players[0].hand;
+    List<SuitedCard> humanCards = round.players[0].hand;
     bool isHumanTurn = round.status == SpadesRoundStatus.playing && round.currentPlayerIndex() == 0;
     bool isBidding = round.status == SpadesRoundStatus.bidding;
-    List<PlayingCard> highlightedCards = [];
+    List<SuitedCard> highlightedCards = [];
     if (isBidding) {
       highlightedCards = humanCards;
     }
@@ -398,8 +400,8 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
     return MultiplePlayerHandCards(
       layout: layout,
       playerHands: handParams,
-      suitOrder: suitDisplayOrder,
-      trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
+      handOrdering: handDisplayOrdering,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(Suit.spades) : null,
     );
   }
 
@@ -408,11 +410,11 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
-      trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(Suit.spades) : null,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],
-      suitOrder: suitDisplayOrder,
+      handOrdering: handDisplayOrdering,
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
     );

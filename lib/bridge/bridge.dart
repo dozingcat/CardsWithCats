@@ -326,7 +326,7 @@ enum BridgeRoundStatus {
 }
 
 class BridgePlayer {
-  List<PlayingCard> hand;
+  List<SuitedCard> hand;
 
   BridgePlayer(this.hand);
 
@@ -339,12 +339,12 @@ class BridgePlayer {
   }
 
   static BridgePlayer fromJson(Map<String, dynamic> json) {
-    return BridgePlayer(PlayingCard.cardsFromString(json["hand"] as String));
+    return BridgePlayer(SuitedCard.cardsFromString(json["hand"] as String));
   }
 }
 
-List<PlayingCard> legalPlays(
-    List<PlayingCard> hand, TrickInProgress currentTrick) {
+List<SuitedCard> legalPlays(
+    List<SuitedCard> hand, TrickInProgress<SuitedCard> currentTrick) {
   if (currentTrick.cards.isEmpty) {
     return hand;
   }
@@ -356,15 +356,15 @@ List<PlayingCard> legalPlays(
   return hand;
 }
 
-class BridgeRound extends BaseTrickRound {
+class BridgeRound extends BaseSuitedCardTrickRound {
   BridgeRoundStatus status = BridgeRoundStatus.bidding;
   late List<BridgePlayer> players;
   late int dealer;
   List<PlayerBid> bidHistory = [];
   @override
-  late TrickInProgress currentTrick;
+  late TrickInProgress<SuitedCard> currentTrick;
   @override
-  List<Trick> previousTricks = [];
+  List<Trick<SuitedCard>> previousTricks = [];
   Contract? contract;
   Vulnerability vulnerability = Vulnerability.neither;
   // Include "current" match points?
@@ -372,11 +372,11 @@ class BridgeRound extends BaseTrickRound {
   @override
   int get numberOfPlayers => 4;
   @override
-  List<PlayingCard> cardsForPlayer(int playerIndex) =>
+  List<SuitedCard> cardsForPlayer(int playerIndex) =>
       players[playerIndex].hand;
 
   static BridgeRound deal(int dealer, Random rng) {
-    List<PlayingCard> cards = List.from(standardDeckCards());
+    List<SuitedCard> cards = List.from(standardDeckCards());
     cards.shuffle(rng);
     List<BridgePlayer> players = [];
     int numCardsPerPlayer = cards.length ~/ numPlayers;
@@ -441,10 +441,10 @@ class BridgeRound extends BaseTrickRound {
             .map((b) => PlayerBid.fromJson(b as Map<String, dynamic>))
       ]
       ..currentTrick =
-          TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>)
+          TrickInProgress.fromJson(json["currentTrick"] as Map<String, dynamic>, SuitedCard.cardsFromString)
       ..previousTricks = [
         ...json["previousTricks"]
-            .map((t) => Trick.fromJson(t as Map<String, dynamic>))
+            .map((t) => Trick.fromJson(t as Map<String, dynamic>, SuitedCard.cardsFromString))
       ]
       ..contract = (json["contract"] != null)
           ? Contract.fromJson(json["contract"])
@@ -455,7 +455,7 @@ class BridgeRound extends BaseTrickRound {
           : Vulnerability.neither;
   }
 
-  List<PlayingCard> originalHandForPlayer(int playerIndex) {
+  List<SuitedCard> originalHandForPlayer(int playerIndex) {
     // Combine current cards, cards from previous tricks, and card from the current trick.
     final hand = [...players[playerIndex].hand];
     for (final t in previousTricks) {
@@ -527,7 +527,7 @@ class BridgeRound extends BaseTrickRound {
   }
 
   @override
-  void playCard(PlayingCard card) {
+  void playCard(SuitedCard card) {
     final p = currentPlayer();
     final cardIndex = p.hand.indexWhere((c) => c == card);
     p.hand.removeAt(cardIndex);
@@ -559,7 +559,7 @@ class BridgeRound extends BaseTrickRound {
   BridgePlayer currentPlayer() => players[currentPlayerIndex()];
 
   @override
-  List<PlayingCard> legalPlaysForCurrentPlayer() {
+  List<SuitedCard> legalPlaysForCurrentPlayer() {
     return legalPlays(currentPlayer().hand, currentTrick);
   }
 

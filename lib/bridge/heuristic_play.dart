@@ -22,13 +22,13 @@ class _PlayContext {
   final int declarer;
   final int dummy;
   final bool isDeclarerSide;
-  final List<PlayingCard> legal;
-  final Set<PlayingCard> played = {};
+  final List<SuitedCard> legal;
+  final Set<SuitedCard> played = {};
   // Cards of my side's other hand, when visible (dummy for declarer,
   // declarer's hand when I am the dummy). Null for defenders.
-  final List<PlayingCard>? partnerVisible;
+  final List<SuitedCard>? partnerVisible;
   // The visible dummy when I'm a defender, null otherwise.
-  final List<PlayingCard>? opponentDummy;
+  final List<SuitedCard>? opponentDummy;
 
   _PlayContext._(this.req, this.seat, this.trump, this.declarer, this.dummy,
       this.isDeclarerSide, this.legal, this.partnerVisible, this.opponentDummy);
@@ -38,8 +38,8 @@ class _PlayContext {
     final declarer = req.contract.declarer;
     final dummy = req.contract.dummy;
     final isDeclarerSide = seat == declarer || seat == dummy;
-    List<PlayingCard>? partnerVisible;
-    List<PlayingCard>? opponentDummy;
+    List<SuitedCard>? partnerVisible;
+    List<SuitedCard>? opponentDummy;
     if (seat == declarer) {
       partnerVisible = req.dummyHand;
     } else if (seat == dummy) {
@@ -56,17 +56,17 @@ class _PlayContext {
     return ctx;
   }
 
-  List<PlayingCard> get hand => req.hand;
+  List<SuitedCard> get hand => req.hand;
 
-  List<PlayingCard> suitCards(Suit s) =>
+  List<SuitedCard> suitCards(Suit s) =>
       sortedCardsInSuit(hand, s); // descending
 
   /// True if no card that could beat `card` remains with a hidden player
   /// or a visible opponent.
-  bool isMaster(PlayingCard card) {
+  bool isMaster(SuitedCard card) {
     for (var r = card.rank; r != Rank.ace;) {
       r = r.nextHigherRank();
-      final higher = PlayingCard(r, card.suit);
+      final higher = SuitedCard(r, card.suit);
       if (played.contains(higher) || hand.contains(higher)) continue;
       if (partnerVisible != null && partnerVisible!.contains(higher)) continue;
       return false;
@@ -84,7 +84,7 @@ class _PlayContext {
   }
 }
 
-PlayingCard chooseCardHeuristic(CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardHeuristic(CardToPlayRequest req, Random rng) {
   final ctx = _PlayContext(req);
   if (ctx.legal.length == 1) return ctx.legal[0];
   switch (req.currentTrick.cards.length) {
@@ -102,21 +102,21 @@ PlayingCard chooseCardHeuristic(CardToPlayRequest req, Random rng) {
 // ---------------------------------------------------------------------------
 // Leads
 
-PlayingCard _chooseLead(_PlayContext ctx) {
+SuitedCard _chooseLead(_PlayContext ctx) {
   if (ctx.isDeclarerSide) {
     return _chooseDeclarerLead(ctx);
   }
   return _chooseDefenderLead(ctx);
 }
 
-PlayingCard _chooseDeclarerLead(_PlayContext ctx) {
+SuitedCard _chooseDeclarerLead(_PlayContext ctx) {
   final trump = ctx.trump;
   // Draw trumps while the opponents still hold any and we have the balance
   // of power in the suit.
   if (trump != null) {
     final myTrumps = ctx.suitCards(trump);
     final partnerTrumps = ctx.partnerVisible == null
-        ? <PlayingCard>[]
+        ? <SuitedCard>[]
         : sortedCardsInSuit(ctx.partnerVisible!, trump);
     final oppTrumps = ctx.hiddenCount(trump);
     if (myTrumps.isNotEmpty &&
@@ -136,7 +136,7 @@ PlayingCard _chooseDeclarerLead(_PlayContext ctx) {
   return _lowFromLongestSideSuit(ctx);
 }
 
-PlayingCard _chooseDefenderLead(_PlayContext ctx) {
+SuitedCard _chooseDefenderLead(_PlayContext ctx) {
   final trump = ctx.trump;
   final isNotrump = trump == null;
 
@@ -201,7 +201,7 @@ PlayingCard _chooseDefenderLead(_PlayContext ctx) {
 
 /// A master card worth cashing: highest of a non-trump suit where nothing
 /// unseen beats it.
-PlayingCard? _masterToCash(_PlayContext ctx) {
+SuitedCard? _masterToCash(_PlayContext ctx) {
   for (final s in Suit.values) {
     if (s == ctx.trump) continue;
     final cards = ctx.suitCards(s);
@@ -216,7 +216,7 @@ PlayingCard? _masterToCash(_PlayContext ctx) {
 }
 
 /// Top of a touching honor sequence (QJ or better, 2+ cards).
-PlayingCard? _sequenceLead(_PlayContext ctx) {
+SuitedCard? _sequenceLead(_PlayContext ctx) {
   for (final s in Suit.values) {
     if (s == ctx.trump) continue;
     final cards = ctx.suitCards(s);
@@ -231,7 +231,7 @@ PlayingCard? _sequenceLead(_PlayContext ctx) {
   return null;
 }
 
-PlayingCard _lowFromLongestSideSuit(_PlayContext ctx) {
+SuitedCard _lowFromLongestSideSuit(_PlayContext ctx) {
   Suit? best;
   for (final s in Suit.values) {
     if (s == ctx.trump && ctx.hand.any((c) => c.suit != s)) continue;
@@ -260,25 +260,25 @@ Suit? _suitBidBy(_PlayContext ctx, int seat) {
 // ---------------------------------------------------------------------------
 // Following to a trick
 
-List<PlayingCard> _followingSuit(_PlayContext ctx) {
+List<SuitedCard> _followingSuit(_PlayContext ctx) {
   final ledSuit = ctx.req.currentTrick.cards[0].suit;
   return sortedCardsInSuit(ctx.legal, ledSuit); // descending; empty if void
 }
 
 /// The card currently winning the trick, and whether my side played it.
-(PlayingCard, bool) _currentWinner(_PlayContext ctx) {
+(SuitedCard, bool) _currentWinner(_PlayContext ctx) {
   final tc = ctx.req.currentTrick.cards;
-  final wi = trickWinnerIndex(tc, trump: ctx.trump);
+  final wi = defaultTrickWinnerIndex(tc, trump: ctx.trump);
   final winnerSeat = (ctx.req.currentTrick.leader + wi) % 4;
   return (tc[wi], winnerSeat % 2 == ctx.seat % 2);
 }
 
 /// Cheapest card in `cards` (descending order) that would win against
 /// `target` given the led suit and trump; null if none.
-PlayingCard? _cheapestBeater(
-    _PlayContext ctx, List<PlayingCard> cards, PlayingCard target) {
+SuitedCard? _cheapestBeater(
+    _PlayContext ctx, List<SuitedCard> cards, SuitedCard target) {
   final ledSuit = ctx.req.currentTrick.cards[0].suit;
-  PlayingCard? best;
+  SuitedCard? best;
   for (final c in cards) {
     final beats = _beats(c, target, ledSuit, ctx.trump);
     if (beats) best = c; // descending order: last winner found is cheapest
@@ -286,13 +286,13 @@ PlayingCard? _cheapestBeater(
   return best;
 }
 
-bool _beats(PlayingCard a, PlayingCard b, Suit ledSuit, Suit? trump) {
+bool _beats(SuitedCard a, SuitedCard b, Suit ledSuit, Suit? trump) {
   if (a.suit == b.suit) return a.rank.isHigherThan(b.rank);
   if (trump != null && a.suit == trump) return true;
   return false;
 }
 
-PlayingCard _chooseSecondHand(_PlayContext ctx) {
+SuitedCard _chooseSecondHand(_PlayContext ctx) {
   final following = _followingSuit(ctx);
   final led = ctx.req.currentTrick.cards[0];
   if (following.isNotEmpty) {
@@ -321,13 +321,13 @@ PlayingCard _chooseSecondHand(_PlayContext ctx) {
   return _bestDiscard(ctx);
 }
 
-PlayingCard _chooseThirdHand(_PlayContext ctx) {
+SuitedCard _chooseThirdHand(_PlayContext ctx) {
   final following = _followingSuit(ctx);
   final (winner, mySide) = _currentWinner(ctx);
   // The fourth player may be the visible dummy; then we know exactly what
   // we have to beat.
   final fourthSeat = (ctx.req.currentTrick.leader + 3) % 4;
-  List<PlayingCard>? fourthKnown;
+  List<SuitedCard>? fourthKnown;
   if (ctx.opponentDummy != null && fourthSeat == ctx.dummy) {
     fourthKnown = ctx.opponentDummy;
   }
@@ -345,7 +345,7 @@ PlayingCard _chooseThirdHand(_PlayContext ctx) {
     }
     // Third hand high: beat the current winner, and the known fourth hand
     // if visible, as cheaply as possible.
-    PlayingCard target = winner;
+    SuitedCard target = winner;
     if (fourthKnown != null) {
       final fourthFollow = sortedCardsInSuit(fourthKnown, ledSuit);
       if (fourthFollow.isNotEmpty &&
@@ -368,7 +368,7 @@ PlayingCard _chooseThirdHand(_PlayContext ctx) {
   return _bestDiscard(ctx);
 }
 
-PlayingCard _chooseFourthHand(_PlayContext ctx) {
+SuitedCard _chooseFourthHand(_PlayContext ctx) {
   final following = _followingSuit(ctx);
   final (winner, mySide) = _currentWinner(ctx);
   if (mySide) {
@@ -389,8 +389,8 @@ PlayingCard _chooseFourthHand(_PlayContext ctx) {
 
 /// When winning with the top of touching cards, use the cheapest
 /// equivalent (e.g. play the queen from KQ over the jack).
-PlayingCard _lowestEquivalentWinner(
-    _PlayContext ctx, List<PlayingCard> following, PlayingCard beater) {
+SuitedCard _lowestEquivalentWinner(
+    _PlayContext ctx, List<SuitedCard> following, SuitedCard beater) {
   var result = beater;
   bool changed = true;
   while (changed) {
@@ -405,8 +405,8 @@ PlayingCard _lowestEquivalentWinner(
   return result;
 }
 
-PlayingCard _cheapestMasterEquivalent(
-    _PlayContext ctx, List<PlayingCard> following) {
+SuitedCard _cheapestMasterEquivalent(
+    _PlayContext ctx, List<SuitedCard> following) {
   var result = following.first;
   for (final c in following.skip(1)) {
     if (ctx.isMaster(c)) result = c;
@@ -416,8 +416,8 @@ PlayingCard _cheapestMasterEquivalent(
 
 /// Discard: lowest card from the weakest side suit, trying not to
 /// unguard honors or throw winners.
-PlayingCard _bestDiscard(_PlayContext ctx) {
-  PlayingCard? best;
+SuitedCard _bestDiscard(_PlayContext ctx) {
+  SuitedCard? best;
   int bestScore = -1 << 30;
   for (final c in ctx.legal) {
     int score = 0;

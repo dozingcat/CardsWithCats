@@ -7,7 +7,7 @@ import "package:flutter_test/flutter_test.dart";
 
 const exampleHandString = "AS QS 3S 2S KH 6H AD 4D 3D 2D 4C 3C 2C";
 
-List<PlayingCard> hand(String spades, String hearts, String diamonds, String clubs) {
+List<SuitedCard> hand(String spades, String hearts, String diamonds, String clubs) {
   return parseHand("$spades $hearts $diamonds $clubs");
 }
 

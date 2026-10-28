@@ -14,7 +14,7 @@ import 'package:cards_with_cats/bridge/bridge_ai.dart';
 import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   final req = CardToPlayRequest(

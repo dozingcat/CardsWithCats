@@ -21,6 +21,8 @@ import 'common.dart';
 import 'hearts/hearts.dart';
 import 'ohhell/ohhell.dart';
 import 'ohhell_ui.dart';
+import 'rook/rook.dart';
+import 'rook_ui.dart';
 import 'spades/spades.dart';
 
 import 'common_ui.dart';
@@ -94,6 +96,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late HeartsRuleSet heartsRulesFromPrefs;
   late SpadesRuleSet spadesRulesFromPrefs;
   late OhHellRuleSet ohHellRulesFromPrefs;
+  late RookRuleSet rookRulesFromPrefs;
   final matchUpdateNotifier = StreamController.broadcast();
   List<int> catIndices = [0, 1, 2, 3];
   final soundPlayer = SoundEffectPlayer();
@@ -139,6 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
       heartsRulesFromPrefs = _readHeartsRulesFromPrefs();
       spadesRulesFromPrefs = _readSpadesRulesFromPrefs();
       ohHellRulesFromPrefs = _readOhHellRulesFromPrefs();
+      rookRulesFromPrefs = _readRookRulesFromPrefs();
 
       String? savedMatchType = preferences.getString("matchType") ?? "";
       matchType = GameType.fromString(savedMatchType);
@@ -218,6 +222,25 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.setString("ohHellRules", jsonEncode(ohHellRulesFromPrefs.toJson()));
   }
 
+  RookRuleSet _readRookRulesFromPrefs() {
+    String? json = preferences.getString("rookRules");
+    if (json != null) {
+      try {
+        return RookRuleSet.fromJson(jsonDecode(json));
+      } catch (ex) {
+        print("Failed to read Rook rules from JSON: $ex");
+      }
+    }
+    return RookRuleSet();
+  }
+
+  void updateRookRules(Function(RookRuleSet) updateRulesFn) {
+    setState(() {
+      updateRulesFn(rookRulesFromPrefs);
+    });
+    preferences.setString("rookRules", jsonEncode(rookRulesFromPrefs.toJson()));
+  }
+
   void setSoundEnabled(bool enabled) {
     setState(() {
       soundPlayer.enabled = enabled;
@@ -285,6 +308,7 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.remove("spadesMatch");
     preferences.remove("ohHellMatch");
     preferences.remove("bridgeMatch");
+    preferences.remove("rookMatch");
 
     preferences.remove("matchType");
     matchType = null;
@@ -322,6 +346,15 @@ class _MyHomePageState extends State<MyHomePage> {
     if (match != null) {
       preferences.setString("matchType", "bridge");
       preferences.setString("bridgeMatch", jsonEncode(match.toJson()));
+    } else {
+      _clearMatch();
+    }
+  }
+
+  void _saveRookMatch(final RookMatch? match) {
+    if (match != null) {
+      preferences.setString("matchType", "rook");
+      preferences.setString("rookMatch", jsonEncode(match.toJson()));
     } else {
       _clearMatch();
     }
@@ -367,6 +400,16 @@ class _MyHomePageState extends State<MyHomePage> {
     return _createBridgeMatch();
   }
 
+  RookMatch _initialRookMatch() {
+    if (preferences.getString("matchType") == "rook") {
+      String? json = preferences.getString("rookMatch");
+      if (json != null) {
+        return RookMatch.fromJson(jsonDecode(json), rng);
+      }
+    }
+    return _createRookMatch();
+  }
+
   HeartsMatch _createHeartsMatch() {
     catIndices = randomizedCatImageIndices(rng);
     return HeartsMatch(heartsRulesFromPrefs, rng);
@@ -387,6 +430,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return BridgeMatch(Random(), numRounds: bridgeRoundsPerMatch);
   }
 
+  RookMatch _createRookMatch() {
+    catIndices = randomizedCatImageIndices(rng);
+    return RookMatch(rookRulesFromPrefs, Random());
+  }
+
   void _continueGame() {
     setState(() {
       dialogMode = DialogMode.none;
@@ -399,6 +447,7 @@ class _MyHomePageState extends State<MyHomePage> {
       GameType.spades => preferences.getString("spadesMatch") != null,
       GameType.ohHell => preferences.getString("ohHellMatch") != null,
       GameType.bridge => preferences.getString("bridgeMatch") != null,
+      GameType.rook => preferences.getString("rookMatch") != null,
       null => false,
     };
   }
@@ -444,6 +493,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       dialogMode = DialogMode.none;
       matchType = GameType.bridge;
+    });
+  }
+
+  void startNewRookMatch() {
+    preferences.remove("rookMatch");
+    final newMatch = _createRookMatch();
+    _saveRookMatch(newMatch);
+    matchUpdateNotifier.sink.add(newMatch);
+    setState(() {
+      dialogMode = DialogMode.none;
+      matchType = GameType.rook;
     });
   }
 
@@ -505,6 +565,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void handleNewRookMatchClicked() {
+    if (isMatchInProgress()) {
+      showNewMatchConfirmationDialog(startNewRookMatch);
+    } else {
+      startNewRookMatch();
+    }
+  }
+
   void handleNewMatchClicked() {
     setState(() {dialogMode = DialogMode.startMatch;});
   }
@@ -522,6 +590,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case GameType.bridge:
         handleNewBridgeMatchClicked();
+        break;
+      case GameType.rook:
+        handleNewRookMatchClicked();
         break;
     }
   }
@@ -625,6 +696,13 @@ class _MyHomePageState extends State<MyHomePage> {
         String title, bool isChecked, Function(OhHellRuleSet, bool) updateRulesFn) {
       return makeCheckboxRow(title, isChecked, (bool checked) {
         updateOhHellRules((rules) => updateRulesFn(rules, checked));
+      });
+    }
+
+    Widget makeRookRuleCheckboxRow(
+        String title, bool isChecked, Function(RookRuleSet, bool) updateRulesFn) {
+      return makeCheckboxRow(title, isChecked, (bool checked) {
+        updateRookRules((rules) => updateRulesFn(rules, checked));
       });
     }
 
@@ -795,6 +873,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                 rules.trickScoring = scoring;
                               }
                           )])),
+
+                          const ListTile(
+                              title: Text("Rook",
+                                  style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold))),
+                          makeRookRuleCheckboxRow(
+                            "Allow discarding point cards",
+                            rookRulesFromPrefs.allowDiscardingPointCards,
+                            (rules, checked) {
+                              rules.allowDiscardingPointCards = checked;
+                            },
+                          ),
 
                           const ListTile(
                               title: Text("Bridge",
@@ -995,6 +1084,20 @@ class _MyHomePageState extends State<MyHomePage> {
               catImageIndices: catIndices,
               tintTrumpCards: useTintedTrumpCards,
               rotateDummyToTop: rotateBridgeDummyToTop,
+              soundPlayer: soundPlayer,
+              statsStore: statsStore,
+              cardImageSet: cardImageSet,
+            ),
+          if (matchType == GameType.rook)
+            RookMatchDisplay(
+              initialMatchFn: _initialRookMatch,
+              createMatchFn: _createRookMatch,
+              saveMatchFn: _saveRookMatch,
+              mainMenuFn: _showMainMenu,
+              matchUpdateStream: matchUpdateNotifier.stream,
+              dialogVisible: dialogMode != DialogMode.none,
+              catImageIndices: catIndices,
+              tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
               cardImageSet: cardImageSet,

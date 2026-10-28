@@ -3,13 +3,13 @@ import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:cards_with_cats/hearts/hearts.dart";
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   test("Leads", () {
     final rules = HeartsRuleSet();
     final hand = c("AS QH 4C");
-    final currentTrick = TrickInProgress(0);
+    final currentTrick = TrickInProgress<SuitedCard>(0);
 
     final prevTricksNoHearts = [Trick(0, c("8S 7S 6S 5S"), 0)];
     expect(legalPlays(hand, currentTrick, prevTricksNoHearts, rules), c("AS 4C"));
@@ -34,7 +34,7 @@ void main() {
   test("First trick 2c lead", () {
     final rules = HeartsRuleSet();
     final hand = c("AS 2S QH 3C 2C");
-    final firstTrick = TrickInProgress(0);
+    final firstTrick = TrickInProgress<SuitedCard>(0);
     expect(legalPlays(hand, firstTrick, [], rules), c("2C"));
   });
 

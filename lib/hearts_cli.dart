@@ -265,12 +265,12 @@ void handlePassingPhase(HeartsRound round, HeartsRuleSet rules) {
   print('');
 }
 
-void printHand(List<PlayingCard> hand) {
+void printHand(List<SuitedCard> hand) {
   print(descriptionWithSuitGroups(hand));
 }
 
 /// Returns cards sorted by suit (spades, hearts, diamonds, clubs) and descending rank, with suit symbols.
-String sortedCardString(List<PlayingCard> cards) {
+String sortedCardString(List<SuitedCard> cards) {
   final sorted = List.of(cards);
   sorted.sort((a, b) {
     final suitOrder = [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs];
@@ -286,13 +286,13 @@ const playerNames = ['South', 'West', 'North', 'East'];
 String playerName(int index) => playerNames[index];
 
 /// Parse a card from user input, accepting formats like "2S", "2♠", "AS", "A♠", "TS", "T♠"
-PlayingCard? parseCard(String input, List<PlayingCard> validCards) {
+SuitedCard? parseCard(String input, List<SuitedCard> validCards) {
   final s = input.trim().toUpperCase();
   if (s.isEmpty) return null;
 
   try {
     // Try parsing with PlayingCard.cardFromString which handles both ASCII and symbol suits
-    final card = PlayingCard.cardFromString(s);
+    final card = SuitedCard.cardFromString(s);
     if (validCards.contains(card)) {
       return card;
     }
@@ -302,7 +302,7 @@ PlayingCard? parseCard(String input, List<PlayingCard> validCards) {
   return null;
 }
 
-List<PlayingCard> getCardsToPassFromUser(List<PlayingCard> hand, int numCards) {
+List<SuitedCard> getCardsToPassFromUser(List<SuitedCard> hand, int numCards) {
   while (true) {
     stdout.write('Enter $numCards cards to pass (e.g., "AS QH 2C"): ');
     final input = stdin.readLineSync();
@@ -319,7 +319,7 @@ List<PlayingCard> getCardsToPassFromUser(List<PlayingCard> hand, int numCards) {
       continue;
     }
 
-    final cards = <PlayingCard>[];
+    final cards = <SuitedCard>[];
     bool valid = true;
     for (final part in parts) {
       final card = parseCard(part, hand);
@@ -406,14 +406,14 @@ void playHumanTurn(HeartsRound round, HeartsRuleSet rules) {
   print('You played: ${cardToPlay.symbolString()}');
 }
 
-void printTrick(TrickInProgress trick, int numPlayers) {
+void printTrick(TrickInProgress<SuitedCard> trick, int numPlayers) {
   for (int i = 0; i < trick.cards.length; i++) {
     final playerIndex = (trick.leader + i) % numPlayers;
     print('  ${playerName(playerIndex)}: ${trick.cards[i].symbolString()}');
   }
 }
 
-PlayingCard getCardToPlayFromUser(List<PlayingCard> hand, List<PlayingCard> legalPlays) {
+SuitedCard getCardToPlayFromUser(List<SuitedCard> hand, List<SuitedCard> legalPlays) {
   while (true) {
     stdout.write('Enter card to play: ');
     final input = stdin.readLineSync();

@@ -34,7 +34,7 @@ final _strains = <Suit?>[null, ...Suit.values];
 
 class _Deal {
   final int index;
-  final List<List<PlayingCard>> hands;
+  final List<List<SuitedCard>> hands;
   final List<Map<Suit?, int>> byDeclarer;
   _Deal(this.index, this.hands, this.byDeclarer);
 

@@ -10,9 +10,9 @@ class BidRequest {
   final OhHellRuleSet rules;
   final List<int> scoresBeforeRound;
   final List<int> otherBids;
-  final PlayingCard trumpCard;
+  final SuitedCard trumpCard;
   final bool dealerHasTrumpCard;
-  final List<PlayingCard> hand;
+  final List<SuitedCard> hand;
 
   BidRequest(
       {required this.rules,
@@ -27,11 +27,11 @@ class BidRequest {
 class CardToPlayRequest {
   final OhHellRuleSet rules;
   final List<int> scoresBeforeRound;
-  final List<PlayingCard> hand;
-  final List<Trick> previousTricks;
-  final TrickInProgress currentTrick;
+  final List<SuitedCard> hand;
+  final List<Trick<SuitedCard>> previousTricks;
+  final TrickInProgress<SuitedCard> currentTrick;
   final List<int> bids;
-  final PlayingCard trumpCard;
+  final SuitedCard trumpCard;
   final bool dealerHasTrumpCard;
 
   CardToPlayRequest({
@@ -79,11 +79,11 @@ class CardToPlayRequest {
 
   int numInitialCards() => previousTricks.length + hand.length;
 
-  List<PlayingCard> legalPlays() {
+  List<SuitedCard> legalPlays() {
     return ohhell.legalPlays(hand, currentTrick, previousTricks, rules);
   }
 
-  bool hasCardBeenPlayed(final PlayingCard card) {
+  bool hasCardBeenPlayed(final SuitedCard card) {
     if (currentTrick.cards.contains(card)) {
       return true;
     }
@@ -95,7 +95,7 @@ class CardToPlayRequest {
     return false;
   }
 
-  bool isCardKnown(final PlayingCard card) {
+  bool isCardKnown(final SuitedCard card) {
     return hand.contains(card) || hasCardBeenPlayed(card) || card == trumpCard;
   }
 }
@@ -108,13 +108,13 @@ int chooseBidFixed(BidRequest req) {
 
 OhHellRound _possibleRoundForBiddingRollout(final BidRequest req, Random rng) {
   // Run rollouts with everyone playing random cards, pick the average number of tricks won.
-  Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
+  Set<SuitedCard> cardsToAssign = Set.from(standardDeckCards());
   // Create a fake round with dealer at N-1, so the bidder index is the number of previous bids.
   int dealerIndex = req.rules.numPlayers - 1;
   int bidderIndex = req.otherBids.length;
   final constraints = List.generate(
       req.rules.numPlayers,
-          (pnum) => CardDistributionConstraint(
+          (pnum) => CardDistributionConstraint<SuitedCard>(
         numCards: req.hand.length,
         voidedSuits: [],
         fixedCards: pnum == bidderIndex ? req.hand : [],
@@ -133,7 +133,7 @@ OhHellRound _possibleRoundForBiddingRollout(final BidRequest req, Random rng) {
     throw Exception("Bad hand");
   }
   // Player 0 leads the first trick because the dealer is N-1.
-  final firstTrick = TrickInProgress(0, []);
+  final firstTrick = TrickInProgress<SuitedCard>(0, []);
   return OhHellRound()
       ..rules = req.rules
       ..status = OhHellRoundStatus.playing
@@ -195,32 +195,32 @@ double matchEquityForScores(List<int> scores, int playerIndex, OhHellRuleSet rul
   return (1.0 * scores[playerIndex]) / totalScores;
 }
 
-List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
+List<SuitedCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // For testing with and without this feature.
   // if (req.currentPlayerIndex() % 2 == 0) return req.legalPlays();
   final legalPlays = req.legalPlays();
-  List<PlayingCard> result = [];
+  List<SuitedCard> result = [];
   // Choose one card at random from each group of identical cards.
   final groups = groupsOfEffectivelyIdenticalCards(legalPlays, req.previousTricks);
   result.addAll(groups.map((g) => g[rng.nextInt(g.length)]));
   return result;
 }
 
-typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
+typedef ChooseCardFn = SuitedCard Function(CardToPlayRequest req, Random rng);
 
-PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   return legalPlays[rng.nextInt(legalPlays.length)];
 }
 
-CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
+CardDistributionRequest<SuitedCard> makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
-  final seenCards = <PlayingCard>{};
+  final seenCards = <SuitedCard>{};
   final voidedSuits = List.generate(numPlayers, (i) => <Suit>{});
 
   // Record when a player is out of a suit.
-  void processTrick(List<PlayingCard> cards, int leader) {
+  void processTrick(List<SuitedCard> cards, int leader) {
     final trickSuit = cards[0].suit;
     seenCards.add(cards[0]);
     for (int i = 1; i < cards.length; i++) {
@@ -249,7 +249,7 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
   int currentPlayerIndex = req.currentPlayerIndex();
   final constraints = List.generate(
       numPlayers,
-      (pnum) => CardDistributionConstraint(
+      (pnum) => CardDistributionConstraint<SuitedCard>(
         numCards: cardCounts[pnum],
         voidedSuits: voidedSuits[pnum].toList(),
         fixedCards: pnum == currentPlayerIndex ? req.hand : [],
@@ -258,12 +258,12 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
     constraints[req.dealerIndex()].fixedCards.add(req.trumpCard);
   }
 
-  final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
+  final Set<SuitedCard> cardsToAssign = Set.from(standardDeckCards());
   cardsToAssign.removeAll(seenCards);
   return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
 }
 
-OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng) {
+OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest<SuitedCard> distReq, Random rng) {
   final dist = possibleCardDistribution(distReq, rng);
   if (dist == null) {
     return null;
@@ -282,7 +282,7 @@ OhHellRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ;
 }
 
-MonteCarloResult chooseCardMonteCarlo(
+MonteCarloResult<SuitedCard> chooseCardMonteCarlo(
     CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;

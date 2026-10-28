@@ -24,7 +24,7 @@ import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/rollout.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 final bids = [
   PlayerBid(2, BidAction.fromString("2C")),
@@ -41,7 +41,7 @@ final bids = [
   PlayerBid(1, BidAction.pass()),
 ];
 
-void printEquities(String label, MonteCarloResult result) {
+void printEquities(String label, MonteCarloResult<SuitedCard> result) {
   final entries = result.cardEquities.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   print("$label best=${result.bestCard}: ${entries.map((e) =>

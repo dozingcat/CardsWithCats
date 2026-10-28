@@ -75,7 +75,7 @@ void main() {
 final mcParams_20_50 = MonteCarloParams(maxRounds: 20, rolloutsPerRound: 50);
 final mixedStrategy20PercentRandom = makeMixedRandomOrAvoidPoints(0.2);
 
-MonteCarloResult computeCardToPlay(final HeartsRound round, Random rng) {
+MonteCarloResult<SuitedCard> computeCardToPlay(final HeartsRound round, Random rng) {
   final cardReq = CardToPlayRequest.fromRound(round);
   switch (round.currentPlayerIndex()) {
     case 0:

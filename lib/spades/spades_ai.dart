@@ -16,7 +16,7 @@ class BidRequest {
   final SpadesRuleSet rules;
   final List<int> scoresBeforeRound;
   final List<int> otherBids;
-  final List<PlayingCard> hand;
+  final List<SuitedCard> hand;
 
   BidRequest({
     required this.rules,
@@ -29,9 +29,9 @@ class BidRequest {
 class CardToPlayRequest {
   final SpadesRuleSet rules;
   final List<int> scoresBeforeRound;
-  final List<PlayingCard> hand;
-  final List<Trick> previousTricks;
-  final TrickInProgress currentTrick;
+  final List<SuitedCard> hand;
+  final List<Trick<SuitedCard>> previousTricks;
+  final TrickInProgress<SuitedCard> currentTrick;
   final List<int> bids;
 
   CardToPlayRequest({
@@ -56,11 +56,11 @@ class CardToPlayRequest {
     return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
   }
 
-  List<PlayingCard> legalPlays() {
+  List<SuitedCard> legalPlays() {
     return spades.legalPlays(hand, currentTrick, previousTricks, rules);
   }
 
-  bool hasCardBeenPlayed(final PlayingCard card) {
+  bool hasCardBeenPlayed(final SuitedCard card) {
     if (currentTrick.cards.contains(card)) {
       return true;
     }
@@ -72,7 +72,7 @@ class CardToPlayRequest {
     return false;
   }
 
-  bool isCardKnown(final PlayingCard card) {
+  bool isCardKnown(final SuitedCard card) {
     return hand.contains(card) || hasCardBeenPlayed(card);
   }
 }
@@ -261,13 +261,13 @@ double matchEquityForScores(List<int> scores, int teamIndex, SpadesRuleSet rules
   return 1 - (distances[teamIndex] / distSum);
 }
 
-PlayingCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardRandom(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   return legalPlays[rng.nextInt(legalPlays.length)];
 }
 
-PlayingCard _lowDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _lowDiscard(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   bool anySpades = false;
   bool allSpades = true;
   for (int i = 0; i < legalPlays.length; i++) {
@@ -284,7 +284,7 @@ PlayingCard _lowDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Ran
   }
 }
 
-PlayingCard _highDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _highDiscard(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   bool anySpades = false;
   bool allSpades = true;
   for (int i = 0; i < legalPlays.length; i++) {
@@ -301,15 +301,15 @@ PlayingCard _highDiscard(CardToPlayRequest req, List<PlayingCard> legalPlays, Ra
   }
 }
 
-PlayingCard _avoidTakingTrick(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _avoidTakingTrick(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   final ct = req.currentTrick;
   if (ct.cards.isEmpty) {
     return chooseCardRandom(req, rng);
   }
-  final highCard = ct.cards[trickWinnerIndex(ct.cards)];
+  final highCard = ct.cards[defaultTrickWinnerIndex(ct.cards)];
   if (legalPlays.every((c) => c.suit == highCard.suit)) {
-    PlayingCard? lowestAbove;
-    PlayingCard? highestBelow;
+    SuitedCard? lowestAbove;
+    SuitedCard? highestBelow;
     for (final c in legalPlays) {
       if (c.rank.isHigherThan(highCard.rank)) {
         if (lowestAbove == null || c.rank.isLowerThan(lowestAbove.rank)) {
@@ -323,7 +323,7 @@ PlayingCard _avoidTakingTrick(CardToPlayRequest req, List<PlayingCard> legalPlay
     }
     return highestBelow ?? lowestAbove!;
   } else if (highCard.suit == Suit.spades) {
-    PlayingCard? bestLowerSpade;
+    SuitedCard? bestLowerSpade;
     for (final c in legalPlays) {
       if (c.suit == Suit.spades && c.rank.isLowerThan(highCard.rank)) {
         if (bestLowerSpade == null || bestLowerSpade.rank.isLowerThan(c.rank)) {
@@ -337,13 +337,13 @@ PlayingCard _avoidTakingTrick(CardToPlayRequest req, List<PlayingCard> legalPlay
   }
 }
 
-PlayingCard _coverPartnerNil(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _coverPartnerNil(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   final ct = req.currentTrick;
   if (ct.cards.isEmpty) {
     // TODO
     return chooseCardRandom(req, rng);
   }
-  final highCard = ct.cards[trickWinnerIndex(ct.cards)];
+  final highCard = ct.cards[defaultTrickWinnerIndex(ct.cards)];
   if (ct.cards.length == 1) {
     if (legalPlays[0].suit == highCard.suit) {
       // Following suit, go as high as possible so partner can play under.
@@ -354,13 +354,13 @@ PlayingCard _coverPartnerNil(CardToPlayRequest req, List<PlayingCard> legalPlays
   return _lowestWinnerOrLowest(req, legalPlays, highCard, rng);
 }
 
-PlayingCard _highestIfCanWinOrLowest(List<PlayingCard> legalPlays, PlayingCard currentHigh) {
+SuitedCard _highestIfCanWinOrLowest(List<SuitedCard> legalPlays, SuitedCard currentHigh) {
   var maxCard = maxCardByRank(legalPlays);
   return maxCard.rank.isHigherThan(currentHigh.rank) ? maxCard : minCardByRank(legalPlays);
 }
 
-PlayingCard _lowestWinnerOrLowest(
-    CardToPlayRequest req, List<PlayingCard> legalPlays, PlayingCard highCard, Random rng) {
+SuitedCard _lowestWinnerOrLowest(
+    CardToPlayRequest req, List<SuitedCard> legalPlays, SuitedCard highCard, Random rng) {
   if (highCard.suit == Suit.spades) {
     final higherSpades =
         legalPlays.where((c) => c.suit == Suit.spades && c.rank.isHigherThan(highCard.rank));
@@ -384,22 +384,22 @@ PlayingCard _lowestWinnerOrLowest(
   return _lowDiscard(req, legalPlays, rng);
 }
 
-PlayingCard _abovePartnerIfPossible(
-    CardToPlayRequest req, PlayingCard partnerCard, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _abovePartnerIfPossible(
+    CardToPlayRequest req, SuitedCard partnerCard, List<SuitedCard> legalPlays, Random rng) {
   // Find the first "gap" above partner's card, e.g. if partner played 8, 10 was previously played,
   // and 9 is in hand, then J is the first gap and we only want to play Q or higher.
-  PlayingCard firstGap = partnerCard;
+  SuitedCard firstGap = partnerCard;
   while (firstGap.rank != Rank.ace && req.isCardKnown(firstGap)) {
-    firstGap = PlayingCard(Rank.values[firstGap.rank.index + 1], firstGap.suit);
+    firstGap = SuitedCard(Rank.values[firstGap.rank.index + 1], firstGap.suit);
   }
   var maxCard = maxCardByRank(legalPlays);
   return maxCard.rank.isHigherThan(firstGap.rank) ? maxCard : minCardByRank(legalPlays);
 }
 
-bool _areAllHigherCardsKnown(CardToPlayRequest req, PlayingCard card) {
+bool _areAllHigherCardsKnown(CardToPlayRequest req, SuitedCard card) {
   var rank = Rank.ace;
   while (rank != card.rank) {
-    if (!req.isCardKnown(PlayingCard(rank, card.suit))) {
+    if (!req.isCardKnown(SuitedCard(rank, card.suit))) {
       return false;
     }
     rank = Rank.values[rank.index - 1];
@@ -407,8 +407,8 @@ bool _areAllHigherCardsKnown(CardToPlayRequest req, PlayingCard card) {
   return true;
 }
 
-PlayingCard _trumpOverPartnerIfUseful(
-    CardToPlayRequest req, PlayingCard partnerCard, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _trumpOverPartnerIfUseful(
+    CardToPlayRequest req, SuitedCard partnerCard, List<SuitedCard> legalPlays, Random rng) {
   final spades = sortedCardsInSuit(legalPlays, Suit.spades);
   if (spades.isNotEmpty) {
     // We can trump, but should we? Probably not if partner's card is
@@ -420,11 +420,11 @@ PlayingCard _trumpOverPartnerIfUseful(
   return _lowDiscard(req, legalPlays, rng);
 }
 
-PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _maximizeTricksCard3(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   // Beat the opponent's card if higher.
   // This assumes partners.
   final tc = req.currentTrick.cards;
-  if (trickWinnerIndex(tc, trump: Suit.spades) == 1) {
+  if (defaultTrickWinnerIndex(tc, trump: Suit.spades) == 1) {
     // Trump as low as possible, non-trump as high as possible.
     if (tc[0].suit == Suit.spades) {
       if (legalPlays[0].suit == Suit.spades) {
@@ -477,9 +477,9 @@ PlayingCard _maximizeTricksCard3(CardToPlayRequest req, List<PlayingCard> legalP
   return chooseCardRandom(req, rng);
 }
 
-PlayingCard _maximizeTricksCard4(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _maximizeTricksCard4(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   final tc = req.currentTrick.cards;
-  int leader = trickWinnerIndex(tc, trump: Suit.spades);
+  int leader = defaultTrickWinnerIndex(tc, trump: Suit.spades);
   if (leader == 1) {
     // Partner is winning.
     return _lowDiscard(req, legalPlays, rng);
@@ -488,7 +488,7 @@ PlayingCard _maximizeTricksCard4(CardToPlayRequest req, List<PlayingCard> legalP
   }
 }
 
-PlayingCard _maximizeTricks(CardToPlayRequest req, List<PlayingCard> legalPlays, Random rng) {
+SuitedCard _maximizeTricks(CardToPlayRequest req, List<SuitedCard> legalPlays, Random rng) {
   final tc = req.currentTrick.cards;
   switch (tc.length) {
     case 0:
@@ -508,7 +508,7 @@ PlayingCard _maximizeTricks(CardToPlayRequest req, List<PlayingCard> legalPlays,
 
 int numTopSpadesInHand(final CardToPlayRequest req) {
   int numTop = 0;
-  var spade = PlayingCard(Rank.ace, Suit.spades);
+  var spade = SuitedCard(Rank.ace, Suit.spades);
   while (true) {
     if (req.hand.contains(spade)) {
       numTop += 1;
@@ -516,7 +516,7 @@ int numTopSpadesInHand(final CardToPlayRequest req) {
     if (!req.hasCardBeenPlayed(spade) || spade.rank.index == 0) {
       break;
     }
-    spade = PlayingCard(Rank.values[spade.rank.index - 1], Suit.spades);
+    spade = SuitedCard(Rank.values[spade.rank.index - 1], Suit.spades);
   }
   return numTop;
 }
@@ -548,7 +548,7 @@ bool _shouldAvoidOvertricks(final CardToPlayRequest req) {
   return false;
 }
 
-PlayingCard chooseCardToMakeBids(final CardToPlayRequest req, Random rng) {
+SuitedCard chooseCardToMakeBids(final CardToPlayRequest req, Random rng) {
   final legalPlays = req.legalPlays();
   assert(legalPlays.isNotEmpty);
   if (legalPlays.length == 1) {
@@ -569,16 +569,16 @@ PlayingCard chooseCardToMakeBids(final CardToPlayRequest req, Random rng) {
   return _maximizeTricks(req, legalPlays, rng);
 }
 
-typedef ChooseCardFn = PlayingCard Function(CardToPlayRequest req, Random rng);
+typedef ChooseCardFn = SuitedCard Function(CardToPlayRequest req, Random rng);
 
-CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req) {
+CardDistributionRequest<SuitedCard> makeCardDistributionRequest(final CardToPlayRequest req) {
   final numPlayers = req.rules.numPlayers;
   final seenCards = Set.from(req.hand);
   final voidedSuits = List.generate(numPlayers, (_) => Set<Suit>());
 
   var spadesBroken = false;
 
-  void processTrick(List<PlayingCard> cards, int leader) {
+  void processTrick(List<SuitedCard> cards, int leader) {
     final trickSuit = cards[0].suit;
     if (!spadesBroken && trickSuit == Suit.spades) {
       spadesBroken = true;
@@ -617,18 +617,18 @@ CardDistributionRequest makeCardDistributionRequest(final CardToPlayRequest req)
 
   final constraints = List.generate(
       numPlayers,
-      (pnum) => CardDistributionConstraint(
+      (pnum) => CardDistributionConstraint<SuitedCard>(
             numCards: cardCounts[pnum],
             voidedSuits: voidedSuits[pnum].toList(),
             fixedCards: [],
           ));
-  final Set<PlayingCard> cardsToAssign = Set.from(standardDeckCards());
+  final Set<SuitedCard> cardsToAssign = Set.from(standardDeckCards());
   cardsToAssign.removeAll(seenCards);
   cardsToAssign.removeAll(req.rules.removedCards);
   return CardDistributionRequest(cardsToAssign: cardsToAssign.toList(), constraints: constraints);
 }
 
-SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest distReq, Random rng) {
+SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest<SuitedCard> distReq, Random rng) {
   final dist = possibleCardDistribution(distReq, rng);
   if (dist == null) {
     return null;
@@ -646,7 +646,7 @@ SpadesRound? possibleRound(CardToPlayRequest cardReq, CardDistributionRequest di
     ..dealer = 0;
 }
 
-List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
+List<SuitedCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   // For testing with and without this feature.
   // It possibly makes the AI slightly worse: with rounds=30, rollouts=30,
   // the team that had this feature disabled won 517 out of 1000. Could be
@@ -663,7 +663,7 @@ List<PlayingCard> cardsToConsiderPlaying(CardToPlayRequest req, Random rng) {
   return result;
 }
 
-MonteCarloResult chooseCardMonteCarlo(
+MonteCarloResult<SuitedCard> chooseCardMonteCarlo(
     CardToPlayRequest cardReq, MonteCarloParams mcParams, ChooseCardFn rolloutChooseFn, Random rng,
     {int Function()? timeFn}) {
   timeFn ??= () => DateTime.now().millisecondsSinceEpoch;

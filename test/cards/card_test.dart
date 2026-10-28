@@ -3,10 +3,10 @@ import 'package:cards_with_cats/cards/card.dart';
 
 void main() {
   test('equality and hashing', () {
-    final c1 = PlayingCard(Rank.three, Suit.clubs);
-    final c2 = PlayingCard(Rank.three, Suit.clubs);
-    final c3 = PlayingCard(Rank.three, Suit.hearts);
-    final c4 = PlayingCard(Rank.ace, Suit.clubs);
+    final c1 = SuitedCard(Rank.three, Suit.clubs);
+    final c2 = SuitedCard(Rank.three, Suit.clubs);
+    final c3 = SuitedCard(Rank.three, Suit.hearts);
+    final c4 = SuitedCard(Rank.ace, Suit.clubs);
 
     expect(c1 == c2, true);
     expect(c1 == c3, false);
@@ -17,14 +17,14 @@ void main() {
   });
 
   test("parsing", () {
-    expect(PlayingCard.cardFromString("QS"), PlayingCard(Rank.queen, Suit.spades));
-    expect(PlayingCard.cardFromString("TD"), PlayingCard(Rank.ten, Suit.diamonds));
-    expect(PlayingCard.cardFromString("10H"), PlayingCard(Rank.ten, Suit.hearts));
-    expect(PlayingCard.cardFromString("3♣"), PlayingCard(Rank.three, Suit.clubs));
+    expect(SuitedCard.cardFromString("QS"), SuitedCard(Rank.queen, Suit.spades));
+    expect(SuitedCard.cardFromString("TD"), SuitedCard(Rank.ten, Suit.diamonds));
+    expect(SuitedCard.cardFromString("10H"), SuitedCard(Rank.ten, Suit.hearts));
+    expect(SuitedCard.cardFromString("3♣"), SuitedCard(Rank.three, Suit.clubs));
   });
 
   test("ranks for suit", () {
-    final cards = PlayingCard.cardsFromString("4S 7H JS 2D 2S AS KD");
+    final cards = SuitedCard.cardsFromString("4S 7H JS 2D 2S AS KD");
     expect(sortedRanksInSuit(cards, Suit.spades), [Rank.ace, Rank.jack, Rank.four, Rank.two]);
     expect(sortedRanksInSuit(cards, Suit.hearts), [Rank.seven]);
     expect(sortedRanksInSuit(cards, Suit.diamonds), [Rank.king, Rank.two]);

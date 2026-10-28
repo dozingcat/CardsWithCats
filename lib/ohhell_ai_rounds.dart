@@ -72,7 +72,7 @@ final mcParams50 = MonteCarloParams(maxRounds: 50, rolloutsPerRound: 50);
 
 // 20/30/50 all seem roughly equal
 
-MonteCarloResult computeCardToPlay(final OhHellRound round, Random rng) {
+MonteCarloResult<SuitedCard> computeCardToPlay(final OhHellRound round, Random rng) {
   final req = CardToPlayRequest.fromRound(round);
   // return MonteCarloResult.rolloutNotNeeded(bestCard: card);
   switch (round.currentPlayerIndex()) {

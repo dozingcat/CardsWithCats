@@ -81,7 +81,7 @@ ChooseCardFn makeMixedRandomMakeBidsFn(double randomProb) {
       rng.nextDouble() < randomProb ? chooseCardToMakeBids(req, rng) : chooseCardRandom(req, rng);
 }
 
-MonteCarloResult computeCardToPlay(final SpadesRound round, Random rng) {
+MonteCarloResult<SuitedCard> computeCardToPlay(final SpadesRound round, Random rng) {
   final cardReq = CardToPlayRequest.fromRound(round);
   switch (round.currentPlayerIndex()) {
     case 0:

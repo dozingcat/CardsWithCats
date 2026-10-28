@@ -11,7 +11,7 @@ import 'package:cards_with_cats/cards/card.dart';
 import 'package:cards_with_cats/cards/rollout.dart';
 import 'package:cards_with_cats/cards/trick.dart';
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 
 void main() {
   // 3NT by South (seat 2); dummy is North (seat 0), visible, and plays
@@ -46,7 +46,7 @@ void main() {
   _printTop(dd.cardEquities);
 }
 
-void _printTop(Map<PlayingCard, double> equities) {
+void _printTop(Map<SuitedCard, double> equities) {
   final entries = equities.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   for (final e in entries) {

@@ -41,7 +41,7 @@ const _maxCalls = 40;
 // well past the engine-only limit before three passes appear.
 const _chaosMaxCalls = 100;
 
-List<List<PlayingCard>> dealHands(int seed, int index) {
+List<List<SuitedCard>> dealHands(int seed, int index) {
   final rng = Random(seed * 100003 + index);
   final deck = standardDeckCards()..shuffle(rng);
   return List.generate(4, (i) => deck.sublist(i * 13, (i + 1) * 13));
@@ -117,7 +117,7 @@ void _lintAdvertisement(HandAnalysis hand, int seat, BidAction call,
   }
 }
 
-void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
+void _lintResult(List<List<SuitedCard>> hands, List<BidAction> history,
     List<SelfPlayFinding> findings) {
   int? lastBidIndex;
   for (int i = history.length - 1; i >= 0; i--) {
@@ -222,7 +222,7 @@ void _lintResult(List<List<PlayingCard>> hands, List<BidAction> history,
   }
 }
 
-int highCardPointsOf(List<PlayingCard> hand) => HandAnalysis(hand).hcp;
+int highCardPointsOf(List<SuitedCard> hand) => HandAnalysis(hand).hcp;
 
 /// A random legal non-pass call for fuzzing: usually a legal double/redouble
 /// or one of the few cheapest contract bids, occasionally anything legal.
@@ -248,7 +248,7 @@ BidAction randomLegalCall(Random rng, List<BidAction> history) {
 /// random legal call with probability `chaosProbability`, fuzzing the
 /// engine's responses to auctions it would never produce itself; injected
 /// calls carry no meaning and are exempt from the lints.
-SelfPlayResult runDeal(List<List<PlayingCard>> hands,
+SelfPlayResult runDeal(List<List<SuitedCard>> hands,
     {Random? chaosRng, double chaosProbability = 0}) {
   final history = <BidAction>[];
   final findings = <SelfPlayFinding>[];

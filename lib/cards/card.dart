@@ -134,35 +134,16 @@ enum Rank {
 }
 
 // "Card" is a Flutter UI class, PlayingCard avoids having to disambiguate.
-class PlayingCard {
-  PlayingCard(this.rank, this.suit);
+sealed class PlayingCard {
+  const PlayingCard();
 
-  final Rank rank;
-  final Suit suit;
-
-  @override
-  int get hashCode => this.rank.index << 8 + this.suit.index;
-
-  @override
-  bool operator ==(Object other) {
-    return (other is PlayingCard &&
-        other.rank == this.rank &&
-        other.suit == this.suit);
-  }
-
-  @override
-  String toString() {
-    return this.rank.asciiChar + this.suit.asciiChar;
-  }
-
-  String symbolString() {
-    return this.rank.asciiChar + this.suit.symbolChar;
-  }
+  String symbolString();
 
   static PlayingCard cardFromString(String s) {
-    final suitChar = s[s.length - 1];
-    final rankChar = s.substring(0, s.length - 1);
-    return PlayingCard(Rank.fromChar(rankChar), Suit.fromChar(suitChar));
+    if (s.startsWith(JokerCard.prefix)) {
+      return JokerCard.fromString(s);
+    }
+    return SuitedCard.cardFromString(s);
   }
 
   static List<PlayingCard> cardsFromString(String s) {
@@ -176,25 +157,95 @@ class PlayingCard {
   }
 }
 
-List<PlayingCard> standardDeckCards() => [
-      for (var r in Rank.values) PlayingCard(r, Suit.clubs),
-      for (var r in Rank.values) PlayingCard(r, Suit.diamonds),
-      for (var r in Rank.values) PlayingCard(r, Suit.hearts),
-      for (var r in Rank.values) PlayingCard(r, Suit.spades),
+class SuitedCard extends PlayingCard {
+  const SuitedCard(this.rank, this.suit);
+
+  final Rank rank;
+  final Suit suit;
+
+  @override
+  int get hashCode => rank.index << 8 + suit.index;
+
+  @override
+  bool operator ==(Object other) {
+    return (other is SuitedCard &&
+        other.rank == rank &&
+        other.suit == suit);
+  }
+
+  @override
+  String toString() {
+    return rank.asciiChar + suit.asciiChar;
+  }
+
+  @override
+  String symbolString() {
+    return rank.asciiChar + suit.symbolChar;
+  }
+
+  static SuitedCard cardFromString(String s) {
+    final suitChar = s[s.length - 1];
+    final rankChar = s.substring(0, s.length - 1);
+    return SuitedCard(Rank.fromChar(rankChar), Suit.fromChar(suitChar));
+  }
+
+  static List<SuitedCard> cardsFromString(String s) {
+    if (s.isEmpty) return [];
+    final pieces = s.split(" ");
+    return pieces.map((s) => SuitedCard.cardFromString(s)).toList();
+  }
+}
+
+class JokerCard extends PlayingCard {
+  static const String prefix = "JOKER";
+  // 1-based, to distinguish between multiple jokers if needed.
+  final int jokerIndex;
+
+  const JokerCard(this.jokerIndex);
+
+  @override
+  int get hashCode => jokerIndex;
+
+  @override
+  bool operator ==(Object other) {
+    return (other is JokerCard && other.jokerIndex == jokerIndex);
+  }
+
+  @override
+  String toString() {
+    return "$prefix$jokerIndex";
+  }
+
+  @override
+  String symbolString() {
+    return toString();
+  }
+
+  static JokerCard fromString(String s) {
+    final index = int.parse(s.substring(prefix.length));
+    return JokerCard(index);
+  }
+}
+
+List<SuitedCard> standardDeckCards() => [
+      for (var r in Rank.values) SuitedCard(r, Suit.clubs),
+      for (var r in Rank.values) SuitedCard(r, Suit.diamonds),
+      for (var r in Rank.values) SuitedCard(r, Suit.hearts),
+      for (var r in Rank.values) SuitedCard(r, Suit.spades),
     ];
 
-List<PlayingCard> sortedCardsInSuit(Iterable<PlayingCard> cards, Suit suit) {
-  List<PlayingCard> matching = cards.where((c) => c.suit == suit).toList();
+List<SuitedCard> sortedCardsInSuit(Iterable<SuitedCard> cards, Suit suit) {
+  List<SuitedCard> matching = cards.where((c) => c.suit == suit).toList();
   matching.sort((c1, c2) => c2.rank.index - c1.rank.index);
   return matching;
 }
 
 // Returns the ranks of cards in the specified suit, sorted descending from ace to two.
-List<Rank> sortedRanksInSuit(Iterable<PlayingCard> cards, Suit suit) {
+List<Rank> sortedRanksInSuit(Iterable<SuitedCard> cards, Suit suit) {
   return sortedCardsInSuit(cards, suit).map((c) => c.rank).toList();
 }
 
-Map<Suit, int> suitCounts(Iterable<PlayingCard> cards) {
+Map<Suit, int> suitCounts(Iterable<SuitedCard> cards) {
   Map<Suit, int> counts = {
     Suit.spades: 0,
     Suit.hearts: 0,
@@ -207,7 +258,7 @@ Map<Suit, int> suitCounts(Iterable<PlayingCard> cards) {
   return counts;
 }
 
-PlayingCard minCardByRank(List<PlayingCard> cards) {
+SuitedCard minCardByRank(List<SuitedCard> cards) {
   var minCard = cards[0];
   for (final c in cards) {
     if (c.rank.isLowerThan(minCard.rank)) {
@@ -217,7 +268,7 @@ PlayingCard minCardByRank(List<PlayingCard> cards) {
   return minCard;
 }
 
-PlayingCard maxCardByRank(List<PlayingCard> cards) {
+SuitedCard maxCardByRank(List<SuitedCard> cards) {
   var maxCard = cards[0];
   for (final c in cards) {
     if (c.rank.isHigherThan(maxCard.rank)) {
@@ -227,7 +278,7 @@ PlayingCard maxCardByRank(List<PlayingCard> cards) {
   return maxCard;
 }
 
-String descriptionWithSuitGroups(List<PlayingCard> cards) {
+String descriptionWithSuitGroups(List<SuitedCard> cards) {
   String stringForRanksInSuit(Suit suit) =>
       suit.symbolChar +
       sortedRanksInSuit(cards, suit).map((r) => r.asciiChar).join("");

@@ -7,7 +7,7 @@ import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
 import "package:cards_with_cats/bridge/bridge.dart";
 
-const c = PlayingCard.cardsFromString;
+const c = SuitedCard.cardsFromString;
 const cb = ContractBid.fromString;
 
 void main() {

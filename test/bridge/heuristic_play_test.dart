@@ -8,21 +8,21 @@ import 'package:cards_with_cats/bridge/bridge.dart';
 import 'package:cards_with_cats/bridge/bridge_ai.dart';
 import 'package:cards_with_cats/bridge/heuristic_play.dart';
 
-List<PlayingCard> parseHand(String s) {
+List<SuitedCard> parseHand(String s) {
   // "KQJ52 743 862 95" -> spades, hearts, diamonds, clubs; "-" for void.
   final groups = s.split(" ");
   final suits = [Suit.spades, Suit.hearts, Suit.diamonds, Suit.clubs];
-  final cards = <PlayingCard>[];
+  final cards = <SuitedCard>[];
   for (int i = 0; i < 4; i++) {
     if (groups[i] == "-") continue;
     for (final ch in groups[i].split("")) {
-      cards.add(PlayingCard.cardsFromString("$ch${suits[i].asciiChar}")[0]);
+      cards.add(SuitedCard.cardsFromString("$ch${suits[i].asciiChar}")[0]);
     }
   }
   return cards;
 }
 
-PlayingCard card(String s) => PlayingCard.cardsFromString(s)[0];
+SuitedCard card(String s) => SuitedCard.cardsFromString(s)[0];
 
 /// Builds a play request. The auction is a single contract bid by
 /// `declarer` followed by three passes. `trickCards` are cards already
@@ -34,7 +34,7 @@ CardToPlayRequest reqFor({
   required String contract, // e.g. "3NT", "4H"
   required int declarer,
   String? dummyHand,
-  List<Trick> previousTricks = const [],
+  List<Trick<SuitedCard>> previousTricks = const [],
   int? trickLeader,
   List<String> trickCards = const [],
 }) {
@@ -43,7 +43,7 @@ CardToPlayRequest reqFor({
     for (int i = 1; i <= 3; i++)
       PlayerBid((declarer + i) % 4, BidAction.pass()),
   ];
-  final trick = TrickInProgress(trickLeader ?? (declarer + 1) % 4);
+  final trick = TrickInProgress<SuitedCard>(trickLeader ?? (declarer + 1) % 4);
   trick.cards.addAll(trickCards.map(card));
   return CardToPlayRequest(
     hand: parseHand(hand),
