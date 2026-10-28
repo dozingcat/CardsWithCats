@@ -400,33 +400,60 @@ class RookMatchState extends State<RookMatchDisplay> {
     );
   }
 
-  List<String> _currentRoundScoreMessages() {
-    final messages = <String>[];
-    // Points so far, not including the nest which goes to the last trick winner.
+  bool _shouldShowScoreOverlay() {
+    return showScoreOverlay && _shouldShowScoreOverlayToggle();
+  }
+
+  bool _shouldShowScoreOverlayToggle() {
+    return !widget.dialogVisible && round.status == RookRoundStatus.playing && !_shouldShowContractDialog();
+  }
+
+  // Contract and points taken by each team so far, in the center of the table.
+  Widget _scoreOverlay() {
+    const textStyle = TextStyle(color: Color.fromARGB(224, 0, 0, 0), fontSize: 18);
+    const imageHeight = 22.0;
+    final contract = round.contract!;
+    // Not including the nest, which goes to the last trick winner.
     final teamPoints = List.filled(numTeams, 0);
     for (final t in round.previousTricks) {
       teamPoints[t.winner % numTeams] += pointsForCards(t.cards, round.rules);
     }
-    for (int i = 0; i < numPlayers; i++) {
-      final team = i % numTeams;
-      var msg = "Score: ${round.initialScores[team]}";
-      if (round.status == RookRoundStatus.playing) {
-        msg += "\nPoints: ${teamPoints[team]}";
-        if (round.contract!.declarer == i) {
-          msg += "\nBid ${round.contract!.bid}";
-        }
-      }
-      messages.add(msg);
-    }
-    return messages;
-  }
+    Widget teamRow(int team) => Row(mainAxisSize: MainAxisSize.min, children: [
+          ..._playerLabel(team, widget.catImageIndices, height: imageHeight),
+          const Text(" / ", style: textStyle),
+          ..._playerLabel(team + 2, widget.catImageIndices, height: imageHeight),
+          Text(": ${teamPoints[team]} points", style: textStyle),
+        ]);
 
-  bool _shouldShowScoreOverlay() {
-    return showScoreOverlay && !widget.dialogVisible && !round.isOver();
-  }
+    final overlay = Center(
+        child: Container(
+            decoration: BoxDecoration(
+                color: const Color.fromARGB(208, 255, 255, 255),
+                border: Border.all(color: const Color.fromARGB(128, 0, 0, 0)),
+                borderRadius: const BorderRadius.all(Radius.circular(20))),
+            child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: DefaultTextStyle.merge(style: textStyle, child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 4,
+                  children: [
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      ..._playerLabel(contract.declarer, widget.catImageIndices, height: imageHeight),
+                      Text(" bid ${contract.bid}, ${contract.trump.symbolChar} trump", style: textStyle),
+                    ]),
+                    teamRow(0),
+                    teamRow(1),
+                  ],
+                )))));
 
-  bool _shouldShowScoreOverlayToggle() {
-    return !widget.dialogVisible && !round.isOver();
+    return TweenAnimationBuilder(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 250),
+      child: overlay,
+      builder: (BuildContext context, double opacity, Widget? child) {
+        return Opacity(opacity: opacity, child: child);
+      },
+    );
   }
 
   // The bid dialog stays visible for the whole auction, and while an AI player
@@ -525,8 +552,7 @@ class RookMatchState extends State<RookMatchDisplay> {
             catImageIndices: widget.catImageIndices,
           ),
         PlayerMoods(layout: layout, moods: playerMoods),
-        if (_shouldShowScoreOverlay())
-          PlayerMessagesOverlay(layout: layout, messages: _currentRoundScoreMessages()),
+        if (_shouldShowScoreOverlay()) _scoreOverlay(),
         if (_shouldShowScoreOverlayToggle()) scoreToggleIconButton(
           layout: layout,
           onPressed: () {
