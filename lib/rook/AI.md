@@ -128,6 +128,15 @@ Staying in the auction behind partner (in case an opponent outbids partner
 and partner drops out) wins more auctions, but the extra contracts are made
 less often than the ones it takes away from the opponents, so it was removed.
 
+Staying in only when holding the Rook also loses (with the Rook limit below,
+4000 deals): -7.8 ± 1.2 with a 5 point margin, -5.9 ± 1.1 with 15. When a
+player passes behind partner holding the Rook and the opponents then win
+the auction (8% of deals), the opponents are set 91% of the time, averaging
+74 points. Passing with the Rook works like a penalty double: setting the
+opponents is always worth more than making our own contract, since a set
+gains our points plus their whole bid (more than 120), while making our own
+gains at most 120.
+
 The default is -70: -60 is clearly better than -40, and with Monte Carlo
 play slightly more aggressive looked better. In AI-vs-AI auctions this
 pushes winning bids to about 95-100 with 60-75% made.
