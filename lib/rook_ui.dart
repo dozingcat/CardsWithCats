@@ -254,9 +254,12 @@ class RookMatchState extends State<RookMatchDisplay> {
         }
       }
     } else {
-      // Happy when taking the Rook card.
+      // Happy when taking a lot of points. The Rook card always wins, so
+      // taking it isn't special by itself.
       final trick = round.previousTricks.last;
-      if (trick.winner != 0 && trick.cards.contains(joker)) {
+      final hasRook = trick.cards.contains(joker);
+      final otherPoints = pointsForCards(trick.cards.where((c) => c != joker), round.rules);
+      if (trick.winner != 0 && otherPoints >= (hasRook ? 10 : 20)) {
         playerMoods[trick.winner] = Mood.happy;
       }
     }
