@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cards_with_cats/cards/trick.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'card_images.dart';
@@ -18,6 +19,29 @@ void printd(String msg) {
   if (debugOutput) print(msg);
 }
 
+int? _computeAiBid((RookRound, int) args) => chooseBid(args.$1, args.$2, Random());
+
+PlayingCard _computeAiCard(RookRound round) =>
+    chooseCardMonteCarlo(round, RookMonteCarloParams(numDeals: 100, maxTimeMillis: 2000), Random());
+
+DiscardsAndTrump _computeAiDiscards(RookRound round) => chooseDiscardsAndTrump(round, Random());
+
+// How AI players choose their actions. Tests can override these, and run them
+// synchronously rather than in a separate isolate.
+class RookAiFunctions {
+  final int? Function((RookRound, int) roundAndPlayer) chooseBid;
+  final DiscardsAndTrump Function(RookRound round) chooseDiscardsAndTrump;
+  final PlayingCard Function(RookRound round) chooseCard;
+  final bool runInIsolate;
+
+  const RookAiFunctions({
+    this.chooseBid = _computeAiBid,
+    this.chooseDiscardsAndTrump = _computeAiDiscards,
+    this.chooseCard = _computeAiCard,
+    this.runInIsolate = true,
+  });
+}
+
 class RookMatchDisplay extends StatefulWidget {
   final RookMatch Function() initialMatchFn;
   final RookMatch Function() createMatchFn;
@@ -30,6 +54,7 @@ class RookMatchDisplay extends StatefulWidget {
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
   final CardImageSet cardImageSet;
+  final RookAiFunctions aiFunctions;
 
   const RookMatchDisplay({
     super.key,
@@ -44,6 +69,7 @@ class RookMatchDisplay extends StatefulWidget {
     required this.soundPlayer,
     required this.statsStore,
     required this.cardImageSet,
+    this.aiFunctions = const RookAiFunctions(),
   });
 
   @override
@@ -87,7 +113,6 @@ IsTrumpFn? rookTrumpPredicate(Suit? trump) =>
     trump == null ? null : (card) => effectiveSuit(card, trump) == trump;
 
 class RookMatchState extends State<RookMatchDisplay> {
-  final rng = Random();
   var animationMode = AnimationMode.none;
   // Shown after an AI player wins the bid and chooses trump.
   bool showContractDialog = false;
@@ -157,31 +182,55 @@ class RookMatchState extends State<RookMatchDisplay> {
       case RookRoundStatus.bidding:
         final bidder = round.currentBidder();
         if (bidder != 0) {
-          Future.delayed(const Duration(milliseconds: 1000), () {
-            if (identical(r, round) && round.status == RookRoundStatus.bidding && round.currentBidder() == bidder) {
-              _makeBidForAiPlayer(bidder);
-            }
-          });
+          _runAiAction(
+            ai.chooseBid, (round, bidder), 1000,
+            isStillValid: () => identical(r, round) && round.status == RookRoundStatus.bidding && round.currentBidder() == bidder,
+            apply: (int? bid) => _addBid(PlayerBid(bidder, bid)),
+          );
         }
       case RookRoundStatus.declarerChoosingCardsAndTrump:
         if (round.declarer() != 0) {
-          Future.delayed(const Duration(milliseconds: 1000), () {
-            if (identical(r, round) && round.status == RookRoundStatus.declarerChoosingCardsAndTrump) {
-              _discardAndChooseTrumpForAiPlayer();
-            }
-          });
+          _runAiAction(
+            ai.chooseDiscardsAndTrump, round, 1000,
+            isStillValid: () => identical(r, round) && round.status == RookRoundStatus.declarerChoosingCardsAndTrump,
+            apply: _discardAndChooseTrumpForAiPlayer,
+          );
         }
       case RookRoundStatus.playing:
         final player = round.currentPlayerIndex();
         final numPlayed = round.previousTricks.length * numPlayers + round.currentTrick.cards.length;
         if (player != 0 && !showContractDialog) {
-          Future.delayed(const Duration(milliseconds: 750), () {
-            final nowPlayed = round.previousTricks.length * numPlayers + round.currentTrick.cards.length;
-            if (identical(r, round) && !round.isOver() && nowPlayed == numPlayed) {
-              _playCard(chooseCardRandom(round, rng));
-            }
-          });
+          _runAiAction(
+            ai.chooseCard, round, 750,
+            isStillValid: () {
+              final nowPlayed = round.previousTricks.length * numPlayers + round.currentTrick.cards.length;
+              return identical(r, round) && !round.isOver() && nowPlayed == numPlayed;
+            },
+            apply: _playCard,
+          );
         }
+    }
+  }
+
+  RookAiFunctions get ai => widget.aiFunctions;
+
+  // Computes an AI action, normally in a separate isolate, and applies it
+  // after at least `minDelayMillis` if the game state hasn't changed.
+  void _runAiAction<Q, R>(R Function(Q) fn, Q arg, int minDelayMillis,
+      {required bool Function() isStillValid, required void Function(R) apply}) async {
+    final t1 = DateTime.now().millisecondsSinceEpoch;
+    try {
+      // Note: `compute` has an overhead of several hundred milliseconds in
+      // debug mode, but not in release mode.
+      final result = ai.runInIsolate ? await compute(fn, arg) : fn(arg);
+      final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
+      Future.delayed(Duration(milliseconds: max(0, minDelayMillis - elapsed)), () {
+        if (mounted && isStillValid()) {
+          apply(result);
+        }
+      });
+    } catch (ex) {
+      print("*** Exception in AI computation: $ex");
     }
   }
 
@@ -194,13 +243,7 @@ class RookMatchState extends State<RookMatchDisplay> {
     _scheduleNextActionIfNeeded();
   }
 
-  void _makeBidForAiPlayer(int playerIndex) {
-    final bid = chooseBid(round, playerIndex, rng);
-    _addBid(PlayerBid(playerIndex, bid));
-  }
-
-  void _discardAndChooseTrumpForAiPlayer() {
-    final choice = chooseDiscardsAndTrump(round, rng);
+  void _discardAndChooseTrumpForAiPlayer(DiscardsAndTrump choice) {
     setState(() {
       round.discardAndChooseTrump(choice.discards, choice.trump);
       showContractDialog = true;
