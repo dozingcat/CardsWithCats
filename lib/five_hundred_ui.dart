@@ -21,7 +21,8 @@ void _printd(String msg) {
 
 FiveHundredBid? _computeAiBid((FiveHundredRound, int) args) => chooseBid(args.$1, args.$2, Random());
 
-CardChoice _computeAiCard(FiveHundredRound round) => chooseCardRandom(round, Random());
+CardChoice _computeAiCard(FiveHundredRound round) =>
+    chooseCardMonteCarlo(round, FiveHundredMonteCarloParams(numDeals: 100, maxTimeMillis: 2000), Random());
 
 Set<PlayingCard> _computeAiDiscards(FiveHundredRound round) => chooseDiscards(round, Random());
 

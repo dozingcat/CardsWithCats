@@ -297,17 +297,127 @@ void main() {
       final round = FiveHundredRound.deal(rules: FiveHundredRuleSet(), scores: [0, 0], dealer: i % 4, rng: rng);
       while (round.status == FiveHundredRoundStatus.bidding && !round.isPassedOut()) {
         final p = round.currentBidder();
-        round.addBid(PlayerBid(p, chooseBid(round, p, rng)));
+        round.addBid(PlayerBid(p, chooseBid(round, p, rng, FiveHundredBidParams(numDeals: 5))));
       }
       if (round.isPassedOut()) {
         continue;
       }
       round.discard(chooseDiscards(round, rng));
       while (!round.isOver()) {
-        final (card, suit) = chooseCardRandom(round, rng);
+        final (card, suit) = (i % 2 == 0)
+            ? chooseCardHeuristic(round, rng)
+            : chooseCardMonteCarlo(round, FiveHundredMonteCarloParams(numDeals: 3), rng);
         round.playCard(card, jokerLeadSuit: suit);
       }
       round.contractScoresForTeams();
     }
+  });
+
+  group("AI", () {
+    FiveHundredRound roundWithContract(String contract, List<String> hands, {int declarer = 0}) {
+      final round = FiveHundredRound()
+        ..rules = FiveHundredRuleSet()
+        ..initialScores = [0, 0]
+        ..players = hands.map((h) => FiveHundredPlayer(c(h))).toList()
+        ..dealer = 3
+        ..initialKitty = c("4H 4D 5S")
+        ..bidHistory = [
+          PlayerBid(declarer, bid(contract)),
+          for (int p = 1; p < numPlayers; p++) PlayerBid.pass((declarer + p) % numPlayers),
+        ]
+        ..status = FiveHundredRoundStatus.declarerDiscarding
+        ..currentTrick = TrickInProgress(declarer);
+      return round;
+    }
+
+    test("Discards keep trumps and the joker", () {
+      final round = roundWithContract("7H", [
+        "JOKER1 JD 5H 6H AS 9S 8S 7C 6C 5C",
+        "AH KH QH JH TH 9H 8H 7H 6H AC",
+        "AD KD QD TD 9D 8D 7D 6D 5D KC",
+        "KS QS JS TS 6S QC JC TC 9C 8C",
+      ]);
+      final discards = chooseDiscards(round, Random(1));
+      expect(discards.length, 3);
+      expect(discards.any((c) => effectiveSuit(c, Suit.hearts) == Suit.hearts), false);
+      expect(discards, isNot(contains(c1("AS"))));
+      // The kitty's 4D is a singleton, so discarding it makes a void. Then the
+      // shortest side suit without an ace is clubs.
+      expect(discards, c("4D 5C 6C").toSet());
+    });
+
+    test("Known voids", () {
+      final round = roundWithContract("6NT", [
+        "JOKER1 AS KS QS JS TS 9S 8S 7S 6S",
+        "AH KH QH JH TH 9H 8H 7H 6H 5H",
+        "AD KD QD JD TD 9D 8D 7D 6D 5D",
+        "AC KC QC JC TC 9C 8C 7C 6C 5C",
+      ]);
+      round.discard(c("4H 4D 5S").toSet());
+      round.playCard(c1("AS"));
+      round.playCard(c1("AH"));
+      expect(knownVoids(round)[1], {Suit.spades});
+      round.playCard(c1("AD"));
+      round.playCard(c1("AC"));
+      expect(knownVoids(round), [<Suit>{}, {Suit.spades}, {Suit.spades}, {Suit.spades}]);
+      // Joker led as hearts; player 1 follows, player 2 doesn't.
+      round.playCard(joker, jokerLeadSuit: Suit.hearts);
+      round.playCard(c1("KH"));
+      round.playCard(c1("KD"));
+      expect(knownVoids(round)[2], {Suit.spades, Suit.hearts});
+    });
+
+    test("Sampled rounds respect voids and hand sizes", () {
+      final rng = Random(2);
+      for (int i = 0; i < 20; i++) {
+        final round = FiveHundredRound.deal(rules: FiveHundredRuleSet(), scores: [0, 0], dealer: 3, rng: rng);
+        round.addBid(PlayerBid(0, bid(i.isEven ? "6NT" : "6H")));
+        for (int p = 1; p < 4; p++) {
+          round.addBid(PlayerBid.pass(p));
+        }
+        round.discard(chooseDiscards(round, rng));
+        for (int j = 0; j < 17; j++) {
+          final (card, suit) = chooseCardHeuristic(round, rng);
+          round.playCard(card, jokerLeadSuit: suit);
+        }
+        for (int p = 0; p < 4; p++) {
+          final hypo = possibleRoundForPlayer(round, p, rng)!;
+          final voids = knownVoids(round);
+          for (int q = 0; q < 4; q++) {
+            expect(hypo.players[q].hand.length, round.players[q].hand.length);
+            if (q != p) {
+              expect(hypo.players[q].hand.any((c) => voids[q].contains(effectiveSuit(c, round.trump))), false);
+            }
+          }
+          expect(hypo.players[p].hand, round.players[p].hand);
+          final all = [...hypo.players.expand((pl) => pl.hand), ...hypo.discards, ...playedCards(hypo)];
+          expect(all.toSet(), fiveHundredDeckCards().toSet());
+        }
+      }
+    });
+
+    test("Monte Carlo considers each suit for the joker led in no trump", () {
+      final round = roundWithContract("6NT", [
+        "JOKER1 AS KS QS JS TS 9S 8S 7S 6S",
+        "AH KH QH JH TH 9H 8H 7H 6H 5H",
+        "AD KD QD JD TD 9D 8D 7D 6D 5D",
+        "AC KC QC JC TC 9C 8C 7C 6C 5C",
+      ]);
+      round.discard(c("4H 4D 5S").toSet());
+      final plays = candidatePlays(round);
+      expect(plays.where((p) => p.$1 == joker).map((p) => p.$2).toSet(), Suit.values.toSet());
+      final (card, suit) = chooseCardMonteCarlo(round, FiveHundredMonteCarloParams(numDeals: 5), Random(3));
+      expect(round.legalPlaysForCurrentPlayer(), contains(card));
+      expect(suit != null, card == joker);
+    });
+
+    test("Expected differential", () {
+      final rules = FiveHundredRuleSet();
+      // Making 7H with 8 tricks: 200 - 20. Set with 6: -200 - 40.
+      expect(expectedDeclarerDifferential([8], bid("7H"), rules), 180);
+      expect(expectedDeclarerDifferential([6], bid("7H"), rules), -240);
+      expect(expectedDeclarerDifferential([10], bid("7S"), rules), 250);
+      expect(expectedDeclarerDifferential([8, 6], bid("7H"), rules), -30);
+    });
   });
 }
