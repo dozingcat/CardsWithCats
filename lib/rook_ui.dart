@@ -418,10 +418,13 @@ class RookMatchState extends State<RookMatchDisplay> {
     for (final t in round.previousTricks) {
       teamPoints[t.winner % numTeams] += pointsForCards(t.cards, round.rules);
     }
-    Widget teamRow(int team) => Row(mainAxisSize: MainAxisSize.min, children: [
-          ..._playerLabel(team, widget.catImageIndices, height: imageHeight),
+    // A table so that the slashes and colons line up.
+    TableRow teamRow(int team) => TableRow(children: [
+          Align(alignment: Alignment.centerRight,
+              child: _playerLabel(team, widget.catImageIndices, height: imageHeight).single),
           const Text(" / ", style: textStyle),
-          ..._playerLabel(team + 2, widget.catImageIndices, height: imageHeight),
+          Align(alignment: Alignment.centerLeft,
+              child: _playerLabel(team + 2, widget.catImageIndices, height: imageHeight).single),
           Text(": ${teamPoints[team]} points", style: textStyle),
         ]);
 
@@ -441,8 +444,11 @@ class RookMatchState extends State<RookMatchDisplay> {
                       ..._playerLabel(contract.declarer, widget.catImageIndices, height: imageHeight),
                       Text(" bid ${contract.bid}, ${contract.trump.symbolChar} trump", style: textStyle),
                     ]),
-                    teamRow(0),
-                    teamRow(1),
+                    Table(
+                      defaultColumnWidth: const IntrinsicColumnWidth(),
+                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                      children: [teamRow(0), teamRow(1)],
+                    ),
                   ],
                 )))));
 
