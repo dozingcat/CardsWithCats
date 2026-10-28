@@ -405,7 +405,10 @@ class RookMatchState extends State<RookMatchDisplay> {
   }
 
   bool _shouldShowScoreOverlayToggle() {
-    return !widget.dialogVisible && round.status == RookRoundStatus.playing && !_shouldShowContractDialog();
+    return !widget.dialogVisible &&
+        round.status == RookRoundStatus.playing &&
+        !round.isOver() &&
+        !_shouldShowContractDialog();
   }
 
   // Contract and points taken by each team so far, in the center of the table.
