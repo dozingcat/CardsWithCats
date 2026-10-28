@@ -111,13 +111,13 @@ Rect centeredSubrectWithAspectRatio(Rect parentRect, double aspectRatio) {
 
 const defaultTrumpBackgroundColor = Color.fromARGB(255, 255, 215, 0);
 
-// Jokers are trumps whenever there's a trump suit (e.g. the Rook card in Rook).
-bool isTrumpCard(PlayingCard card, Suit? trumpSuit) {
-  return switch (card) {
-    SuitedCard(:final suit) => suit == trumpSuit,
-    JokerCard() => trumpSuit != null,
-  };
-}
+// Whether a card is a trump, for highlighting. Games where trumps aren't
+// just the cards of one suit (e.g. the Rook card in Rook) provide their own.
+typedef IsTrumpFn = bool Function(PlayingCard card);
+
+// For games where the trumps are exactly the cards of the trump suit.
+IsTrumpFn? trumpSuitPredicate(Suit? trumpSuit) =>
+    trumpSuit == null ? null : (card) => card is SuitedCard && card.suit == trumpSuit;
 
 // Not all card image sets have joker images, so fall back to this one.
 const fallbackJokerImage = AssetImage("assets/cards/original/JOKER1.webp");
@@ -662,7 +662,7 @@ class TrickCards extends StatelessWidget {
   final void Function() onTrickToWinnerAnimationFinished;
   final List<DisplayedHand> displayedHands;
   final HandOrdering handOrdering;
-  final Suit? trumpSuit;
+  final IsTrumpFn? isTrump;
   final Map<PlayingCard, Color>? cardBackgroundColors;
   final bool transparentIfOverPlayerCards;
   final Function(PlayingCard)? onCardClicked;
@@ -678,7 +678,7 @@ class TrickCards extends StatelessWidget {
     required this.onTrickToWinnerAnimationFinished,
     required this.displayedHands,
     required this.handOrdering,
-    this.trumpSuit,
+    this.isTrump,
     this.cardBackgroundColors,
     this.transparentIfOverPlayerCards = false,
     this.onCardClicked,
@@ -718,7 +718,7 @@ class TrickCards extends StatelessWidget {
         cardImageSet: layout.cardImageSet,
         rect: cardRect,
         card: card,
-        isTrump: isTrumpCard(card, trumpSuit),
+        isTrump: isTrump?.call(card) ?? false,
         backgroundColor: cardBackgroundColors?[card],
         onCardClicked: onCardClicked,
         opacity: opacity,
@@ -810,7 +810,7 @@ class TrickCards extends StatelessWidget {
               cardImageSet: layout.cardImageSet,
               rect: animRect,
               card: cards.last,
-              isTrump: isTrumpCard(lastCard, trumpSuit),
+              isTrump: isTrump?.call(lastCard) ?? false,
               backgroundColor: cardBackgroundColors?[lastCard],
               rotation: rotation,
               onCardClicked: onCardClicked,
@@ -843,7 +843,7 @@ class TrickCards extends StatelessWidget {
                     cardImageSet: layout.cardImageSet,
                     rect: animRect,
                     card: trick.cards[i],
-                    isTrump: isTrumpCard(trick.cards[i], trumpSuit),
+                    isTrump: isTrump?.call(trick.cards[i]) ?? false,
                     backgroundColor: cardBackgroundColors?[trick.cards[i]],
                 ));
           }
@@ -1026,7 +1026,7 @@ class PlayerHandCards extends StatelessWidget {
   final Iterable<PlayingCard> highlightedCards;
   final void Function(PlayingCard)? onCardClicked;
   final List<PlayingCard>? animateFromCards;
-  final Suit? trumpSuit;
+  final IsTrumpFn? isTrump;
   final Map<PlayingCard, Color>? cardBackgroundColors;
   final int playerIndex;
   final HandDisplayStyle displayStyle;
@@ -1040,7 +1040,7 @@ class PlayerHandCards extends StatelessWidget {
     required this.cards,
     required this.highlightedCards,
     this.animateFromCards,
-    this.trumpSuit,
+    this.isTrump,
     this.cardBackgroundColors,
     this.onCardClicked,
     this.playerIndex = 0,
@@ -1070,7 +1070,7 @@ class PlayerHandCards extends StatelessWidget {
                 cardImageSet: layout.cardImageSet,
                 rect: Rect.lerp(startRect, endRect, fraction)!,
                 card: card,
-                isTrump: isTrumpCard(card, trumpSuit),
+                isTrump: isTrump?.call(card) ?? false,
                 dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
                 onCardClicked: onCardClicked,
                 rotation: rotation,
@@ -1088,7 +1088,7 @@ class PlayerHandCards extends StatelessWidget {
         cardImageSet: layout.cardImageSet,
         rect: entry.value,
         card: card,
-        isTrump: isTrumpCard(card, trumpSuit),
+        isTrump: isTrump?.call(card) ?? false,
         dimming: highlightedCards.contains(card) ? 0.0 : 0.5,
         onCardClicked: onCardClicked,
         rotation: rotation,
@@ -1136,7 +1136,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
   final Layout layout;
   final List<PlayerHandParams> playerHands;
   final HandOrdering handOrdering;
-  final Suit? trumpSuit;
+  final IsTrumpFn? isTrump;
   final Map<PlayingCard, Color>? cardBackgroundColors;
 
   const MultiplePlayerHandCards({
@@ -1144,7 +1144,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
     required this.layout,
     required this.playerHands,
     required this.handOrdering,
-    this.trumpSuit,
+    this.isTrump,
     this.cardBackgroundColors,
   });
 
@@ -1165,7 +1165,7 @@ class MultiplePlayerHandCards extends StatelessWidget {
         highlightedCards: ph.highlightedCards,
         handOrdering: handOrdering,
         animateFromCards: ph.animateFromCards,
-        trumpSuit: trumpSuit,
+        isTrump: isTrump,
         cardBackgroundColors: cardBackgroundColors,
         onCardClicked: ph.onCardClicked,
         displayStyle: ph.displayStyle,

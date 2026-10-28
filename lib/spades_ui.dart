@@ -401,7 +401,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       layout: layout,
       playerHands: handParams,
       handOrdering: handDisplayOrdering,
-      trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(Suit.spades) : null,
     );
   }
 
@@ -410,7 +410,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
-      trumpSuit: widget.tintTrumpCards ? Suit.spades : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(Suit.spades) : null,
       animationMode: animationMode,
       numPlayers: round.rules.numPlayers,
       displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],

@@ -82,6 +82,10 @@ HandOrdering rookHandOrdering(Suit? trump) {
   return HandOrdering(compareFn, suitOrder);
 }
 
+// The Rook card is a trump, along with the cards of the trump suit.
+IsTrumpFn? rookTrumpPredicate(Suit? trump) =>
+    trump == null ? null : (card) => effectiveSuit(card, trump) == trump;
+
 class RookMatchState extends State<RookMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
@@ -373,7 +377,7 @@ class RookMatchState extends State<RookMatchDisplay> {
         onCardClicked: handleHandCardClicked,
       )],
       handOrdering: handOrdering,
-      trumpSuit: widget.tintTrumpCards ? _trumpSuit() : null,
+      isTrump: widget.tintTrumpCards ? rookTrumpPredicate(_trumpSuit()) : null,
       cardBackgroundColors: _cardBackgrounds(),
     );
   }
@@ -383,7 +387,7 @@ class RookMatchState extends State<RookMatchDisplay> {
       layout: layout,
       currentTrick: round.currentTrick,
       previousTricks: round.previousTricks,
-      trumpSuit: widget.tintTrumpCards ? round.contract?.trump : null,
+      isTrump: widget.tintTrumpCards ? rookTrumpPredicate(round.contract?.trump) : null,
       animationMode: animationMode,
       numPlayers: numPlayers,
       displayedHands: [DisplayedHand(playerIndex: 0, cards: round.players[0].hand)],

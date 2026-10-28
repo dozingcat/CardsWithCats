@@ -715,7 +715,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       layout: layout,
       playerHands: params,
       handOrdering: _handDisplayOrder(),
-      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(round.trumpSuit()) : null,
     );
   }
 
@@ -732,7 +732,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       layout: layout,
       playerHands: params,
       handOrdering: _handDisplayOrder(),
-      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(round.trumpSuit()) : null,
     );
 
   }
@@ -751,7 +751,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       layout: layout,
       playerHands: allHands,
       handOrdering: _handDisplayOrder(),
-      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(round.trumpSuit()) : null,
     );
   }
 
@@ -796,7 +796,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
       currentTrick: displayCurrentTrick,
       previousTricks: displayPreviousTricks,
       displayedHands: displayedHands,
-      trumpSuit: widget.tintTrumpCards ? round.trumpSuit() : null,
+      isTrump: widget.tintTrumpCards ? trumpSuitPredicate(round.trumpSuit()) : null,
       animationMode: animationMode,
       numPlayers: 4,
       handOrdering: _handDisplayOrder(),
