@@ -72,14 +72,14 @@ Strategy strategyForName(String name) {
         round, FiveHundredMonteCarloParams(
             numDeals: int.parse(playName.substring(2)),
             rolloutChooseFn: heuristic,
-            auctionAttempts: int.parse(opts["playAuction"] ?? "0")), rng),
+            auctionRetries: int.parse(opts["playAuction"] ?? "0")), rng),
     _ => throw ArgumentError("Unknown play: $playName"),
   };
   final bidParams = FiveHundredBidParams(
     numDeals: int.parse(opts["bidDeals"] ?? "100"),
     minExpectedDifferential: double.parse(opts["minDiff"] ?? "30"),
     neverOutbidPartner: opts["outbidPartner"] != "1",
-    auctionAttempts: int.parse(opts["bidAuction"] ?? "50"),
+    auctionRetries: int.parse(opts["bidAuction"] ?? "50"),
   );
   final bidName = opts["bid"] ?? "sim";
   final FiveHundredBid? Function(FiveHundredRound, int, Random) bid = switch (bidName) {

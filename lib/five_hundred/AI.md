@@ -15,7 +15,7 @@ both seatings, with a standard error. Strategies are comma separated options:
 
 - `bid`: `never`, `simple` (the original placeholder: 0.75 per trump, 1 per
   side ace, 2 for partner), `sim` (simulation based, below), with `minDiff`,
-  `bidDeals` (default 100 here for speed; the app uses 300), `bidAuction` (attempts to deal consistently with the bids, 0
+  `bidDeals` (default 100 here for speed; the app uses 300), `bidAuction` (retries to deal consistently with the bids, 0
   to ignore them), `outbidPartner=1`.
 - `play`: `random`, `heuristic`, `mcN` (Monte Carlo with N sampled deals),
   with `playAuction`.
@@ -60,9 +60,9 @@ bidding simulations); Monte Carlo runs take several minutes. Keep
   shows at least min(L - 3, 5) trumps, and a no trump bid shows at least two
   of the aces and joker. These are about the 10th percentile of what the AI's
   own bids hold (suit bids of 7: median 5 trumps; 8: median 5; no trump:
-  median 2-3 aces). Bidding simulations try up to 50 deals to satisfy them,
+  median 2-3 aces). Bidding simulations retry up to 50 times to satisfy them,
   then give up and use the last deal. Monte Carlo play can do the same
-  (`auctionAttempts`), but it didn't help, so it's off.
+  (`auctionRetries`), but it didn't help, so it's off.
 
 Unlike Rook, a made bid scores the bid's value, not the tricks taken, so
 higher contracts are worth more and underbidding loses points. That's why
@@ -118,7 +118,7 @@ a Monte Carlo play with 100 deals averages 30ms (at most about 200ms).
 
 | Change | Result | Kept |
 |---|---|---|
-| Deal consistently with the bids (20 attempts), mc30 | -7.4 ± 5.4 | no |
+| Deal consistently with the bids (20 retries), mc30 | -7.4 ± 5.4 | no |
 
 ## Ideas not yet tried
 

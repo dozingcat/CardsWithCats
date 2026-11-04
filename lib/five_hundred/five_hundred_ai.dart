@@ -260,7 +260,7 @@ int teamScoreDifferential(FiveHundredRound round, int team) {
 // and the discards unless they're the declarer) are randomly redistributed,
 // consistent with the number of cards each player has and the suits they're
 // known to be out of.
-FiveHundredRound? possibleRoundForPlayer(FiveHundredRound round, int player, Random rng, {int auctionAttempts = 0}) {
+FiveHundredRound? possibleRoundForPlayer(FiveHundredRound round, int player, Random rng, {int auctionRetries = 0}) {
   final trump = round.trump;
   final isDeclarer = round.contract!.declarer == player;
   final voids = knownVoids(round);
@@ -282,10 +282,11 @@ FiveHundredRound? possibleRoundForPlayer(FiveHundredRound round, int player, Ran
     constraints: constraints,
     suitForCard: (c) => effectiveSuit(c, trump),
   );
-  // Tries to find a deal consistent with the bids. The declarer's bid isn't
-  // checked, since their hand changed when they took the kitty.
+  // If `auctionRetries` is >0, tries to find a deal consistent with the bids.
+  // The declarer's bid isn't checked, since their hand changed when they took
+  // the kitty.
   FiveHundredRound? result;
-  for (int attempt = 0; attempt <= auctionAttempts; attempt++) {
+  for (int attempt = 0; attempt <= auctionRetries; attempt++) {
     final dist = possibleCardDistribution(request, rng);
     if (dist == null) {
       return result;
@@ -296,6 +297,11 @@ FiveHundredRound? possibleRoundForPlayer(FiveHundredRound round, int player, Ran
     }
     if (!isDeclarer) {
       result.discards = dist.last;
+    }
+    if (attempt == auctionRetries) {
+      // Last attempt; use it whether it's consistent or not. In particular,
+      // if auctionRetries is 0 we don't need to check consistency at all.
+      break;
     }
     final isConsistent = constraintPlayers.every((p) =>
         p == round.contract!.declarer || isHandConsistentWithBids(_originalHand(result!, p), p, round.bidHistory));
@@ -310,15 +316,15 @@ class FiveHundredMonteCarloParams {
   int numDeals;
   int? maxTimeMillis;
   ChooseCardFn rolloutChooseFn;
-  // Attempts to deal hidden cards consistently with the bids (0 to ignore the
+  // Retries to deal hidden cards consistently with the bids (0 to ignore the
   // auction).
-  int auctionAttempts;
+  int auctionRetries;
 
   FiveHundredMonteCarloParams({
     this.numDeals = 30,
     this.maxTimeMillis,
     this.rolloutChooseFn = chooseCardHeuristic,
-    this.auctionAttempts = 0,
+    this.auctionRetries = 0,
   });
 }
 
@@ -342,7 +348,7 @@ CardChoice chooseCardMonteCarlo(FiveHundredRound round, FiveHundredMonteCarloPar
   final team = player % numTeams;
   final totals = List.filled(candidates.length, 0);
   for (int d = 0; d < params.numDeals; d++) {
-    final hypo = possibleRoundForPlayer(round, player, rng, auctionAttempts: params.auctionAttempts);
+    final hypo = possibleRoundForPlayer(round, player, rng, auctionRetries: params.auctionRetries);
     if (hypo == null) {
       break;
     }
@@ -426,7 +432,7 @@ List<int> simulateDeclarerTricks({
   required Random rng,
   ChooseCardFn playFn = chooseCardHeuristic,
   List<PlayerBid> bidHistory = const [],
-  int auctionAttempts = 0,
+  int auctionRetries = 0,
 }) {
   final others = fiveHundredDeckCards().where((c) => !hand.contains(c)).toList();
   final results = <int>[];
@@ -434,7 +440,7 @@ List<int> simulateDeclarerTricks({
     // Deal the other hands, trying to make them consistent with the bids.
     late List<FiveHundredPlayer> players;
     late int offset;
-    for (int attempt = 0; attempt <= auctionAttempts; attempt++) {
+    for (int attempt = 0; attempt <= auctionRetries; attempt++) {
       others.shuffle(rng);
       players = <FiveHundredPlayer>[];
       offset = 0;
@@ -489,15 +495,15 @@ class FiveHundredBidParams {
   double minExpectedDifferential;
   // Never outbid partner.
   bool neverOutbidPartner;
-  // Attempts to deal the other hands consistently with the bids (0 to ignore
+  // Retries to deal the other hands consistently with the bids (0 to ignore
   // the auction).
-  int auctionAttempts;
+  int auctionRetries;
 
   FiveHundredBidParams({
     this.numDeals = 300,
     this.minExpectedDifferential = 30,
     this.neverOutbidPartner = true,
-    this.auctionAttempts = 50,
+    this.auctionRetries = 50,
   });
 }
 
@@ -515,7 +521,7 @@ Map<FiveHundredBid, double> bidExpectations(FiveHundredRound round, int player, 
       numDeals: params.numDeals,
       rng: rng,
       bidHistory: round.bidHistory,
-      auctionAttempts: params.auctionAttempts,
+      auctionRetries: params.auctionRetries,
     );
     for (int t = minimumBidTricks; t <= maximumBidTricks; t++) {
       final bid = FiveHundredBid(t, trump);

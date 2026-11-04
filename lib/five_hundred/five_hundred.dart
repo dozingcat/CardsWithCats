@@ -289,7 +289,8 @@ class FiveHundredRound {
   List<PlayingCard> initialKitty = const [];
   List<PlayingCard> discards = const [];
   List<Trick<PlayingCard>> previousTricks = [];
-  // Suits chosen when leading the joker in no trump, by trick index.
+  // Suit chosen when leading the joker in no trump, keyed by trick index. The
+  // map has 0 or 1 entries since the joker can only be led once.
   Map<int, Suit> jokerLeadSuits = {};
   Contract? contract;
 
