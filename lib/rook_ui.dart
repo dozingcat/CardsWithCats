@@ -287,13 +287,17 @@ class RookMatchState extends State<RookMatchDisplay> {
         playerMoods[i] = (i % numTeams == winner) ? Mood.veryHappy : Mood.mad;
       }
     } else if (round.isOver()) {
-      // Declaring team is happy if they made the bid, mad if not.
+      // Declaring team is happy if they made the bid, mad if not. Defenders
+      // are happy if the last trick set the contract.
       final contract = round.contract!;
       final declarerTeam = contract.declarer % numTeams;
       final madeBid = round.teamPointsTaken()[declarerTeam] >= contract.bid;
+      final setByLastTrick = _wasContractSetByLastTrick();
       for (int i = 1; i < numPlayers; i++) {
         if (i % numTeams == declarerTeam) {
           playerMoods[i] = madeBid ? Mood.happy : Mood.mad;
+        } else if (setByLastTrick) {
+          playerMoods[i] = Mood.happy;
         }
       }
     } else {
@@ -305,7 +309,26 @@ class RookMatchState extends State<RookMatchDisplay> {
       if (trick.winner != 0 && otherPoints >= (hasRook ? 10 : 20)) {
         playerMoods[trick.winner] = Mood.happy;
       }
+      if (_wasContractSetByLastTrick()) {
+        final declarerTeam = round.contract!.declarer % numTeams;
+        for (int i = 1; i < numPlayers; i++) {
+          playerMoods[i] = (i % numTeams == declarerTeam) ? Mood.mad : Mood.happy;
+        }
+      }
     }
+  }
+
+  // Whether the most recent trick was the one that gave the defenders more
+  // points than the declaring team can afford to lose, so that the contract
+  // can't be made. The nest only counts after the last trick.
+  bool _wasContractSetByLastTrick() {
+    final contract = round.contract!;
+    final defenderTeam = 1 - contract.declarer % numTeams;
+    final maxDefenderPoints = pointsForCards(rookDeckCards(), round.rules) - contract.bid;
+    final tricks = round.previousTricks;
+    final before = teamPointsForTricks(tricks.sublist(0, tricks.length - 1), const [], round.rules);
+    final after = teamPointsForTricks(tricks, round.isOver() ? round.finalNest : const [], round.rules);
+    return before[defenderTeam] <= maxDefenderPoints && after[defenderTeam] > maxDefenderPoints;
   }
 
   void _playSoundsForMoods() {

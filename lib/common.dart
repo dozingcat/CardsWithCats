@@ -4,6 +4,7 @@ enum GameType {
   ohHell,
   bridge,
   rook,
+  fiveHundred,
   ;
 
   static GameType? fromString(String s) {

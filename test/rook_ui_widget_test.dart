@@ -228,4 +228,60 @@ void main() {
     // Let the AI players bid, so no timers are pending when the test ends.
     await pumpFor(tester, 4000);
   });
+
+  testWidgets("Defenders are happy on the trick that sets the contract", (tester) async {
+    final rng = Random(8);
+    final getMatch = await pumpRookMatch(tester, rng, RookAiFunctions(
+      chooseBid: (args) => null,
+      chooseDiscardsAndTrump: (round) => chooseDiscardsAndTrump(round, rng),
+      chooseCard: (round) => chooseCardRandom(round, rng),
+      runInIsolate: false,
+    ));
+    await tester.pump();
+    // Bid 120, so the first points the defenders take set the contract.
+    for (int i = 0; i < 10; i++) {
+      await tester.tap(find.text("+"));
+      await tester.pump();
+    }
+    await tester.tap(find.text("Bid 120"));
+    await pumpFor(tester, 1000);
+    final round = getMatch().currentRound;
+    final choice = chooseDiscardsAndTrump(round, rng);
+    for (final c in choice.discards) {
+      await tapHandCard(tester, c);
+    }
+    await tester.tap(find.text(choice.trump.symbolChar));
+    await tester.pump();
+    await tester.tap(find.text("Start round"));
+    await tester.pump();
+
+    bool sawSet = false;
+    for (int steps = 0; steps < 2000 && !round.isOver() && !sawSet; steps++) {
+      if (round.currentPlayerIndex() == 0 && round.currentTrick.cards.length < 4) {
+        await tapHandCard(tester, round.legalPlaysForCurrentPlayer().first);
+      }
+      await tester.pump(const Duration(milliseconds: 50));
+      if (teamPointsForTricks(round.previousTricks, const [], round.rules)[1] > 0) {
+        sawSet = true;
+        // Moods are shown after the last card of the trick is animated.
+        await pumpFor(tester, 300);
+        Finder mood(int player, Mood m) =>
+            find.byWidgetPredicate((w) => w is MoodBubble && w.playerIndex == player && w.mood == m);
+        expect(mood(1, Mood.happy), findsOneWidget);
+        expect(mood(3, Mood.happy), findsOneWidget);
+        expect(mood(2, Mood.mad), findsOneWidget);
+      }
+    }
+    expect(sawSet, true);
+    for (int steps = 0; steps < 2000 && !round.isOver(); steps++) {
+      if (round.currentPlayerIndex() == 0 && round.currentTrick.cards.length < 4) {
+        await tapHandCard(tester, round.legalPlaysForCurrentPlayer().first);
+      }
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await pumpFor(tester, 2500);
+    await tester.tap(find.text("Continue"));
+    await tester.pump();
+    await pumpFor(tester, 3500);
+  });
 }
