@@ -51,6 +51,7 @@ class RookMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final bool tintTrumpCards;
+  final bool tintPointCards;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -66,6 +67,7 @@ class RookMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.tintTrumpCards,
+    required this.tintPointCards,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -410,11 +412,21 @@ class RookMatchState extends State<RookMatchDisplay> {
   Suit? _trumpSuit() => round.contract?.trump ?? (_isHumanChoosingDiscards() ? selectedTrump : null);
 
   Map<PlayingCard, Color> _cardBackgrounds() {
+    Map<PlayingCard, Color> backgrounds = {};
+    if (widget.tintPointCards) {
+      for (final c in rookDeckCards()) {
+        if (pointsForCard(c, round.rules) > 0) {
+          backgrounds[c] = Colors.tealAccent.shade200;
+        }
+      }
+    }
     // Tint the nest cards while choosing discards.
     if (_isHumanChoosingDiscards()) {
-      return {for (final c in round.initialNest) c: Colors.lightBlue.shade200};
+      for (final c in round.initialNest) {
+        backgrounds[c] = Colors.lightBlue.shade200;
+      }
     }
-    return {};
+    return backgrounds;
   }
 
   Widget _playerCards(final Layout layout) {
@@ -476,6 +488,7 @@ class RookMatchState extends State<RookMatchDisplay> {
       handOrdering: rookHandOrdering(round.contract?.trump),
       onTrickCardAnimationFinished: _trickCardAnimationFinished,
       onTrickToWinnerAnimationFinished: _trickToWinnerAnimationFinished,
+      cardBackgroundColors: _cardBackgrounds(),
     );
   }
 

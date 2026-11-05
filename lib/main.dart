@@ -105,6 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedTrumpCards = false;
   bool useTintedHeartsPointCards = false;
   bool useTintedHeartsReceivedCards = false;
+  bool useTintedRookPointCards = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
   final cardImageSettings = CardImageSettings(builtInSets: cardImageSets);
@@ -156,6 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedTrumpCards = preferences.getBool("tintedTrumpCards") ?? true;
       useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
       useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
+      useTintedRookPointCards = preferences.getBool("tintedRookPointCards") ?? true;
       rotateBridgeDummyToTop = preferences.getBool("bridgeRotateDummyToTop") ?? true;
       bridgeRoundsPerMatch = preferences.getInt("bridgeRoundsPerMatch") ?? 4;
       if (![1, 4, 8].contains(bridgeRoundsPerMatch)) {
@@ -270,6 +272,13 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedHeartsReceivedCards = enabled;
     });
     preferences.setBool("tintedHeartsReceivedCards", enabled);
+  }
+
+  void setTintedRookPointCardsEnabled(bool enabled) {
+    setState(() {
+      useTintedRookPointCards = enabled;
+    });
+    preferences.setBool("tintedRookPointCards", enabled);
   }
 
   void setRotateBridgeDummyToTopEnabled(bool enabled) {
@@ -934,6 +943,14 @@ class _MyHomePageState extends State<MyHomePage> {
                               rules.allowDiscardingPointCards = checked;
                             },
                           ),
+                          CheckboxListTile(
+                            dense: true,
+                            title: const Text("Tint point cards", style: labelStyle),
+                            value: useTintedRookPointCards,
+                            onChanged: (bool? checked) {
+                              setTintedRookPointCardsEnabled(checked == true);
+                            },
+                          ),
 
                           const ListTile(
                               title: Text("Bridge",
@@ -1148,6 +1165,7 @@ class _MyHomePageState extends State<MyHomePage> {
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
               tintTrumpCards: useTintedTrumpCards,
+              tintPointCards: useTintedRookPointCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
               cardImageSet: cardImageSet,
