@@ -2,12 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cards_with_cats/cards/card.dart';
+import 'package:cards_with_cats/common.dart';
 import 'package:cards_with_cats/common_ui.dart';
 import 'package:cards_with_cats/rook/rook.dart';
 import 'package:cards_with_cats/rook/rook_ai.dart';
+import 'package:cards_with_cats/rook/rook_stats.dart';
 import 'package:cards_with_cats/rook_ui.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
+import 'package:cards_with_cats/stats_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,7 +32,7 @@ Future<void> tapHandCard(WidgetTester tester, PlayingCard card) async {
 // Shows a RookMatchDisplay where the human player bids first. Returns a
 // function that gets the current match, which is replaced when a new match
 // starts.
-Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, RookAiFunctions aiFunctions) async {
+Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, RookAiFunctions aiFunctions, {StatsStore? statsStore}) async {
   tester.view.physicalSize = const Size(1000, 750);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -56,7 +59,7 @@ Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, Rook
       tintTrumpCards: true,
       matchUpdateStream: StreamController.broadcast().stream,
       soundPlayer: SoundEffectPlayer(),
-      statsStore: InMemoryStatsStore(),
+      statsStore: statsStore ?? InMemoryStatsStore(),
       cardImageSet: defaultCardImageSet,
       aiFunctions: aiFunctions,
     ),
@@ -283,5 +286,83 @@ void main() {
     await tester.tap(find.text("Continue"));
     await tester.pump();
     await pumpFor(tester, 3500);
+  });
+
+  testWidgets("Stats are recorded once when the round and match end", (tester) async {
+    final rng = Random(8);
+    final statsStore = InMemoryStatsStore();
+    final getMatch = await pumpRookMatch(tester, rng, RookAiFunctions(
+      chooseBid: (args) => null,
+      chooseDiscardsAndTrump: (round) => chooseDiscardsAndTrump(round, rng),
+      chooseCard: (round) => chooseCardRandom(round, rng),
+      runInIsolate: false,
+    ), statsStore: statsStore);
+    await tester.pump();
+    // Bid 120, which fails, and the defenders' points end the match.
+    getMatch().currentRound.initialScores = [0, 295];
+    for (int i = 0; i < 10; i++) {
+      await tester.tap(find.text("+"));
+      await tester.pump();
+    }
+    await tester.tap(find.text("Bid 120"));
+    await pumpFor(tester, 1000);
+    final round = getMatch().currentRound;
+    final choice = chooseDiscardsAndTrump(round, rng);
+    for (final c in choice.discards) {
+      await tapHandCard(tester, c);
+    }
+    await tester.tap(find.text(choice.trump.symbolChar));
+    await tester.pump();
+    await tester.tap(find.text("Start round"));
+    await tester.pump();
+    for (int steps = 0; steps < 2000 && !round.isOver(); steps++) {
+      if (round.currentPlayerIndex() == 0 && round.currentTrick.cards.length < 4) {
+        await tapHandCard(tester, round.legalPlaysForCurrentPlayer().first);
+      }
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await pumpFor(tester, 2500);
+
+    final stats = statsStore.rookStats;
+    final points = round.teamPointsTaken();
+    expect(points[0], lessThan(120));
+    expect(stats.numContractsMade, 0);
+    expect(stats.numContracts, 1);
+    expect(stats.numMatches, 1);
+    expect(stats.matchesWon, 0);
+    expect(stats.totalMatchPoints, -120);
+    expect(stats.totalOpponentMatchPoints, 295 + points[1]);
+  });
+
+  testWidgets("Stats dialog shows Rook stats", (tester) async {
+    final statsStore = InMemoryStatsStore()..rookStats = RookStats(
+      numMatches: 4,
+      matchesWon: 3,
+      totalMatchPoints: 1000,
+      numContracts: 13,
+      numContractsMade: 11,
+      totalOpponentMatchPoints: 600,
+      numOpponentContracts: 12,
+      numOpponentContractsMade: 7,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(builder: (context) => StatsDialog(
+      layout: computeLayout(context),
+      statsStore: statsStore,
+      onClose: () {},
+      initialGameType: GameType.rook,
+    )))));
+    await tester.pump();
+    String valueFor(String name) {
+      final row = find.ancestor(of: find.text(name), matching: find.byType(Table));
+      final texts = tester.widgetList<Text>(find.descendant(of: row, matching: find.byType(Text))).map((t) => t.data).toList();
+      return texts[texts.indexOf(name) + 1]!;
+    }
+    expect(valueFor("Matches played"), "4");
+    expect(valueFor("Matches won"), "3");
+    expect(valueFor("Matches lost"), "1");
+    expect(valueFor("Average points/match"), "250.0");
+    expect(valueFor("Opp. average points/match"), "150.0");
+    expect(valueFor("Contracts made/attempted"), "11/13");
+    expect(valueFor("Opp. contracts made/attempted"), "7/12");
   });
 }

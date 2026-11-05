@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:path/path.dart' as Path;
 
 import 'package:cards_with_cats/bridge/bridge_stats.dart';
+import 'package:cards_with_cats/five_hundred/five_hundred_stats.dart';
 import 'package:cards_with_cats/hearts/hearts_stats.dart';
+import 'package:cards_with_cats/rook/rook_stats.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 
@@ -17,6 +19,8 @@ class JsonFileStatsStore implements StatsStore {
   String spadesPath() => Path.join(baseDirectory.path, "spades.json");
   String ohHellPath() => Path.join(baseDirectory.path, "ohhell.json");
   String bridgePath() => Path.join(baseDirectory.path, "bridge.json");
+  String rookPath() => Path.join(baseDirectory.path, "rook.json");
+  String fiveHundredPath() => Path.join(baseDirectory.path, "fivehundred.json");
 
   JsonFileStatsStore({required this.baseDirectory});
 
@@ -81,6 +85,38 @@ class JsonFileStatsStore implements StatsStore {
   Future<void> writeBridgeStats(BridgeStats stats) async {
     final file = File(bridgePath());
     print("Writing bridge stats to $file");
+    await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
+  }
+
+  @override
+  Future<RookStats?> readRookStats() async {
+    final json = await readJsonFromFile(rookPath());
+    if (json != null) {
+      return RookStats.fromJson(json);
+    }
+    return null;
+  }
+
+  @override
+  Future<void> writeRookStats(RookStats stats) async {
+    final file = File(rookPath());
+    print("Writing Rook stats to $file");
+    await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
+  }
+
+  @override
+  Future<FiveHundredStats?> readFiveHundredStats() async {
+    final json = await readJsonFromFile(fiveHundredPath());
+    if (json != null) {
+      return FiveHundredStats.fromJson(json);
+    }
+    return null;
+  }
+
+  @override
+  Future<void> writeFiveHundredStats(FiveHundredStats stats) async {
+    final file = File(fiveHundredPath());
+    print("Writing 500 stats to $file");
     await file.writeAsString(jsonEncode(stats.toJson()), flush: true);
   }
 }

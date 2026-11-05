@@ -12,6 +12,7 @@ import 'common_ui.dart';
 import 'cards/card.dart';
 import 'five_hundred/five_hundred.dart';
 import 'five_hundred/five_hundred_ai.dart';
+import 'five_hundred/five_hundred_stats.dart';
 
 const _debugOutput = false;
 
@@ -276,6 +277,18 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
         animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
+      _updateStatsIfMatchOrRoundOver();
+    }
+  }
+
+  void _updateStatsIfMatchOrRoundOver() async {
+    if (round.isOver()) {
+      final currentStats = (await widget.statsStore.readFiveHundredStats()) ?? FiveHundredStats.empty();
+      var newStats = currentStats.updateFromRound(round);
+      if (match.isMatchOver()) {
+        newStats = newStats.updateFromMatch(match);
+      }
+      widget.statsStore.writeFiveHundredStats(newStats);
     }
   }
 
