@@ -12,6 +12,7 @@ import 'common_ui.dart';
 import 'cards/card.dart';
 import 'rook/rook.dart';
 import 'rook/rook_ai.dart';
+import 'rook/rook_stats.dart';
 
 const debugOutput = false;
 
@@ -276,6 +277,18 @@ class RookMatchState extends State<RookMatchDisplay> {
         animationMode = AnimationMode.movingTrickCard;
       });
       widget.saveMatchFn(match);
+      _updateStatsIfMatchOrRoundOver();
+    }
+  }
+
+  void _updateStatsIfMatchOrRoundOver() async {
+    if (round.isOver()) {
+      final currentStats = (await widget.statsStore.readRookStats()) ?? RookStats.empty();
+      var newStats = currentStats.updateFromRound(round);
+      if (match.isMatchOver()) {
+        newStats = newStats.updateFromMatch(match);
+      }
+      widget.statsStore.writeRookStats(newStats);
     }
   }
 

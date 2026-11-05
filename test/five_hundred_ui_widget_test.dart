@@ -2,12 +2,15 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cards_with_cats/cards/card.dart';
+import 'package:cards_with_cats/common.dart';
 import 'package:cards_with_cats/common_ui.dart';
 import 'package:cards_with_cats/five_hundred/five_hundred.dart';
 import 'package:cards_with_cats/five_hundred/five_hundred_ai.dart';
+import 'package:cards_with_cats/five_hundred/five_hundred_stats.dart';
 import 'package:cards_with_cats/five_hundred_ui.dart';
 import 'package:cards_with_cats/soundeffects.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
+import 'package:cards_with_cats/stats_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -30,7 +33,7 @@ Future<void> tapHandCard(WidgetTester tester, PlayingCard card) async {
 // gets the current match, since it's replaced when a new match starts.
 Future<FiveHundredMatch Function()> pumpFiveHundredMatch(
     WidgetTester tester, Random rng, FiveHundredAiFunctions aiFunctions,
-    {void Function(FiveHundredRound)? setUpRound}) async {
+    {void Function(FiveHundredRound)? setUpRound, StatsStore? statsStore}) async {
   tester.view.physicalSize = const Size(1000, 750);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -57,7 +60,7 @@ Future<FiveHundredMatch Function()> pumpFiveHundredMatch(
       tintTrumpCards: true,
       matchUpdateStream: StreamController.broadcast().stream,
       soundPlayer: SoundEffectPlayer(),
-      statsStore: InMemoryStatsStore(),
+      statsStore: statsStore ?? InMemoryStatsStore(),
       cardImageSet: defaultCardImageSet,
       aiFunctions: aiFunctions,
     ),
@@ -259,5 +262,80 @@ void main() {
     await tester.tap(find.text("Continue"));
     await tester.pump();
     await pumpFor(tester, 3500);
+  });
+
+  testWidgets("Stats are recorded once when the round and match end", (tester) async {
+    final rng = Random(7);
+    final statsStore = InMemoryStatsStore();
+    final getMatch = await pumpFiveHundredMatch(tester, rng, FiveHundredAiFunctions(
+      chooseBid: (args) => null,
+      chooseDiscards: (round) => chooseDiscards(round, rng),
+      chooseCard: (round) => chooseCardRandom(round, rng),
+      runInIsolate: false,
+    ), statsStore: statsStore);
+    await tester.pump();
+    // Bid 10 tricks, which fails, and the defenders' tricks end the match.
+    getMatch().currentRound.initialScores = [0, 495];
+    for (int i = 0; i < 4; i++) {
+      await tester.tap(find.text("+"));
+      await tester.pump();
+    }
+    await tester.tap(find.text("Bid 10♠ (440)"));
+    await pumpFor(tester, 3500);
+    final round = getMatch().currentRound;
+    for (final c in round.declarerAvailableCards().take(3)) {
+      await tapHandCard(tester, c);
+    }
+    await tester.tap(find.text("Start round"));
+    await tester.pump();
+    await playOutRound(tester, round);
+    await pumpFor(tester, 2500);
+
+    final stats = statsStore.fiveHundredStats;
+    final tricks = round.tricksTakenByTeam();
+    expect(tricks[0], lessThan(10));
+    expect(stats.numContractsMade, 0);
+    expect(stats.numContracts, 1);
+    expect(stats.numSlams, 0);
+    expect(stats.numMatches, 1);
+    expect(stats.matchesWon, 0);
+    expect(stats.totalMatchPoints, -440);
+    expect(stats.totalOpponentMatchPoints, 495 + 10 * tricks[1]);
+  });
+
+  testWidgets("Stats dialog shows 500 stats", (tester) async {
+    final statsStore = InMemoryStatsStore()..fiveHundredStats = FiveHundredStats(
+      numMatches: 4,
+      matchesWon: 3,
+      totalMatchPoints: 1000,
+      numContracts: 13,
+      numContractsMade: 11,
+      numSlams: 1,
+      totalOpponentMatchPoints: 600,
+      numOpponentContracts: 12,
+      numOpponentContractsMade: 7,
+      numOpponentSlams: 6,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(builder: (context) => StatsDialog(
+      layout: computeLayout(context),
+      statsStore: statsStore,
+      onClose: () {},
+      initialGameType: GameType.fiveHundred,
+    )))));
+    await tester.pump();
+    String valueFor(String name) {
+      final row = find.ancestor(of: find.text(name), matching: find.byType(Table));
+      final texts = tester.widgetList<Text>(find.descendant(of: row, matching: find.byType(Text))).map((t) => t.data).toList();
+      return texts[texts.indexOf(name) + 1]!;
+    }
+    expect(valueFor("Matches played"), "4");
+    expect(valueFor("Matches won"), "3");
+    expect(valueFor("Matches lost"), "1");
+    expect(valueFor("Average points/match"), "250.0");
+    expect(valueFor("Opp. average points/match"), "150.0");
+    expect(valueFor("Contracts made/attempted"), "11/13");
+    expect(valueFor("Slams"), "1");
+    expect(valueFor("Opp. contracts made/attempted"), "7/12");
+    expect(valueFor("Opp. slams"), "6");
   });
 }

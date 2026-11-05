@@ -1,5 +1,7 @@
 import 'package:cards_with_cats/bridge/bridge_stats.dart';
+import 'package:cards_with_cats/five_hundred/five_hundred_stats.dart';
 import 'package:cards_with_cats/ohhell/ohhell_stats.dart';
+import 'package:cards_with_cats/rook/rook_stats.dart';
 import 'package:cards_with_cats/spades/spades_stats.dart';
 import 'package:cards_with_cats/stats/stats_store.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +37,8 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
   late SpadesStats spadesStats;
   late OhHellStats ohHellStats;
   late BridgeStats bridgeStats;
+  late RookStats rookStats;
+  late FiveHundredStats fiveHundredStats;
   GameType selectedMatchType = GameType.hearts;
   var loaded = false;
 
@@ -50,6 +54,8 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
     spadesStats = (await widget.statsStore.readSpadesStats()) ?? SpadesStats.empty();
     ohHellStats = (await widget.statsStore.readOhHellStats()) ?? OhHellStats.empty();
     bridgeStats = (await widget.statsStore.readBridgeStats()) ?? BridgeStats.empty();
+    rookStats = (await widget.statsStore.readRookStats()) ?? RookStats.empty();
+    fiveHundredStats = (await widget.statsStore.readFiveHundredStats()) ?? FiveHundredStats.empty();
     setState(() {loaded = true;});
   }
 
@@ -102,6 +108,10 @@ class _StatsDialogState extends State<StatsDialog> with SingleTickerProviderStat
                             ohHellStatsTable(ohHellStats, widget.layout) :
                         selectedMatchType == GameType.bridge ?
                             bridgeStatsTable(bridgeStats, widget.layout) :
+                        selectedMatchType == GameType.rook ?
+                            rookStatsTable(rookStats, widget.layout) :
+                        selectedMatchType == GameType.fiveHundred ?
+                            fiveHundredStatsTable(fiveHundredStats, widget.layout) :
                         const SizedBox(),
               ))))),
 
@@ -220,12 +230,52 @@ Widget bridgeStatsTable(BridgeStats stats, Layout layout) {
         statsTableRow("Average IMPs/match", avgImpsPerMatch ?? "--"),
         statsTableRow("Rounds played", stats.numRounds.toString()),
         statsTableRow("Average IMPs/round", avgImpsPerRound ?? "--"),
-        statsTableRow("Contracts made/played", contracts),
-        statsTableRow("Games made/played", games),
-        statsTableRow("Slams made/played", slams),
-        statsTableRow("Opp. contracts made/played", oppContracts),
-        statsTableRow("Opp. games made/played", oppGames),
-        statsTableRow("Opp. slams made/played", oppSlams),
+        statsTableRow("Contracts made/attempted", contracts),
+        statsTableRow("Games made/attempted", games),
+        statsTableRow("Slams made/attempted", slams),
+        statsTableRow("Opp. contracts made/attempted", oppContracts),
+        statsTableRow("Opp. games made/attempted", oppGames),
+        statsTableRow("Opp. slams made/attempted", oppSlams),
+      ]);
+}
+
+Widget rookStatsTable(RookStats stats, Layout layout) {
+  final avgPointsPerMatch = stats.numMatches > 0 ? stats.totalMatchPoints / stats.numMatches : null;
+  final oppAvgPointsPerMatch = stats.numMatches > 0 ? stats.totalOpponentMatchPoints / stats.numMatches : null;
+  final contracts = "${stats.numContractsMade}/${stats.numContracts}";
+  final oppContracts = "${stats.numOpponentContractsMade}/${stats.numOpponentContracts}";
+
+  return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      children: [
+        statsTableRow("Matches played", stats.numMatches.toString()),
+        statsTableRow("Matches won", stats.matchesWon.toString()),
+        statsTableRow("Average points/match", avgPointsPerMatch?.toStringAsFixed(1) ?? "--"),
+        statsTableRow("Opp. average points/match", oppAvgPointsPerMatch?.toStringAsFixed(1) ?? "--"),
+        statsTableRow("Contracts made/attempted", contracts),
+        statsTableRow("Opp. contracts made/attempted", oppContracts),
+      ]);
+}
+
+Widget fiveHundredStatsTable(FiveHundredStats stats, Layout layout) {
+  final avgPointsPerMatch = stats.numMatches > 0 ? stats.totalMatchPoints / stats.numMatches : null;
+  final oppAvgPointsPerMatch = stats.numMatches > 0 ? stats.totalOpponentMatchPoints / stats.numMatches : null;
+  final contracts = "${stats.numContractsMade}/${stats.numContracts}";
+  final oppContracts = "${stats.numOpponentContractsMade}/${stats.numOpponentContracts}";
+
+  return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      children: [
+        statsTableRow("Matches played", stats.numMatches.toString()),
+        statsTableRow("Matches won", stats.matchesWon.toString()),
+        statsTableRow("Average points/match", avgPointsPerMatch?.toStringAsFixed(1) ?? "--"),
+        statsTableRow("Opp. average points/match", oppAvgPointsPerMatch?.toStringAsFixed(1) ?? "--"),
+        statsTableRow("Contracts made/attempted", contracts),
+        statsTableRow("Slams", stats.numSlams.toString()),
+        statsTableRow("Opp. contracts made/attempted", oppContracts),
+        statsTableRow("Opp. slams", stats.numOpponentSlams.toString()),
       ]);
 }
 

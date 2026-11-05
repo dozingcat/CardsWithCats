@@ -1,6 +1,8 @@
 import '../bridge/bridge_stats.dart';
+import '../five_hundred/five_hundred_stats.dart';
 import '../hearts/hearts_stats.dart';
 import '../ohhell/ohhell_stats.dart';
+import '../rook/rook_stats.dart';
 import '../spades/spades_stats.dart';
 
 abstract class StatsStore {
@@ -15,6 +17,12 @@ abstract class StatsStore {
 
   Future<BridgeStats?> readBridgeStats();
   Future<void> writeBridgeStats(final BridgeStats stats);
+
+  Future<RookStats?> readRookStats();
+  Future<void> writeRookStats(final RookStats stats);
+
+  Future<FiveHundredStats?> readFiveHundredStats();
+  Future<void> writeFiveHundredStats(final FiveHundredStats stats);
 }
 
 class InMemoryStatsStore implements StatsStore {
@@ -22,6 +30,8 @@ class InMemoryStatsStore implements StatsStore {
   SpadesStats spadesStats = SpadesStats.empty();
   OhHellStats ohHellStats = OhHellStats.empty();
   BridgeStats bridgeStats = BridgeStats.empty();
+  RookStats rookStats = RookStats.empty();
+  FiveHundredStats fiveHundredStats = FiveHundredStats.empty();
 
   @override Future<HeartsStats?> readHeartsStats() async {
     return heartsStats;
@@ -49,5 +59,19 @@ class InMemoryStatsStore implements StatsStore {
   }
   @override Future<void> writeBridgeStats(BridgeStats stats) async {
     bridgeStats = stats;
+  }
+
+  @override Future<RookStats?> readRookStats() async {
+    return rookStats;
+  }
+  @override Future<void> writeRookStats(RookStats stats) async {
+    rookStats = stats;
+  }
+
+  @override Future<FiveHundredStats?> readFiveHundredStats() async {
+    return fiveHundredStats;
+  }
+  @override Future<void> writeFiveHundredStats(FiveHundredStats stats) async {
+    fiveHundredStats = stats;
   }
 }
