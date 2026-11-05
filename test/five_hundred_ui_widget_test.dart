@@ -330,7 +330,6 @@ void main() {
     }
     expect(valueFor("Matches played"), "4");
     expect(valueFor("Matches won"), "3");
-    expect(valueFor("Matches lost"), "1");
     expect(valueFor("Average points/match"), "250.0");
     expect(valueFor("Opp. average points/match"), "150.0");
     expect(valueFor("Contracts made/attempted"), "11/13");

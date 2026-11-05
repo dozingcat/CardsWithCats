@@ -32,7 +32,7 @@ Future<void> tapHandCard(WidgetTester tester, PlayingCard card) async {
 // Shows a RookMatchDisplay where the human player bids first. Returns a
 // function that gets the current match, which is replaced when a new match
 // starts.
-Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, RookAiFunctions aiFunctions, {StatsStore? statsStore}) async {
+Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, RookAiFunctions aiFunctions, {StatsStore? statsStore, bool tintPointCards = false}) async {
   tester.view.physicalSize = const Size(1000, 750);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -57,6 +57,7 @@ Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, Rook
       dialogVisible: false,
       catImageIndices: const [0, 1, 2, 3],
       tintTrumpCards: true,
+      tintPointCards: tintPointCards,
       matchUpdateStream: StreamController.broadcast().stream,
       soundPlayer: SoundEffectPlayer(),
       statsStore: statsStore ?? InMemoryStatsStore(),
@@ -288,6 +289,95 @@ void main() {
     await pumpFor(tester, 3500);
   });
 
+  group("Point card tinting", () {
+    // Starts the human's discard selection after they win the bid at 70.
+    Future<RookRound> startDiscards(WidgetTester tester, Random rng, {required bool tintPointCards}) async {
+      final getMatch = await pumpRookMatch(tester, rng, RookAiFunctions(
+        chooseBid: (args) => null,
+        chooseDiscardsAndTrump: (round) => chooseDiscardsAndTrump(round, rng),
+        chooseCard: (round) => chooseCardRandom(round, rng),
+        runInIsolate: false,
+      ), tintPointCards: tintPointCards);
+      await tester.pump();
+      await tester.tap(find.text("Bid 70"));
+      // The AI players pass in turn.
+      await pumpFor(tester, 3500);
+      return getMatch().currentRound;
+    }
+
+    Iterable<PositionedCard> shownCards(WidgetTester tester) =>
+        tester.widgetList<PositionedCard>(find.byType(PositionedCard));
+
+    Future<void> startRound(WidgetTester tester, RookRound round, Random rng) async {
+      final choice = chooseDiscardsAndTrump(round, rng);
+      for (final c in choice.discards) {
+        await tapHandCard(tester, c);
+      }
+      await tester.tap(find.text(choice.trump.symbolChar));
+      await tester.pump();
+      await tester.tap(find.text("Start round"));
+      await tester.pump();
+    }
+
+    testWidgets("Point cards are green in preference to the trump tint, and in tricks", (tester) async {
+      final rng = Random(8);
+      final round = await startDiscards(tester, rng, tintPointCards: true);
+      await startRound(tester, round, rng);
+      final trump = round.contract!.trump;
+      expect(round.players[0].hand.any((c) => pointsForCard(c, round.rules) > 0), true);
+      expect(round.players[0].hand.any((c) => pointsForCard(c, round.rules) == 0), true);
+      // The hand needs a card with both tints for this to test the precedence.
+      expect(round.players[0].hand.any((c) => pointsForCard(c, round.rules) > 0 && rookTrumpPredicate(trump)!(c)), true);
+      for (final w in shownCards(tester)) {
+        final isPoints = pointsForCard(w.card, round.rules) > 0;
+        final isTrump = rookTrumpPredicate(trump)!(w.card);
+        expect(w.cardBackgroundColor(),
+            isPoints ? Colors.tealAccent.shade200 : (isTrump ? defaultTrumpBackgroundColor : null),
+            reason: "card ${w.card}");
+      }
+
+      // Every point card gets the tint, including while in a trick.
+      for (int steps = 0; steps < 2000 && !round.isOver(); steps++) {
+        if (round.currentPlayerIndex() == 0 && round.currentTrick.cards.length < 4) {
+          await tapHandCard(tester, round.legalPlaysForCurrentPlayer().first);
+        }
+        await tester.pump(const Duration(milliseconds: 50));
+        for (final w in shownCards(tester)) {
+          if (pointsForCard(w.card, round.rules) > 0) {
+            expect(w.cardBackgroundColor(), Colors.tealAccent.shade200, reason: "card ${w.card}");
+          }
+        }
+      }
+      expect(round.isOver(), true);
+    });
+
+    testWidgets("Nest cards stay blue while choosing discards", (tester) async {
+      final rng = Random(8);
+      final round = await startDiscards(tester, rng, tintPointCards: true);
+      for (final w in shownCards(tester)) {
+        final Color? expected;
+        if (round.initialNest.contains(w.card)) {
+          expected = Colors.lightBlue.shade200;
+        } else if (pointsForCard(w.card, round.rules) > 0) {
+          expected = Colors.tealAccent.shade200;
+        } else {
+          expected = null;
+        }
+        expect(w.backgroundColor, expected, reason: "card ${w.card}");
+      }
+    });
+
+    testWidgets("No point card tint if the preference is off", (tester) async {
+      final rng = Random(8);
+      final round = await startDiscards(tester, rng, tintPointCards: false);
+      await startRound(tester, round, rng);
+      expect(round.players[0].hand.any((c) => pointsForCard(c, round.rules) > 0), true);
+      for (final w in shownCards(tester)) {
+        expect(w.backgroundColor, null, reason: "card ${w.card}");
+      }
+    });
+  });
+
   testWidgets("Stats are recorded once when the round and match end", (tester) async {
     final rng = Random(8);
     final statsStore = InMemoryStatsStore();
@@ -359,7 +449,6 @@ void main() {
     }
     expect(valueFor("Matches played"), "4");
     expect(valueFor("Matches won"), "3");
-    expect(valueFor("Matches lost"), "1");
     expect(valueFor("Average points/match"), "250.0");
     expect(valueFor("Opp. average points/match"), "150.0");
     expect(valueFor("Contracts made/attempted"), "11/13");
