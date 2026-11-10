@@ -172,7 +172,7 @@ takes the nest cards and chooses any five cards to discard back to the nest. Aft
 high bidder chooses the trump suit.
 
 ### Play
-The player to the left of the high bidder leads the first trick. The joker is considered the highest
+The player to the left of the dealer leads the first trick. The joker is considered the highest
 trump, and unlike other trumps can be played at any time, even if the player could follow suit.
 When a player leads the joker, other players must play the trump suit if possible. The team that
 wins the final trick also collects the cards in the nest and scores any point cards that are there.
@@ -199,11 +199,11 @@ player cannot bid again after passing. The high bidder takes the three cards fro
 discards any three cards, so they're left with ten.
 
 ### Play
-The player to the left of the high bidder leads the first trick. If there is a trump suit, the joker
-is the highest trump, followed by the jack of the trump suit, then the jack of the same-color suit,
-then the remaining trumps descending from ace. For example, if hearts are trump, then the trump
-order is joker, jack of hearts, jack of diamonds, ace of hearts, king of hearts, and so on. (Jacks
-that are not trumps are treated normally and ranked below queens).
+The high bidder leads the first trick. If there is a trump suit, the joker is the highest trump,
+followed by the jack of the trump suit, then the jack of the same-color suit, then the remaining
+trumps descending from ace. For example, if hearts are trump, then the trump order is joker, jack of
+hearts, jack of diamonds, ace of hearts, king of hearts, and so on. (Jacks that are not trumps are
+treated normally and ranked below queens).
 
 If the bid is no trump, the joker is still considered a trump and wins any trick in which it's
 played. It can only be played on an existing trick if the owner has no cards of the suit that was
