@@ -1,0 +1,2 @@
+- Added Rook and 500 games.
+- Improved bridge bidding: more aggressive opening bids and overcalls, Michaels cuebid, Unusual 2NT.
