@@ -6,8 +6,12 @@ In all games, each player is dealt a hand of cards and plays them in a series of
 In each trick, one player leads by playing a card. Each other player then plays a card, in
 clockwise order. You must play a card of the same suit as the card that was led if possible; if not
 you may play any card. Whoever plays the highest card of the suit that was led takes the cards in
-the trick and leads the next trick. If there is a trump suit, as in Spades and Oh Hell, then the
+the trick and leads the next trick. If there is a trump suit, as in Spades and bridge, then the
 highest card in the trump suit wins the trick regardless of what other cards were played.
+
+Hearts and Oh Hell are individual games against three other players; the other games have two
+teams of partners. In those games your partner is at the top of the screen and your opponents are on
+the sides.
 
 ## Hearts
 
@@ -45,10 +49,9 @@ the first trick of a round. If this option is enabled, they can be.
 ## Spades
 
 ### Rules
-There are two teams in spades. Your partner is at the top of the screen, and your opponents are on
-the sides. The goal is to reach 500 points by bidding on how many tricks you will take in each
-round, and then taking that many while preventing your opponents from doing the same. Spades are
-always the trump suit.
+In Spades, the goal is to reach 500 points by bidding on how many tricks your team will take, and
+then taking that many while preventing the opposing from doing the same. Spades are always the trump
+suit.
 
 A round starts with each player making a bid, which is a declaration of how many tricks they expect
 to win. Bids of zero (called "nil") are treated specially; see the Scoring section. After all
@@ -103,14 +106,15 @@ of rounds.
 - **Score 1 point per trick**: Can be set to have players score 1 point per trick always, never, or
 only when they make their exact bid.
 
+
 ## Bridge
 
-Bridge is a game played by two teams of partners. Your partner is at the top of the screen and the
-opponents are on the sides. A round begins with an "auction", where players bid to set the trump
-suit (or to have no trump suit, "NT") and to say how many tricks they will win with that
-trump. During play, the partner of the player who first bid the trump suit is the "declarer" and
-their partner is the "dummy". The dummy's cards are turned face up for all players to see, and the
-declarer chooses the cards to play.
+Bridge is played by two teams of partners. A round begins with an "auction", where players bid to
+set the trump suit (or to have no trump suit, "NT") and to say how many tricks they will win with
+that trump. During play, the player who first bid the trump suit is the "declarer" and their partner
+is the "dummy". The dummy's cards are turned face up for all players to see, and the declarer
+chooses the cards to play. If your partner is the declarer, you will switch positions and play your
+partner's hand, with your original hand as the dummy.
 
 See [here](https://www.acbl.org/learn/) for more detailed rules.
 
@@ -150,6 +154,79 @@ is determined by the IMPs accumulated over all hands.
 ### Preferences
 In the Preferences screen, you can set the length of a match and control whether the dummy is always
 at the top of the screen (your position will be rotated as needed).
+
+
+## Rook
+
+In Rook, the goal is to bid on how many point cards your team will win, and then take at least that
+many. The point cards are the joker (20 points), aces and tens (10 points each), and fives
+(5 points each). There are a total of 120 points.
+
+The deck contains 41 cards, including a joker; The 2s, 3s, and 4s are removed. Each player is dealt
+nine cards, and the remaining five cards go into the "nest".
+
+### Bidding
+Each player can bid a number of points that their team will take (minimum of 70, exceeding the last
+bid in 5 point increments), or pass. After passing, a player cannot bid again. The highest bidder
+takes the nest cards and chooses any five cards to discard back to the nest. After discarding, the
+high bidder chooses the trump suit.
+
+### Play
+The player to the left of the high bidder leads the first trick. The joker is considered the highest
+trump, and unlike other trumps can be played at any time, even if the player could follow suit.
+When a player leads the joker, other players must play the trump suit if possible. The team that
+wins the final trick also collects the cards in the nest and scores any point cards that are there.
+
+### Scoring
+Each team scores the amount of point cards in the tricks that they took. However, if the high
+bidder's team fails to take at least the number of points in the bid, they instead lose the amount
+that they bid. The first team to reach 300 points wins.
+
+
+## 500
+
+In 500, players bid on how many tricks their team will take with a trump suit, and then try to take
+that many or prevent the other team from doing so. The deck contains 43 cards including a joker; the
+2s, 3s, and black 4s are removed. Each player receives ten cards; the remaining three cards are the
+"kitty".
+
+### Bidding
+Each player in turn either makes a bid higher than the previous bid or passes. A bid is the number
+of tricks the bidder's team will take (6 through 10) and the trump suit or "no trump". To be higher
+than the previous bid, a new bid must either be for more tricks or the same number of tricks in a
+higher suit; the suit order from low to high is spades, clubs, diamonds, hearts, and no trump. A
+player cannot bid again after passing. The high bidder takes the three cards from the kitty and then
+discards any three cards, so they're left with ten.
+
+### Play
+The player to the left of the high bidder leads the first trick. If there is a trump suit, the joker
+is the highest trump, followed by the jack of the trump suit, then the jack of the same-color suit,
+then the remaining trumps descending from ace. For example, if hearts are trump, then the trump
+order is joker, jack of hearts, jack of diamonds, ace of hearts, king of hearts, and so on. (Jacks
+that are not trumps are treated normally and ranked below queens).
+
+If the bid is no trump, the joker is still considered a trump and wins any trick in which it's
+played. It can only be played on an existing trick if the owner has no cards of the suit that was
+led. A player can lead the joker at no trump, in which case they specify the suit that other players
+must follow if possible.
+
+### Scoring
+If the bidding team makes their contract, they score points according to the table below. If they do
+not make the contract, they lose that number of points instead. The non-bidding team always scores
+10 points for each trick they take.
+
+| Tricks | ♠/♣/♦/♥/NT          |
+|--------|---------------------|
+| 6      | 40/60/80/100/120    |
+| 7      | 140/160/180/200/220 |
+| 8      | 240/260/280/300/320 |
+| 9      | 340/360/380/400/420 |
+| 10     | 440/460/480/500/520 |
+
+Also, if the bidding team takes all ten tricks (a "slam"), they score 250 points if that's higher
+than the normal contract value.
+
+A team wins when either they reach 500 points, or their opponents fall to negative 500 or lower.
 
 ## License
 
