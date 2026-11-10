@@ -49,9 +49,9 @@ the first trick of a round. If this option is enabled, they can be.
 ## Spades
 
 ### Rules
-Spades is a team game. The goal is to reach 500 points by bidding on how many tricks you will take
-in each round, and then taking that many while preventing your opponents from doing the same. Spades
-are always the trump suit.
+In Spades, the goal is to reach 500 points by bidding on how many tricks your team will take, and
+then taking that many while preventing the opposing from doing the same. Spades are always the trump
+suit.
 
 A round starts with each player making a bid, which is a declaration of how many tricks they expect
 to win. Bids of zero (called "nil") are treated specially; see the Scoring section. After all
@@ -106,6 +106,7 @@ of rounds.
 - **Score 1 point per trick**: Can be set to have players score 1 point per trick always, never, or
 only when they make their exact bid.
 
+
 ## Bridge
 
 Bridge is played by two teams of partners. A round begins with an "auction", where players bid to
@@ -154,6 +155,7 @@ is determined by the IMPs accumulated over all hands.
 In the Preferences screen, you can set the length of a match and control whether the dummy is always
 at the top of the screen (your position will be rotated as needed).
 
+
 ## Rook
 
 In Rook, the goal is to bid on how many point cards your team will win, and then take at least that
@@ -180,27 +182,28 @@ Each team scores the amount of point cards in the tricks that they took. However
 bidder's team fails to take at least the number of points in the bid, they instead lose the amount
 that they bid. The first team to reach 300 points wins.
 
+
 ## 500
 
-500 is a team game where players bid on how many tricks they will take with a trump suit, and then
-try to take that many or prevent the other team from doing so. The deck contains 43 cards including
-a joker; the 2s, 3s, and black 4s are removed. Each player receives ten cards; the remaining three
-cards are the "kitty".
+In 500, players bid on how many tricks their team will take with a trump suit, and then try to take
+that many or prevent the other team from doing so. The deck contains 43 cards including a joker; the
+2s, 3s, and black 4s are removed. Each player receives ten cards; the remaining three cards are the
+"kitty".
 
 ### Bidding
 Each player in turn either makes a bid higher than the previous bid or passes. A bid is the number
 of tricks the bidder's team will take (6 through 10) and the trump suit or "no trump". To be higher
-than the previous bid, a new bid must be for more tricks or the same number of tricks in a higher
-suit; the suit order from low to high is spades, clubs, diamonds, hearts, and no trump. A player
-cannot bid again after passing. The high bidder takes the three cards from the kitty and then
-discards any three cards, so they still have ten.
+than the previous bid, a new bid must either be for more tricks or the same number of tricks in a
+higher suit; the suit order from low to high is spades, clubs, diamonds, hearts, and no trump. A
+player cannot bid again after passing. The high bidder takes the three cards from the kitty and then
+discards any three cards, so they're left with ten.
 
 ### Play
 The player to the left of the high bidder leads the first trick. If there is a trump suit, the joker
-is the highest trump, followed by the jack of the trump suit ("right bower"), then the jack of the
-opposite suit ("left bower"), then the remaining trumps descending from ace. For example, if hearts
-are trump, then the trump order is joker, jack of hearts, jack of diamonds, ace of hearts, king of
-hearts, and so on. (Jacks that are not trumps are treated normally and ranked below queens).
+is the highest trump, followed by the jack of the trump suit, then the jack of the same-color suit,
+then the remaining trumps descending from ace. For example, if hearts are trump, then the trump
+order is joker, jack of hearts, jack of diamonds, ace of hearts, king of hearts, and so on. (Jacks
+that are not trumps are treated normally and ranked below queens).
 
 If the bid is no trump, the joker is still considered a trump and wins any trick in which it's
 played. It can only be played on an existing trick if the owner has no cards of the suit that was
