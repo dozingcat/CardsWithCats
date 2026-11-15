@@ -40,6 +40,7 @@ class HeartsMatchDisplay extends StatefulWidget {
   final SoundEffectPlayer soundPlayer;
   final bool tintPointCards;
   final bool tintReceivedCards;
+  final bool claimTricksEnabled;
   final StatsStore statsStore;
   final CardImageSet cardImageSet;
 
@@ -55,6 +56,7 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.soundPlayer,
     required this.tintPointCards,
     required this.tintReceivedCards,
+    required this.claimTricksEnabled,
     required this.statsStore,
     required this.cardImageSet,
   }) : super(key: key);
@@ -277,7 +279,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   bool _shouldLeaderClaimRemainingTricks() {
-    return shouldLeaderClaimRemainingTricks(round);
+    return widget.claimTricksEnabled && shouldLeaderClaimRemainingTricks(round);
   }
 
   void _handleClaimTricksDialogOk() {

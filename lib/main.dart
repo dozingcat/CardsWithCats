@@ -103,6 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<int> catIndices = [0, 1, 2, 3];
   final soundPlayer = SoundEffectPlayer();
   bool useTintedTrumpCards = false;
+  bool claimTricksEnabled = false;
   bool useTintedHeartsPointCards = false;
   bool useTintedHeartsReceivedCards = false;
   bool useTintedRookPointCards = false;
@@ -155,6 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       soundPlayer.enabled = preferences.getBool("soundEnabled") ?? true;
       useTintedTrumpCards = preferences.getBool("tintedTrumpCards") ?? true;
+      claimTricksEnabled = preferences.getBool("claimTricksEnabled") ?? true;
       useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
       useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
       useTintedRookPointCards = preferences.getBool("tintedRookPointCards") ?? true;
@@ -258,6 +260,13 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedTrumpCards = enabled;
     });
     preferences.setBool("tintedTrumpCards", enabled);
+  }
+
+  void setClaimTricksEnabled(bool enabled) {
+    setState(() {
+      claimTricksEnabled = enabled;
+    });
+    preferences.setBool("claimTricksEnabled", enabled);
   }
 
   void setTintedHeartsPointCardsEnabled(bool enabled) {
@@ -826,6 +835,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setTintedTrumpCardsEnabled(checked == true);
                               },
                             ),
+                            CheckboxListTile(
+                              dense: true,
+                              title: const Text("Claim tricks when possible", style: labelStyle),
+                              value: claimTricksEnabled,
+                              onChanged: (bool? checked) {
+                                setClaimTricksEnabled(checked == true);
+                              },
+                            ),
                             CardImageSetPreference(
                               settings: cardImageSettings,
                               labelStyle: labelStyle,
@@ -1106,6 +1123,7 @@ class _MyHomePageState extends State<MyHomePage> {
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
+              claimTricksEnabled: claimTricksEnabled,
               soundPlayer: soundPlayer,
               tintPointCards: useTintedHeartsPointCards,
               tintReceivedCards: useTintedHeartsReceivedCards,
@@ -1121,6 +1139,7 @@ class _MyHomePageState extends State<MyHomePage> {
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
+              claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
@@ -1135,6 +1154,7 @@ class _MyHomePageState extends State<MyHomePage> {
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
+              claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
@@ -1149,6 +1169,7 @@ class _MyHomePageState extends State<MyHomePage> {
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
+              claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               rotateDummyToTop: rotateBridgeDummyToTop,
               soundPlayer: soundPlayer,
@@ -1164,6 +1185,7 @@ class _MyHomePageState extends State<MyHomePage> {
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
+              claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               tintPointCards: useTintedRookPointCards,
               soundPlayer: soundPlayer,
@@ -1179,6 +1201,7 @@ class _MyHomePageState extends State<MyHomePage> {
               matchUpdateStream: matchUpdateNotifier.stream,
               dialogVisible: dialogMode != DialogMode.none,
               catImageIndices: catIndices,
+              claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               soundPlayer: soundPlayer,
               statsStore: statsStore,

@@ -37,6 +37,7 @@ class SpadesMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final bool tintTrumpCards;
+  final bool claimTricksEnabled;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -51,6 +52,7 @@ class SpadesMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.tintTrumpCards,
+    required this.claimTricksEnabled,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -301,7 +303,7 @@ class _SpadesMatchState extends State<SpadesMatchDisplay> {
   }
 
   bool _shouldLeaderClaimRemainingTricks() {
-    return shouldLeaderClaimRemainingTricks(round, trump: Suit.spades);
+    return widget.claimTricksEnabled && shouldLeaderClaimRemainingTricks(round, trump: Suit.spades);
   }
 
   void _handleClaimTricksDialogOk() {

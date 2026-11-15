@@ -51,6 +51,7 @@ class FiveHundredMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final bool tintTrumpCards;
+  final bool claimTricksEnabled;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -66,6 +67,7 @@ class FiveHundredMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.tintTrumpCards,
+    required this.claimTricksEnabled,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -122,6 +124,7 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
   Set<PlayingCard> selectedDiscards = {};
   Map<int, Mood> playerMoods = {};
   bool showScoreOverlay = false;
+  bool isClaimingRemainingTricks = false;
   late FiveHundredMatch match;
   late StreamSubscription matchUpdateSubscription;
 
@@ -154,6 +157,7 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
 
   void _resetRoundState() {
     playerMoods.clear();
+    isClaimingRemainingTricks = false;
     showContractDialog = false;
     showJokerSuitDialog = false;
     selectedDiscards = {};
@@ -362,11 +366,32 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
     }
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    return widget.claimTricksEnabled && round.shouldLeaderClaimRemainingTricks();
+  }
+
+  void _handleClaimTricksDialogOk() {
+    round.claimRemainingTricks();
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+    widget.saveMatchFn(match);
+    _updateStatsIfMatchOrRoundOver();
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
+  }
+
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    } else {
+      _scheduleNextActionIfNeeded();
+    }
   }
 
   bool _isHumanChoosingDiscards() {
@@ -383,7 +408,7 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
 
   void handleHandCardClicked(final PlayingCard card) {
     _printd("Clicked $card, status: ${round.status}");
-    if (widget.dialogVisible) {
+    if (widget.dialogVisible || _shouldShowClaimTricksDialog()) {
       return;
     }
     if (_isHumanPlaying()) {
@@ -466,14 +491,24 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
 
     return MultiplePlayerHandCards(
       layout: layout,
-      playerHands: [PlayerHandParams(
-        key: Key(key),
-        playerIndex: 0,
-        cards: humanCards,
-        highlightedCards: highlightedCards,
-        animateFromCards: previousPlayerCards,
-        onCardClicked: handleHandCardClicked,
-      )],
+      playerHands: [
+        PlayerHandParams(
+          key: Key(key),
+          playerIndex: 0,
+          cards: humanCards,
+          highlightedCards: highlightedCards,
+          animateFromCards: previousPlayerCards,
+          onCardClicked: handleHandCardClicked,
+        ),
+        // Show all hands when claiming, with the claimer's cards highlighted.
+        if (_shouldShowClaimTricksDialog())
+          for (final p in const [1, 2, 3])
+            PlayerHandParams(
+              playerIndex: p,
+              cards: round.players[p].hand,
+              highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+            ),
+      ],
       handOrdering: handOrdering,
       isTrump: widget.tintTrumpCards ? fiveHundredTrumpPredicate(_trumpSuit()) : null,
       cardBackgroundColors: _cardBackgrounds(),
@@ -596,6 +631,10 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
     return !widget.dialogVisible && showJokerSuitDialog;
   }
 
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
+  }
+
   bool _shouldShowEndOfRoundDialog() {
     return !widget.dialogVisible && round.isOver() && !round.isPassedOut();
   }
@@ -677,6 +716,8 @@ class FiveHundredMatchState extends State<FiveHundredMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
             catImageIndices: widget.catImageIndices,
           ),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         PlayerMoods(layout: layout, moods: playerMoods),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
         if (_shouldShowScoreOverlayToggle()) scoreToggleIconButton(

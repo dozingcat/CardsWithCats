@@ -52,6 +52,7 @@ class RookMatchDisplay extends StatefulWidget {
   final List<int> catImageIndices;
   final bool tintTrumpCards;
   final bool tintPointCards;
+  final bool claimTricksEnabled;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -68,6 +69,7 @@ class RookMatchDisplay extends StatefulWidget {
     required this.catImageIndices,
     required this.tintTrumpCards,
     required this.tintPointCards,
+    required this.claimTricksEnabled,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -123,6 +125,7 @@ class RookMatchState extends State<RookMatchDisplay> {
   Suit? selectedTrump;
   Map<int, Mood> playerMoods = {};
   bool showScoreOverlay = false;
+  bool isClaimingRemainingTricks = false;
   late RookMatch match;
   late StreamSubscription matchUpdateSubscription;
 
@@ -155,6 +158,7 @@ class RookMatchState extends State<RookMatchDisplay> {
 
   void _resetRoundState() {
     playerMoods.clear();
+    isClaimingRemainingTricks = false;
     showContractDialog = false;
     selectedDiscards = {};
     selectedTrump = null;
@@ -378,11 +382,32 @@ class RookMatchState extends State<RookMatchDisplay> {
     }
   }
 
+  bool _shouldLeaderClaimRemainingTricks() {
+    return widget.claimTricksEnabled && round.shouldLeaderClaimRemainingTricks();
+  }
+
+  void _handleClaimTricksDialogOk() {
+    round.claimRemainingTricks();
+    setState(() {
+      isClaimingRemainingTricks = false;
+    });
+    widget.saveMatchFn(match);
+    _updateStatsIfMatchOrRoundOver();
+    _updateMoodsAfterTrick();
+    _playSoundsForMoods();
+  }
+
   void _trickToWinnerAnimationFinished() {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    _scheduleNextActionIfNeeded();
+    if (_shouldLeaderClaimRemainingTricks()) {
+      setState(() {
+        isClaimingRemainingTricks = true;
+      });
+    } else {
+      _scheduleNextActionIfNeeded();
+    }
   }
 
   bool _isHumanChoosingDiscards() {
@@ -391,7 +416,7 @@ class RookMatchState extends State<RookMatchDisplay> {
 
   void handleHandCardClicked(final PlayingCard card) {
     printd("Clicked $card, status: ${round.status}");
-    if (widget.dialogVisible) {
+    if (widget.dialogVisible || _shouldShowClaimTricksDialog()) {
       return;
     }
     if (round.status == RookRoundStatus.playing && round.currentPlayerIndex() == 0 && !showContractDialog) {
@@ -462,14 +487,24 @@ class RookMatchState extends State<RookMatchDisplay> {
 
     return MultiplePlayerHandCards(
       layout: layout,
-      playerHands: [PlayerHandParams(
-        key: Key(key),
-        playerIndex: 0,
-        cards: humanCards,
-        highlightedCards: highlightedCards,
-        animateFromCards: previousPlayerCards,
-        onCardClicked: handleHandCardClicked,
-      )],
+      playerHands: [
+        PlayerHandParams(
+          key: Key(key),
+          playerIndex: 0,
+          cards: humanCards,
+          highlightedCards: highlightedCards,
+          animateFromCards: previousPlayerCards,
+          onCardClicked: handleHandCardClicked,
+        ),
+        // Show all hands when claiming, with the claimer's cards highlighted.
+        if (_shouldShowClaimTricksDialog())
+          for (final p in const [1, 2, 3])
+            PlayerHandParams(
+              playerIndex: p,
+              cards: round.players[p].hand,
+              highlightedCards: p == round.currentTrick.leader ? round.players[p].hand : const [],
+            ),
+      ],
       handOrdering: handOrdering,
       isTrump: widget.tintTrumpCards ? rookTrumpPredicate(_trumpSuit()) : null,
       cardBackgroundColors: _cardBackgrounds(),
@@ -573,6 +608,10 @@ class RookMatchState extends State<RookMatchDisplay> {
     return !widget.dialogVisible && showContractDialog;
   }
 
+  bool _shouldShowClaimTricksDialog() {
+    return !widget.dialogVisible && isClaimingRemainingTricks;
+  }
+
   bool _shouldShowEndOfRoundDialog() {
     return !widget.dialogVisible && round.isOver() && !round.isPassedOut();
   }
@@ -652,6 +691,8 @@ class RookMatchState extends State<RookMatchDisplay> {
             onMainMenu: _showMainMenuAfterMatch,
             catImageIndices: widget.catImageIndices,
           ),
+        if (_shouldShowClaimTricksDialog())
+          ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
         PlayerMoods(layout: layout, moods: playerMoods),
         if (_shouldShowScoreOverlay()) _scoreOverlay(),
         if (_shouldShowScoreOverlayToggle()) scoreToggleIconButton(
