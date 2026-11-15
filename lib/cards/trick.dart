@@ -83,25 +83,32 @@ class TrickInProgress<C extends PlayingCard> {
 }
 
 // Returns true if the current player is guaranteed to win all remaining tricks.
-// It's assumed that there is no trick in progress.
-bool willLeadingPlayerWinAllRemainingTricks({
-  required List<SuitedCard> leadingPlayerCards,
-  required List<SuitedCard> remainingCards,
+// It's assumed that there is no trick in progress. Games where cards can
+// belong to a different suit or have a different rank order (such as jokers
+// and bowers) can provide `suitFn` and `rankFn`, which by default are the
+// card's suit and rank. Higher `rankFn` values beat lower ones in the same suit.
+bool willLeadingPlayerWinAllRemainingTricks<C extends PlayingCard>({
+  required List<C> leadingPlayerCards,
+  required List<C> remainingCards,
   Suit? trump,
+  Suit? Function(C card)? suitFn,
+  int Function(C card)? rankFn,
 }) {
+  final suitOf = suitFn ?? (C c) => (c as SuitedCard).suit;
+  final rankOf = rankFn ?? (C c) => (c as SuitedCard).rank.index;
   // If trump, either leading player must have only trumps
   // *or* no other players can have any.
   if (trump != null) {
-    bool playerHasOnlyTrumps = leadingPlayerCards.every((c) => c.suit == trump);
+    bool playerHasOnlyTrumps = leadingPlayerCards.every((c) => suitOf(c) == trump);
     if (!playerHasOnlyTrumps) {
-      if (remainingCards.any((c) => c.suit == trump)) {
+      if (remainingCards.any((c) => suitOf(c) == trump)) {
         return false;
       }
     }
   }
   // No other player can have a card higher than any in `playerCards`.
   for (final pc in leadingPlayerCards) {
-    if (remainingCards.any((c) => c.suit == pc.suit && c.rank.isHigherThan(pc.rank))) {
+    if (remainingCards.any((c) => suitOf(c) == suitOf(pc) && rankOf(c) > rankOf(pc))) {
       return false;
     }
   }

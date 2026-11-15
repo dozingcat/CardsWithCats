@@ -467,6 +467,40 @@ class RookRound {
     }
   }
 
+  // Returns true if no trick is in progress and the leader is guaranteed to
+  // win all of the remaining tricks, of which there are at least
+  // `minRequiredTricks`. The joker counts as the highest trump, which also
+  // covers it being playable at any time: if another player has it, the
+  // leader can't claim.
+  bool shouldLeaderClaimRemainingTricks({int minRequiredTricks = 2}) {
+    if (status != .playing || isOver() || currentTrick.cards.isNotEmpty) {
+      return false;
+    }
+    final leader = currentTrick.leader;
+    if (cardsForPlayer(leader).length < minRequiredTricks) {
+      return false;
+    }
+    final trump = contract!.trump;
+    return willLeadingPlayerWinAllRemainingTricks(
+      leadingPlayerCards: cardsForPlayer(leader),
+      remainingCards: [for (int i = 0; i < numPlayers; i++) if (i != leader) ...cardsForPlayer(i)],
+      trump: trump,
+      suitFn: (c) => effectiveSuit(c, trump),
+      rankFn: (c) => c is SuitedCard ? c.rank.index : Rank.values.length,
+    );
+  }
+
+  // Plays the remaining cards, with the precondition that the leader will win
+  // all of the tricks.
+  void claimRemainingTricks() {
+    assert(shouldLeaderClaimRemainingTricks(minRequiredTricks: 1));
+    final claimer = currentTrick.leader;
+    while (!isOver()) {
+      playCard(legalPlaysForCurrentPlayer().first);
+      assert(currentTrick.cards.isNotEmpty || previousTricks.last.winner == claimer);
+    }
+  }
+
   // Points from counters captured by each team, including the nest.
   List<int> teamPointsTaken() {
     return teamPointsForTricks(previousTricks, finalNest, rules);

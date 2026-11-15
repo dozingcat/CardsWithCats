@@ -58,6 +58,7 @@ Future<FiveHundredMatch Function()> pumpFiveHundredMatch(
       dialogVisible: false,
       catImageIndices: const [0, 1, 2, 3],
       tintTrumpCards: true,
+      claimTricksEnabled: true,
       matchUpdateStream: StreamController.broadcast().stream,
       soundPlayer: SoundEffectPlayer(),
       statsStore: statsStore ?? InMemoryStatsStore(),

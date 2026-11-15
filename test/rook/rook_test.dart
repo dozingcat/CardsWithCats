@@ -474,4 +474,48 @@ void main() {
       }
     });
   });
+
+  group("Claiming remaining tricks", () {
+    // Player 0 leads, spades are trump.
+    bool canClaim(List<String> hands) => playingRound(hands).shouldLeaderClaimRemainingTricks();
+
+    test("High trumps", () {
+      expect(canClaim(["AS KS QS", "9S 8S 7H", "6S 5S 7D", "AH KH QH"]), true);
+      // Another player has the joker.
+      expect(canClaim(["AS KS QS", "9S 8S JOKER1", "6S 5S 7D", "AH KH QH"]), false);
+      // Another player has a higher trump.
+      expect(canClaim(["KS QS JS", "AS 8S 7H", "6S 5S 7D", "AH KH QH"]), false);
+    });
+
+    test("Joker is the highest trump", () {
+      expect(canClaim(["JOKER1 AS KS", "9S 8S 7H", "6S 5S 7D", "AH KH QH"]), true);
+      expect(canClaim(["JOKER1 KS QS", "AS 8S 7H", "6S 5S 7D", "AH KH QH"]), false);
+    });
+
+    test("High cards in other suits", () {
+      expect(canClaim(["AH KH JOKER1", "QH JH TH", "9H 8D 7D", "AC KC QC"]), true);
+      // Another player could trump.
+      expect(canClaim(["AH KH JOKER1", "QH JH 5S", "9H 8D 7D", "AC KC QC"]), false);
+      // Another player could play the joker at any time, even when following suit.
+      expect(canClaim(["AH KH QH", "JOKER1 JH TH", "9H 8D 7D", "AC KC QC"]), false);
+    });
+
+    test("Requires 2 tricks and no trick in progress", () {
+      expect(canClaim(["AS", "9S", "6S", "AH"]), false);
+      final round = playingRound(["AS KS QS", "9S 8S 7H", "6S 5S 7D", "AH KH QH"]);
+      round.playCard(c("AS")[0]);
+      expect(round.shouldLeaderClaimRemainingTricks(), false);
+    });
+
+    test("Claim plays out the round", () {
+      final round = playingRound(["AH KH JOKER1", "QH JH TH", "9H 8D 7D", "AC KC QC"])
+        ..finalNest = c("5H 5D 5C 6C 6D");
+      round.claimRemainingTricks();
+      expect(round.isOver(), true);
+      expect(round.previousTricks.length, 3);
+      expect(round.previousTricks.every((t) => t.winner == 0), true);
+      // Joker, ace and ten of hearts, ace of clubs, plus 15 points from the nest.
+      expect(round.teamPointsTaken(), [20 + 10 + 10 + 10 + 15, 0]);
+    });
+  });
 }

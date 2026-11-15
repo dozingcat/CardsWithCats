@@ -37,6 +37,7 @@ class OhHellMatchDisplay extends StatefulWidget {
   final bool dialogVisible;
   final List<int> catImageIndices;
   final bool tintTrumpCards;
+  final bool claimTricksEnabled;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -51,6 +52,7 @@ class OhHellMatchDisplay extends StatefulWidget {
     required this.dialogVisible,
     required this.catImageIndices,
     required this.tintTrumpCards,
+    required this.claimTricksEnabled,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -287,7 +289,7 @@ class OhHellMatchState extends State<OhHellMatchDisplay> {
   }
 
   bool _shouldLeaderClaimRemainingTricks() {
-    if (round.numCardsPerPlayer <= 5) {
+    if (!widget.claimTricksEnabled || round.numCardsPerPlayer <= 5) {
       return false;
     }
     return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit);

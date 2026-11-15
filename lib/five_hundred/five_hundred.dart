@@ -499,6 +499,51 @@ class FiveHundredRound {
     }
   }
 
+  // Returns true if no trick is in progress and the leader is guaranteed to
+  // win all of the remaining tricks, of which there are at least
+  // `minRequiredTricks`. In a trump contract the joker and bowers are the
+  // highest trumps. In no trump the joker wins any trick, so the leader can't
+  // claim if another player has it (since they could play it when they can't
+  // follow suit), and the leader's joker is always a winner.
+  bool shouldLeaderClaimRemainingTricks({int minRequiredTricks = 2}) {
+    if (status != .playing || isOver() || currentTrick.cards.isNotEmpty) {
+      return false;
+    }
+    final leader = currentTrick.leader;
+    var leaderCards = cardsForPlayer(leader);
+    if (leaderCards.length < minRequiredTricks) {
+      return false;
+    }
+    final remainingCards = [for (int i = 0; i < numPlayers; i++) if (i != leader) ...cardsForPlayer(i)];
+    final t = trump;
+    if (t == null) {
+      if (remainingCards.contains(joker)) {
+        return false;
+      }
+      leaderCards = leaderCards.where((c) => c is! JokerCard).toList();
+    }
+    return willLeadingPlayerWinAllRemainingTricks(
+      leadingPlayerCards: leaderCards,
+      remainingCards: remainingCards,
+      trump: t,
+      suitFn: (c) => effectiveSuit(c, t),
+      rankFn: (c) => cardRankValue(c, t),
+    );
+  }
+
+  // Plays the remaining cards, with the precondition that the leader will win
+  // all of the tricks. If the joker is led in no trump, its suit doesn't
+  // matter because it wins anyway.
+  void claimRemainingTricks() {
+    assert(shouldLeaderClaimRemainingTricks(minRequiredTricks: 1));
+    final claimer = currentTrick.leader;
+    while (!isOver()) {
+      final card = legalPlaysForCurrentPlayer().first;
+      playCard(card, jokerLeadSuit: needsJokerLeadSuit(card) ? Suit.values.first : null);
+      assert(currentTrick.cards.isNotEmpty || previousTricks.last.winner == claimer);
+    }
+  }
+
   List<int> tricksTakenByTeam() {
     final tricks = List.filled(numTeams, 0);
     for (final t in previousTricks) {

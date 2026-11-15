@@ -74,6 +74,7 @@ class BridgeMatchDisplay extends StatefulWidget {
   final List<int> catImageIndices;
   final bool tintTrumpCards;
   final bool rotateDummyToTop;
+  final bool claimTricksEnabled;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -89,6 +90,7 @@ class BridgeMatchDisplay extends StatefulWidget {
     required this.catImageIndices,
     required this.tintTrumpCards,
     required this.rotateDummyToTop,
+    required this.claimTricksEnabled,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -551,7 +553,7 @@ class BridgeMatchState extends State<BridgeMatchDisplay> {
   }
 
   bool _shouldLeaderClaimRemainingTricks() {
-    return shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit());
+    return widget.claimTricksEnabled && shouldLeaderClaimRemainingTricks(round, trump: round.trumpSuit());
   }
 
   void _handleClaimTricksDialogOk() {

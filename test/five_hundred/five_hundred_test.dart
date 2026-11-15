@@ -420,4 +420,53 @@ void main() {
       expect(expectedDeclarerDifferential([8, 6], bid("7H"), rules), -30);
     });
   });
+
+  group("Claiming remaining tricks", () {
+    // Player 0 is the declarer and leads.
+    FiveHundredRound playingRound(String contract, List<String> hands) {
+      final round = FiveHundredRound.deal(rules: FiveHundredRuleSet(), scores: [0, 0], dealer: 3, rng: Random(1))
+        ..status = FiveHundredRoundStatus.playing
+        ..contract = Contract(declarer: 0, bid: bid(contract))
+        ..currentTrick = TrickInProgress(0);
+      for (int i = 0; i < numPlayers; i++) {
+        round.players[i].hand = c(hands[i]);
+      }
+      return round;
+    }
+
+    bool canClaim(String contract, List<String> hands) =>
+        playingRound(contract, hands).shouldLeaderClaimRemainingTricks();
+
+    test("Trump contract", () {
+      expect(canClaim("6H", ["JOKER1 JH JD", "AH KH QC", "QH TH 9C", "AS KS QS"]), true);
+      // The left bower beats the ace.
+      expect(canClaim("6H", ["AH KH QH", "JD 9H 8C", "TH 7H 9C", "AS KS QS"]), false);
+      // The jack of the other color isn't a trump.
+      expect(canClaim("6H", ["AH KH QH", "JS 9H 8C", "TH 7H 9C", "AS KS QD"]), true);
+      // The joker beats the right bower.
+      expect(canClaim("6H", ["JH JD AH", "JOKER1 9H 8C", "TH 7H 9C", "AS KS QS"]), false);
+      // Another player could trump an ace in another suit.
+      expect(canClaim("6H", ["AS AC JH", "KS 9H 8C", "QS 7D 9C", "JS TS 9S"]), false);
+      expect(canClaim("6H", ["AS AC JH", "KS 9D 8C", "QS 7D 9C", "JS TS 9S"]), true);
+    });
+
+    test("No trump", () {
+      expect(canClaim("6NT", ["AS KS QS", "JS TS 9H", "8S 7S 9C", "AH KH QH"]), true);
+      // The joker always wins, and the leader's joker can be led at any time.
+      expect(canClaim("6NT", ["JOKER1 AS KS", "JS TS 9H", "8S 7S 9C", "AH KH QH"]), true);
+      // Another player could play the joker when they can't follow suit.
+      expect(canClaim("6NT", ["AS KS QS", "JS TS 9H", "8S 7S 9C", "AH KH JOKER1"]), false);
+      // Bowers aren't special in no trump.
+      expect(canClaim("6NT", ["JH TH 9H", "JD 8H 7H", "8S 7S 9C", "AS KS QS"]), true);
+    });
+
+    test("Claim plays out the round, including leading the joker in no trump", () {
+      final round = playingRound("6NT", ["JOKER1 AS KS", "JS TS 9H", "8S 7S 9C", "AH KH QH"]);
+      round.claimRemainingTricks();
+      expect(round.isOver(), true);
+      expect(round.previousTricks.length, 3);
+      expect(round.previousTricks.every((t) => t.winner == 0), true);
+      expect(round.jokerLeadSuits.length, 1);
+    });
+  });
 }
