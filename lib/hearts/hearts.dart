@@ -305,6 +305,21 @@ class HeartsRound extends BaseSuitedCardTrickRound {
     return pointsForTricks(previousTricks, rules);
   }
 
+  // True if every card that's worth points (including J♦ if it's -10) has
+  // been taken in a completed trick, so the remaining tricks can't change the
+  // score, and there are at least `minRequiredTricks` remaining (including
+  // the current trick).
+  bool allPointsTaken({int minRequiredTricks = 2}) {
+    if (isOver() || status != HeartsRoundStatus.playing) {
+      return false;
+    }
+    if (cardsForPlayer(currentPlayerIndex()).length < minRequiredTricks) {
+      return false;
+    }
+    bool hasPoints(List<SuitedCard> cards) => cards.any((c) => pointsForCard(c, rules) != 0);
+    return !hasPoints(currentTrick.cards) && !players.any((p) => hasPoints(p.hand));
+  }
+
   @override int currentPlayerIndex() {
     return (currentTrick.leader + currentTrick.cards.length) % rules.numPlayers;
   }

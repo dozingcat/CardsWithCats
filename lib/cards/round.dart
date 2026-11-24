@@ -54,3 +54,11 @@ void claimRemainingTricks(BaseSuitedCardTrickRound round) {
     }
   }
 }
+
+// Plays the first legal card for each player until the round is over. For
+// when the remaining plays can't affect the result.
+void playOutRemainingTricks(BaseSuitedCardTrickRound round) {
+  while (!round.isOver()) {
+    round.playCard(round.legalPlaysForCurrentPlayer().first);
+  }
+}

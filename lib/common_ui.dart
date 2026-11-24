@@ -970,12 +970,14 @@ Widget paddingHorizontal(final double paddingPx, final Widget child) {
 
 class ClaimRemainingTricksDialog extends StatelessWidget {
   final Function() onOk;
+  final String message;
   final bool isHuman;
   final int? catImageIndex;
 
   const ClaimRemainingTricksDialog({
     super.key,
     required this.onOk,
+    this.message = "Remaining tricks claimed",
     this.isHuman = false,
     this.catImageIndex,
   });
@@ -990,7 +992,7 @@ class ClaimRemainingTricksDialog extends StatelessWidget {
           insetPadding: EdgeInsets.zero,
           backgroundColor: dialogBackgroundColor,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            paddingAll(15, Text("Remaining tricks claimed")),
+            paddingAll(15, Text(message)),
             paddingAll(
                 15,
                 ElevatedButton(

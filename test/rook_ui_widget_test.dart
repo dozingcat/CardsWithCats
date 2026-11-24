@@ -58,6 +58,7 @@ Future<RookMatch Function()> pumpRookMatch(WidgetTester tester, Random rng, Rook
       catImageIndices: const [0, 1, 2, 3],
       tintTrumpCards: true,
       claimTricksEnabled: true,
+      endRoundWhenPointsTaken: true,
       tintPointCards: tintPointCards,
       matchUpdateStream: StreamController.broadcast().stream,
       soundPlayer: SoundEffectPlayer(),

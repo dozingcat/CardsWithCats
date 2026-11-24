@@ -518,4 +518,43 @@ void main() {
       expect(round.teamPointsTaken(), [20 + 10 + 10 + 10 + 15, 0]);
     });
   });
+
+  group("All points taken", () {
+    test("No point cards in hands or the nest", () {
+      final round = playingRound(["KS QS", "9S 8S", "6S 7D", "KH QH"])..finalNest = c("6H 7H 8H 9H JH");
+      expect(round.allPointsTaken(), true);
+      round.playOutRemainingTricks();
+      expect(round.isOver(), true);
+      expect(round.previousTricks.length, 2);
+      expect(round.teamPointsTaken(), [0, 0]);
+    });
+
+    test("Point cards remaining", () {
+      expect(playingRound(["KS QS", "9S 8S", "6S 5D", "KH QH"]).allPointsTaken(), false);
+      expect(playingRound(["KS JOKER1", "9S 8S", "6S 7D", "KH QH"]).allPointsTaken(), false);
+      // The nest goes to the winner of the last trick.
+      final round = playingRound(["KS QS", "9S 8S", "6S 7D", "KH QH"])..finalNest = c("6H 7H 8H 9H TH");
+      expect(round.allPointsTaken(), false);
+    });
+
+    test("Point cards in the current trick", () {
+      final round = playingRound(["KS QS JS", "9S 8S 7S", "6S 7D 8D", "AS QH JH"]);
+      round.playCard(c("KS")[0]);
+      round.playCard(c("9S")[0]);
+      round.playCard(c("6S")[0]);
+      expect(round.allPointsTaken(), false);
+      round.playCard(c("AS")[0]);
+      expect(round.allPointsTaken(), true);
+    });
+
+    test("Requires 2 tricks remaining", () {
+      final round = playingRound(["KS QS", "9S 8S", "6S 7D", "AS QH"]);
+      round.playCard(c("KS")[0]);
+      round.playCard(c("9S")[0]);
+      round.playCard(c("6S")[0]);
+      round.playCard(c("AS")[0]);
+      expect(round.allPointsTaken(), false);
+      expect(round.allPointsTaken(minRequiredTricks: 1), true);
+    });
+  });
 }
