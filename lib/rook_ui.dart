@@ -55,7 +55,7 @@ class RookMatchDisplay extends StatefulWidget {
   final bool claimTricksEnabled;
   // If true, when all of the point cards have been taken the remaining cards
   // are played automatically.
-  final bool endRoundWhenPointsTaken;
+  final bool endRoundWhenAllPointsTaken;
   final Stream matchUpdateStream;
   final SoundEffectPlayer soundPlayer;
   final StatsStore statsStore;
@@ -73,7 +73,7 @@ class RookMatchDisplay extends StatefulWidget {
     required this.tintTrumpCards,
     required this.tintPointCards,
     required this.claimTricksEnabled,
-    required this.endRoundWhenPointsTaken,
+    required this.endRoundWhenAllPointsTaken,
     required this.matchUpdateStream,
     required this.soundPlayer,
     required this.statsStore,
@@ -131,7 +131,7 @@ class RookMatchState extends State<RookMatchDisplay> {
   bool showScoreOverlay = false;
   bool isClaimingRemainingTricks = false;
   // Showing the dialog for ending the round because all points are taken.
-  bool isEndingRoundWithPointsTaken = false;
+  bool isEndingRoundWithAllPointsTaken = false;
   late RookMatch match;
   late StreamSubscription matchUpdateSubscription;
 
@@ -165,7 +165,7 @@ class RookMatchState extends State<RookMatchDisplay> {
   void _resetRoundState() {
     playerMoods.clear();
     isClaimingRemainingTricks = false;
-    isEndingRoundWithPointsTaken = false;
+    isEndingRoundWithAllPointsTaken = false;
     showContractDialog = false;
     selectedDiscards = {};
     selectedTrump = null;
@@ -395,23 +395,22 @@ class RookMatchState extends State<RookMatchDisplay> {
 
   void _handleClaimTricksDialogOk() {
     round.claimRemainingTricks();
-    setState(() {
-      isClaimingRemainingTricks = false;
-    });
-    widget.saveMatchFn(match);
-    _updateStatsIfMatchOrRoundOver();
-    _updateMoodsAfterTrick();
-    _playSoundsForMoods();
+    _finishRoundAfterAutomaticEnd();
   }
 
-  bool _shouldEndRoundWithPointsTaken() {
-    return widget.endRoundWhenPointsTaken && round.allPointsTaken();
+  bool _shouldEndRoundWithAllPointsTaken() {
+    return widget.endRoundWhenAllPointsTaken && round.allPointsTaken();
   }
 
   void _handlePointsTakenDialogOk() {
     round.playOutRemainingTricks();
+    _finishRoundAfterAutomaticEnd();
+  }
+
+  void _finishRoundAfterAutomaticEnd() {
     setState(() {
-      isEndingRoundWithPointsTaken = false;
+      isClaimingRemainingTricks = false;
+      isEndingRoundWithAllPointsTaken = false;
     });
     widget.saveMatchFn(match);
     _updateStatsIfMatchOrRoundOver();
@@ -423,9 +422,9 @@ class RookMatchState extends State<RookMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (_shouldEndRoundWithPointsTaken()) {
+    if (_shouldEndRoundWithAllPointsTaken()) {
       setState(() {
-        isEndingRoundWithPointsTaken = true;
+        isEndingRoundWithAllPointsTaken = true;
       });
     } else if (_shouldLeaderClaimRemainingTricks()) {
       setState(() {
@@ -639,7 +638,7 @@ class RookMatchState extends State<RookMatchDisplay> {
   }
 
   bool _shouldShowPointsTakenDialog() {
-    return !widget.dialogVisible && isEndingRoundWithPointsTaken;
+    return !widget.dialogVisible && isEndingRoundWithAllPointsTaken;
   }
 
   bool _shouldShowEndOfRoundDialog() {

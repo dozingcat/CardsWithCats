@@ -107,8 +107,8 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedHeartsPointCards = false;
   bool useTintedHeartsReceivedCards = false;
   bool useTintedRookPointCards = false;
-  bool heartsEndRoundWhenPointsTaken = false;
-  bool rookEndRoundWhenPointsTaken = false;
+  bool heartsEndRoundWhenAllPointsTaken = false;
+  bool rookEndRoundWhenAllPointsTaken = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
   final cardImageSettings = CardImageSettings(builtInSets: cardImageSets);
@@ -162,8 +162,8 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
       useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
       useTintedRookPointCards = preferences.getBool("tintedRookPointCards") ?? true;
-      heartsEndRoundWhenPointsTaken = preferences.getBool("heartsEndRoundWhenPointsTaken") ?? true;
-      rookEndRoundWhenPointsTaken = preferences.getBool("rookEndRoundWhenPointsTaken") ?? true;
+      heartsEndRoundWhenAllPointsTaken = preferences.getBool("heartsEndRoundWhenAllPointsTaken") ?? true;
+      rookEndRoundWhenAllPointsTaken = preferences.getBool("rookEndRoundWhenAllPointsTaken") ?? true;
       rotateBridgeDummyToTop = preferences.getBool("bridgeRotateDummyToTop") ?? true;
       bridgeRoundsPerMatch = preferences.getInt("bridgeRoundsPerMatch") ?? 4;
       if (![1, 4, 8].contains(bridgeRoundsPerMatch)) {
@@ -294,18 +294,18 @@ class _MyHomePageState extends State<MyHomePage> {
     preferences.setBool("tintedRookPointCards", enabled);
   }
 
-  void setHeartsEndRoundWhenPointsTaken(bool enabled) {
+  void setHeartsEndRoundWhenAllPointsTaken(bool enabled) {
     setState(() {
-      heartsEndRoundWhenPointsTaken = enabled;
+      heartsEndRoundWhenAllPointsTaken = enabled;
     });
-    preferences.setBool("heartsEndRoundWhenPointsTaken", enabled);
+    preferences.setBool("heartsEndRoundWhenAllPointsTaken", enabled);
   }
 
-  void setRookEndRoundWhenPointsTaken(bool enabled) {
+  void setRookEndRoundWhenAllPointsTaken(bool enabled) {
     setState(() {
-      rookEndRoundWhenPointsTaken = enabled;
+      rookEndRoundWhenAllPointsTaken = enabled;
     });
-    preferences.setBool("rookEndRoundWhenPointsTaken", enabled);
+    preferences.setBool("rookEndRoundWhenAllPointsTaken", enabled);
   }
 
   void setRotateBridgeDummyToTopEnabled(bool enabled) {
@@ -907,8 +907,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             makeCheckboxRow(
                               "End round when all points are taken",
-                              heartsEndRoundWhenPointsTaken,
-                              setHeartsEndRoundWhenPointsTaken,
+                              heartsEndRoundWhenAllPointsTaken,
+                              setHeartsEndRoundWhenAllPointsTaken,
                             ),
 
                             const ListTile(
@@ -993,8 +993,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           makeCheckboxRow(
                             "End round when all points are taken",
-                            rookEndRoundWhenPointsTaken,
-                            setRookEndRoundWhenPointsTaken,
+                            rookEndRoundWhenAllPointsTaken,
+                            setRookEndRoundWhenAllPointsTaken,
                           ),
 
                           const ListTile(
@@ -1155,7 +1155,7 @@ class _MyHomePageState extends State<MyHomePage> {
               soundPlayer: soundPlayer,
               tintPointCards: useTintedHeartsPointCards,
               tintReceivedCards: useTintedHeartsReceivedCards,
-              endRoundWhenPointsTaken: heartsEndRoundWhenPointsTaken,
+              endRoundWhenAllPointsTaken: heartsEndRoundWhenAllPointsTaken,
               statsStore: statsStore,
               cardImageSet: cardImageSet,
             ),
@@ -1217,7 +1217,7 @@ class _MyHomePageState extends State<MyHomePage> {
               claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               tintPointCards: useTintedRookPointCards,
-              endRoundWhenPointsTaken: rookEndRoundWhenPointsTaken,
+              endRoundWhenAllPointsTaken: rookEndRoundWhenAllPointsTaken,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
               cardImageSet: cardImageSet,
