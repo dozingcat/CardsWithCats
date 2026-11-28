@@ -506,7 +506,7 @@ class RookRound {
   // `minRequiredTricks` remaining (including the current trick). Points in
   // the nest go to the winner of the last trick, so they count as not taken
   // yet.
-  bool allPointsTaken({int minRequiredTricks = 2}) {
+  bool allPointsTakenAndTricksRemaining({int minRequiredTricks = 2}) {
     if (status != .playing || isOver()) {
       return false;
     }

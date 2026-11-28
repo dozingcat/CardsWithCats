@@ -522,7 +522,7 @@ void main() {
   group("All points taken", () {
     test("No point cards in hands or the nest", () {
       final round = playingRound(["KS QS", "9S 8S", "6S 7D", "KH QH"])..finalNest = c("6H 7H 8H 9H JH");
-      expect(round.allPointsTaken(), true);
+      expect(round.allPointsTakenAndTricksRemaining(), true);
       round.playOutRemainingTricks();
       expect(round.isOver(), true);
       expect(round.previousTricks.length, 2);
@@ -530,11 +530,11 @@ void main() {
     });
 
     test("Point cards remaining", () {
-      expect(playingRound(["KS QS", "9S 8S", "6S 5D", "KH QH"]).allPointsTaken(), false);
-      expect(playingRound(["KS JOKER1", "9S 8S", "6S 7D", "KH QH"]).allPointsTaken(), false);
+      expect(playingRound(["KS QS", "9S 8S", "6S 5D", "KH QH"]).allPointsTakenAndTricksRemaining(), false);
+      expect(playingRound(["KS JOKER1", "9S 8S", "6S 7D", "KH QH"]).allPointsTakenAndTricksRemaining(), false);
       // The nest goes to the winner of the last trick.
       final round = playingRound(["KS QS", "9S 8S", "6S 7D", "KH QH"])..finalNest = c("6H 7H 8H 9H TH");
-      expect(round.allPointsTaken(), false);
+      expect(round.allPointsTakenAndTricksRemaining(), false);
     });
 
     test("Point cards in the current trick", () {
@@ -542,9 +542,9 @@ void main() {
       round.playCard(c("KS")[0]);
       round.playCard(c("9S")[0]);
       round.playCard(c("6S")[0]);
-      expect(round.allPointsTaken(), false);
+      expect(round.allPointsTakenAndTricksRemaining(), false);
       round.playCard(c("AS")[0]);
-      expect(round.allPointsTaken(), true);
+      expect(round.allPointsTakenAndTricksRemaining(), true);
     });
 
     test("Requires 2 tricks remaining", () {
@@ -553,8 +553,8 @@ void main() {
       round.playCard(c("9S")[0]);
       round.playCard(c("6S")[0]);
       round.playCard(c("AS")[0]);
-      expect(round.allPointsTaken(), false);
-      expect(round.allPointsTaken(minRequiredTricks: 1), true);
+      expect(round.allPointsTakenAndTricksRemaining(), false);
+      expect(round.allPointsTakenAndTricksRemaining(minRequiredTricks: 1), true);
     });
   });
 }

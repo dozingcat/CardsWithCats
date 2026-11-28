@@ -309,7 +309,7 @@ class HeartsRound extends BaseSuitedCardTrickRound {
   // been taken in a completed trick, so the remaining tricks can't change the
   // score, and there are at least `minRequiredTricks` remaining (including
   // the current trick).
-  bool allPointsTaken({int minRequiredTricks = 2}) {
+  bool allPointsTakenAndTricksRemaining({int minRequiredTricks = 2}) {
     if (isOver() || status != HeartsRoundStatus.playing) {
       return false;
     }

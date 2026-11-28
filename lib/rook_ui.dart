@@ -399,7 +399,7 @@ class RookMatchState extends State<RookMatchDisplay> {
   }
 
   bool _shouldEndRoundWithAllPointsTaken() {
-    return widget.endRoundWhenAllPointsTaken && round.allPointsTaken();
+    return widget.endRoundWhenAllPointsTaken && round.allPointsTakenAndTricksRemaining();
   }
 
   void _handlePointsTakenDialogOk() {

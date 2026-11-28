@@ -114,26 +114,26 @@ void main() {
     }
 
     test("No point cards in hands", () {
-      expect(playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 9S"]).allPointsTaken(), true);
-      expect(playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 2H"]).allPointsTaken(), false);
-      expect(playingRound(["2D 3S", "4D 5S", "6D QS", "8D 9S"]).allPointsTaken(), false);
+      expect(playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 9S"]).allPointsTakenAndTricksRemaining(), true);
+      expect(playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 2H"]).allPointsTakenAndTricksRemaining(), false);
+      expect(playingRound(["2D 3S", "4D 5S", "6D QS", "8D 9S"]).allPointsTakenAndTricksRemaining(), false);
     });
 
     test("J♦ counts if it's -10 points", () {
       final hands = ["2D 3S", "4D 5S", "6D 7S", "JD 9S"];
-      expect(playingRound(hands).allPointsTaken(), true);
-      expect(playingRound(hands, jdMinus10: true).allPointsTaken(), false);
+      expect(playingRound(hands).allPointsTakenAndTricksRemaining(), true);
+      expect(playingRound(hands, jdMinus10: true).allPointsTakenAndTricksRemaining(), false);
     });
 
     test("Point cards in the current trick", () {
       final round = playingRound(["2D 3S", "4D", "6D 7S", "8D 9S"], currentTrick: "2H");
-      expect(round.allPointsTaken(), false);
+      expect(round.allPointsTakenAndTricksRemaining(), false);
     });
 
     test("Requires 2 tricks remaining", () {
-      expect(playingRound(["2D", "4D", "6D", "8D"]).allPointsTaken(), false);
-      expect(playingRound(["2D", "4D", "6D", "8D"]).allPointsTaken(minRequiredTricks: 1), true);
-      expect(playingRound(["", "", "", ""]).allPointsTaken(minRequiredTricks: 0), false);
+      expect(playingRound(["2D", "4D", "6D", "8D"]).allPointsTakenAndTricksRemaining(), false);
+      expect(playingRound(["2D", "4D", "6D", "8D"]).allPointsTakenAndTricksRemaining(minRequiredTricks: 1), true);
+      expect(playingRound(["", "", "", ""]).allPointsTakenAndTricksRemaining(minRequiredTricks: 0), false);
     });
 
     test("Play out remaining tricks", () {
