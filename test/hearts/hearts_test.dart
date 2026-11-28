@@ -1,5 +1,6 @@
 import "package:flutter_test/flutter_test.dart";
 import "package:cards_with_cats/cards/card.dart";
+import "package:cards_with_cats/cards/round.dart";
 import "package:cards_with_cats/cards/trick.dart";
 import "package:cards_with_cats/hearts/hearts.dart";
 
@@ -98,5 +99,50 @@ void main() {
 
     rules.jdMinus10 = true;
     expect(pointsForTricks(tricks, rules), [0, 16, 0, 0]);
+  });
+
+  group("All points taken", () {
+    HeartsRound playingRound(List<String> hands, {bool jdMinus10 = false, String currentTrick = ""}) {
+      return HeartsRound()
+        ..rules = (HeartsRuleSet()..jdMinus10 = jdMinus10)
+        ..status = HeartsRoundStatus.playing
+        ..players = [...hands.map((h) => HeartsPlayer(c(h)))]
+        ..initialScores = [0, 0, 0, 0]
+        ..passDirection = 0
+        ..currentTrick = TrickInProgress(1, c(currentTrick))
+        ..previousTricks = [Trick(0, c("2C 3C 4C 5C"), 3)];
+    }
+
+    test("No point cards in hands", () {
+      expect(playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 9S"]).allPointsTakenAndTricksRemaining(), true);
+      expect(playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 2H"]).allPointsTakenAndTricksRemaining(), false);
+      expect(playingRound(["2D 3S", "4D 5S", "6D QS", "8D 9S"]).allPointsTakenAndTricksRemaining(), false);
+    });
+
+    test("J♦ counts if it's -10 points", () {
+      final hands = ["2D 3S", "4D 5S", "6D 7S", "JD 9S"];
+      expect(playingRound(hands).allPointsTakenAndTricksRemaining(), true);
+      expect(playingRound(hands, jdMinus10: true).allPointsTakenAndTricksRemaining(), false);
+    });
+
+    test("Point cards in the current trick", () {
+      final round = playingRound(["2D 3S", "4D", "6D 7S", "8D 9S"], currentTrick: "2H");
+      expect(round.allPointsTakenAndTricksRemaining(), false);
+    });
+
+    test("Requires 2 tricks remaining", () {
+      expect(playingRound(["2D", "4D", "6D", "8D"]).allPointsTakenAndTricksRemaining(), false);
+      expect(playingRound(["2D", "4D", "6D", "8D"]).allPointsTakenAndTricksRemaining(minRequiredTricks: 1), true);
+      expect(playingRound(["", "", "", ""]).allPointsTakenAndTricksRemaining(minRequiredTricks: 0), false);
+    });
+
+    test("Play out remaining tricks", () {
+      final round = playingRound(["2D 3S", "4D 5S", "6D 7S", "8D 9S"]);
+      final pointsBefore = round.pointsTaken();
+      playOutRemainingTricks(round);
+      expect(round.isOver(), true);
+      expect(round.previousTricks.length, 3);
+      expect(round.pointsTaken(), pointsBefore);
+    });
   });
 }

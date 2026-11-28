@@ -41,6 +41,7 @@ class HeartsMatchDisplay extends StatefulWidget {
   final bool tintPointCards;
   final bool tintReceivedCards;
   final bool claimTricksEnabled;
+  final bool endRoundWhenAllPointsTaken;
   final StatsStore statsStore;
   final CardImageSet cardImageSet;
 
@@ -57,6 +58,7 @@ class HeartsMatchDisplay extends StatefulWidget {
     required this.tintPointCards,
     required this.tintReceivedCards,
     required this.claimTricksEnabled,
+    required this.endRoundWhenAllPointsTaken,
     required this.statsStore,
     required this.cardImageSet,
   }) : super(key: key);
@@ -69,6 +71,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   final rng = Random();
   var animationMode = AnimationMode.none;
   bool isClaimingRemainingTricks = false;
+  bool isEndingRoundWithAllPointsTaken = false;
   var aiMode = AiMode.humanPlayer0;
   late HeartsMatch match;
   List<SuitedCard> selectedCardsToPass = [];
@@ -109,6 +112,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       _clearMoods();
       isClaimingRemainingTricks = false;
+      isEndingRoundWithAllPointsTaken = false;
       if (round.isOver()) {
         match.finishRound();
       }
@@ -247,7 +251,12 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     setState(() {
       animationMode = AnimationMode.none;
     });
-    if (_shouldLeaderClaimRemainingTricks()) {
+    if (_shouldEndRoundWithAllPointsTaken()) {
+      setState(() {
+        isEndingRoundWithAllPointsTaken = true;
+      });
+    }
+    else if (_shouldLeaderClaimRemainingTricks()) {
       setState(() {
         isClaimingRemainingTricks = true;
       });
@@ -284,8 +293,22 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
 
   void _handleClaimTricksDialogOk() {
     claimRemainingTricks(round);
+    _finishRoundAfterAutomaticEnd();
+  }
+
+  bool _shouldEndRoundWithAllPointsTaken() {
+    return widget.endRoundWhenAllPointsTaken && round.allPointsTakenAndTricksRemaining();
+  }
+
+  void _handlePointsTakenDialogOk() {
+    playOutRemainingTricks(round);
+    _finishRoundAfterAutomaticEnd();
+  }
+
+  void _finishRoundAfterAutomaticEnd() {
     setState(() {
       isClaimingRemainingTricks = false;
+      isEndingRoundWithAllPointsTaken = false;
     });
     widget.saveMatchFn(match);
     _updateStatsIfMatchOrRoundOver();
@@ -294,7 +317,7 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
   }
 
   bool _shouldIgnoreCardClick() {
-    return (widget.dialogVisible || _shouldShowClaimTricksDialog());
+    return (widget.dialogVisible || _shouldShowClaimTricksDialog() || _shouldShowPointsTakenDialog());
   }
 
   void handleHandCardClicked(final PlayingCard pc) {
@@ -487,6 +510,10 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
     return !widget.dialogVisible && isClaimingRemainingTricks;
   }
 
+  bool _shouldShowPointsTakenDialog() {
+    return !widget.dialogVisible && isEndingRoundWithAllPointsTaken;
+  }
+
   bool _shouldShowEndOfRoundDialog() {
     return !widget.dialogVisible && round.isOver();
   }
@@ -514,6 +541,8 @@ class _HeartsMatchState extends State<HeartsMatchDisplay> {
           ),
         if (_shouldShowClaimTricksDialog())
           ClaimRemainingTricksDialog(onOk: _handleClaimTricksDialogOk),
+        if (_shouldShowPointsTakenDialog())
+          ClaimRemainingTricksDialog(onOk: _handlePointsTakenDialogOk, message: "All points have been taken"),
         if (_shouldShowEndOfRoundDialog())
           EndOfRoundDialog(
             layout: layout,

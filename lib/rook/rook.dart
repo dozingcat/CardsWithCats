@@ -501,6 +501,29 @@ class RookRound {
     }
   }
 
+  // True if every point card has been taken in a completed trick, so the
+  // remaining tricks can't change the score, and there are at least
+  // `minRequiredTricks` remaining (including the current trick). Points in
+  // the nest go to the winner of the last trick, so they count as not taken
+  // yet.
+  bool allPointsTakenAndTricksRemaining({int minRequiredTricks = 2}) {
+    if (status != .playing || isOver()) {
+      return false;
+    }
+    if (cardsForPlayer(currentPlayerIndex()).length < minRequiredTricks) {
+      return false;
+    }
+    return pointsForCards([...currentTrick.cards, ...finalNest, for (final p in players) ...p.hand], rules) == 0;
+  }
+
+  // Plays the first legal card for each player until the round is over. For
+  // when the remaining plays can't affect the result.
+  void playOutRemainingTricks() {
+    while (!isOver()) {
+      playCard(legalPlaysForCurrentPlayer().first);
+    }
+  }
+
   // Points from counters captured by each team, including the nest.
   List<int> teamPointsTaken() {
     return teamPointsForTricks(previousTricks, finalNest, rules);

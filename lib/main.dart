@@ -107,6 +107,8 @@ class _MyHomePageState extends State<MyHomePage> {
   bool useTintedHeartsPointCards = false;
   bool useTintedHeartsReceivedCards = false;
   bool useTintedRookPointCards = false;
+  bool heartsEndRoundWhenAllPointsTaken = false;
+  bool rookEndRoundWhenAllPointsTaken = false;
   bool rotateBridgeDummyToTop = false;
   int bridgeRoundsPerMatch = 4;
   final cardImageSettings = CardImageSettings(builtInSets: cardImageSets);
@@ -160,6 +162,8 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedHeartsPointCards = preferences.getBool("tintedHeartsPointCards") ?? true;
       useTintedHeartsReceivedCards = preferences.getBool("tintedHeartsReceivedCards") ?? true;
       useTintedRookPointCards = preferences.getBool("tintedRookPointCards") ?? true;
+      heartsEndRoundWhenAllPointsTaken = preferences.getBool("heartsEndRoundWhenAllPointsTaken") ?? true;
+      rookEndRoundWhenAllPointsTaken = preferences.getBool("rookEndRoundWhenAllPointsTaken") ?? true;
       rotateBridgeDummyToTop = preferences.getBool("bridgeRotateDummyToTop") ?? true;
       bridgeRoundsPerMatch = preferences.getInt("bridgeRoundsPerMatch") ?? 4;
       if (![1, 4, 8].contains(bridgeRoundsPerMatch)) {
@@ -288,6 +292,20 @@ class _MyHomePageState extends State<MyHomePage> {
       useTintedRookPointCards = enabled;
     });
     preferences.setBool("tintedRookPointCards", enabled);
+  }
+
+  void setHeartsEndRoundWhenAllPointsTaken(bool enabled) {
+    setState(() {
+      heartsEndRoundWhenAllPointsTaken = enabled;
+    });
+    preferences.setBool("heartsEndRoundWhenAllPointsTaken", enabled);
+  }
+
+  void setRookEndRoundWhenAllPointsTaken(bool enabled) {
+    setState(() {
+      rookEndRoundWhenAllPointsTaken = enabled;
+    });
+    preferences.setBool("rookEndRoundWhenAllPointsTaken", enabled);
   }
 
   void setRotateBridgeDummyToTopEnabled(bool enabled) {
@@ -887,6 +905,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setTintedHeartsReceivedCardsEnabled(checked == true);
                               },
                             ),
+                            makeCheckboxRow(
+                              "End round when all points are taken",
+                              heartsEndRoundWhenAllPointsTaken,
+                              setHeartsEndRoundWhenAllPointsTaken,
+                            ),
 
                             const ListTile(
                                 title: Text("Spades",
@@ -967,6 +990,11 @@ class _MyHomePageState extends State<MyHomePage> {
                             onChanged: (bool? checked) {
                               setTintedRookPointCardsEnabled(checked == true);
                             },
+                          ),
+                          makeCheckboxRow(
+                            "End round when all points are taken",
+                            rookEndRoundWhenAllPointsTaken,
+                            setRookEndRoundWhenAllPointsTaken,
                           ),
 
                           const ListTile(
@@ -1127,6 +1155,7 @@ class _MyHomePageState extends State<MyHomePage> {
               soundPlayer: soundPlayer,
               tintPointCards: useTintedHeartsPointCards,
               tintReceivedCards: useTintedHeartsReceivedCards,
+              endRoundWhenAllPointsTaken: heartsEndRoundWhenAllPointsTaken,
               statsStore: statsStore,
               cardImageSet: cardImageSet,
             ),
@@ -1188,6 +1217,7 @@ class _MyHomePageState extends State<MyHomePage> {
               claimTricksEnabled: claimTricksEnabled,
               tintTrumpCards: useTintedTrumpCards,
               tintPointCards: useTintedRookPointCards,
+              endRoundWhenAllPointsTaken: rookEndRoundWhenAllPointsTaken,
               soundPlayer: soundPlayer,
               statsStore: statsStore,
               cardImageSet: cardImageSet,
